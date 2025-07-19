@@ -1,0 +1,98 @@
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import { crx } from '@crxjs/vite-plugin'
+import { resolve } from 'path'
+
+export default defineConfig({
+  plugins: [
+    react(),
+    crx({
+      manifest: {
+        manifest_version: 3,
+        name: "Chrome Extension Proj",
+        version: "1.0.0",
+        description: "Chrome Extension with Manifest V3, TypeScript, and Vite",
+        permissions: [
+          "storage",
+          "activeTab",
+          "tabs"
+        ],
+        action: {
+          default_popup: "src/popup/popup.html"
+        },
+        background: {
+          service_worker: "src/background/background.ts",
+          type: "module"
+        },
+        content_scripts: [
+          {
+            matches: ["<all_urls>"],
+            js: ["src/content/content.ts"],
+            // Remove the CSS line - we'll inject it via JS instead
+            // css: ["src/content/content.css"]
+          }
+        ],
+        options_page: "src/settings/settings.html",
+        web_accessible_resources: [
+          {
+            matches: ["<all_urls>"],
+            resources: [
+              "assets/*",
+              "*.js",
+              "*.css",
+              "*.html"
+            ],
+            use_dynamic_url: true
+          }
+        ]
+      },
+      contentScripts: {
+        injectCss: true,
+      },
+    }),
+  ],
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, './src'),
+    },
+  },
+  build: {
+    target: 'es2020',
+    outDir: 'dist',
+    emptyOutDir: true,
+    sourcemap: true,
+    rollupOptions: {
+      input: {
+        popup: resolve(__dirname, 'src/popup/popup.html'),
+        dashboard: resolve(__dirname, 'src/dashboard/dashboard.html'),
+        settings: resolve(__dirname, 'src/settings/settings.html'),
+      },
+    }
+  },
+  esbuild: {
+    target: 'es2020',
+    tsconfigRaw: {
+      compilerOptions: {
+        target: 'es2020',
+        useDefineForClassFields: true,
+        lib: ['es2020', 'DOM', 'DOM.Iterable'],
+        module: 'ESNext',
+        skipLibCheck: true,
+        moduleResolution: 'bundler',
+        resolveJsonModule: true,
+        isolatedModules: true,
+        noEmit: true,
+        jsx: 'react-jsx',
+        strict: true,
+        noUnusedLocals: false,
+        noUnusedParameters: false,
+        noFallthroughCasesInSwitch: true,
+        types: ['chrome', 'vite/client']
+      }
+    }
+  },
+  server: {
+    port: 3000,
+    strictPort: true,
+  },
+})
