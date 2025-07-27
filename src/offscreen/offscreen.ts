@@ -14,16 +14,29 @@ async function initDatabase() {
     
     db = new SQL.Database()
     
-    // Create tables
+    // Drop existing tables to ensure clean schema (for development)
+    try {
+      db.exec(`
+        DROP TABLE IF EXISTS api_calls;
+        DROP TABLE IF EXISTS console_errors;
+        DROP TABLE IF EXISTS token_events;
+        DROP TABLE IF EXISTS minified_libraries;
+      `)
+      console.log('Dropped existing tables for schema update')
+    } catch (e) {
+      // Tables might not exist, continue
+    }
+    
+    // Create tables with updated schema allowing NULL values
     db.exec(`
       CREATE TABLE IF NOT EXISTS api_calls (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         url TEXT NOT NULL,
         method TEXT NOT NULL,
-        headers TEXT NOT NULL,
-        payload_size INTEGER NOT NULL,
-        status INTEGER NOT NULL,
-        response_body TEXT NOT NULL,
+        headers TEXT,
+        payload_size INTEGER,
+        status INTEGER,
+        response_body TEXT,
         timestamp INTEGER NOT NULL
       );
       
@@ -41,16 +54,16 @@ async function initDatabase() {
         type TEXT NOT NULL,
         value_hash TEXT NOT NULL,
         timestamp INTEGER NOT NULL,
-        source_url TEXT NOT NULL,
+        source_url TEXT,
         expiry INTEGER
       );
       
       CREATE TABLE IF NOT EXISTS minified_libraries (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        domain TEXT NOT NULL,
-        name TEXT NOT NULL,
-        version TEXT NOT NULL,
-        size INTEGER NOT NULL,
+        domain TEXT,
+        name TEXT,
+        version TEXT,
+        size INTEGER,
         source_map_available INTEGER NOT NULL,
         url TEXT NOT NULL,
         timestamp INTEGER NOT NULL
@@ -81,13 +94,13 @@ function insertApiCall(data: any) {
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `)
   const result = stmt.run([
-    data.url,
-    data.method,
-    data.headers,
-    data.payload_size,
-    data.status,
-    data.response_body,
-    data.timestamp
+    data.url || null,
+    data.method || null,
+    data.headers || null,
+    data.payload_size || 0,
+    data.status || 0,
+    data.response_body || null,
+    data.timestamp || Date.now()
   ])
   stmt.free()
   return { id: result.lastID }
@@ -128,11 +141,11 @@ function insertConsoleError(data: any) {
     VALUES (?, ?, ?, ?, ?)
   `)
   const result = stmt.run([
-    data.message,
+    data.message || null,
     data.stack_trace || null,
-    data.timestamp,
-    data.severity,
-    data.url
+    data.timestamp || Date.now(),
+    data.severity || 'error',
+    data.url || null
   ])
   stmt.free()
   return { id: result.lastID }
@@ -173,10 +186,10 @@ function insertTokenEvent(data: any) {
     VALUES (?, ?, ?, ?, ?)
   `)
   const result = stmt.run([
-    data.type,
-    data.value_hash,
-    data.timestamp,
-    data.source_url,
+    data.type || null,
+    data.value_hash || null,
+    data.timestamp || Date.now(),
+    data.source_url || null,
     data.expiry || null
   ])
   stmt.free()
@@ -218,13 +231,13 @@ function insertMinifiedLibrary(data: any) {
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `)
   const result = stmt.run([
-    data.domain,
-    data.name,
-    data.version,
-    data.size,
+    data.domain || null,
+    data.name || null,
+    data.version || null,
+    data.size || 0,
     data.source_map_available ? 1 : 0,
-    data.url,
-    data.timestamp
+    data.url || null,
+    data.timestamp || Date.now()
   ])
   stmt.free()
   return { id: result.lastID }

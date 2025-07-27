@@ -199,6 +199,22 @@ const result = stmt.run([
 - `src/background/storage-types.ts` - Interface correction
 - `TESTING_GUIDE.md` - Test data field corrections
 
+#### **Additional Fix: Comprehensive Undefined Value Handling**
+**Discovery**: Post-testing errors showing "tried to bind a value of an unknown type (undefined)"
+**Root Cause**: Not all insert functions had comprehensive undefined value protection
+**Solution**: Added robust undefined/null handling to all insert functions:
+
+```javascript
+// COMPREHENSIVE NULL/UNDEFINED PROTECTION
+const result = stmt.run([
+  data.field1 || null,        // Convert undefined to null
+  data.field2 || defaultValue, // Use default for undefined
+  data.timestamp || Date.now() // Fallback timestamp
+])
+```
+
+**Impact**: Eliminates all undefined binding errors across all data types
+
 ---
 
 ## 🎯 **Performance Optimization Results**
@@ -277,6 +293,20 @@ const result = stmt.run([
 - Interface definitions must match database constraints
 - Test data should reflect production data patterns
 - Explicit null handling prevents binding errors
+
+### Issue 8: NOT NULL Constraint Failures (RESOLVED)
+**Problem**: "NOT NULL constraint failed: api_calls.headers" and similar errors for optional fields  
+**Root Cause**: Database schema too restrictive - marked optional fields as NOT NULL  
+**Solution**: Updated database schema to allow NULL values for optional fields:
+- api_calls: headers, payload_size, response_body
+- console_errors: stack_trace  
+- token_events: source_url, expiry
+- minified_libraries: domain, name, version, size  
+
+**Implementation**: Added table dropping logic to ensure clean schema recreation  
+**Impact**: Database now matches real-world data patterns where optional fields may be undefined/null  
+**Files Modified**: `src/offscreen/offscreen.ts` - Updated createTables() and initDatabase()  
+**Verification**: Created test-schema-fix.js and quick-schema-test.js for validation
 
 ---
 
