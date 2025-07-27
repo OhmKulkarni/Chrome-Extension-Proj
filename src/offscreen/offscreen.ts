@@ -311,14 +311,21 @@ function getStorageInfo() {
 
 // Message handler
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  console.log('Offscreen received message:', message.action)
+  console.log('[Offscreen] Received message:', message.action)
   
   try {
     let response
     
     switch (message.action) {
       case 'initDatabase':
-        initDatabase().then(result => sendResponse(result)).catch(error => sendResponse({ error: error.message }))
+        console.log('[Offscreen] Initializing database...')
+        initDatabase().then(result => {
+          console.log('[Offscreen] Database initialization result:', result)
+          sendResponse(result)
+        }).catch(error => {
+          console.error('[Offscreen] Database initialization error:', error)
+          sendResponse({ error: error.message })
+        })
         return true // Async response
         
       case 'insertApiCall':
@@ -392,4 +399,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 })
 
-console.log('Offscreen document script loaded')
+console.log('[Offscreen] Document script loaded and ready to receive messages')
+
+// Send a ready signal to the background script
+chrome.runtime.sendMessage({ action: 'offscreenReady' }).catch(error => {
+  console.log('[Offscreen] Could not send ready signal (background may not be listening):', error.message)
+})
