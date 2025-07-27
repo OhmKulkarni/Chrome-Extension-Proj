@@ -15,7 +15,7 @@ export interface ApiCall {
 export interface ConsoleError {
   id?: number
   message: string
-  stack_trace: string
+  stack_trace?: string
   timestamp: number
   severity: 'error' | 'warn' | 'info'
   url: string

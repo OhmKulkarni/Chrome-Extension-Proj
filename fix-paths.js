@@ -38,10 +38,19 @@ if (fs.existsSync(offscreenPath)) {
     content = content.replace(/ crossorigin/g, '');
     content = content.replace(/<link rel="modulepreload"[^>]*>/g, '');
     
-    // Move script to body if it's in head
-    if (content.includes('<script') && content.includes('</head>')) {
-        content = content.replace(/(\s*<script[^>]*>[^<]*<\/script>\s*)/, '');
-        content = content.replace('</body>', '  <script type="module" src="../../assets/offscreen-CkcE7Eqn.js"></script>\n</body>');
+    // Find the correct offscreen asset file
+    const assetsDir = path.join(__dirname, 'dist/assets');
+    const offscreenAsset = fs.readdirSync(assetsDir).find(file => file.startsWith('offscreen-') && file.endsWith('.js'));
+    
+    if (offscreenAsset) {
+        // Move script to body if it's in head and update with correct asset name
+        if (content.includes('<script') && content.includes('</head>')) {
+            content = content.replace(/(\s*<script[^>]*>[^<]*<\/script>\s*)/, '');
+            content = content.replace('</body>', `  <script type="module" src="../../assets/${offscreenAsset}"></script>\n</body>`);
+        } else {
+            // Update existing script reference
+            content = content.replace(/src="\.\.\/\.\.\/assets\/offscreen-[^"]*\.js"/, `src="../../assets/${offscreenAsset}"`);
+        }
     }
     
     fs.writeFileSync(offscreenPath, content);

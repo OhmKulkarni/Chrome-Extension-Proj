@@ -51,6 +51,9 @@ export class SQLiteStorage implements StorageOperations {
           });
           
           console.log('[SQLite] ✅ Offscreen document created successfully');
+          
+          // Give the offscreen document time to load and initialize
+          await new Promise(resolve => setTimeout(resolve, 100));
         } else {
           console.log('[SQLite] Using existing offscreen document');
         }
@@ -64,16 +67,26 @@ export class SQLiteStorage implements StorageOperations {
 
   private async sendToOffscreen(action: string, data?: any): Promise<any> {
     await this.ensureOffscreenDocument()
+    
     return new Promise((resolve, reject) => {
-      chrome.runtime.sendMessage({ action, data }, (response) => {
-        if (chrome.runtime.lastError) {
-          reject(new Error(chrome.runtime.lastError.message))
-        } else if (response?.error) {
-          reject(new Error(response.error))
-        } else {
-          resolve(response)
-        }
-      })
+      const attemptSend = (attempt = 1, maxAttempts = 5) => {
+        chrome.runtime.sendMessage({ action, data }, (response) => {
+          if (chrome.runtime.lastError) {
+            if (chrome.runtime.lastError.message?.includes('Receiving end does not exist') && attempt < maxAttempts) {
+              console.log(`[SQLite] Attempt ${attempt} failed, retrying in ${attempt * 100}ms...`)
+              setTimeout(() => attemptSend(attempt + 1, maxAttempts), attempt * 100)
+            } else {
+              reject(new Error(chrome.runtime.lastError.message))
+            }
+          } else if (response?.error) {
+            reject(new Error(response.error))
+          } else {
+            resolve(response)
+          }
+        })
+      }
+      
+      attemptSend()
     })
   }
 
