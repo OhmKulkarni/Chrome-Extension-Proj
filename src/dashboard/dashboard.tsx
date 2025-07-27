@@ -63,8 +63,8 @@ const Dashboard: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Extension Dashboard</h1>
-              <p className="text-gray-600">Monitor and manage your Chrome extension</p>
+              <h1 className="text-3xl font-bold text-gray-900">Web App Monitor Dashboard</h1>
+              <p className="text-gray-600">Monitor and analyze your client-side web applications</p>
             </div>
             <button
               onClick={refreshData}

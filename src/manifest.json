@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Web App Monitor",
+  "version": "1.0.0",
+  "description": "Monitor and analyze client-side web applications.",
+  "background": {
+    "service_worker": "background/background.ts"
+  },
+  "action": {
+    "default_popup": "popup/popup.html"
+  },
+  "options_page": "settings/settings.html",
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/content.ts"]
+    }
+  ],
+  "permissions": [
+    "storage",
+    "tabs",
+    "scripting",
+    "offscreen"
+  ],
+  "minimum_chrome_version": "109",
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "sql-wasm.wasm",
+        "offscreen.html",
+        "offscreen/offscreen.html",
+        "assets/*"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

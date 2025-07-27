@@ -15,7 +15,8 @@ export default defineConfig({
         permissions: [
           "storage",
           "activeTab",
-          "tabs"
+          "tabs",
+          "offscreen"
         ],
         action: {
           default_popup: "src/popup/popup.html"
@@ -66,30 +67,12 @@ export default defineConfig({
         popup: resolve(__dirname, 'src/popup/popup.html'),
         dashboard: resolve(__dirname, 'src/dashboard/dashboard.html'),
         settings: resolve(__dirname, 'src/settings/settings.html'),
+        offscreen: resolve(__dirname, 'src/offscreen/offscreen.html'),
       },
     }
   },
   esbuild: {
-    target: 'es2020',
-    tsconfigRaw: {
-      compilerOptions: {
-        target: 'es2020',
-        useDefineForClassFields: true,
-        lib: ['es2020', 'DOM', 'DOM.Iterable'],
-        module: 'ESNext',
-        skipLibCheck: true,
-        moduleResolution: 'bundler',
-        resolveJsonModule: true,
-        isolatedModules: true,
-        noEmit: true,
-        jsx: 'react-jsx',
-        strict: true,
-        noUnusedLocals: false,
-        noUnusedParameters: false,
-        noFallthroughCasesInSwitch: true,
-        types: ['chrome', 'vite/client']
-      }
-    }
+    target: 'es2020'
   },
   server: {
     port: 3000,

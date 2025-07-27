@@ -62,7 +62,7 @@ const Popup: React.FC = () => {
     <div className="w-80 h-96 bg-white shadow-lg">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4">
-        <h1 className="text-lg font-bold">Chrome Extension</h1>
+        <h1 className="text-lg font-bold">Web App Monitor</h1>
         <p className="text-sm opacity-90">Scaffold v1.0.0</p>
       </div>
 

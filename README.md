@@ -1,220 +1,285 @@
-// README.md
-# Chrome Extension Project
+# Web App Monitor - Chrome Extension
 
-A modern Chrome extension built with React, TypeScript, Tailwind CSS, and Vite. Uses Manifest V3 and CRXJS for build and packaging.
+A sophisticated Chrome extension for monitoring and analyzing client-side web applications. Features a dual-storage architecture with SQLite WASM (primary) and IndexedDB (fallback), comprehensive data collection, and real-time analytics.
 
-## 🚀 Features
+## 🚀 Key Features
 
-- **React 18** - Modern React with hooks
-- **TypeScript** - Type safety and better developer experience
-- **Tailwind CSS** - Utility-first CSS framework
-- **Vite** - Fast build tool and development server
-- **Manifest V3** - Latest Chrome Extension API
-- **Hot Reload** - Instant updates during development
+### Advanced Storage System
+- **SQLite WASM** - High-performance primary database with ACID compliance
+- **IndexedDB Fallback** - Enterprise-grade fallback with automatic failover
+- **Intelligent Storage Manager** - Seamless switching between storage backends
+- **Automatic Data Pruning** - Configurable retention policies and cleanup
+- **Performance Optimized** - Indexed queries for fast data retrieval
 
+### Web Application Monitoring
+- **API Call Tracking** - Monitor HTTP requests with timing and payload analysis
+- **Console Error Detection** - Capture and categorize JavaScript errors
+- **Token Event Monitoring** - Detect and track authentication tokens and keys
+- **Library Analysis** - Identify minified JavaScript libraries and versions
 
-## 📁 Full Directory Structure
+### Modern Technology Stack
+- **React 18** - Modern React with hooks and concurrent features
+- **TypeScript** - Full type safety and enhanced developer experience
+- **Tailwind CSS** - Utility-first CSS framework with custom design system
+- **Vite** - Lightning-fast build tool and development server
+- **Manifest V3** - Latest Chrome Extension API with enhanced security
 
+## 📊 Storage Architecture
+
+### Dual Storage System
 ```
-chrome-extension-proj/
-├── .eslintrc.cjs
-├── .gitignore
-├── .prettierrc
-├── package.json
-├── postcss.config.js
-├── PROJECT_STATUS.md
-├── README.md
-├── tailwind.config.js
-├── TECHNICAL_DOCUMENTATION.md
-├── tsconfig.json
-├── vite.config.ts
-└── src/
-    ├── manifest.json
-    ├── background/
-    │   └── background.ts
-    ├── content/
-    │   ├── content.css
-    │   └── content.ts
-    ├── dashboard/
-    │   ├── dashboard.css
-    │   ├── dashboard.html
-    │   └── dashboard.tsx
-    ├── popup/
-    │   ├── popup.css
-    │   ├── popup.html
-    │   └── popup.tsx
-    └── settings/
-        ├── settings.css
-        ├── settings.html
-        └── settings.tsx
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Service       │    │    Storage       │    │   Storage       │
+│   Worker        │◄──►│    Manager       │◄──►│   Backends      │
+│                 │    │                  │    │                 │
+│ • Data Collection│    │ • Intelligent    │    │ • SQLite WASM   │
+│ • Event Handling│    │   Fallback       │    │ • IndexedDB     │
+│ • Message Router│    │ • Error Recovery │    │ • Auto-cleanup  │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
 ```
+
+### Data Models
+- **API Calls**: Method, URL, timing, headers, payload
+- **Console Errors**: Message, source, stack trace, severity
+- **Token Events**: Type, hash, source, detection method
+- **Minified Libraries**: Name, version, size, domain
 
 ## 🛠️ Development
 
 ### Prerequisites
-
 - Node.js (v16 or higher)
-- npm
+- npm or yarn
+- Chrome browser (v109+ for SQLite features)
 
 ### Installation
-
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-### Development Commands
-
 ```bash
+# Clone the repository
+git clone <repository-url>
+cd chrome-extension-proj
+
+# Install dependencies
+npm install
+
 # Start development server
 npm run dev
-
-# Build for production (generates dist/)
-npm run build
-
-# Preview production build
-npm run preview
-
-# Lint code
-npm run lint
-
-# Format code
-npm run format
 ```
 
-## 🔧 Building & Installing
+### Development Commands
+```bash
+# Development with hot reload
+npm run dev
+
+# Build for production
+npm run build
+
+# Type checking
+npm run type-check
+
+# Code quality
+npm run lint
+npm run lint:fix
+
+# Formatting
+npm run format
+npm run format:check
+
+# Clean build directory
+npm run clean
+```
+
+## 🔧 Building & Installation
 
 ### Build the Extension
-
 ```bash
 npm run build
 ```
 
-This creates a `dist` folder with the built extension.
+This creates a `dist` folder with:
+- Optimized JavaScript bundles
+- Processed HTML/CSS files
+- Chrome extension manifest
+- SQLite WASM files
+- Proper path resolution for Chrome extension context
 
 ### Load in Chrome
-
-1. Open Chrome and go to `chrome://extensions/`
-2. Enable "Developer mode"
-3. Click "Load unpacked"
+1. Open Chrome and navigate to `chrome://extensions/`
+2. Enable "Developer mode" (top-right toggle)
+3. Click "Load unpacked extension"
 4. Select the `dist` folder
+5. Extension will appear in Chrome toolbar
 
-## 📝 Configuration & Conventions
+## 📁 Project Structure
 
-- **vite.config.ts**: Build config, manifest definition, entry points
-- **tsconfig.json**: TypeScript strictness, unused param conventions (prefix unused params with `_`)
-- **tailwind.config.js**: Custom colors, animations
-- **postcss.config.js**: Tailwind + Autoprefixer
-- **.eslintrc.cjs**: ESLint rules, unused args must be prefixed with `_`
-- **.prettierrc**: Formatting rules
+```
+├── src/
+│   ├── background/              # Service worker and storage system
+│   │   ├── background.ts        # Main service worker entry point
+│   │   ├── storage-manager.ts   # Storage orchestration and fallback logic
+│   │   ├── sqlite-storage.ts    # SQLite WASM implementation
+│   │   ├── indexeddb-storage.ts # IndexedDB implementation
+│   │   ├── storage-types.ts     # TypeScript interfaces and types
+│   │   └── storage-example.ts   # Usage examples and demos
+│   │
+│   ├── content/                 # Content script for web page monitoring
+│   │   ├── content.ts           # DOM monitoring and data extraction
+│   │   └── content.css          # Injected styles
+│   │
+│   ├── popup/                   # Extension popup interface
+│   │   ├── popup.tsx            # React popup component
+│   │   ├── popup.html           # Popup HTML template
+│   │   └── popup.css            # Popup styles
+│   │
+│   ├── dashboard/               # Comprehensive dashboard interface
+│   │   ├── dashboard.tsx        # React dashboard component
+│   │   ├── dashboard.html       # Dashboard HTML template
+│   │   └── dashboard.css        # Dashboard styles
+│   │
+│   ├── settings/                # Extension settings and configuration
+│   │   ├── settings.tsx         # React settings component
+│   │   ├── settings.html        # Settings HTML template
+│   │   └── settings.css         # Settings styles
+│   │
+│   ├── offscreen/               # Offscreen document for SQLite WASM
+│   │   ├── offscreen.ts         # SQLite operations handler
+│   │   └── offscreen.html       # Offscreen document template
+│   │
+│   └── types/                   # Global TypeScript definitions
+│       └── sql.js.d.ts          # sql.js type definitions
+│
+├── public/                      # Static assets
+│   └── sql-wasm.wasm           # SQLite WASM binary
+│
+├── dist/                        # Built extension (generated)
+├── docs/                        # Documentation
+├── PROJECT_STATUS.md            # Current project status
+├── TECHNICAL_DOCUMENTATION.md   # Detailed technical docs
+└── README.md                    # This file
+```
 
-## 🎨 Styling
+## 🔍 Storage System Details
 
-Tailwind CSS with custom color palette and animations. See `tailwind.config.js` for details.
+### SQLite WASM Storage
+- **Performance**: Optimized for complex queries and large datasets
+- **ACID Compliance**: Full transactional support with rollback
+- **Offscreen Execution**: Runs in dedicated context to avoid CSP restrictions
+- **Schema**: Optimized indexes for fast query performance
 
-## 🧩 Extension Architecture
+### IndexedDB Storage
+- **Reliability**: Works in all modern browsers
+- **Indexed Queries**: Optimized indexes on key fields
+- **Pagination**: Cursor-based pagination for large datasets
+- **Transactions**: Safe concurrent operations
 
-- **background.ts**: Service worker, tab events, message routing
-- **content.ts**: Injects UI, listens for messages, highlights elements
-- **popup.tsx**: Popup UI, interacts with background/content
-- **dashboard.tsx**: Dashboard UI, displays extension stats
-- **settings.tsx**: Settings UI, syncs with chrome.storage
+### Configuration Options
+```typescript
+interface StorageConfig {
+  maxAgeInDays: number        // Data retention period (default: 30)
+  maxRecordsPerTable: number  // Maximum records per table (default: 10000)
+  pruneIntervalHours: number  // Cleanup frequency (default: 24)
+}
+```
 
-MIT License - see LICENSE file for details
-- Responsive design utilities
+## 🎨 User Interface
 
-## 📱 Pages
+### Popup Interface
+- Quick access to extension status
+- Real-time monitoring toggles
+- Links to dashboard and settings
 
-### Popup (`popup/`)
-- Small popup interface (max 600x600px)
-- Quick actions and status display
-- Activated by clicking extension icon
+### Dashboard
+- Comprehensive data visualization
+- Real-time statistics and analytics
+- Data export capabilities
+- Advanced filtering and search
 
-### Dashboard (`dashboard/`)
-- Full-page interface
-- Comprehensive feature access
-- Opened via popup or context menu
+### Settings
+- Storage configuration
+- Data retention policies
+- Performance tuning
+- Export/import functionality
 
-### Settings (`settings/`)
-- Configuration interface
-- User preferences
-- Extension options
+## 🚀 Performance & Optimization
 
-## 🔧 Chrome APIs
+### Storage Performance
+- **SQLite**: Optimized for complex queries and large datasets (10k+ records)
+- **IndexedDB**: Excellent for moderate datasets with browser compatibility
+- **Automatic Indexing**: Key fields indexed for fast retrieval
+- **Background Pruning**: Prevents storage bloat with configurable cleanup
 
-Common Chrome Extension APIs used:
+### Build Optimization
+- **Code Splitting**: Separate bundles for different components
+- **Tree Shaking**: Unused code elimination
+- **Asset Optimization**: Compressed and optimized static assets
+- **Source Maps**: Available for development debugging
 
-- `chrome.storage` - Data persistence
-- `chrome.tabs` - Tab management
-- `chrome.runtime` - Extension lifecycle
-- `chrome.action` - Extension icon/popup
-- `chrome.contextMenus` - Right-click menus
+## 🔐 Security & Privacy
 
-## 🚀 Deployment
+### Data Privacy
+- **Local Storage Only**: All data stored locally, no external transmission
+- **Token Hashing**: Sensitive data stored as secure hashes
+- **Automatic Expiration**: Configurable data retention for privacy compliance
+- **No Tracking**: No analytics or user tracking
 
-### Chrome Web Store
+### Chrome Extension Security
+- **Manifest V3**: Latest security model with restricted permissions
+- **CSP Compliance**: WASM execution in isolated offscreen context
+- **Message Validation**: All inter-component communication validated
+- **Minimal Permissions**: Only requests necessary permissions
 
-1. Build the extension: `npm run build`
-2. Create a `.zip` file of the `dist` folder
-3. Upload to Chrome Web Store Developer Dashboard
-4. Fill out store listing information
-5. Submit for review
+## 🤝 Contributing
 
-### Development Distribution
+### Development Workflow
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/new-feature`
+3. Make changes following coding conventions
+4. Run tests and quality checks: `npm run lint && npm run type-check`
+5. Commit changes: `git commit -m "Add new feature"`
+6. Push to branch: `git push origin feature/new-feature`
+7. Create Pull Request
 
-1. Build: `npm run build`
-2. Share the `dist` folder
-3. Users can load as unpacked extension
+### Coding Conventions
+- **TypeScript**: Use strict mode and proper typing
+- **Unused Parameters**: Prefix with `_` (e.g., `_unusedParam`)
+- **Error Handling**: All async operations must include proper error handling
+- **Documentation**: Document complex functions and storage operations
 
-## 📋 Scripts Explained
+## 📚 Documentation
 
-- **dev** - Runs Vite development server with hot reload
-- **build** - Compiles TypeScript and builds production bundle
-- **preview** - Serves production build locally
-- **lint** - Checks code quality with ESLint
-- **format** - Formats code with Prettier
-- **type-check** - Validates TypeScript without emitting files
+- **[Technical Documentation](./TECHNICAL_DOCUMENTATION.md)** - Detailed architecture and API reference
+- **[Project Status](./PROJECT_STATUS.md)** - Current development status and roadmap
+- **[Chrome Extension Docs](https://developer.chrome.com/docs/extensions/)** - Official Chrome extension documentation
+- **[Manifest V3 Guide](https://developer.chrome.com/docs/extensions/mv3/)** - Chrome Extension Manifest V3 reference
 
 ## 🔧 Troubleshooting
 
 ### Common Issues
 
-1. **Extension won't load**
-   - Check manifest.json syntax
-   - Ensure all referenced files exist
-   - Check browser console for errors
+#### Extension Not Loading
+- Verify `dist` folder was created: `npm run build`
+- Check Chrome Developer Mode is enabled
+- Look for errors in `chrome://extensions/`
 
-2. **Hot reload not working**
-   - Reload extension in chrome://extensions/
-   - Check if service worker is active
+#### Storage Issues
+- Check browser console for storage errors
+- Verify Chrome version (v109+ for SQLite features)
+- Try clearing extension data in Chrome settings
 
-3. **TypeScript errors**
-   - Run `npm run type-check`
-   - Check tsconfig.json configuration
+#### Build Errors
+- Clear dependencies: `rm -rf node_modules && npm install`
+- Check Node.js version (v16+ required)
+- Run type checking: `npm run type-check`
 
-4. **Styling issues**
-   - Ensure Tailwind classes are correct
-   - Check postcss.config.js
-   - Verify CSS imports
+#### Development Hot Reload
+- Reload extension in `chrome://extensions/`
+- Check if service worker is active
+- Restart development server: `npm run dev`
 
-## 📚 Resources
+## 📝 License
 
-- [Chrome Extension Documentation](https://developer.chrome.com/docs/extensions/)
-- [Manifest V3 Guide](https://developer.chrome.com/docs/extensions/mv3/)
-- [React Documentation](https://reactjs.org/)
-- [TypeScript Documentation](https://www.typescriptlang.org/)
-- [Tailwind CSS Documentation](https://tailwindcss.com/)
-- [Vite Documentation](https://vitejs.dev/)
+MIT License - see [LICENSE](./LICENSE) file for details.
 
-## 🤝 Contributing
+## 🌟 Acknowledgments
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests and linting
-5. Submit a pull request
-
-## 📄 License
-
-MIT License - see LICENSE file for details
+- Built with modern web technologies and Chrome Extension APIs
+- Inspired by the need for comprehensive web application monitoring
+- Special thanks to the open-source community for excellent tools and libraries

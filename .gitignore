@@ -15,6 +15,7 @@ node_modules
 
 # Build output
 dist
+dist copy v1
 dist-ssr
 *.local
 
