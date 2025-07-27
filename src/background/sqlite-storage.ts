@@ -17,56 +17,46 @@ export class SQLiteStorage implements StorageOperations {
       }
       
       try {
+        // First check if there's already an offscreen document
         const existingContexts = await chrome.runtime.getContexts({
           contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT],
         })
         
         if (existingContexts.length === 0) {
-          // Try multiple URL and reason approaches
-          const urls = [
-            chrome.runtime.getURL('offscreen.html'),
-            chrome.runtime.getURL('./offscreen.html'),
-            chrome.runtime.getURL('/offscreen.html')
-          ];
+          console.log('[SQLite] Creating offscreen document...');
           
-          const reasons = [
-            [chrome.offscreen.Reason.DOM_SCRAPING],
-            [chrome.offscreen.Reason.WORKERS],
-            [chrome.offscreen.Reason.AUDIO_PLAYBACK]
-          ];
+          // Use the actual offscreen document with SQLite functionality
+          const urlToTry = 'src/offscreen/offscreen.html';
+          const fullUrl = chrome.runtime.getURL(urlToTry);
           
-          console.log('Available URLs to try:', urls);
-          console.log('Available reasons to try:', reasons);
+          console.log('[SQLite] Attempting to create offscreen document:', fullUrl);
           
-          let success = false;
-          for (const offscreenUrl of urls) {
-            for (const reasonSet of reasons) {
-              try {
-                console.log('Attempting to create offscreen document with URL:', offscreenUrl, 'and reasons:', reasonSet);
-                
-                await chrome.offscreen.createDocument({
-                  url: offscreenUrl,
-                  reasons: reasonSet,
-                  justification: 'Database operations using sql.js'
-                });
-                
-                console.log('✅ Offscreen document created successfully with URL:', offscreenUrl, 'and reasons:', reasonSet);
-                success = true;
-                break;
-              } catch (error) {
-                console.log('❌ Failed with URL:', offscreenUrl, 'and reasons:', reasonSet, 'Error:', error);
-              }
+          // Check if the file exists first
+          try {
+            const response = await fetch(fullUrl);
+            if (!response.ok) {
+              throw new Error(`Offscreen document not accessible: ${response.status}`);
             }
-            if (success) break;
+            console.log('[SQLite] Offscreen document file confirmed accessible');
+          } catch (fetchError) {
+            console.error('[SQLite] Offscreen document file check failed:', fetchError);
+            throw new Error(`Offscreen document file not found: ${fullUrl}`);
           }
           
-          if (!success) {
-            throw new Error('Failed to create offscreen document with any URL variant');
-          }
+          // Use DOM_SCRAPING as the most commonly supported reason
+          await chrome.offscreen.createDocument({
+            url: urlToTry,
+            reasons: [chrome.offscreen.Reason.DOM_SCRAPING],
+            justification: 'SQLite database operations using WebAssembly require DOM context'
+          });
+          
+          console.log('[SQLite] ✅ Offscreen document created successfully');
+        } else {
+          console.log('[SQLite] Using existing offscreen document');
         }
         this.offscreenCreated = true
       } catch (error) {
-        console.error('Failed to create offscreen document:', error)
+        console.error('[SQLite] Failed to create offscreen document:', error)
         throw error
       }
     }

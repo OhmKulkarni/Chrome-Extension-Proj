@@ -1,7 +1,7 @@
 // Main storage manager with SQLite/IndexedDB fallback
 import type { StorageOperations, StorageConfig, ApiCall, ConsoleError, TokenEvent, MinifiedLibrary } from './storage-types'
 import { DEFAULT_CONFIG } from './storage-types'
-// import { SQLiteStorage } from './sqlite-storage' // Temporarily disabled
+import { SQLiteStorage } from './sqlite-storage'
 import { IndexedDBStorage } from './indexeddb-storage'
 
 export class StorageManager implements StorageOperations {
@@ -14,20 +14,30 @@ export class StorageManager implements StorageOperations {
   }
 
   async init(): Promise<void> {
-    // Temporarily disable SQLite while debugging offscreen document issues
-    // TODO: Re-enable once offscreen document creation is resolved
-    console.log('Skipping SQLite initialization, using IndexedDB directly')
+    // Try SQLite first
+    try {
+      console.log('[StorageManager] Attempting SQLite initialization...')
+      const sqliteStorage = new SQLiteStorage(this.config)
+      await sqliteStorage.init()
+      this.storage = sqliteStorage
+      this.storageType = 'sqlite'
+      console.log('[StorageManager] ✅ SQLite initialized successfully')
+      return
+    } catch (error) {
+      console.warn('[StorageManager] SQLite initialization failed:', error instanceof Error ? error.message : String(error))
+      console.log('[StorageManager] Falling back to IndexedDB...')
+    }
 
-    // Use IndexedDB as primary storage
+    // Fallback to IndexedDB
     try {
       const indexedDBStorage = new IndexedDBStorage(this.config)
       await indexedDBStorage.init()
       this.storage = indexedDBStorage
       this.storageType = 'indexeddb'
-      console.log('Storage: IndexedDB initialized successfully')
+      console.log('[StorageManager] ✅ IndexedDB fallback initialized successfully')
       return
     } catch (error) {
-      console.error('IndexedDB initialization failed:', error instanceof Error ? error.message : String(error))
+      console.error('[StorageManager] IndexedDB initialization failed:', error instanceof Error ? error.message : String(error))
       throw new Error('Both SQLite and IndexedDB storage initialization failed')
     }
   }
