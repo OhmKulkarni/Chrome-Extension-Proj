@@ -30,7 +30,7 @@ async function initDatabase() {
       CREATE TABLE IF NOT EXISTS console_errors (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         message TEXT NOT NULL,
-        stack_trace TEXT NOT NULL,
+        stack_trace TEXT,
         timestamp INTEGER NOT NULL,
         severity TEXT NOT NULL,
         url TEXT NOT NULL
@@ -129,7 +129,7 @@ function insertConsoleError(data: any) {
   `)
   const result = stmt.run([
     data.message,
-    data.stack_trace,
+    data.stack_trace || null,
     data.timestamp,
     data.severity,
     data.url
