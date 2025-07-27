@@ -34,6 +34,9 @@ export default defineConfig({
           }
         ],
         options_page: "src/settings/settings.html",
+        content_security_policy: {
+          extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+        },
         web_accessible_resources: [
           {
             matches: ["<all_urls>"],

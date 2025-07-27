@@ -49,3 +49,19 @@ if (fs.existsSync(offscreenPath)) {
 } else {
     console.log('⚠ Complex offscreen document not found at:', offscreenPath);
 }
+
+// Fix manifest.json to add CSP for WASM support
+const manifestPath = path.join(__dirname, 'dist/manifest.json');
+if (fs.existsSync(manifestPath)) {
+    let manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+    
+    // Add CSP to allow WASM execution
+    manifest.content_security_policy = {
+        extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+    };
+    
+    fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+    console.log('✓ Added Content Security Policy for WASM support');
+} else {
+    console.log('⚠ Manifest not found at:', manifestPath);
+}
