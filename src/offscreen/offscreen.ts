@@ -100,11 +100,17 @@ function getApiCalls(params: { limit: number, offset: number }) {
     ORDER BY timestamp DESC
     LIMIT ? OFFSET ?
   `)
-  const rows = stmt.getAsObject([params.limit, params.offset])
+  
+  // Use bind and all() for proper multiple row retrieval
+  stmt.bind([params.limit, params.offset])
+  const rows = []
+  while (stmt.step()) {
+    rows.push(stmt.getAsObject())
+  }
   stmt.free()
   
   return {
-    data: Array.isArray(rows) ? rows : []
+    data: rows
   }
 }
 
@@ -139,11 +145,17 @@ function getConsoleErrors(params: { limit: number, offset: number }) {
     ORDER BY timestamp DESC
     LIMIT ? OFFSET ?
   `)
-  const rows = stmt.getAsObject([params.limit, params.offset])
+  
+  // Use bind and all() for proper multiple row retrieval
+  stmt.bind([params.limit, params.offset])
+  const rows = []
+  while (stmt.step()) {
+    rows.push(stmt.getAsObject())
+  }
   stmt.free()
   
   return {
-    data: Array.isArray(rows) ? rows : []
+    data: rows
   }
 }
 
@@ -178,11 +190,17 @@ function getTokenEvents(params: { limit: number, offset: number }) {
     ORDER BY timestamp DESC
     LIMIT ? OFFSET ?
   `)
-  const rows = stmt.getAsObject([params.limit, params.offset])
+  
+  // Use bind and all() for proper multiple row retrieval
+  stmt.bind([params.limit, params.offset])
+  const rows = []
+  while (stmt.step()) {
+    rows.push(stmt.getAsObject())
+  }
   stmt.free()
   
   return {
-    data: Array.isArray(rows) ? rows : []
+    data: rows
   }
 }
 
@@ -219,14 +237,21 @@ function getMinifiedLibraries(params: { limit: number, offset: number }) {
     ORDER BY timestamp DESC
     LIMIT ? OFFSET ?
   `)
-  const rows = stmt.getAsObject([params.limit, params.offset])
+  
+  // Use bind and all() for proper multiple row retrieval
+  stmt.bind([params.limit, params.offset])
+  const rows = []
+  while (stmt.step()) {
+    const row = stmt.getAsObject()
+    rows.push({
+      ...row,
+      source_map_available: Boolean(row.source_map_available)
+    })
+  }
   stmt.free()
   
   return {
-    data: Array.isArray(rows) ? rows.map((row: any) => ({
-      ...row,
-      source_map_available: Boolean(row.source_map_available)
-    })) : []
+    data: rows
   }
 }
 
