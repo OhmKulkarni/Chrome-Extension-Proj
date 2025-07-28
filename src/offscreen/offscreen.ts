@@ -89,21 +89,115 @@ async function initDatabase() {
 
 // API Calls operations
 function insertApiCall(data: any) {
-  const stmt = db.prepare(`
-    INSERT INTO api_calls (url, method, headers, payload_size, status, response_body, timestamp)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `)
-  const result = stmt.run([
-    data.url || null,
-    data.method || null,
-    data.headers || null,
-    data.payload_size || 0,
-    data.status || 0,
-    data.response_body || null,
-    data.timestamp || Date.now()
-  ])
-  stmt.free()
-  return { id: result.lastID }
+  console.log('[SQLite] insertApiCall called with data:', data);
+  
+  // Check if database is available
+  if (!db) {
+    console.error('[SQLite] Database not initialized!');
+    return { id: null, error: 'Database not initialized' };
+  }
+  
+  try {
+    // Use a transaction to ensure we can get the ID properly
+    const insertStmt = db.prepare(`
+      INSERT INTO api_calls (url, method, headers, payload_size, status, response_body, timestamp)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `)
+    
+    const insertParams = [
+      data.url || null,
+      data.method || null,
+      data.headers || null,
+      data.payload_size || 0,
+      data.status || 0,
+      data.response_body || null,
+      data.timestamp || Date.now()
+    ];
+    
+    console.log('[SQLite] Executing insert with params:', insertParams);
+    
+    // Execute the insert
+    const result = insertStmt.run(insertParams);
+    insertStmt.free();
+    
+    // Debug logging to see what result contains
+    console.log('[SQLite] Insert result:', result);
+    console.log('[SQLite] Insert result keys:', Object.keys(result));
+    console.log('[SQLite] changes:', result.changes);
+    
+    // Try to get the last inserted ID using a separate query
+    let insertId = null;
+    
+    // Method 1: Check if result has the ID
+    if (result.lastInsertRowid !== undefined && result.lastInsertRowid !== null) {
+      insertId = result.lastInsertRowid;
+      console.log('[SQLite] Method 1 - lastInsertRowid:', insertId);
+    } else if (result.lastID !== undefined && result.lastID !== null) {
+      insertId = result.lastID;
+      console.log('[SQLite] Method 1 - lastID:', insertId);
+    } else if (result.insertId !== undefined && result.insertId !== null) {
+      insertId = result.insertId;
+      console.log('[SQLite] Method 1 - insertId:', insertId);
+    }
+    
+    // Method 2: Use SQLite built-in function
+    if (!insertId || insertId === null) {
+      try {
+        const lastRowStmt = db.prepare("SELECT last_insert_rowid() as id");
+        const lastRowResult = lastRowStmt.get();
+        lastRowStmt.free();
+        insertId = lastRowResult?.id;
+        console.log('[SQLite] Method 2 - last_insert_rowid():', insertId);
+      } catch (e) {
+        console.log('[SQLite] Method 2 failed:', e);
+      }
+    }
+    
+    // Method 3: Query the table directly for the most recent record
+    if (!insertId || insertId === null) {
+      try {
+        const maxIdStmt = db.prepare(`
+          SELECT id FROM api_calls 
+          WHERE url = ? AND timestamp = ? 
+          ORDER BY id DESC LIMIT 1
+        `);
+        const maxIdResult = maxIdStmt.get([
+          data.url || null,
+          data.timestamp || Date.now()
+        ]);
+        maxIdStmt.free();
+        insertId = maxIdResult?.id;
+        console.log('[SQLite] Method 3 - direct query:', insertId);
+      } catch (e) {
+        console.log('[SQLite] Method 3 failed:', e);
+      }
+    }
+    
+    // Method 4: Get maximum ID from table (fallback)
+    if (!insertId || insertId === null) {
+      try {
+        const maxStmt = db.prepare("SELECT MAX(id) as maxId FROM api_calls");
+        const maxResult = maxStmt.get();
+        maxStmt.free();
+        insertId = maxResult?.maxId;
+        console.log('[SQLite] Method 4 - MAX(id):', insertId);
+      } catch (e) {
+        console.log('[SQLite] Method 4 failed:', e);
+      }
+    }
+    
+    console.log('[SQLite] Final insertId:', insertId, 'type:', typeof insertId);
+    
+    const finalResult = { id: insertId };
+    console.log('[SQLite] Returning result:', finalResult);
+    return finalResult;
+    
+  } catch (error) {
+    console.error('[SQLite] insertApiCall error:', error);
+    const errorResult = { id: null, error: error instanceof Error ? error.message : String(error) };
+    console.log('[SQLite] Returning error result:', errorResult);
+    return errorResult;
+  }
 }
 
 function getApiCalls(params: { limit: number, offset: number }) {
@@ -324,7 +418,10 @@ function getStorageInfo() {
 
 // Message handler
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  console.log('[Offscreen] Received message:', message.action)
+  console.log('[Offscreen] 🚨 MESSAGE RECEIVED:', message);
+  console.log('[Offscreen] 🚨 Message action:', message.action);
+  console.log('[Offscreen] 🚨 Message data:', message.data);
+  console.log('[Offscreen] 🚨 Message keys:', Object.keys(message || {}));
   
   try {
     let response
@@ -342,7 +439,41 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         return true // Async response
         
       case 'insertApiCall':
-        response = insertApiCall(message.data)
+        console.log('[Offscreen] ⚡ CRITICAL DEBUG: insertApiCall case triggered!');
+        console.log('[Offscreen] Processing insertApiCall request with data:', message.data);
+        console.log('[Offscreen] Data keys:', Object.keys(message.data || {}));
+        
+        // Test if insertApiCall function exists
+        if (typeof insertApiCall !== 'function') {
+          console.error('[Offscreen] ❌ insertApiCall is not a function!', typeof insertApiCall);
+          response = { id: null, error: 'insertApiCall function not found' };
+        } else {
+          console.log('[Offscreen] ✅ insertApiCall function exists');
+          try {
+            console.log('[Offscreen] About to call insertApiCall function...');
+            response = insertApiCall(message.data);
+            console.log('[Offscreen] ⚡ insertApiCall function completed, response:', response);
+            console.log('[Offscreen] Response type:', typeof response);
+            console.log('[Offscreen] Response keys:', Object.keys(response || {}));
+            console.log('[Offscreen] Response stringified:', JSON.stringify(response));
+            
+            // Double-check the response is valid
+            if (response === undefined || response === null) {
+              console.error('[Offscreen] ❌ insertApiCall returned undefined/null!');
+              response = { id: null, error: 'Function returned undefined/null' };
+            } else if (typeof response !== 'object') {
+              console.error('[Offscreen] ❌ insertApiCall returned non-object:', typeof response);
+              response = { id: null, error: `Function returned ${typeof response}` };
+            }
+            
+          } catch (error) {
+            console.error('[Offscreen] ❌ insertApiCall failed with error:', error);
+            if (error instanceof Error) {
+              console.error('[Offscreen] Error stack:', error.stack);
+            }
+            response = { id: null, error: error instanceof Error ? error.message : String(error) };
+          }
+        }
         break
         
       case 'getApiCalls':
@@ -402,13 +533,27 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         break
         
       default:
+        console.log('[Offscreen] 🚨 UNKNOWN ACTION:', message.action);
+        console.log('[Offscreen] 🚨 Full message:', message);
         response = { error: `Unknown action: ${message.action}` }
     }
     
+    // Ensure response is never undefined or null
+    if (response === undefined || response === null) {
+      console.error('[Offscreen] Response was undefined/null, creating error response');
+      response = { error: 'Function returned undefined/null response' };
+    }
+    
+    console.log('[Offscreen] About to send response:', response);
+    console.log('[Offscreen] Response type:', typeof response);
+    console.log('[Offscreen] Response keys:', Object.keys(response || {}));
+    
     sendResponse(response)
   } catch (error) {
-    console.error('Error in offscreen message handler:', error)
-    sendResponse({ error: error instanceof Error ? error.message : String(error) })
+    console.error('[Offscreen] Error in message handler:', error)
+    const errorResponse = { error: error instanceof Error ? error.message : String(error) };
+    console.log('[Offscreen] Sending error response:', errorResponse);
+    sendResponse(errorResponse)
   }
 })
 
