@@ -1,18 +1,35 @@
 // src/background/background.ts
 console.log('Background service worker started');
 
-// --- Comprehensive Storage System ---
-import { storageManager } from './storage-manager';
-import { initializeStorage } from './storage-example';
+// --- Environment-Aware Storage System ---
+import { EnvironmentStorageManager } from './environment-storage-manager';
+
+// Initialize environment-aware storage system
+const storageManager = new EnvironmentStorageManager();
+
+const initializeStorage = async () => {
+  try {
+    await storageManager.init();
+    
+    const config = storageManager.getConfiguration();
+    console.log('[Web App Monitor] ✅ Environment storage system initialized successfully');
+    console.log('[Web App Monitor] Configuration:', config);
+    console.log('[Web App Monitor] Active storage type:', storageManager.getStorageType());
+    
+    return storageManager;
+  } catch (error) {
+    console.error('[Web App Monitor] ❌ Storage system initialization failed:', error);
+    throw error;
+  }
+};
 
 // Initialize the storage system on service worker load
 initializeStorage()
   .then(() => {
-    console.log('[Web App Monitor] Storage system initialized successfully.');
-    console.log('[Web App Monitor] Storage type:', storageManager.getStorageType());
+    console.log('[Web App Monitor] Storage system ready for use');
   })
   .catch((err) => {
-    console.error('[Web App Monitor] Storage system initialization failed:', err);
+    console.error('[Web App Monitor] Failed to initialize storage system:', err);
   });
 
 // Expose storage system for debugging in DevTools (service worker context)
@@ -77,3 +94,6 @@ initializeStorage()
     console.error('Failed to prune data:', error);
   }
 };
+
+// No message handler needed - let all messages pass through to offscreen document
+// The storage manager handles operations internally without message interception
