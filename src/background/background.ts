@@ -95,5 +95,39 @@ initializeStorage()
   }
 };
 
-// No message handler needed - let all messages pass through to offscreen document
-// The storage manager handles operations internally without message interception
+// --- Message Handlers for Popup Communication ---
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  switch (message.action) {
+    case 'getTabInfo':
+      // Get current active tab information
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs.length > 0) {
+          const tab = tabs[0];
+          sendResponse({
+            title: tab.title || 'Unknown',
+            url: tab.url || 'Unknown'
+          });
+        } else {
+          sendResponse({
+            title: 'Unknown',
+            url: 'Unknown'
+          });
+        }
+      });
+      return true; // Keep message channel open for async response
+
+    case 'openDashboard':
+      // Open dashboard in a new tab
+      chrome.tabs.create({
+        url: chrome.runtime.getURL('src/dashboard/dashboard.html')
+      });
+      sendResponse({ success: true });
+      break;
+
+    default:
+      // Let other messages pass through
+      break;
+  }
+});
+
+// No additional message interception needed - storage manager handles operations internally

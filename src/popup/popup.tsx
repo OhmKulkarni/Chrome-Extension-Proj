@@ -21,8 +21,15 @@ const Popup: React.FC = () => {
   useEffect(() => {
     // Get current tab info
     chrome.runtime.sendMessage({ action: 'getTabInfo' }, (response) => {
-      if (response && !response.error) {
+      if (chrome.runtime.lastError) {
+        console.error('Error getting tab info:', chrome.runtime.lastError);
+        setTabInfo({ title: 'Error', url: 'Failed to get tab info' });
+      } else if (response && !response.error) {
+        console.log('Tab info received:', response);
         setTabInfo(response);
+      } else {
+        console.warn('Invalid response for tab info:', response);
+        setTabInfo({ title: 'Unknown', url: 'Unknown' });
       }
     });
 
