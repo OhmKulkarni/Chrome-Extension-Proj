@@ -163,17 +163,6 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
     const settings = settingsResult.settings || {};
     const networkConfig = settings.networkInterception || {};
     
-    // Debug logging for noise filtering
-    console.log('🔍 BACKGROUND: Processing request:', requestData.url);
-    console.log('🔍 BACKGROUND: Full network config:', JSON.stringify(networkConfig, null, 2));
-    console.log('🔍 BACKGROUND: Privacy settings:', {
-      enabled: networkConfig.enabled,
-      filterNoise: networkConfig.privacy?.filterNoise,
-      hasPrivacy: !!networkConfig.privacy,
-      tabSpecificEnabled: networkConfig.tabSpecific?.enabled,
-      tabSpecificDefault: networkConfig.tabSpecific?.defaultState
-    });
-    
     // Check if network interception is enabled
     if (!networkConfig.enabled) {
       sendResponse({ success: false, reason: 'Network interception disabled' });
@@ -202,10 +191,7 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
             }
           }
           
-          console.log(`🔍 BACKGROUND: Tab ${tabId} logging state:`, tabLoggingEnabled, 'tabState:', tabState);
-          
           if (!tabLoggingEnabled) {
-            console.log(`🚫 BACKGROUND: Tab ${tabId} logging disabled, blocking request:`, requestData.url);
             sendResponse({ success: false, reason: 'Tab logging disabled' });
             return;
           }
@@ -213,7 +199,6 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
           console.warn('Could not determine tab logging state, using default:', tabError);
           // Use default state from settings
           if (networkConfig.tabSpecific?.defaultState === 'paused') {
-            console.log('🚫 BACKGROUND: Tab state unknown, defaulting to paused, blocking request:', requestData.url);
             sendResponse({ success: false, reason: 'Tab logging disabled (default)' });
             return;
           }
@@ -222,7 +207,6 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
         console.warn('No tab ID available for tab-specific filtering');
         // If we can't get tab ID, use default state
         if (networkConfig.tabSpecific?.defaultState === 'paused') {
-          console.log('🚫 BACKGROUND: No tab ID, defaulting to paused, blocking request:', requestData.url);
           sendResponse({ success: false, reason: 'Tab logging disabled (no tab ID)' });
           return;
         }
@@ -230,15 +214,9 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
     }
     
     // Filter out common noise/telemetry requests (if enabled)
-    console.log('🔍 BACKGROUND: Checking noise filter. filterNoise enabled:', networkConfig.privacy?.filterNoise, 'URL:', requestData.url);
-    if (networkConfig.privacy?.filterNoise) {
-      const isNoise = isNoiseRequest(requestData.url);
-      console.log('🔍 BACKGROUND: isNoiseRequest result:', isNoise, 'for URL:', requestData.url);
-      if (isNoise) {
-        console.log('🔇 BACKGROUND: Filtered noise request:', requestData.url);
-        sendResponse({ success: false, reason: 'Filtered out noise/telemetry request' });
-        return;
-      }
+    if (networkConfig.privacy?.filterNoise && isNoiseRequest(requestData.url)) {
+      sendResponse({ success: false, reason: 'Filtered out noise/telemetry request' });
+      return;
     }
     
     // Check URL pattern filtering (if enabled)
@@ -335,8 +313,6 @@ function isNoiseRequest(url: string): boolean {
     const hostname = urlObj.hostname.toLowerCase();
     const pathname = urlObj.pathname.toLowerCase();
     
-    console.log('🔍 NOISE-FILTER: Checking URL:', url, 'hostname:', hostname, 'path:', pathname);
-    
     // Common telemetry and tracking domains
     const noiseDomains = [
       'edge.sdk.awswaf.com',        // AWS WAF telemetry
@@ -384,14 +360,12 @@ function isNoiseRequest(url: string): boolean {
     // Check if hostname matches any noise domains
     const domainMatch = noiseDomains.some(domain => hostname.includes(domain));
     if (domainMatch) {
-      console.log('🔇 NOISE-FILTER: Domain match, filtering:', hostname);
       return true;
     }
     
     // Check if path matches any noise patterns
     const pathMatch = noisePaths.some(path => pathname.includes(path));
     if (pathMatch) {
-      console.log('🔇 NOISE-FILTER: Path match, filtering:', pathname);
       return true;
     }
     
