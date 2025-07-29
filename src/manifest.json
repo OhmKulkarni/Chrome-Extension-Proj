@@ -13,18 +13,21 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content/content.ts"]
+      "js": ["content/content-simple.ts"],
+      "run_at": "document_start"
     }
   ],
   "permissions": [
     "storage",
+    "activeTab",
     "tabs",
     "scripting",
-    "offscreen"
+    "declarativeNetRequest"
   ],
   "minimum_chrome_version": "109",
   "host_permissions": [
-    "<all_urls>"
+    "http://*/*",
+    "https://*/*"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
@@ -35,6 +38,8 @@
         "sql-wasm.wasm",
         "offscreen.html",
         "offscreen/offscreen.html",
+        "main-world-script.js",
+        "content/main-world-network-interceptor.js",
         "assets/*"
       ],
       "matches": ["<all_urls>"]

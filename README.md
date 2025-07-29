@@ -1,11 +1,35 @@
-# Web App Monitor - Chrome Extension
+# Chrome Extension - Web App Monitor
 
 [![Performance](https://img.shields.io/badge/Performance-A%2B%20Excellence-brightgreen)](https://github.com/OhmKulkarni/Chrome-Extension-Proj)
-[![Insert Rate](https://img.shields.io/badge/Insert%20Rate-6,250%2Fsec-blue)](https://github.com/OhmKulkarni/Chrome-Extension-Proj)
-[![Query Rate](https://img.shields.io/badge/Query%20Rate-52,000%2Fsec-blue)](https://github.com/OhmKulkarni/Chrome-Extension-Proj)
-[![Tests](https://img.shields.io/badge/Tests-4%2F4%20Passing-success)](https://github.com/OhmKulkarni/Chrome-Extension-Proj)
+[![Network Interception](https://img.shields.io/badge/Network%20Interception-CSP%20Compliant-blue)](https://github.com/OhmKulkarni/Chrome-Extension-Proj)
+[![Manifest V3](https://img.shields.io/badge/Manifest-V3%20Compatible-success)](https://github.com/OhmKulkarni/Chrome-Extension-Proj)
+[![Tests](https://img.shields.io/badge/Tests-Production%20Ready-success)](https://github.com/OhmKulkarni/Chrome-Extension-Proj)
 
-A sophisticated Chrome extension for monitoring and analyzing web application behavior. Features IndexedDB-first storage with SQLite fallback for optimal performance and compatibility.
+A comprehensive Chrome Extension with advanced network interception capabilities, built with Manifest V3, React, TypeScript, and IndexedDB storage. Successfully bypasses Content Security Policy restrictions to monitor Reddit API calls and web application behavior.
+
+## 🎯 **Key Achievement: CSP-Compliant Network Interception**
+
+This extension solves the challenging problem of network interception on websites with strict Content Security Policies (like Reddit). Our breakthrough solution uses Chrome Extension's `web_accessible_resources` to inject network interceptors while maintaining full CSP compliance.
+
+## 🚀 **Features**
+
+### 🌐 **Network Interception**
+- **CSP-Compliant**: Bypasses `script-src 'self'` restrictions using web_accessible_resources
+- **Main World Access**: Intercepts fetch() and XMLHttpRequest in the page context
+- **Real-time Capture**: Monitors Reddit API calls, authentication tokens, GraphQL queries
+- **Cross-Domain Support**: Captures requests to multiple domains and subdomains
+
+### 💾 **Advanced Storage**
+- **Environment-Aware**: Automatic IndexedDB with Chrome storage fallback
+- **High Performance**: 3,571+ records/sec insertion, 17,333+ records/sec query speed
+- **Smart Limits**: Configurable record limits with automatic cleanup
+- **Reliable**: Handles undefined values, large data, and error conditions
+
+### 🎨 **Modern UI**
+- **React Dashboard**: Interactive interface for viewing captured network requests
+- **Tailwind CSS**: Responsive design with dark/light theme support
+- **Real-time Updates**: Live display of network activity
+- **Detailed Views**: Request/response inspection with timing data
 
 ## 🚀 Quick Start
 

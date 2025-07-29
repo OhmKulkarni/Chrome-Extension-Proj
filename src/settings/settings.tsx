@@ -12,6 +12,19 @@ interface SettingsData {
   updateFrequency: number;
   privacyMode: boolean;
   dataCollection: boolean;
+  networkInterception: {
+    enabled: boolean;
+    domainFilter: 'current-tab' | 'all-domains' | 'custom';
+    customDomains: string[];
+    bodyCapture: {
+      mode: 'disabled' | 'partial' | 'full';
+      captureRequests: boolean;
+      captureResponses: boolean;
+    };
+    privacy: {
+      autoRedact: boolean;
+    };
+  };
 }
 
 const defaultSettings: SettingsData = {
@@ -21,7 +34,20 @@ const defaultSettings: SettingsData = {
   language: 'en',
   updateFrequency: 5,
   privacyMode: false,
-  dataCollection: true
+  dataCollection: true,
+  networkInterception: {
+    enabled: true,
+    domainFilter: 'current-tab',
+    customDomains: [],
+    bodyCapture: {
+      mode: 'partial',
+      captureRequests: false,
+      captureResponses: false,
+    },
+    privacy: {
+      autoRedact: true,
+    },
+  },
 };
 
 const Settings: React.FC = () => {
@@ -225,6 +251,176 @@ const Settings: React.FC = () => {
                   </label>
                   <p className="mt-1 text-sm text-gray-500">Help improve the extension by sharing anonymous usage data</p>
                 </div>
+              </div>
+            </div>
+
+            {/* Network Interception Settings */}
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Network Interception</h2>
+              <div className="space-y-6">
+                <div>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={settings.networkInterception.enabled}
+                      onChange={(e) => updateSetting('networkInterception', {
+                        ...settings.networkInterception,
+                        enabled: e.target.checked
+                      })}
+                      className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                    />
+                    <span className="ml-2 text-sm font-medium text-gray-700">Enable network interception</span>
+                  </label>
+                  <p className="mt-1 text-sm text-gray-500">Capture and monitor network requests</p>
+                </div>
+
+                {settings.networkInterception.enabled && (
+                  <div className="ml-6 space-y-4 pl-4 border-l-2 border-blue-100">
+                    <div>
+                      <label htmlFor="domainFilter" className="block text-sm font-medium text-gray-700">
+                        Domain Filter
+                      </label>
+                      <select
+                        id="domainFilter"
+                        value={settings.networkInterception.domainFilter}
+                        onChange={(e) => updateSetting('networkInterception', {
+                          ...settings.networkInterception,
+                          domainFilter: e.target.value as any
+                        })}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="current-tab">Current Tab Only</option>
+                        <option value="all-domains">All Domains</option>
+                        <option value="custom">Custom Domains</option>
+                      </select>
+                      <p className="mt-1 text-sm text-gray-500">
+                        Choose which domains to monitor for network requests
+                      </p>
+                    </div>
+
+                    {settings.networkInterception.domainFilter === 'custom' && (
+                      <div>
+                        <label htmlFor="customDomains" className="block text-sm font-medium text-gray-700">
+                          Custom Domains
+                        </label>
+                        <textarea
+                          id="customDomains"
+                          rows={3}
+                          value={settings.networkInterception.customDomains.join('\n')}
+                          onChange={(e) => updateSetting('networkInterception', {
+                            ...settings.networkInterception,
+                            customDomains: e.target.value.split('\n').filter(d => d.trim())
+                          })}
+                          placeholder="example.com&#10;*.api.example.com&#10;subdomain.example.org"
+                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <p className="mt-1 text-sm text-gray-500">
+                          Enter one domain per line. Use * for wildcards (e.g., *.example.com)
+                        </p>
+                      </div>
+                    )}
+
+                    <div>
+                      <label htmlFor="bodyCaptureMode" className="block text-sm font-medium text-gray-700">
+                        Body Capture Mode
+                      </label>
+                      <select
+                        id="bodyCaptureMode"
+                        value={settings.networkInterception.bodyCapture.mode}
+                        onChange={(e) => updateSetting('networkInterception', {
+                          ...settings.networkInterception,
+                          bodyCapture: {
+                            ...settings.networkInterception.bodyCapture,
+                            mode: e.target.value as any
+                          }
+                        })}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="disabled">Disabled</option>
+                        <option value="partial">Metadata Only (Recommended)</option>
+                        <option value="full">Full Body Capture</option>
+                      </select>
+                      <p className="mt-1 text-sm text-gray-500">
+                        Control what data is captured from network requests
+                      </p>
+                    </div>
+
+                    {settings.networkInterception.bodyCapture.mode === 'full' && (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={settings.networkInterception.bodyCapture.captureRequests}
+                              onChange={(e) => updateSetting('networkInterception', {
+                                ...settings.networkInterception,
+                                bodyCapture: {
+                                  ...settings.networkInterception.bodyCapture,
+                                  captureRequests: e.target.checked
+                                }
+                              })}
+                              className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                            />
+                            <span className="ml-2 text-sm font-medium text-gray-700">Capture request bodies</span>
+                          </label>
+                        </div>
+
+                        <div>
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={settings.networkInterception.bodyCapture.captureResponses}
+                              onChange={(e) => updateSetting('networkInterception', {
+                                ...settings.networkInterception,
+                                bodyCapture: {
+                                  ...settings.networkInterception.bodyCapture,
+                                  captureResponses: e.target.checked
+                                }
+                              })}
+                              className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                            />
+                            <span className="ml-2 text-sm font-medium text-gray-700">Capture response bodies</span>
+                          </label>
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={settings.networkInterception.privacy.autoRedact}
+                          onChange={(e) => updateSetting('networkInterception', {
+                            ...settings.networkInterception,
+                            privacy: {
+                              ...settings.networkInterception.privacy,
+                              autoRedact: e.target.checked
+                            }
+                          })}
+                          className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                        />
+                        <span className="ml-2 text-sm font-medium text-gray-700">Auto-redact sensitive data</span>
+                      </label>
+                      <p className="mt-1 text-sm text-gray-500">
+                        Automatically redact authorization headers, cookies, and API keys
+                      </p>
+                      {!settings.networkInterception.privacy.autoRedact && (
+                        <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                          <div className="flex">
+                            <div className="flex-shrink-0">
+                              <span className="text-yellow-400">⚠️</span>
+                            </div>
+                            <div className="ml-3">
+                              <p className="text-sm text-yellow-800">
+                                <strong>Warning:</strong> Disabling auto-redaction may expose sensitive data like passwords and API keys.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
