@@ -299,6 +299,10 @@ export class EnvironmentStorageManager implements StorageOperations {
     return this.ensureInitialized().pruneOldData()
   }
 
+  async clearAllData(): Promise<void> {
+    return this.ensureInitialized().clearAllData()
+  }
+
   async getStorageInfo(): Promise<{ type: 'sqlite' | 'indexeddb'; size?: number }> {
     return this.ensureInitialized().getStorageInfo()
   }

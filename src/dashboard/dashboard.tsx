@@ -79,6 +79,54 @@ const Dashboard: React.FC = () => {
     loadDashboardData();
   };
 
+  const clearData = async () => {
+    const confirmed = window.confirm(
+      '⚠️ WARNING: This will permanently delete all recorded network requests.\n\n' +
+      'This action cannot be undone. Are you sure you want to continue?'
+    );
+    
+    if (confirmed) {
+      try {
+        setLoading(true);
+        
+        // Send message to background script to clear all data
+        await new Promise<void>((resolve, reject) => {
+          chrome.runtime.sendMessage({ action: 'clearAllData' }, (response) => {
+            if (chrome.runtime.lastError) {
+              console.error('Dashboard: Error clearing data:', chrome.runtime.lastError);
+              reject(chrome.runtime.lastError);
+            } else if (response?.success) {
+              console.log('Dashboard: Data cleared successfully');
+              resolve();
+            } else {
+              reject(new Error('Failed to clear data'));
+            }
+          });
+        });
+        
+        // Reset local state
+        setData({
+          totalTabs: data.totalTabs,
+          extensionEnabled: data.extensionEnabled,
+          lastActivity: data.lastActivity,
+          networkRequests: [],
+          totalRequests: 0
+        });
+        
+        setCurrentPage(1);
+        
+        // Show success message
+        alert('✅ All network request data has been cleared successfully.');
+        
+      } catch (error) {
+        console.error('Error clearing data:', error);
+        alert('❌ Failed to clear data. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
   // Pagination functions
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalFilteredPages) {
@@ -230,12 +278,20 @@ const Dashboard: React.FC = () => {
               <h1 className="text-3xl font-bold text-gray-900">Web App Monitor Dashboard</h1>
               <p className="text-gray-600">Monitor and analyze your client-side web applications</p>
             </div>
-            <button
-              onClick={refreshData}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
-            >
-              Refresh Data
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={refreshData}
+                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                Refresh Data
+              </button>
+              <button
+                onClick={clearData}
+                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                Clear Data
+              </button>
+            </div>
           </div>
         </div>
       </header>

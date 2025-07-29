@@ -260,6 +260,17 @@ export class IndexedDBStorage implements StorageOperations {
     }
   }
 
+  // Clear all data
+  async clearAllData(): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized')
+    
+    const stores = ['apiCalls', 'consoleErrors', 'tokenEvents', 'minifiedLibraries']
+    
+    for (const storeName of stores) {
+      await this.clearStore(storeName)
+    }
+  }
+
   private async pruneStore(storeName: string, cutoffTime: number): Promise<void> {
     if (!this.db) return
     
@@ -323,6 +334,20 @@ export class IndexedDBStorage implements StorageOperations {
       }
       
       countRequest.onerror = () => reject(new Error(`Failed to count ${storeName}`))
+    })
+  }
+
+  private async clearStore(storeName: string): Promise<void> {
+    if (!this.db) return
+    
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([storeName], 'readwrite')
+      const store = transaction.objectStore(storeName)
+      
+      const clearRequest = store.clear()
+      
+      clearRequest.onsuccess = () => resolve()
+      clearRequest.onerror = () => reject(new Error(`Failed to clear ${storeName}`))
     })
   }
 

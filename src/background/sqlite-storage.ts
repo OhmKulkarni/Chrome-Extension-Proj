@@ -201,6 +201,11 @@ export class SQLiteStorage implements StorageOperations {
     })
   }
 
+  // Clear all data
+  async clearAllData(): Promise<void> {
+    await this.sendToOffscreen('clearAllData')
+  }
+
   async getTableCounts(): Promise<{[table: string]: number}> {
     const response = await this.sendToOffscreen('getTableCounts')
     return response.counts

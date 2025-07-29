@@ -403,6 +403,29 @@ async function handleGetNetworkRequests(limit: number, sendResponse: (response: 
   }
 }
 
+// Clear all data handler
+async function handleClearAllData(sendResponse: (response: any) => void) {
+  try {
+    if (!storageManager.isInitialized()) {
+      await storageManager.init();
+    }
+    
+    // Clear all stored network requests
+    await storageManager.clearAllData();
+    
+    sendResponse({ 
+      success: true, 
+      message: 'All data cleared successfully' 
+    });
+  } catch (error) {
+    console.error('Error clearing all data:', error);
+    sendResponse({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
+  }
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.action || message.type) {
     case 'INJECT_MAIN_WORLD_SCRIPT':
@@ -472,6 +495,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     case 'getNetworkRequests':
       // Get stored network requests
       handleGetNetworkRequests(message.limit || 50, sendResponse);
+      return true; // Keep message channel open for async response
+
+    case 'clearAllData':
+      // Clear all stored network requests
+      handleClearAllData(sendResponse);
       return true; // Keep message channel open for async response
 
     default:

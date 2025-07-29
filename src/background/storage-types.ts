@@ -79,6 +79,7 @@ export interface StorageOperations {
   
   // Data pruning
   pruneOldData(): Promise<void>
+  clearAllData(): Promise<void>
   getTableCounts(): Promise<{[table: string]: number}>
   
   // Storage info

@@ -505,6 +505,31 @@ interface StorageConfig {
 
 MIT License - see [LICENSE](./LICENSE) file for details.
 
+## 📚 Documentation
+
+### Core Architecture & Implementation
+- **[Network Interception Solution](./docs/NETWORK_INTERCEPTION_SOLUTION.md)** - Complete implementation of main-world network interception
+- **[Network Interception Phases](./docs/NETWORK_INTERCEPTION_PHASES.md)** - Development phases and evolution
+- **[Content Script Architecture](./docs/CONTENT_SCRIPT_ARCHITECTURE.md)** - Content script design and communication
+
+### Technical Solutions
+- **[CSP Fix Complete](./docs/CSP_FIX_COMPLETE.md)** - Content Security Policy compliance solutions
+- **[Web Accessible Resources Fixed](./docs/WEB_ACCESSIBLE_RESOURCES_FIXED.md)** - Web accessible resources configuration
+
+### Bug Fixes & Problem Resolution
+- **[Network Filtering Bug Fixes](./docs/NETWORK_FILTERING_BUG_FIXES.md)** - ⭐ **LATEST**: Tab-specific logging bypass and noise filtering issues
+  - Fixed unwanted request interception from paused tabs
+  - Resolved dashboard bloat from telemetry/tracking requests
+  - Corrected request count accuracy between popup and dashboard
+
+### Testing & Validation
+- **[Testing Guide](./docs/TESTING_GUIDE.md)** - Comprehensive testing procedures and validation
+
+### Recently Resolved Issues (January 2025)
+1. **Tab Control Bypass** - Tabs marked as 'paused' were still having requests intercepted ✅
+2. **Noise Filtering Failure** - AWS WAF, Google Analytics, and other telemetry bloating dashboard ✅
+3. **Count Mismatch** - Popup showing different request counts than dashboard ✅
+
 ## 🌟 Production Acknowledgments
 
 - **sql.js team** - Excellent SQLite WASM implementation (v1.13.0)
