@@ -20,6 +20,13 @@ interface StorageData {
         defaultState: 'active' | 'paused';
       };
     };
+    errorLogging?: {
+      enabled: boolean;
+      tabSpecific?: {
+        enabled: boolean;
+        defaultState: 'active' | 'paused';
+      };
+    };
   };
 }
 
@@ -30,6 +37,8 @@ const Popup: React.FC = () => {
   const [settings, setSettings] = useState<StorageData['extensionSettings']>({});
   const [tabLoggingActive, setTabLoggingActive] = useState(false);
   const [requestCount, setRequestCount] = useState(0);
+  const [tabErrorLoggingActive, setTabErrorLoggingActive] = useState(false);
+  const [errorCount, setErrorCount] = useState(0);
 
   useEffect(() => {
     // Get current tab info
@@ -49,7 +58,10 @@ const Popup: React.FC = () => {
     // Get extension settings and tab-specific state
     chrome.storage.local.get(['settings'], (result) => {
       const settings = result.settings || {};
-      setSettings({ networkInterception: settings.networkInterception });
+      setSettings({ 
+        networkInterception: settings.networkInterception,
+        errorLogging: settings.errorLogging 
+      });
       setLoading(false);
     });
 
@@ -58,17 +70,19 @@ const Popup: React.FC = () => {
       setExtensionEnabled(result.extensionEnabled ?? true);
     });
 
-    // Get current tab's logging state
+    // Get current tab's logging state (both network and error)
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]?.id) {
         const tabId = tabs[0].id;
-        chrome.storage.local.get([`tabLogging_${tabId}`, 'settings'], (result) => {
+        chrome.storage.local.get([`tabLogging_${tabId}`, `tabErrorLogging_${tabId}`, 'settings'], (result) => {
           const tabState = result[`tabLogging_${tabId}`];
+          const errorTabState = result[`tabErrorLogging_${tabId}`];
           const settings = result.settings || {};
           const networkConfig = settings.networkInterception || {};
+          const errorConfig = settings.errorLogging || {};
           
+          // Handle network logging state
           if (tabState) {
-            // Tab state exists
             if (typeof tabState === 'boolean') {
               setTabLoggingActive(tabState);
             } else if (tabState && typeof tabState === 'object' && 'active' in tabState) {
@@ -76,11 +90,9 @@ const Popup: React.FC = () => {
               setRequestCount(tabState.requestCount || 0);
             }
           } else {
-            // No tab state exists, use default from settings
             const defaultActive = networkConfig.tabSpecific?.defaultState === 'active';
             setTabLoggingActive(defaultActive);
             
-            // Initialize tab state in storage
             const initialTabState = {
               active: defaultActive,
               startTime: defaultActive ? Date.now() : undefined,
@@ -88,22 +100,46 @@ const Popup: React.FC = () => {
             };
             chrome.storage.local.set({ [`tabLogging_${tabId}`]: initialTabState });
           }
+
+          // Handle error logging state
+          if (errorTabState) {
+            if (typeof errorTabState === 'boolean') {
+              setTabErrorLoggingActive(errorTabState);
+            } else if (errorTabState && typeof errorTabState === 'object' && 'active' in errorTabState) {
+              setTabErrorLoggingActive(errorTabState.active);
+              setErrorCount(errorTabState.errorCount || 0);
+            }
+          } else {
+            const defaultErrorActive = errorConfig.tabSpecific?.defaultState === 'active';
+            setTabErrorLoggingActive(defaultErrorActive);
+            
+            const initialErrorTabState = {
+              active: defaultErrorActive,
+              startTime: defaultErrorActive ? Date.now() : undefined,
+              errorCount: 0
+            };
+            chrome.storage.local.set({ [`tabErrorLogging_${tabId}`]: initialErrorTabState });
+          }
         });
       }
     });
 
-    // Listen for storage changes to update request count in real-time
+    // Listen for storage changes to update counts in real-time
     const handleStorageChange = (changes: {[key: string]: chrome.storage.StorageChange}, areaName: string) => {
       if (areaName === 'local') {
         // Check if any tab logging state changed
         Object.keys(changes).forEach(key => {
-          if (key.startsWith('tabLogging_')) {
+          if (key.startsWith('tabLogging_') || key.startsWith('tabErrorLogging_')) {
             const newValue = changes[key].newValue;
-            if (newValue && typeof newValue === 'object' && 'requestCount' in newValue) {
+            if (newValue && typeof newValue === 'object') {
               // Get current tab ID to see if this update is for the current tab
               chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                if (tabs[0]?.id && key === `tabLogging_${tabs[0].id}`) {
-                  setRequestCount(newValue.requestCount || 0);
+                if (tabs[0]?.id) {
+                  if (key === `tabLogging_${tabs[0].id}` && 'requestCount' in newValue) {
+                    setRequestCount(newValue.requestCount || 0);
+                  } else if (key === `tabErrorLogging_${tabs[0].id}` && 'errorCount' in newValue) {
+                    setErrorCount(newValue.errorCount || 0);
+                  }
                 }
               });
             }
@@ -144,6 +180,30 @@ const Popup: React.FC = () => {
         // Send message to content script to start/stop logging
         chrome.tabs.sendMessage(tabId, {
           action: 'toggleLogging',
+          enabled: newState
+        });
+      }
+    });
+  };
+
+  const toggleTabErrorLogging = () => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]?.id) {
+        const tabId = tabs[0].id;
+        const newState = !tabErrorLoggingActive;
+        setTabErrorLoggingActive(newState);
+        
+        const tabState = {
+          active: newState,
+          startTime: newState ? Date.now() : undefined,
+          errorCount: newState ? 0 : errorCount
+        };
+        
+        chrome.storage.local.set({ [`tabErrorLogging_${tabId}`]: tabState });
+        
+        // Send message to content script to start/stop error logging
+        chrome.tabs.sendMessage(tabId, {
+          action: 'toggleErrorLogging',
           enabled: newState
         });
       }
@@ -242,6 +302,30 @@ const Popup: React.FC = () => {
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                   tabLoggingActive ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+        )}
+
+        {/* Tab-Specific Error Logging Control */}
+        {extensionEnabled && settings?.errorLogging?.tabSpecific?.enabled && (
+          <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200">
+            <div>
+              <h3 className="font-semibold text-gray-800">Error Logging</h3>
+              <p className="text-sm text-gray-600">
+                {tabErrorLoggingActive ? `Active (${errorCount} errors)` : 'Paused'}
+              </p>
+            </div>
+            <button
+              onClick={toggleTabErrorLogging}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                tabErrorLoggingActive ? 'bg-red-500' : 'bg-gray-300'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  tabErrorLoggingActive ? 'translate-x-6' : 'translate-x-1'
                 }`}
               />
             </button>

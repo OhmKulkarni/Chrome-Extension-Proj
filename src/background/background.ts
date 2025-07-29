@@ -390,6 +390,62 @@ async function handleConsoleError(errorData: any, sendResponse: (response: any) 
     if (!storageManager.isInitialized()) {
       await storageManager.init();
     }
+
+    // Check if error logging is enabled globally
+    const settings = await chrome.storage.local.get(['settings']);
+    const errorLoggingConfig = settings.settings?.errorLogging || {};
+    
+    if (!errorLoggingConfig.enabled) {
+      sendResponse({ success: false, reason: 'Error logging disabled' });
+      return;
+    }
+
+    // Check tab-specific error logging if enabled
+    if (errorLoggingConfig.tabSpecific?.enabled && errorData.tabId) {
+      try {
+        const tabData = await chrome.storage.local.get([`tabErrorLogging_${errorData.tabId}`]);
+        const tabState = tabData[`tabErrorLogging_${errorData.tabId}`];
+        
+        let isTabLoggingActive = false;
+        if (tabState) {
+          isTabLoggingActive = typeof tabState === 'boolean' ? tabState : tabState.active;
+        } else {
+          // No tab state exists, use default
+          isTabLoggingActive = errorLoggingConfig.tabSpecific?.defaultState === 'active';
+        }
+        
+        if (!isTabLoggingActive) {
+          sendResponse({ success: false, reason: 'Tab error logging paused' });
+          return;
+        }
+
+        // Update tab error count
+        try {
+          const currentState = tabState || { active: true, startTime: Date.now(), errorCount: 0 };
+          const updatedState = {
+            ...currentState,
+            errorCount: (currentState.errorCount || 0) + 1,
+            lastErrorTime: Date.now()
+          };
+          await chrome.storage.local.set({ [`tabErrorLogging_${errorData.tabId}`]: updatedState });
+        } catch (tabUpdateError) {
+          console.warn('Failed to update tab error count:', tabUpdateError);
+        }
+      } catch (tabError) {
+        console.warn('Could not determine tab error logging state, using default:', tabError);
+      }
+    }
+
+    // Check severity filtering if enabled
+    if (errorLoggingConfig.severityFilter?.enabled) {
+      const allowedSeverities = errorLoggingConfig.severityFilter.allowed || [];
+      const errorSeverity = errorData.severity || 'error';
+      
+      if (!allowedSeverities.includes(errorSeverity)) {
+        sendResponse({ success: false, reason: `Severity '${errorSeverity}' filtered out` });
+        return;
+      }
+    }
     
     // Map the error data from main-world-script to storage API format
     const storageData = {
@@ -646,6 +702,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       break;
       
+    case 'getCurrentTabId':
     case 'GET_CURRENT_TAB_ID':
       // Get current tab ID for content script
       if (sender.tab && sender.tab.id) {

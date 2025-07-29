@@ -63,6 +63,17 @@ interface SettingsData {
       settings: Partial<SettingsData['networkInterception']>;
     }>;
   };
+  errorLogging: {
+    enabled: boolean;
+    severityFilter: {
+      enabled: boolean;
+      allowed: Array<'error' | 'warn' | 'info'>;
+    };
+    tabSpecific: {
+      enabled: boolean;
+      defaultState: 'active' | 'paused';
+    };
+  };
 }
 
 const defaultSettings: SettingsData = {
@@ -124,6 +135,17 @@ const defaultSettings: SettingsData = {
         settings: {}
       }
     ]
+  },
+  errorLogging: {
+    enabled: true,
+    severityFilter: {
+      enabled: false,
+      allowed: ['error', 'warn', 'info']
+    },
+    tabSpecific: {
+      enabled: true,
+      defaultState: 'paused'
+    }
   },
 };
 
@@ -678,6 +700,152 @@ const Settings: React.FC = () => {
                         Automatically filter out common telemetry, analytics, and tracking requests (Google Analytics, AWS WAF, CDN health checks, etc.)
                       </p>
                     </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Error Logging */}
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Console Error Logging</h2>
+              <div className="space-y-6">
+                <div>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={settings.errorLogging?.enabled || false}
+                      onChange={(e) => updateSetting('errorLogging', {
+                        ...settings.errorLogging,
+                        enabled: e.target.checked
+                      })}
+                      className="h-4 w-4 text-red-600 rounded border-gray-300 focus:ring-red-500"
+                    />
+                    <span className="ml-2 text-sm font-medium text-gray-700">Enable console error logging</span>
+                  </label>
+                  <p className="mt-1 text-sm text-gray-500">Capture and monitor console errors, warnings, and logs</p>
+                </div>
+
+                {settings.errorLogging?.enabled && (
+                  <div className="ml-6 space-y-6 pl-4 border-l-2 border-red-100">
+                    
+                    {/* Tab-Specific Error Logging */}
+                    <div>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={settings.errorLogging?.tabSpecific?.enabled || false}
+                          onChange={(e) => updateSetting('errorLogging', {
+                            ...settings.errorLogging,
+                            tabSpecific: {
+                              ...(settings.errorLogging?.tabSpecific || {}),
+                              enabled: e.target.checked
+                            }
+                          })}
+                          className="h-4 w-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                        />
+                        <span className="ml-2 text-sm font-medium text-gray-700">Tab-specific error logging</span>
+                      </label>
+                      <p className="mt-1 text-sm text-gray-500">
+                        Allow users to start/stop error logging on individual tabs via the popup
+                      </p>
+                    </div>
+
+                    {settings.errorLogging?.tabSpecific?.enabled && (
+                      <div className="ml-6 pl-4 border-l-2 border-purple-100">
+                        <div>
+                          <label htmlFor="defaultErrorTabState" className="block text-sm font-medium text-gray-700">
+                            Default state for new tabs
+                          </label>
+                          <select
+                            id="defaultErrorTabState"
+                            value={settings.errorLogging?.tabSpecific?.defaultState || 'paused'}
+                            onChange={(e) => updateSetting('errorLogging', {
+                              ...settings.errorLogging,
+                              tabSpecific: {
+                                ...(settings.errorLogging?.tabSpecific || {}),
+                                defaultState: e.target.value as 'active' | 'paused'
+                              }
+                            })}
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                          >
+                            <option value="active">Start logging immediately</option>
+                            <option value="paused">Wait for user to start logging</option>
+                          </select>
+                          <p className="mt-1 text-sm text-gray-500">
+                            Choose whether new tabs should start logging console errors automatically
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Severity Filtering */}
+                    <div>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={settings.errorLogging?.severityFilter?.enabled || false}
+                          onChange={(e) => updateSetting('errorLogging', {
+                            ...settings.errorLogging,
+                            severityFilter: {
+                              ...(settings.errorLogging?.severityFilter || {}),
+                              enabled: e.target.checked
+                            }
+                          })}
+                          className="h-4 w-4 text-orange-600 rounded border-gray-300 focus:ring-orange-500"
+                        />
+                        <span className="ml-2 text-sm font-medium text-gray-700">Enable severity filtering</span>
+                      </label>
+                      <p className="mt-1 text-sm text-gray-500">Only capture errors of selected severity levels</p>
+                    </div>
+
+                    {settings.errorLogging?.severityFilter?.enabled && (
+                      <div className="ml-6 pl-4 border-l-2 border-orange-100">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Allowed severity levels
+                          </label>
+                          <div className="space-y-2">
+                            {['error', 'warn', 'info'].map((severity) => (
+                              <label key={severity} className="flex items-center">
+                                <input
+                                  type="checkbox"
+                                  checked={settings.errorLogging?.severityFilter?.allowed?.includes(severity as any) || false}
+                                  onChange={(e) => {
+                                    const currentAllowed = settings.errorLogging?.severityFilter?.allowed || [];
+                                    const newAllowed = e.target.checked
+                                      ? [...currentAllowed, severity]
+                                      : currentAllowed.filter((s) => s !== severity);
+                                    updateSetting('errorLogging', {
+                                      ...settings.errorLogging,
+                                      severityFilter: {
+                                        ...(settings.errorLogging?.severityFilter || {}),
+                                        allowed: newAllowed as any
+                                      }
+                                    });
+                                  }}
+                                  className="h-4 w-4 text-orange-600 rounded border-gray-300 focus:ring-orange-500"
+                                />
+                                <span className="ml-2 text-sm text-gray-700 capitalize">
+                                  {severity}
+                                  <span className={`ml-2 px-2 py-1 text-xs rounded-full ${
+                                    severity === 'error' ? 'bg-red-100 text-red-800' :
+                                    severity === 'warn' ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-blue-100 text-blue-800'
+                                  }`}>
+                                    {severity === 'error' ? 'console.error()' :
+                                     severity === 'warn' ? 'console.warn()' :
+                                     'console.info/log()'}
+                                  </span>
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                          <p className="mt-2 text-sm text-gray-500">
+                            Unselected severity levels will be ignored completely
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

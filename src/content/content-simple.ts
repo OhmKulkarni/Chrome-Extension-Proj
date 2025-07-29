@@ -128,28 +128,61 @@ window.addEventListener('consoleErrorIntercepted', (event: any) => {
       return;
     }
     
-    // Add tab context information
-    const enrichedData = {
-      ...errorData,
-      tabUrl: window.location.href,
-      tabDomain: window.location.hostname
-    };
-    
-    // Send to background for storage
-    chrome.runtime.sendMessage({
-      type: 'CONSOLE_ERROR',
-      data: enrichedData
-    }).then(() => {
-      console.log('✅ CONTENT: Stored console error');
-    }).catch((error) => {
-      console.log('❌ CONTENT: Failed to store console error:', error);
-      extensionContextValid = false;
+    // Get current tab ID
+    chrome.runtime.sendMessage({ action: 'getCurrentTabId' }).then((tabResponse) => {
+      // Add tab context information
+      const enrichedData = {
+        ...errorData,
+        tabUrl: window.location.href,
+        tabDomain: window.location.hostname,
+        tabId: tabResponse?.tabId
+      };
+      
+      // Send to background for storage
+      chrome.runtime.sendMessage({
+        type: 'CONSOLE_ERROR',
+        data: enrichedData
+      }).then(() => {
+        console.log('✅ CONTENT: Stored console error');
+      }).catch((error) => {
+        console.log('❌ CONTENT: Failed to store console error:', error);
+        extensionContextValid = false;
+      });
+    }).catch((tabError) => {
+      console.log('❌ CONTENT: Could not get tab ID:', tabError);
+      // Send without tab ID as fallback
+      const enrichedData = {
+        ...errorData,
+        tabUrl: window.location.href,
+        tabDomain: window.location.hostname
+      };
+      
+      chrome.runtime.sendMessage({
+        type: 'CONSOLE_ERROR',
+        data: enrichedData
+      });
     });
     
   } catch (error) {
     console.log('❌ CONTENT: Error processing console error:', error);
     extensionContextValid = false;
   }
+});
+
+// Listen for messages from popup/background
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message.action === 'toggleLogging') {
+    console.log('📱 CONTENT: Toggle network logging:', message.enabled);
+    // Network logging toggle is handled by main-world-script
+    // Just acknowledge the message
+    sendResponse({ success: true });
+  } else if (message.action === 'toggleErrorLogging') {
+    console.log('📱 CONTENT: Toggle error logging:', message.enabled);
+    // Error logging toggle is handled by main-world-script
+    // Just acknowledge the message
+    sendResponse({ success: true });
+  }
+  return true; // Keep the message channel open for async response
 });
 
 // Listen for extension context invalidation
