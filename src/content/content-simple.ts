@@ -93,10 +93,17 @@ window.addEventListener('networkRequestIntercepted', (event: any) => {
       return;
     }
     
+    // Add tab context information
+    const enrichedData = {
+      ...requestData,
+      tabUrl: window.location.href,
+      tabDomain: window.location.hostname
+    };
+    
     // Send to background for storage
     chrome.runtime.sendMessage({
       type: 'NETWORK_REQUEST',
-      data: requestData
+      data: enrichedData
     }).then(() => {
       console.log('✅ CONTENT: Stored network request');
     }).catch((error) => {
@@ -106,6 +113,41 @@ window.addEventListener('networkRequestIntercepted', (event: any) => {
     
   } catch (error) {
     console.log('❌ CONTENT: Error processing network request:', error);
+    extensionContextValid = false;
+  }
+});
+
+// Listen for console errors from main world
+window.addEventListener('consoleErrorIntercepted', (event: any) => {
+  const errorData = event.detail;
+  console.log('📡 CONTENT: Captured console error:', errorData.message);
+  
+  try {
+    if (!isExtensionContextValid()) {
+      console.log('⚠️ CONTENT: Extension context invalid, console error captured but not stored');
+      return;
+    }
+    
+    // Add tab context information
+    const enrichedData = {
+      ...errorData,
+      tabUrl: window.location.href,
+      tabDomain: window.location.hostname
+    };
+    
+    // Send to background for storage
+    chrome.runtime.sendMessage({
+      type: 'CONSOLE_ERROR',
+      data: enrichedData
+    }).then(() => {
+      console.log('✅ CONTENT: Stored console error');
+    }).catch((error) => {
+      console.log('❌ CONTENT: Failed to store console error:', error);
+      extensionContextValid = false;
+    });
+    
+  } catch (error) {
+    console.log('❌ CONTENT: Error processing console error:', error);
     extensionContextValid = false;
   }
 });

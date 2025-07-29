@@ -60,6 +60,7 @@ export interface StorageOperations {
   // API Calls
   insertApiCall(data: Omit<ApiCall, 'id'>): Promise<number>
   getApiCalls(limit?: number, offset?: number): Promise<ApiCall[]>
+  getApiCallsFast?(limit?: number): Promise<ApiCall[]> // Optimized for performance testing
   deleteApiCall(id: number): Promise<void>
   
   // Console Errors
@@ -79,6 +80,7 @@ export interface StorageOperations {
   
   // Data pruning
   pruneOldData(): Promise<void>
+  clearAllData(): Promise<void>
   getTableCounts(): Promise<{[table: string]: number}>
   
   // Storage info

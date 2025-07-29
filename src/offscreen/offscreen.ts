@@ -397,6 +397,17 @@ function pruneOldData(params: { cutoffTime: number, maxRecords: number }) {
   return { success: true }
 }
 
+// Clear all data
+function clearAllData() {
+  const tables = ['api_calls', 'console_errors', 'token_events', 'minified_libraries']
+  
+  for (const table of tables) {
+    db.exec(`DELETE FROM ${table}`)
+  }
+  
+  return { success: true }
+}
+
 function getTableCounts() {
   const tables = ['api_calls', 'console_errors', 'token_events', 'minified_libraries']
   const counts: { [table: string]: number } = {}
@@ -522,6 +533,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         
       case 'pruneOldData':
         response = pruneOldData(message.data)
+        break
+        
+      case 'clearAllData':
+        response = clearAllData()
         break
         
       case 'getTableCounts':

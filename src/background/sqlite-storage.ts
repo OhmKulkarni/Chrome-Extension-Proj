@@ -143,6 +143,12 @@ export class SQLiteStorage implements StorageOperations {
     return response.data
   }
 
+  async getApiCallsFast(limit = 10): Promise<ApiCall[]> {
+    // For SQLite, use a simpler query for better performance
+    const response = await this.sendToOffscreen('getApiCallsFast', { limit })
+    return response.data
+  }
+
   async deleteApiCall(id: number): Promise<void> {
     await this.sendToOffscreen('deleteApiCall', { id })
   }
@@ -199,6 +205,11 @@ export class SQLiteStorage implements StorageOperations {
       cutoffTime, 
       maxRecords: this.config.maxRecordsPerTable 
     })
+  }
+
+  // Clear all data
+  async clearAllData(): Promise<void> {
+    await this.sendToOffscreen('clearAllData')
   }
 
   async getTableCounts(): Promise<{[table: string]: number}> {

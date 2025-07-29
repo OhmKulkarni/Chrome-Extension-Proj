@@ -246,6 +246,11 @@ export class EnvironmentStorageManager implements StorageOperations {
     }
   }
 
+  // Get underlying storage for direct access (use carefully)
+  getUnderlyingStorage(): StorageOperations {
+    return this.ensureInitialized()
+  }
+
   // Delegate all storage operations to the active storage
   async insertApiCall(data: Omit<ApiCall, 'id'>): Promise<number> {
     return this.ensureInitialized().insertApiCall(data)
@@ -297,6 +302,10 @@ export class EnvironmentStorageManager implements StorageOperations {
 
   async pruneOldData(): Promise<void> {
     return this.ensureInitialized().pruneOldData()
+  }
+
+  async clearAllData(): Promise<void> {
+    return this.ensureInitialized().clearAllData()
   }
 
   async getStorageInfo(): Promise<{ type: 'sqlite' | 'indexeddb'; size?: number }> {

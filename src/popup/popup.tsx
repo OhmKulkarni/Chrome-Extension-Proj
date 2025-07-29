@@ -7,16 +7,29 @@ import { createRoot } from 'react-dom/client';
 interface TabInfo {
   url?: string;
   title?: string;
+  id?: number;
 }
 
 interface StorageData {
   extensionEnabled: boolean;
+  extensionSettings?: {
+    networkInterception?: {
+      enabled: boolean;
+      tabSpecific?: {
+        enabled: boolean;
+        defaultState: 'active' | 'paused';
+      };
+    };
+  };
 }
 
 const Popup: React.FC = () => {
   const [tabInfo, setTabInfo] = useState<TabInfo>({});
   const [extensionEnabled, setExtensionEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [settings, setSettings] = useState<StorageData['extensionSettings']>({});
+  const [tabLoggingActive, setTabLoggingActive] = useState(false);
+  const [requestCount, setRequestCount] = useState(0);
 
   useEffect(() => {
     // Get current tab info
@@ -33,12 +46,78 @@ const Popup: React.FC = () => {
       }
     });
 
-    // Get extension settings
-    chrome.storage.sync.get(['extensionEnabled'], (result) => {
-      const data = result as Partial<StorageData>;
-      setExtensionEnabled(data.extensionEnabled ?? true);
+    // Get extension settings and tab-specific state
+    chrome.storage.local.get(['settings'], (result) => {
+      const settings = result.settings || {};
+      setSettings({ networkInterception: settings.networkInterception });
       setLoading(false);
     });
+
+    // Also get extension enabled state from sync storage (if it exists there)
+    chrome.storage.sync.get(['extensionEnabled'], (result) => {
+      setExtensionEnabled(result.extensionEnabled ?? true);
+    });
+
+    // Get current tab's logging state
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]?.id) {
+        const tabId = tabs[0].id;
+        chrome.storage.local.get([`tabLogging_${tabId}`, 'settings'], (result) => {
+          const tabState = result[`tabLogging_${tabId}`];
+          const settings = result.settings || {};
+          const networkConfig = settings.networkInterception || {};
+          
+          if (tabState) {
+            // Tab state exists
+            if (typeof tabState === 'boolean') {
+              setTabLoggingActive(tabState);
+            } else if (tabState && typeof tabState === 'object' && 'active' in tabState) {
+              setTabLoggingActive(tabState.active);
+              setRequestCount(tabState.requestCount || 0);
+            }
+          } else {
+            // No tab state exists, use default from settings
+            const defaultActive = networkConfig.tabSpecific?.defaultState === 'active';
+            setTabLoggingActive(defaultActive);
+            
+            // Initialize tab state in storage
+            const initialTabState = {
+              active: defaultActive,
+              startTime: defaultActive ? Date.now() : undefined,
+              requestCount: 0
+            };
+            chrome.storage.local.set({ [`tabLogging_${tabId}`]: initialTabState });
+          }
+        });
+      }
+    });
+
+    // Listen for storage changes to update request count in real-time
+    const handleStorageChange = (changes: {[key: string]: chrome.storage.StorageChange}, areaName: string) => {
+      if (areaName === 'local') {
+        // Check if any tab logging state changed
+        Object.keys(changes).forEach(key => {
+          if (key.startsWith('tabLogging_')) {
+            const newValue = changes[key].newValue;
+            if (newValue && typeof newValue === 'object' && 'requestCount' in newValue) {
+              // Get current tab ID to see if this update is for the current tab
+              chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                if (tabs[0]?.id && key === `tabLogging_${tabs[0].id}`) {
+                  setRequestCount(newValue.requestCount || 0);
+                }
+              });
+            }
+          }
+        });
+      }
+    };
+
+    chrome.storage.onChanged.addListener(handleStorageChange);
+
+    // Cleanup listener on unmount
+    return () => {
+      chrome.storage.onChanged.removeListener(handleStorageChange);
+    };
   }, []);
 
   const toggleExtension = () => {
@@ -47,14 +126,49 @@ const Popup: React.FC = () => {
     chrome.storage.sync.set({ extensionEnabled: newState });
   };
 
+  const toggleTabLogging = () => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]?.id) {
+        const tabId = tabs[0].id;
+        const newState = !tabLoggingActive;
+        setTabLoggingActive(newState);
+        
+        const tabState = {
+          active: newState,
+          startTime: newState ? Date.now() : undefined,
+          requestCount: newState ? 0 : requestCount
+        };
+        
+        chrome.storage.local.set({ [`tabLogging_${tabId}`]: tabState });
+        
+        // Send message to content script to start/stop logging
+        chrome.tabs.sendMessage(tabId, {
+          action: 'toggleLogging',
+          enabled: newState
+        });
+      }
+    });
+  };
+
   const openDashboard = () => {
     chrome.runtime.sendMessage({ action: 'openDashboard' });
   };
 
   const openSettings = () => {
-    chrome.tabs.create({
-      url: chrome.runtime.getURL('src/settings/settings.html')
-    });
+    console.log('🔧 Opening settings page...');
+    try {
+      chrome.tabs.create({
+        url: chrome.runtime.getURL('src/settings/settings.html')
+      }, (tab) => {
+        if (chrome.runtime.lastError) {
+          console.error('Error opening settings:', chrome.runtime.lastError);
+        } else {
+          console.log('Settings tab created:', tab);
+        }
+      });
+    } catch (error) {
+      console.error('Exception in openSettings:', error);
+    }
   };
 
   if (loading) {
@@ -109,6 +223,30 @@ const Popup: React.FC = () => {
             />
           </button>
         </div>
+
+        {/* Tab-Specific Logging Control */}
+        {extensionEnabled && settings?.networkInterception?.tabSpecific?.enabled && (
+          <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+            <div>
+              <h3 className="font-semibold text-gray-800">Tab Logging</h3>
+              <p className="text-sm text-gray-600">
+                {tabLoggingActive ? `Active (${requestCount} requests)` : 'Paused'}
+              </p>
+            </div>
+            <button
+              onClick={toggleTabLogging}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                tabLoggingActive ? 'bg-green-500' : 'bg-gray-300'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  tabLoggingActive ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="space-y-2">
