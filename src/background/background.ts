@@ -50,7 +50,7 @@ const initializeChromeStorageSettings = () => {
         privacyMode: false,
         dataCollection: true,
         networkInterception: {
-          enabled: true, // Enable by default for testing
+          enabled: true, // Permission-based: enabled in settings
           bodyCapture: {
             mode: 'partial',
             captureRequests: false,
@@ -66,7 +66,7 @@ const initializeChromeStorageSettings = () => {
           },
           tabSpecific: {
             enabled: true,
-            defaultState: 'paused'
+            defaultState: 'paused' // Per-tab: starts paused, user must enable
           },
           requestFilters: {
             enabled: false,
@@ -74,11 +74,23 @@ const initializeChromeStorageSettings = () => {
           },
           profiles: []
         },
+        errorLogging: {
+          enabled: true, // Permission-based: enabled in settings
+          severityFilter: {
+            enabled: false,
+            allowed: ['error', 'warn', 'info']
+          },
+          tabSpecific: {
+            enabled: true,
+            defaultState: 'paused' // Per-tab: starts paused, user must enable
+          }
+        },
       };
       
       chrome.storage.local.set({ settings: defaultSettings }, () => {
         console.log('[Web App Monitor] ✅ Chrome storage settings initialized');
-        console.log('[Web App Monitor] Network interception enabled by default');
+        console.log('[Web App Monitor] Permission-based logging enabled: Network & Error logging capabilities enabled');
+        console.log('[Web App Monitor] Per-tab defaults: Both start paused, user must manually enable per tab');
       });
     } else {
       console.log('[Web App Monitor] Chrome storage settings already exist');
@@ -400,41 +412,51 @@ async function handleConsoleError(errorData: any, sendResponse: (response: any) 
       return;
     }
 
-    // Check tab-specific error logging if enabled
-    if (errorLoggingConfig.tabSpecific?.enabled && errorData.tabId) {
-      try {
-        const tabData = await chrome.storage.local.get([`tabErrorLogging_${errorData.tabId}`]);
-        const tabState = tabData[`tabErrorLogging_${errorData.tabId}`];
-        
-        let isTabLoggingActive = false;
-        if (tabState) {
-          isTabLoggingActive = typeof tabState === 'boolean' ? tabState : tabState.active;
-        } else {
-          // No tab state exists, use default
-          isTabLoggingActive = errorLoggingConfig.tabSpecific?.defaultState === 'active';
+    // Check tab-specific error logging ONLY if tab-specific is enabled
+    if (errorLoggingConfig.tabSpecific?.enabled) {
+      if (errorData.tabId) {
+        try {
+          const tabData = await chrome.storage.local.get([`tabErrorLogging_${errorData.tabId}`]);
+          const tabState = tabData[`tabErrorLogging_${errorData.tabId}`];
+          
+          let isTabLoggingActive = false;
+          if (tabState) {
+            isTabLoggingActive = typeof tabState === 'boolean' ? tabState : tabState.active;
+          } else {
+            // No tab state exists, use default
+            isTabLoggingActive = errorLoggingConfig.tabSpecific?.defaultState === 'active';
+          }
+          
+          if (!isTabLoggingActive) {
+            sendResponse({ success: false, reason: 'Tab error logging paused' });
+            return;
+          }
+
+          // Update tab error count
+          try {
+            const currentState = tabState || { active: true, startTime: Date.now(), errorCount: 0 };
+            const updatedState = {
+              ...currentState,
+              errorCount: (currentState.errorCount || 0) + 1,
+              lastErrorTime: Date.now()
+            };
+            await chrome.storage.local.set({ [`tabErrorLogging_${errorData.tabId}`]: updatedState });
+          } catch (tabUpdateError) {
+            console.warn('Failed to update tab error count:', tabUpdateError);
+          }
+        } catch (tabError) {
+          console.warn('Could not determine tab error logging state, using default:', tabError);
         }
-        
-        if (!isTabLoggingActive) {
-          sendResponse({ success: false, reason: 'Tab error logging paused' });
+      } else {
+        // No tab ID provided but tab-specific is enabled - use default behavior
+        const defaultActive = errorLoggingConfig.tabSpecific?.defaultState === 'active';
+        if (!defaultActive) {
+          sendResponse({ success: false, reason: 'No tab ID and default state is paused' });
           return;
         }
-
-        // Update tab error count
-        try {
-          const currentState = tabState || { active: true, startTime: Date.now(), errorCount: 0 };
-          const updatedState = {
-            ...currentState,
-            errorCount: (currentState.errorCount || 0) + 1,
-            lastErrorTime: Date.now()
-          };
-          await chrome.storage.local.set({ [`tabErrorLogging_${errorData.tabId}`]: updatedState });
-        } catch (tabUpdateError) {
-          console.warn('Failed to update tab error count:', tabUpdateError);
-        }
-      } catch (tabError) {
-        console.warn('Could not determine tab error logging state, using default:', tabError);
       }
     }
+    // If tab-specific is disabled, log globally for all tabs (no additional checks needed)
 
     // Check severity filtering if enabled
     if (errorLoggingConfig.severityFilter?.enabled) {

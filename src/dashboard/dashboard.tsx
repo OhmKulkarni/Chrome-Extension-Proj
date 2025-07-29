@@ -107,7 +107,7 @@ const Dashboard: React.FC = () => {
 
   const clearData = async () => {
     const confirmed = window.confirm(
-      '⚠️ WARNING: This will permanently delete all recorded network requests and reset all tab counters.\n\n' +
+      '⚠️ WARNING: This will permanently delete all recorded network requests, console errors, and reset all tab counters.\n\n' +
       'This action cannot be undone. Are you sure you want to continue?'
     );
     
@@ -144,7 +144,7 @@ const Dashboard: React.FC = () => {
         setCurrentPage(1);
         
         // Show success message
-        alert('✅ All network request data and popup counters have been cleared successfully.');
+        alert('✅ All network request and console error data have been cleared successfully.');
         
       } catch (error) {
         console.error('Error clearing data:', error);
@@ -742,7 +742,7 @@ const Dashboard: React.FC = () => {
                   <span className="text-2xl">🌐</span>
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No network requests yet</h3>
-                <p className="text-gray-500">Network requests will appear here as they are captured.</p>
+                <p className="text-gray-500">Network requests will appear here once you enable logging on specific tabs via the popup.</p>
               </div>
             )}
           </div>
@@ -983,7 +983,7 @@ const Dashboard: React.FC = () => {
                   <span className="text-2xl">⚠️</span>
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No console errors yet</h3>
-                <p className="text-gray-500">Console errors will appear here as they are captured.</p>
+                <p className="text-gray-500">Console errors will appear here once you enable error logging on specific tabs via the popup.</p>
               </div>
             )}
           </div>

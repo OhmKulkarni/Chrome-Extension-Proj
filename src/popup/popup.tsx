@@ -58,9 +58,19 @@ const Popup: React.FC = () => {
     // Get extension settings and tab-specific state
     chrome.storage.local.get(['settings'], (result) => {
       const settings = result.settings || {};
+      
+      // Ensure we have default errorLogging settings if they don't exist
+      const errorLoggingDefaults = {
+        enabled: true,
+        tabSpecific: {
+          enabled: true,
+          defaultState: 'paused'
+        }
+      };
+      
       setSettings({ 
         networkInterception: settings.networkInterception,
-        errorLogging: settings.errorLogging 
+        errorLogging: settings.errorLogging || errorLoggingDefaults
       });
       setLoading(false);
     });
