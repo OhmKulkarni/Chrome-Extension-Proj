@@ -177,6 +177,111 @@ if (!window.__extensionNetworkInterceptionActive) {
   };
 
   console.log('🌍 MAIN-WORLD: Network interception active in main world');
+  
+  // Console error/warning interception
+  if (!window.__consoleInterceptionActive) {
+    window.__consoleInterceptionActive = true;
+    
+    const originalConsoleError = console.error;
+    const originalConsoleWarn = console.warn;
+
+    console.error = function(...args) {
+      console.log('🌍 MAIN-WORLD: Console error intercepted:', args);
+      
+      // Create error data
+      const errorData = {
+        id: `err_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        message: args.map(arg => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' '),
+        stack: new Error().stack || 'No stack trace available',
+        timestamp: new Date().toISOString(),
+        severity: 'error',
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+        type: 'console-error'
+      };
+      
+      // Send to content script using custom event
+      window.dispatchEvent(new CustomEvent('consoleErrorIntercepted', {
+        detail: errorData
+      }));
+      
+      // Call original console.error
+      return originalConsoleError.apply(this, args);
+    };
+
+    console.warn = function(...args) {
+      console.log('🌍 MAIN-WORLD: Console warning intercepted:', args);
+      
+      // Create warning data
+      const warningData = {
+        id: `warn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        message: args.map(arg => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' '),
+        stack: new Error().stack || 'No stack trace available',
+        timestamp: new Date().toISOString(),
+        severity: 'warn',
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+        type: 'console-warn'
+      };
+      
+      // Send to content script using custom event
+      window.dispatchEvent(new CustomEvent('consoleErrorIntercepted', {
+        detail: warningData
+      }));
+      
+      // Call original console.warn
+      return originalConsoleWarn.apply(this, args);
+    };
+
+    // Global error handler for uncaught exceptions
+    window.addEventListener('error', (event) => {
+      console.log('🌍 MAIN-WORLD: Uncaught error intercepted:', event);
+      
+      const errorData = {
+        id: `uncaught_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        message: event.message || 'Uncaught error',
+        stack: event.error ? event.error.stack : `at ${event.filename}:${event.lineno}:${event.colno}`,
+        timestamp: new Date().toISOString(),
+        severity: 'error',
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+        type: 'uncaught-error',
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno
+      };
+      
+      // Send to content script using custom event
+      window.dispatchEvent(new CustomEvent('consoleErrorIntercepted', {
+        detail: errorData
+      }));
+    });
+
+    // Unhandled promise rejection handler
+    window.addEventListener('unhandledrejection', (event) => {
+      console.log('🌍 MAIN-WORLD: Unhandled promise rejection intercepted:', event);
+      
+      const errorData = {
+        id: `rejection_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        message: event.reason ? String(event.reason) : 'Unhandled promise rejection',
+        stack: event.reason && event.reason.stack ? event.reason.stack : 'No stack trace available',
+        timestamp: new Date().toISOString(),
+        severity: 'error',
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+        type: 'unhandled-rejection'
+      };
+      
+      // Send to content script using custom event
+      window.dispatchEvent(new CustomEvent('consoleErrorIntercepted', {
+        detail: errorData
+      }));
+    });
+
+    console.log('🌍 MAIN-WORLD: Console error/warning interception active');
+  } else {
+    console.log('🌍 MAIN-WORLD: Console error interception already active, skipping');
+  }
 } else {
   console.log('🌍 MAIN-WORLD: Network interception already active, skipping');
 }

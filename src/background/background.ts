@@ -384,6 +384,35 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
   }
 }
 
+// Console error handler
+async function handleConsoleError(errorData: any, sendResponse: (response: any) => void) {
+  try {
+    if (!storageManager.isInitialized()) {
+      await storageManager.init();
+    }
+    
+    // Map the error data from main-world-script to storage API format
+    const storageData = {
+      message: errorData.message || 'Unknown error',
+      stack_trace: errorData.stack || 'No stack trace available',
+      timestamp: errorData.timestamp ? new Date(errorData.timestamp).getTime() : Date.now(),
+      severity: errorData.severity || 'error',
+      url: errorData.url || 'Unknown URL'
+    };
+    
+    // Store the console error
+    const id = await storageManager.insertConsoleError(storageData);
+    
+    // Update last activity timestamp
+    await chrome.storage.sync.set({ lastActivity: Date.now() });
+    
+    sendResponse({ success: true, id });
+  } catch (error) {
+    console.error('[Web App Monitor] Failed to store console error:', error);
+    sendResponse({ error: error instanceof Error ? error.message : 'Storage failed' });
+  }
+}
+
 // Helper function to match URL patterns (supports wildcards)
 function matchesUrlPattern(url: string, pattern: string): boolean {
   try {
@@ -574,6 +603,28 @@ async function handleClearAllData(sendResponse: (response: any) => void) {
   }
 }
 
+// Get console errors handler
+async function handleGetConsoleErrors(limit: number, sendResponse: (response: any) => void) {
+  try {
+    if (!storageManager.isInitialized()) {
+      await storageManager.init();
+    }
+    
+    // Get recent console errors
+    const errors = await storageManager.getConsoleErrors(limit);
+    const counts = await storageManager.getTableCounts();
+    
+    sendResponse({ 
+      success: true, 
+      errors: errors || [], 
+      total: counts?.console_errors || 0 
+    });
+  } catch (error) {
+    console.error('[Web App Monitor] Failed to get console errors:', error);
+    sendResponse({ error: error instanceof Error ? error.message : 'Query failed' });
+  }
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.action || message.type) {
     case 'INJECT_MAIN_WORLD_SCRIPT':
@@ -640,6 +691,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       handleNetworkRequest(message.data, sendResponse, sender);
       return true; // Keep message channel open for async response
 
+    case 'CONSOLE_ERROR':
+      // Store console error data from content script
+      handleConsoleError(message.data, sendResponse);
+      return true; // Keep message channel open for async response
+
     case 'getNetworkRequests':
       // Get stored network requests
       handleGetNetworkRequests(message.limit || 50, sendResponse);
@@ -648,6 +704,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     case 'clearAllData':
       // Clear all stored network requests
       handleClearAllData(sendResponse);
+      return true; // Keep message channel open for async response
+
+    case 'getConsoleErrors':
+      // Get stored console errors
+      handleGetConsoleErrors(message.limit || 50, sendResponse);
       return true; // Keep message channel open for async response
 
     default:
