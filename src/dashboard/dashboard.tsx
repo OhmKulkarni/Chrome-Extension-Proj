@@ -11,6 +11,11 @@ interface DashboardData {
   totalRequests: number;
 }
 
+interface SortConfig {
+  key: string;
+  direction: 'asc' | 'desc';
+}
+
 const Dashboard: React.FC = () => {
   const [data, setData] = useState<DashboardData>({
     totalTabs: 0,
@@ -20,6 +25,11 @@ const Dashboard: React.FC = () => {
     totalRequests: 0
   });
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [requestsPerPage] = useState(10);
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'timestamp', direction: 'desc' });
+  const [filterMethod, setFilterMethod] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState<string>('');
 
   useEffect(() => {
     loadDashboardData();
@@ -33,9 +43,9 @@ const Dashboard: React.FC = () => {
       // Get storage data
       const storageData = await chrome.storage.sync.get(['extensionEnabled', 'lastActivity']);
       
-      // Get network requests from background storage
+      // Get network requests from background storage - request more for pagination
       const networkData = await new Promise<any>((resolve) => {
-        chrome.runtime.sendMessage({ action: 'getNetworkRequests', limit: 50 }, (response) => {
+        chrome.runtime.sendMessage({ action: 'getNetworkRequests', limit: 100 }, (response) => {
           if (chrome.runtime.lastError) {
             console.error('Dashboard: Error getting network requests:', chrome.runtime.lastError);
             resolve({ requests: [], total: 0 });
@@ -45,6 +55,9 @@ const Dashboard: React.FC = () => {
         });
       });
       
+      // Calculate pagination
+      const totalRequests = networkData.total || 0;
+      
       setData({
         totalTabs: tabs.length,
         extensionEnabled: storageData.extensionEnabled ?? true,
@@ -52,7 +65,7 @@ const Dashboard: React.FC = () => {
           ? new Date(storageData.lastActivity).toLocaleString()
           : 'Never',
         networkRequests: networkData.requests || [],
-        totalRequests: networkData.total || 0
+        totalRequests: totalRequests
       });
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -64,6 +77,139 @@ const Dashboard: React.FC = () => {
   const refreshData = () => {
     setLoading(true);
     loadDashboardData();
+  };
+
+  // Pagination functions
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalFilteredPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNext = () => {
+    if (currentPage < totalFilteredPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  // Calculate current page data with sorting and filtering
+  const getFilteredAndSortedRequests = () => {
+    let filteredRequests = [...data.networkRequests];
+    
+    // Apply search filter
+    if (searchTerm) {
+      filteredRequests = filteredRequests.filter(request =>
+        request.url.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (request.method && request.method.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+    
+    // Apply method filter
+    if (filterMethod !== 'all') {
+      filteredRequests = filteredRequests.filter(request => 
+        request.method && request.method.toLowerCase() === filterMethod.toLowerCase()
+      );
+    }
+    
+    // Apply sorting
+    filteredRequests.sort((a, b) => {
+      const aValue = a[sortConfig.key];
+      const bValue = b[sortConfig.key];
+      
+      if (sortConfig.key === 'timestamp') {
+        const aTime = new Date(aValue).getTime();
+        const bTime = new Date(bValue).getTime();
+        return sortConfig.direction === 'asc' ? aTime - bTime : bTime - aTime;
+      }
+      
+      if (sortConfig.key === 'status' || sortConfig.key === 'payload_size') {
+        const aNum = Number(aValue) || 0;
+        const bNum = Number(bValue) || 0;
+        return sortConfig.direction === 'asc' ? aNum - bNum : bNum - aNum;
+      }
+      
+      // String comparison
+      const aStr = String(aValue || '').toLowerCase();
+      const bStr = String(bValue || '').toLowerCase();
+      if (aStr < bStr) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aStr > bStr) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    
+    return filteredRequests;
+  };
+
+  const filteredAndSortedRequests = getFilteredAndSortedRequests();
+  const totalFilteredRequests = filteredAndSortedRequests.length;
+  const totalFilteredPages = Math.ceil(totalFilteredRequests / requestsPerPage);
+  
+  // Calculate current page data
+  const indexOfLastRequest = currentPage * requestsPerPage;
+  const indexOfFirstRequest = indexOfLastRequest - requestsPerPage;
+  const currentRequests = filteredAndSortedRequests.slice(indexOfFirstRequest, indexOfLastRequest);
+
+  // Handle sorting
+  const handleSort = (key: string) => {
+    setSortConfig({
+      key,
+      direction: sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc'
+    });
+    setCurrentPage(1); // Reset to first page when sorting
+  };
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterMethod, totalFilteredPages]);
+
+  // Generate page numbers for pagination (Google-style)
+  const getPageNumbers = () => {
+    const pageNumbers = [];
+    const maxVisiblePages = 7;
+    const totalPages = totalFilteredPages;
+    
+    if (totalPages <= maxVisiblePages) {
+      // Show all pages if total is small
+      for (let i = 1; i <= totalPages; i++) {
+        pageNumbers.push(i);
+      }
+    } else {
+      // Google-style pagination logic
+      if (currentPage <= 4) {
+        // Show 1-5 ... totalPages
+        for (let i = 1; i <= 5; i++) {
+          pageNumbers.push(i);
+        }
+        if (totalPages > 5) {
+          pageNumbers.push('...');
+          pageNumbers.push(totalPages);
+        }
+      } else if (currentPage >= totalPages - 3) {
+        // Show 1 ... (totalPages-4)-totalPages
+        pageNumbers.push(1);
+        pageNumbers.push('...');
+        for (let i = totalPages - 4; i <= totalPages; i++) {
+          pageNumbers.push(i);
+        }
+      } else {
+        // Show 1 ... (currentPage-1) currentPage (currentPage+1) ... totalPages
+        pageNumbers.push(1);
+        pageNumbers.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pageNumbers.push(i);
+        }
+        pageNumbers.push('...');
+        pageNumbers.push(totalPages);
+      }
+    }
+    
+    return pageNumbers;
   };
 
   if (loading) {
@@ -165,8 +311,72 @@ const Dashboard: React.FC = () => {
         <div className="bg-white rounded-lg shadow mb-8">
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Recent Network Requests</h2>
-              <span className="text-sm text-gray-500">Last 50 requests</span>
+              <h2 className="text-lg font-semibold text-gray-900">Network Requests</h2>
+              <div className="flex items-center space-x-4">
+                <span className="text-sm text-gray-500">
+                  {totalFilteredRequests > 0 && (
+                    `Showing ${indexOfFirstRequest + 1}-${Math.min(indexOfLastRequest, totalFilteredRequests)} of ${totalFilteredRequests}`
+                  )}
+                  {totalFilteredRequests !== data.totalRequests && (
+                    ` (filtered from ${data.totalRequests})`
+                  )}
+                </span>
+                {totalFilteredPages > 1 && (
+                  <span className="text-sm text-gray-500">Page {currentPage} of {totalFilteredPages}</span>
+                )}
+              </div>
+            </div>
+
+            {/* Search and Filter Controls */}
+            <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0 sm:space-x-4">
+              {/* Search */}
+              <div className="flex-1 max-w-md">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search by URL or method..."
+                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+              </div>
+              
+              {/* Method Filter */}
+              <div className="flex items-center space-x-3">
+                <label className="text-sm font-medium text-gray-700">Method:</label>
+                <select
+                  value={filterMethod}
+                  onChange={(e) => setFilterMethod(e.target.value)}
+                  className="block pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                >
+                  <option value="all">All Methods</option>
+                  <option value="GET">GET</option>
+                  <option value="POST">POST</option>
+                  <option value="PUT">PUT</option>
+                  <option value="DELETE">DELETE</option>
+                  <option value="PATCH">PATCH</option>
+                  <option value="OPTIONS">OPTIONS</option>
+                </select>
+              </div>
+              
+              {/* Clear Filters */}
+              {(searchTerm || filterMethod !== 'all') && (
+                <button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setFilterMethod('all');
+                  }}
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Clear Filters
+                </button>
+              )}
             </div>
             
             {data.networkRequests.length > 0 ? (
@@ -175,25 +385,75 @@ const Dashboard: React.FC = () => {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Method
+                        <th 
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('method')}
+                        >
+                          <div className="flex items-center">
+                            Method
+                            {sortConfig.key === 'method' && (
+                              <span className="ml-1">
+                                {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          URL
+                        <th 
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('url')}
+                        >
+                          <div className="flex items-center">
+                            URL
+                            {sortConfig.key === 'url' && (
+                              <span className="ml-1">
+                                {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
+                        <th 
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('status')}
+                        >
+                          <div className="flex items-center">
+                            Status
+                            {sortConfig.key === 'status' && (
+                              <span className="ml-1">
+                                {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Size
+                        <th 
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('payload_size')}
+                        >
+                          <div className="flex items-center">
+                            Size
+                            {sortConfig.key === 'payload_size' && (
+                              <span className="ml-1">
+                                {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Time
+                        <th 
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('timestamp')}
+                        >
+                          <div className="flex items-center">
+                            Time
+                            {sortConfig.key === 'timestamp' && (
+                              <span className="ml-1">
+                                {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
                         </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {data.networkRequests.slice(0, 10).map((request, index) => (
+                      {currentRequests.map((request, index) => (
                         <tr key={index} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -233,11 +493,66 @@ const Dashboard: React.FC = () => {
                   </table>
                 </div>
                 
-                {data.networkRequests.length > 10 && (
-                  <div className="mt-4 text-center">
-                    <p className="text-sm text-gray-500">
-                      Showing 10 of {data.networkRequests.length} requests
-                    </p>
+                {/* Pagination Controls */}
+                {totalFilteredPages > 1 && (
+                  <div className="mt-6 flex items-center justify-between">
+                    <div className="flex items-center">
+                      <p className="text-sm text-gray-700">
+                        Showing <span className="font-medium">{indexOfFirstRequest + 1}</span> to{' '}
+                        <span className="font-medium">{Math.min(indexOfLastRequest, totalFilteredRequests)}</span> of{' '}
+                        <span className="font-medium">{totalFilteredRequests}</span> results
+                        {totalFilteredRequests !== data.totalRequests && (
+                          <span className="text-gray-500"> (filtered from {data.totalRequests})</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {/* Previous Button */}
+                      <button
+                        onClick={handlePrevious}
+                        disabled={currentPage === 1}
+                        className={`px-3 py-2 text-sm font-medium rounded-md ${
+                          currentPage === 1
+                            ? 'text-gray-400 cursor-not-allowed'
+                            : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        Previous
+                      </button>
+                      
+                      {/* Page Numbers */}
+                      <div className="flex items-center space-x-1">
+                        {getPageNumbers().map((pageNum, index) => (
+                          <button
+                            key={index}
+                            onClick={() => typeof pageNum === 'number' ? handlePageChange(pageNum) : undefined}
+                            disabled={pageNum === '...'}
+                            className={`px-3 py-2 text-sm font-medium rounded-md ${
+                              pageNum === currentPage
+                                ? 'bg-blue-500 text-white'
+                                : pageNum === '...'
+                                ? 'text-gray-500 cursor-default'
+                                : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        ))}
+                      </div>
+                      
+                      {/* Next Button */}
+                      <button
+                        onClick={handleNext}
+                        disabled={currentPage === totalFilteredPages}
+                        className={`px-3 py-2 text-sm font-medium rounded-md ${
+                          currentPage === totalFilteredPages
+                            ? 'text-gray-400 cursor-not-allowed'
+                            : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        Next
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
