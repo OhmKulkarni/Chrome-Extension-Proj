@@ -431,19 +431,6 @@ async function handleConsoleError(errorData: any, sendResponse: (response: any) 
             sendResponse({ success: false, reason: 'Tab error logging paused' });
             return;
           }
-
-          // Update tab error count
-          try {
-            const currentState = tabState || { active: true, startTime: Date.now(), errorCount: 0 };
-            const updatedState = {
-              ...currentState,
-              errorCount: (currentState.errorCount || 0) + 1,
-              lastErrorTime: Date.now()
-            };
-            await chrome.storage.local.set({ [`tabErrorLogging_${errorData.tabId}`]: updatedState });
-          } catch (tabUpdateError) {
-            console.warn('Failed to update tab error count:', tabUpdateError);
-          }
         } catch (tabError) {
           console.warn('Could not determine tab error logging state, using default:', tabError);
         }
@@ -480,10 +467,39 @@ async function handleConsoleError(errorData: any, sendResponse: (response: any) 
     
     // Store the console error
     const id = await storageManager.insertConsoleError(storageData);
+
+    // ALWAYS update tab error count (regardless of tab-specific setting)
+    // This ensures popup shows accurate count matching the dashboard
+    if (errorData.tabId) {
+      try {
+        const tabData = await chrome.storage.local.get([`tabErrorLogging_${errorData.tabId}`]);
+        const tabState = tabData[`tabErrorLogging_${errorData.tabId}`];
+        
+        if (tabState && typeof tabState === 'object') {
+          const updatedState = {
+            ...tabState,
+            errorCount: (tabState.errorCount || 0) + 1,
+            lastErrorTime: Date.now()
+          };
+          await chrome.storage.local.set({ [`tabErrorLogging_${errorData.tabId}`]: updatedState });
+        } else {
+          // Create tab state if it doesn't exist (for accurate counting)
+          const newTabState = {
+            active: errorLoggingConfig.tabSpecific?.defaultState === 'active',
+            startTime: Date.now(),
+            errorCount: 1,
+            lastErrorTime: Date.now()
+          };
+          await chrome.storage.local.set({ [`tabErrorLogging_${errorData.tabId}`]: newTabState });
+        }
+      } catch (tabUpdateError) {
+        console.warn('Failed to update tab error count:', tabUpdateError);
+      }
+    }
     
     // Update last activity timestamp
     await chrome.storage.sync.set({ lastActivity: Date.now() });
-    
+
     sendResponse({ success: true, id });
   } catch (error) {
     console.error('[Web App Monitor] Failed to store console error:', error);
@@ -644,6 +660,7 @@ async function handleClearAllData(sendResponse: (response: any) => void) {
     // Also clear all tab-specific request counters
     const allStorage = await chrome.storage.local.get(null);
     const tabLoggingKeys = Object.keys(allStorage).filter(key => key.startsWith('tabLogging_'));
+    const tabErrorLoggingKeys = Object.keys(allStorage).filter(key => key.startsWith('tabErrorLogging_'));
     
     // Reset request counts for all tabs while preserving their active/paused state
     const updates: Record<string, any> = {};
@@ -660,6 +677,24 @@ async function handleClearAllData(sendResponse: (response: any) => void) {
           active: tabState,
           startTime: Date.now(),
           requestCount: 0
+        };
+      }
+    }
+    
+    // Reset error counts for all tabs while preserving their active/paused state
+    for (const key of tabErrorLoggingKeys) {
+      const tabState = allStorage[key];
+      if (tabState && typeof tabState === 'object') {
+        updates[key] = {
+          ...tabState,
+          errorCount: 0
+        };
+      } else if (typeof tabState === 'boolean') {
+        // Convert old boolean format to new object format with counter
+        updates[key] = {
+          active: tabState,
+          startTime: Date.now(),
+          errorCount: 0
         };
       }
     }

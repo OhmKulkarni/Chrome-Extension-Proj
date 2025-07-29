@@ -36,9 +36,7 @@ const Popup: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<StorageData['extensionSettings']>({});
   const [tabLoggingActive, setTabLoggingActive] = useState(false);
-  const [requestCount, setRequestCount] = useState(0);
   const [tabErrorLoggingActive, setTabErrorLoggingActive] = useState(false);
-  const [errorCount, setErrorCount] = useState(0);
 
   useEffect(() => {
     // Get current tab info
@@ -97,7 +95,6 @@ const Popup: React.FC = () => {
               setTabLoggingActive(tabState);
             } else if (tabState && typeof tabState === 'object' && 'active' in tabState) {
               setTabLoggingActive(tabState.active);
-              setRequestCount(tabState.requestCount || 0);
             }
           } else {
             const defaultActive = networkConfig.tabSpecific?.defaultState === 'active';
@@ -117,7 +114,6 @@ const Popup: React.FC = () => {
               setTabErrorLoggingActive(errorTabState);
             } else if (errorTabState && typeof errorTabState === 'object' && 'active' in errorTabState) {
               setTabErrorLoggingActive(errorTabState.active);
-              setErrorCount(errorTabState.errorCount || 0);
             }
           } else {
             const defaultErrorActive = errorConfig.tabSpecific?.defaultState === 'active';
@@ -134,35 +130,8 @@ const Popup: React.FC = () => {
       }
     });
 
-    // Listen for storage changes to update counts in real-time
-    const handleStorageChange = (changes: {[key: string]: chrome.storage.StorageChange}, areaName: string) => {
-      if (areaName === 'local') {
-        // Check if any tab logging state changed
-        Object.keys(changes).forEach(key => {
-          if (key.startsWith('tabLogging_') || key.startsWith('tabErrorLogging_')) {
-            const newValue = changes[key].newValue;
-            if (newValue && typeof newValue === 'object') {
-              // Get current tab ID to see if this update is for the current tab
-              chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                if (tabs[0]?.id) {
-                  if (key === `tabLogging_${tabs[0].id}` && 'requestCount' in newValue) {
-                    setRequestCount(newValue.requestCount || 0);
-                  } else if (key === `tabErrorLogging_${tabs[0].id}` && 'errorCount' in newValue) {
-                    setErrorCount(newValue.errorCount || 0);
-                  }
-                }
-              });
-            }
-          }
-        });
-      }
-    };
-
-    chrome.storage.onChanged.addListener(handleStorageChange);
-
     // Cleanup listener on unmount
     return () => {
-      chrome.storage.onChanged.removeListener(handleStorageChange);
     };
   }, []);
 
@@ -182,7 +151,7 @@ const Popup: React.FC = () => {
         const tabState = {
           active: newState,
           startTime: newState ? Date.now() : undefined,
-          requestCount: newState ? 0 : requestCount
+          requestCount: 0
         };
         
         chrome.storage.local.set({ [`tabLogging_${tabId}`]: tabState });
@@ -206,7 +175,7 @@ const Popup: React.FC = () => {
         const tabState = {
           active: newState,
           startTime: newState ? Date.now() : undefined,
-          errorCount: newState ? 0 : errorCount
+          errorCount: 0
         };
         
         chrome.storage.local.set({ [`tabErrorLogging_${tabId}`]: tabState });
@@ -300,7 +269,7 @@ const Popup: React.FC = () => {
             <div>
               <h3 className="font-semibold text-gray-800">Tab Logging</h3>
               <p className="text-sm text-gray-600">
-                {tabLoggingActive ? `Active (${requestCount} requests)` : 'Paused'}
+                {tabLoggingActive ? 'Active' : 'Paused'}
               </p>
             </div>
             <button
@@ -324,7 +293,7 @@ const Popup: React.FC = () => {
             <div>
               <h3 className="font-semibold text-gray-800">Error Logging</h3>
               <p className="text-sm text-gray-600">
-                {tabErrorLoggingActive ? `Active (${errorCount} errors)` : 'Paused'}
+                {tabErrorLoggingActive ? 'Active' : 'Paused'}
               </p>
             </div>
             <button
