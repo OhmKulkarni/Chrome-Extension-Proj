@@ -7,13 +7,17 @@ interface DashboardData {
   totalTabs: number;
   extensionEnabled: boolean;
   lastActivity: string;
+  networkRequests: any[];
+  totalRequests: number;
 }
 
 const Dashboard: React.FC = () => {
   const [data, setData] = useState<DashboardData>({
     totalTabs: 0,
     extensionEnabled: true,
-    lastActivity: 'Never'
+    lastActivity: 'Never',
+    networkRequests: [],
+    totalRequests: 0
   });
   const [loading, setLoading] = useState(true);
 
@@ -29,12 +33,26 @@ const Dashboard: React.FC = () => {
       // Get storage data
       const storageData = await chrome.storage.sync.get(['extensionEnabled', 'lastActivity']);
       
+      // Get network requests from background storage
+      const networkData = await new Promise<any>((resolve) => {
+        chrome.runtime.sendMessage({ action: 'getNetworkRequests', limit: 50 }, (response) => {
+          if (chrome.runtime.lastError) {
+            console.error('Dashboard: Error getting network requests:', chrome.runtime.lastError);
+            resolve({ requests: [], total: 0 });
+          } else {
+            resolve(response || { requests: [], total: 0 });
+          }
+        });
+      });
+      
       setData({
         totalTabs: tabs.length,
         extensionEnabled: storageData.extensionEnabled ?? true,
         lastActivity: storageData.lastActivity 
           ? new Date(storageData.lastActivity).toLocaleString()
-          : 'Never'
+          : 'Never',
+        networkRequests: networkData.requests || [],
+        totalRequests: networkData.total || 0
       });
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -79,7 +97,7 @@ const Dashboard: React.FC = () => {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -126,6 +144,112 @@ const Dashboard: React.FC = () => {
                 <p className="text-sm font-semibold text-gray-900">{data.lastActivity}</p>
               </div>
             </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold">🌐</span>
+                </div>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-500">Network Requests</p>
+                <p className="text-2xl font-semibold text-gray-900">{data.totalRequests}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Network Requests Section */}
+        <div className="bg-white rounded-lg shadow mb-8">
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Recent Network Requests</h2>
+              <span className="text-sm text-gray-500">Last 50 requests</span>
+            </div>
+            
+            {data.networkRequests.length > 0 ? (
+              <div className="overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Method
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          URL
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Size
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Time
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {data.networkRequests.slice(0, 10).map((request, index) => (
+                        <tr key={index} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              request.method === 'GET' ? 'bg-blue-100 text-blue-800' :
+                              request.method === 'POST' ? 'bg-green-100 text-green-800' :
+                              request.method === 'PUT' ? 'bg-yellow-100 text-yellow-800' :
+                              request.method === 'DELETE' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {request.method}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-gray-900 truncate max-w-xs" title={request.url}>
+                              {request.url}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              request.status >= 200 && request.status < 300 ? 'bg-green-100 text-green-800' :
+                              request.status >= 300 && request.status < 400 ? 'bg-yellow-100 text-yellow-800' :
+                              request.status >= 400 ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {request.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {request.payload_size ? `${Math.round(request.payload_size / 1024)}KB` : '-'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {new Date(request.timestamp).toLocaleTimeString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                
+                {data.networkRequests.length > 10 && (
+                  <div className="mt-4 text-center">
+                    <p className="text-sm text-gray-500">
+                      Showing 10 of {data.networkRequests.length} requests
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                  <span className="text-2xl">🌐</span>
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No network requests yet</h3>
+                <p className="text-gray-500">Network requests will appear here as they are captured.</p>
+              </div>
+            )}
           </div>
         </div>
 

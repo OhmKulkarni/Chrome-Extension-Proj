@@ -16,7 +16,12 @@ export default defineConfig({
           "storage",
           "activeTab",
           "tabs",
-          "offscreen"
+          "scripting",
+          "declarativeNetRequest"
+        ],
+        host_permissions: [
+          "http://*/*",
+          "https://*/*"
         ],
         action: {
           default_popup: "src/popup/popup.html"
@@ -28,27 +33,24 @@ export default defineConfig({
         content_scripts: [
           {
             matches: ["<all_urls>"],
-            js: ["src/content/content.ts"],
-            // Remove the CSS line - we'll inject it via JS instead
-            // css: ["src/content/content.css"]
+            js: ["src/content/content-simple.ts"]
           }
         ],
         options_page: "src/settings/settings.html",
-        content_security_policy: {
-          extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
-        },
         web_accessible_resources: [
           {
-            matches: ["<all_urls>"],
             resources: [
-              "assets/*",
-              "*.js",
-              "*.css",
-              "*.html"
+              "main-world-script.js",
+              "sql-wasm.wasm",
+              "src/offscreen/offscreen.html",
+              "assets/*"
             ],
-            use_dynamic_url: true
+            matches: ["<all_urls>"]
           }
-        ]
+        ],
+        content_security_policy: {
+          extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+        }
       },
       contentScripts: {
         injectCss: true,
@@ -71,6 +73,7 @@ export default defineConfig({
         dashboard: resolve(__dirname, 'src/dashboard/dashboard.html'),
         settings: resolve(__dirname, 'src/settings/settings.html'),
         offscreen: resolve(__dirname, 'src/offscreen/offscreen.html'),
+        'main-world-script': resolve(__dirname, 'public/main-world-script.js'),
       },
     }
   },

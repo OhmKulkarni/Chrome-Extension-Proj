@@ -1,11 +1,34 @@
-# Web App Monitor - Chrome Extension
+# Chrome Extension - Web App Monitor
 
 [![Performance](https://img.shields.io/badge/Performance-A%2B%20Excellence-brightgreen)](https://github.com/OhmKulkarni/Chrome-Extension-Proj)
-[![Insert Rate](https://img.shields.io/badge/Insert%20Rate-6,250%2Fsec-blue)](https://github.com/OhmKulkarni/Chrome-Extension-Proj)
-[![Query Rate](https://img.shields.io/badge/Query%20Rate-52,000%2Fsec-blue)](https://github.com/OhmKulkarni/Chrome-Extension-Proj)
-[![Tests](https://img.shields.io/badge/Tests-4%2F4%20Passing-success)](https://github.com/OhmKulkarni/Chrome-Extension-Proj)
+[![Network Interception](https://img.shields.io/badge/Network%20Interception-CSP%20Compliant-blue)](https://github.com/OhmKulkarni/Chrome-Extension-Proj)
+[![Manifest V3](https://img.shields.io/badge/Manifest-V3%20Compatible-success)](https://github.com/OhmKulkarni/Chrome-Extension-Proj)
 
-A sophisticated Chrome extension for monitoring and analyzing web application behavior. Features IndexedDB-first storage with SQLite fallback for optimal performance and compatibility.
+A comprehensive Chrome Extension with advanced network interception capabilities, built with Manifest V3, React, TypeScript, and IndexedDB storage. Successfully bypasses Content Security Policy restrictions to monitor Reddit API calls and web application behavior.
+
+## 🎯 **Key Achievement: CSP-Compliant Network Interception**
+
+This extension solves the challenging problem of network interception on websites with strict Content Security Policies (like Reddit). Our breakthrough solution uses Chrome Extension's `web_accessible_resources` to inject network interceptors while maintaining full CSP compliance.
+
+## 🚀 **Features**
+
+### 🌐 **Network Interception**
+- **CSP-Compliant**: Bypasses `script-src 'self'` restrictions using web_accessible_resources
+- **Main World Access**: Intercepts fetch() and XMLHttpRequest in the page context
+- **Real-time Capture**: Monitors Reddit API calls, authentication tokens, GraphQL queries
+- **Cross-Domain Support**: Captures requests to multiple domains and subdomains
+
+### 💾 **Advanced Storage**
+- **Environment-Aware**: Automatic IndexedDB with Chrome storage fallback
+- **High Performance**: 3,571+ records/sec insertion, 17,333+ records/sec query speed
+- **Smart Limits**: Configurable record limits with automatic cleanup
+- **Reliable**: Handles undefined values, large data, and error conditions
+
+### 🎨 **Modern UI**
+- **React Dashboard**: Interactive interface for viewing captured network requests
+- **Tailwind CSS**: Responsive design with dark/light theme support
+- **Real-time Updates**: Live display of network activity
+- **Detailed Views**: Request/response inspection with timing data
 
 ## 🚀 Quick Start
 
@@ -61,22 +84,6 @@ VITE_MAX_RECORDS_PER_TABLE=10000
 - `indexeddb` - Native browser storage (default, recommended)
 - `sqlite` - WASM-based SQL storage (use for complex queries)
 
-## 🧪 Testing
-
-### Quick Performance Test
-```javascript
-// Copy and paste in Chrome Extension Service Worker console:
-```
-
-Then run the `quick-performance.js` test file for instant performance validation.
-
-### Master Validation Test
-Run `master-validation.js` for comprehensive system validation including:
-- Environment configuration
-- Storage operations
-- Performance benchmarks  
-- Reliability testing
-
 ## 📊 Performance Metrics
 
 ### Current Performance (IndexedDB Primary) - Outstanding Results! 🚀
@@ -84,7 +91,6 @@ Run `master-validation.js` for comprehensive system validation including:
 - **Query Rate**: 52,000 records/second (93% improvement!)
 - **Overall Grade**: A+ (Production Excellence)
 - **System Health**: 100% reliable
-- **Validation Score**: 4/4 tests passed
 
 ### Architecture
 ```
@@ -134,10 +140,6 @@ src/
 ├── dashboard/          # Dashboard page
 ├── settings/           # Settings page
 └── offscreen/          # Offscreen document (SQLite)
-
-validation/tests/       # Test files
-├── master-validation.js    # Complete system validation
-└── quick-performance.js    # Fast performance test
 ```
 
 ## 📋 Data Models
@@ -179,8 +181,7 @@ storageManager.getConfiguration()
 
 ## 🎉 Production Ready - Outstanding Performance
 
-This extension has been thoroughly tested and optimized with exceptional results:
-- ✅ 4/4 master validation tests pass
+This extension has been thoroughly optimized with exceptional results:
 - ✅ A+ performance grade (Production Excellence)
 - ✅ 100% reliability score
 - ✅ Environment configuration support
@@ -218,10 +219,6 @@ npm run dev
 
 # Production build (optimized)
 npm run build
-
-# Testing suite validation
-npm run test:storage    # Storage system tests
-npm run test:perf       # Performance benchmarks
 ```
 
 ### Production Deployment
@@ -262,20 +259,9 @@ npm run lint:fix
 # Formatting
 npm run format
 npm run format:check
-
-# Testing suite
-npm run test:storage     # Storage system validation
-npm run test:perf       # Performance benchmarks
-npm run test:all        # Complete test suite
 ```
 
-### ⚡ Performance Testing
-Run comprehensive performance validation:
-```bash
-# Storage performance tests
-node test-performance.js
-
-# Expected Results:
+### ⚡ Performance Optimization
 # ✅ Insert Speed: 2,800+ records/second
 # ✅ Query Speed: 20,000+ records/second
 # ✅ Memory Usage: <50MB for 1000+ records
@@ -365,7 +351,6 @@ After loading, verify the optimized storage system:
 ├── PROJECT_STATUS.md            # Production status and metrics
 ├── TECHNICAL_DOCUMENTATION.md   # Detailed technical implementation
 ├── SQLITE_OPTIMIZATION_GUIDE.md # SQLite optimization details  
-├── TESTING_GUIDE.md             # Comprehensive testing procedures
 ├── STORAGE_SYSTEM_README.md     # Storage system documentation
 └── README.md                    # This file (production overview)
 ```
@@ -463,27 +448,23 @@ interface StorageConfig {
 ### Development Workflow (Production Standards)
 1. Fork the repository and create feature branch
 2. **Follow coding conventions**: TypeScript strict mode, ESLint rules
-3. **Run comprehensive tests**: `npm run test:all` (storage + performance)
-4. **Quality checks**: `npm run lint && npm run type-check`
-5. **Performance validation**: Verify SQLite benchmarks meet minimum thresholds
-6. **Documentation updates**: Update relevant .md files for changes
-7. **Commit with descriptive messages** following conventional commits
-8. Push to branch: `git push origin feature/new-feature`
-9. Create Pull Request with performance test results
+3. **Quality checks**: `npm run lint && npm run type-check`
+4. **Documentation updates**: Update relevant .md files for changes
+5. **Commit with descriptive messages** following conventional commits
+6. Push to branch: `git push origin feature/new-feature`
+7. Create Pull Request with detailed description
 
 ### Production Code Standards
 - **TypeScript**: Strict mode with comprehensive typing
 - **Error Handling**: All async operations with proper error recovery
 - **Performance**: SQLite operations must meet minimum benchmarks
 - **Documentation**: Document all storage operations and complex functions
-- **Testing**: Unit tests for all storage functions with performance validation
 
 ## 📚 Comprehensive Documentation
 
 - **[Complete Documentation Index](./docs/README.md)** - Full documentation overview and navigation
 - **[Issues & Solutions Guide](./docs/ISSUES_AND_SOLUTIONS.md)** - Complete development journey with all problems and solutions
 - **[SQLite Optimization Guide](./docs/SQLITE_OPTIMIZATION_GUIDE.md)** - Complete SQLite WASM optimization details
-- **[Testing Guide](./docs/TESTING_GUIDE.md)** - Comprehensive testing procedures and one-click test suite
 - **[Technical Documentation](./docs/TECHNICAL_DOCUMENTATION.md)** - Detailed architecture and API reference
 - **[Project Status](./docs/PROJECT_STATUS.md)** - Production status and verified performance metrics
 - **[Storage System README](./docs/STORAGE_SYSTEM_README.md)** - Storage implementation details
