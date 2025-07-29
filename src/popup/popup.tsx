@@ -103,9 +103,20 @@ const Popup: React.FC = () => {
   };
 
   const openSettings = () => {
-    chrome.tabs.create({
-      url: chrome.runtime.getURL('src/settings/settings.html')
-    });
+    console.log('🔧 Opening settings page...');
+    try {
+      chrome.tabs.create({
+        url: chrome.runtime.getURL('src/settings/settings.html')
+      }, (tab) => {
+        if (chrome.runtime.lastError) {
+          console.error('Error opening settings:', chrome.runtime.lastError);
+        } else {
+          console.log('Settings tab created:', tab);
+        }
+      });
+    } catch (error) {
+      console.error('Exception in openSettings:', error);
+    }
   };
 
   if (loading) {

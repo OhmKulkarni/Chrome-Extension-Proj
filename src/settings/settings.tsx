@@ -139,11 +139,24 @@ const Settings: React.FC = () => {
     loadSettings();
   }, []);
 
+  // Deep merge function to properly merge nested settings
+  const deepMerge = (target: any, source: any): any => {
+    const result = { ...target };
+    for (const key in source) {
+      if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+        result[key] = deepMerge(result[key] || {}, source[key]);
+      } else {
+        result[key] = source[key];
+      }
+    }
+    return result;
+  };
+
   const loadSettings = async () => {
     try {
       const result = await chrome.storage.sync.get('extensionSettings');
       if (result.extensionSettings) {
-        setSettings({ ...defaultSettings, ...result.extensionSettings });
+        setSettings(deepMerge(defaultSettings, result.extensionSettings));
       }
     } catch (error) {
       console.error('Error loading settings:', error);
@@ -512,11 +525,11 @@ const Settings: React.FC = () => {
                     <label className="flex items-center">
                       <input
                         type="checkbox"
-                        checked={settings.networkInterception.urlPatterns.enabled}
+                        checked={settings.networkInterception?.urlPatterns?.enabled || false}
                         onChange={(e) => updateSetting('networkInterception', {
                           ...settings.networkInterception,
                           urlPatterns: {
-                            ...settings.networkInterception.urlPatterns,
+                            ...(settings.networkInterception?.urlPatterns || {}),
                             enabled: e.target.checked
                           }
                         })}
@@ -529,21 +542,21 @@ const Settings: React.FC = () => {
                     </p>
                   </div>
 
-                  {settings.networkInterception.urlPatterns.enabled && (
+                  {settings.networkInterception?.urlPatterns?.enabled && (
                     <div className="ml-6 space-y-4 pl-4 border-l-2 border-green-100">
                       <div className="space-y-3">
-                        {settings.networkInterception.urlPatterns.patterns.map((pattern, index) => (
+                        {(settings.networkInterception?.urlPatterns?.patterns || []).map((pattern, index) => (
                           <div key={pattern.id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
                             <input
                               type="checkbox"
                               checked={pattern.active}
                               onChange={(e) => {
-                                const newPatterns = [...settings.networkInterception.urlPatterns.patterns];
+                                const newPatterns = [...(settings.networkInterception?.urlPatterns?.patterns || [])];
                                 newPatterns[index] = { ...pattern, active: e.target.checked };
                                 updateSetting('networkInterception', {
                                   ...settings.networkInterception,
                                   urlPatterns: {
-                                    ...settings.networkInterception.urlPatterns,
+                                    ...(settings.networkInterception?.urlPatterns || {}),
                                     patterns: newPatterns
                                   }
                                 });
@@ -555,12 +568,12 @@ const Settings: React.FC = () => {
                                 type="text"
                                 value={pattern.pattern}
                                 onChange={(e) => {
-                                  const newPatterns = [...settings.networkInterception.urlPatterns.patterns];
+                                  const newPatterns = [...(settings.networkInterception?.urlPatterns?.patterns || [])];
                                   newPatterns[index] = { ...pattern, pattern: e.target.value };
                                   updateSetting('networkInterception', {
                                     ...settings.networkInterception,
                                     urlPatterns: {
-                                      ...settings.networkInterception.urlPatterns,
+                                      ...(settings.networkInterception?.urlPatterns || {}),
                                       patterns: newPatterns
                                     }
                                   });
@@ -574,11 +587,11 @@ const Settings: React.FC = () => {
                             </div>
                             <button
                               onClick={() => {
-                                const newPatterns = settings.networkInterception.urlPatterns.patterns.filter((_, i) => i !== index);
+                                const newPatterns = (settings.networkInterception?.urlPatterns?.patterns || []).filter((_, i) => i !== index);
                                 updateSetting('networkInterception', {
                                   ...settings.networkInterception,
                                   urlPatterns: {
-                                    ...settings.networkInterception.urlPatterns,
+                                    ...(settings.networkInterception?.urlPatterns || {}),
                                     patterns: newPatterns
                                   }
                                 });
@@ -604,8 +617,8 @@ const Settings: React.FC = () => {
                             updateSetting('networkInterception', {
                               ...settings.networkInterception,
                               urlPatterns: {
-                                ...settings.networkInterception.urlPatterns,
-                                patterns: [...settings.networkInterception.urlPatterns.patterns, newPattern]
+                                ...(settings.networkInterception?.urlPatterns || {}),
+                                patterns: [...(settings.networkInterception?.urlPatterns?.patterns || []), newPattern]
                               }
                             });
                           }}
@@ -624,8 +637,8 @@ const Settings: React.FC = () => {
                             updateSetting('networkInterception', {
                               ...settings.networkInterception,
                               urlPatterns: {
-                                ...settings.networkInterception.urlPatterns,
-                                patterns: [...settings.networkInterception.urlPatterns.patterns, ...commonPatterns]
+                                ...(settings.networkInterception?.urlPatterns || {}),
+                                patterns: [...(settings.networkInterception?.urlPatterns?.patterns || []), ...commonPatterns]
                               }
                             });
                           }}
@@ -659,11 +672,11 @@ const Settings: React.FC = () => {
                     <label className="flex items-center">
                       <input
                         type="checkbox"
-                        checked={settings.networkInterception.tabSpecific.enabled}
+                        checked={settings.networkInterception?.tabSpecific?.enabled || false}
                         onChange={(e) => updateSetting('networkInterception', {
                           ...settings.networkInterception,
                           tabSpecific: {
-                            ...settings.networkInterception.tabSpecific,
+                            ...(settings.networkInterception?.tabSpecific || {}),
                             enabled: e.target.checked
                           }
                         })}
@@ -676,7 +689,7 @@ const Settings: React.FC = () => {
                     </p>
                   </div>
 
-                  {settings.networkInterception.tabSpecific.enabled && (
+                  {settings.networkInterception?.tabSpecific?.enabled && (
                     <div className="ml-6 pl-4 border-l-2 border-purple-100">
                       <div>
                         <label htmlFor="defaultTabState" className="block text-sm font-medium text-gray-700">
@@ -684,11 +697,11 @@ const Settings: React.FC = () => {
                         </label>
                         <select
                           id="defaultTabState"
-                          value={settings.networkInterception.tabSpecific.defaultState}
+                          value={settings.networkInterception?.tabSpecific?.defaultState || 'active'}
                           onChange={(e) => updateSetting('networkInterception', {
                             ...settings.networkInterception,
                             tabSpecific: {
-                              ...settings.networkInterception.tabSpecific,
+                              ...(settings.networkInterception?.tabSpecific || {}),
                               defaultState: e.target.value as 'active' | 'paused'
                             }
                           })}
