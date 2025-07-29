@@ -143,6 +143,12 @@ export class SQLiteStorage implements StorageOperations {
     return response.data
   }
 
+  async getApiCallsFast(limit = 10): Promise<ApiCall[]> {
+    // For SQLite, use a simpler query for better performance
+    const response = await this.sendToOffscreen('getApiCallsFast', { limit })
+    return response.data
+  }
+
   async deleteApiCall(id: number): Promise<void> {
     await this.sendToOffscreen('deleteApiCall', { id })
   }

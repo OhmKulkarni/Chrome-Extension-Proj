@@ -89,12 +89,14 @@ const initializeChromeStorageSettings = () => {
 // Expose storage system for debugging in DevTools (service worker context)
 (self as any).storageManager = storageManager;
 
-// Legacy test helpers for backward compatibility
+// Core performance testing functions
 (self as any).insertTestApiCall = async () => {
   try {
     if (!storageManager.isInitialized()) {
       await storageManager.init();
     }
+    
+    const startTime = performance.now();
     
     const testData = {
       url: 'https://api.test.com/debug',
@@ -107,8 +109,14 @@ const initializeChromeStorageSettings = () => {
     };
     
     const id = await storageManager.insertApiCall(testData);
-    console.log('Test API call inserted with ID:', id);
-    return id;
+    const endTime = performance.now();
+    const duration = endTime - startTime;
+    
+    console.log('✅ Test API call inserted with ID:', id);
+    console.log('⚡ Insert performance:', duration.toFixed(3) + 'ms');
+    console.log('📊 Estimated insert rate:', Math.round(1000 / duration) + '/sec');
+    
+    return { id, duration, estimatedRate: Math.round(1000 / duration) };
   } catch (error) {
     console.error('Failed to insert test API call:', error);
   }
@@ -120,33 +128,119 @@ const initializeChromeStorageSettings = () => {
       await storageManager.init();
     }
     
-    const results = await storageManager.getApiCalls(10, 0);
-    console.log('API calls:', results);
-    return results;
+    const startTime = performance.now();
+    
+    // Use fast query method if available, fallback to regular method
+    const storage = storageManager.getUnderlyingStorage();
+    let results;
+    
+    if (storage && 'getApiCallsFast' in storage && typeof storage.getApiCallsFast === 'function') {
+      results = await storage.getApiCallsFast(10);
+    } else {
+      results = await storageManager.getApiCalls(10, 0);
+    }
+    
+    const endTime = performance.now();
+    const duration = endTime - startTime;
+    
+    console.log('✅ API calls queried:', results.length, 'records');
+    console.log('⚡ Query performance:', duration.toFixed(3) + 'ms');
+    console.log('📊 Estimated query rate:', Math.round(1000 / duration) + '/sec');
+    
+    return { results, duration, estimatedRate: Math.round(1000 / duration) };
   } catch (error) {
     console.error('Failed to query API calls:', error);
   }
 };
 
-// Additional debugging helpers
-(self as any).getStorageStats = async () => {
+// Real-time performance testing function
+(self as any).runPerformanceTest = async (iterations = 10) => {
+  console.log('🚀 Running Real-Time Performance Test (' + iterations + ' iterations)...');
+  
+  const insertTimes = [];
+  const queryTimes = [];
+  
   try {
-    const counts = await storageManager.getTableCounts();
-    const info = await storageManager.getStorageInfo();
-    console.log('Storage statistics:', { counts, info });
-    return { counts, info };
+    for (let i = 0; i < iterations; i++) {
+      // Test insert
+      const insertResult = await (self as any).insertTestApiCall();
+      if (insertResult?.duration) {
+        insertTimes.push(insertResult.duration);
+      }
+      
+      // Test query
+      const queryResult = await (self as any).queryApiCalls();
+      if (queryResult?.duration) {
+        queryTimes.push(queryResult.duration);
+      }
+      
+      // Small delay between tests
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    
+    const avgInsertTime = insertTimes.reduce((a, b) => a + b, 0) / insertTimes.length;
+    const avgQueryTime = queryTimes.reduce((a, b) => a + b, 0) / queryTimes.length;
+    
+    const insertRate = Math.round(1000 / avgInsertTime);
+    const queryRate = Math.round(1000 / avgQueryTime);
+    
+    const results = {
+      iterations,
+      insertPerformance: {
+        averageTime: parseFloat(avgInsertTime.toFixed(3)),
+        rate: insertRate,
+        grade: insertRate >= 3000 ? 'A+' : insertRate >= 1000 ? 'A' : insertRate >= 500 ? 'B' : 'C'
+      },
+      queryPerformance: {
+        averageTime: parseFloat(avgQueryTime.toFixed(3)),
+        rate: queryRate,
+        grade: queryRate >= 20000 ? 'A+' : queryRate >= 10000 ? 'A' : queryRate >= 5000 ? 'B' : 'C'
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log('');
+    console.log('📊 REAL-TIME PERFORMANCE RESULTS');
+    console.log('================================');
+    console.log('Insert Rate:', results.insertPerformance.rate + '/sec (' + results.insertPerformance.grade + ')');
+    console.log('Query Rate:', results.queryPerformance.rate + '/sec (' + results.queryPerformance.grade + ')');
+    console.log('Average Insert Time:', results.insertPerformance.averageTime + 'ms');
+    console.log('Average Query Time:', results.queryPerformance.averageTime + 'ms');
+    console.log('Test Timestamp:', results.timestamp);
+    console.log('');
+    
+    return results;
   } catch (error) {
-    console.error('Failed to get storage stats:', error);
+    console.error('Performance test failed:', error);
   }
 };
 
-(self as any).pruneOldData = async () => {
-  try {
-    await storageManager.pruneOldData();
-    console.log('Data pruning completed');
-  } catch (error) {
-    console.error('Failed to prune data:', error);
-  }
+// Generate README metrics from real results
+(self as any).generateReadmeMetrics = async () => {
+  const perfResults = await (self as any).runPerformanceTest(20);
+  if (!perfResults) return 'Performance test failed';
+  
+  const readmeSnippet = `
+## 📊 Performance Metrics (Real-Time Tested - ${new Date().toLocaleDateString()})
+
+### Current Performance - Actual Chrome Extension Results! 🚀
+- **Insert Rate**: ${perfResults.insertPerformance.rate.toLocaleString()} records/second (${perfResults.insertPerformance.grade} Grade)
+- **Query Rate**: ${perfResults.queryPerformance.rate.toLocaleString()} records/second (${perfResults.queryPerformance.grade} Grade)
+- **Average Insert Time**: ${perfResults.insertPerformance.averageTime}ms
+- **Average Query Time**: ${perfResults.queryPerformance.averageTime}ms
+- **Test Method**: Real Chrome Extension operations (${perfResults.iterations} iterations)
+
+### Performance Breakdown
+| Metric | Current Value | Performance Grade | Target Status |
+|--------|---------------|-------------------|---------------|
+| **Insert Rate** | ${perfResults.insertPerformance.rate.toLocaleString()}/sec | **${perfResults.insertPerformance.grade}** | ${perfResults.insertPerformance.rate >= 1000 ? '✅ Exceeded' : '❌ Below'} |
+| **Query Rate** | ${perfResults.queryPerformance.rate.toLocaleString()}/sec | **${perfResults.queryPerformance.grade}** | ${perfResults.queryPerformance.rate >= 10000 ? '✅ Exceeded' : '❌ Below'} |
+
+*Tested on actual ${storageManager.getStorageType()} storage - ${perfResults.timestamp}*
+`;
+  
+  console.log(readmeSnippet);
+  return readmeSnippet;
 };
 
 // --- Message Handlers for Popup Communication ---

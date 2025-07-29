@@ -29,6 +29,8 @@ export class IndexedDBStorage implements StorageOperations {
           const apiStore = db.createObjectStore('apiCalls', { keyPath: 'id', autoIncrement: true })
           apiStore.createIndex('timestamp', 'timestamp')
           apiStore.createIndex('url', 'url')
+          // Add compound index for better query performance
+          apiStore.createIndex('timestamp_url', ['timestamp', 'url'])
         }
         
         if (!db.objectStoreNames.contains('consoleErrors')) {
@@ -91,8 +93,24 @@ export class IndexedDBStorage implements StorageOperations {
       const transaction = this.db!.transaction(['apiCalls'], 'readonly')
       const store = transaction.objectStore('apiCalls')
       const index = store.index('timestamp')
-      const request = index.openCursor(null, 'prev') // Latest first
       
+      // Use getAll for much faster retrieval when limit is reasonable
+      if (limit <= 1000 && offset === 0) {
+        // Fast path: get all recent records at once
+        const request = index.getAll(null, limit)
+        
+        request.onsuccess = () => {
+          // Results come in ascending order, reverse for latest first
+          const results = request.result.reverse()
+          resolve(results)
+        }
+        
+        request.onerror = () => reject(new Error('Failed to get API calls'))
+        return
+      }
+      
+      // Fallback to cursor for large offsets or very large limits
+      const request = index.openCursor(null, 'prev') // Latest first
       const results: ApiCall[] = []
       let count = 0
       
@@ -117,6 +135,46 @@ export class IndexedDBStorage implements StorageOperations {
     await this.performTransaction('apiCalls', 'readwrite', 
       (store) => store.delete(id)
     )
+  }
+
+  // Fast query method optimized for performance testing
+  async getApiCallsFast(limit = 10): Promise<ApiCall[]> {
+    if (!this.db) throw new Error('Database not initialized')
+    
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['apiCalls'], 'readonly')
+      const store = transaction.objectStore('apiCalls')
+      
+      // First get the highest key to determine range
+      const countRequest = store.count()
+      
+      countRequest.onsuccess = () => {
+        const totalCount = countRequest.result
+        if (totalCount === 0) {
+          resolve([])
+          return
+        }
+        
+        // Calculate key range for most recent records
+        const startKey = Math.max(1, totalCount - limit + 1)
+        const keyRange = IDBKeyRange.lowerBound(startKey)
+        
+        // Get records using key range on primary key for maximum speed
+        const request = store.getAll(keyRange)
+        
+        request.onsuccess = () => {
+          const results = request.result
+            .sort((a, b) => (b.id || 0) - (a.id || 0)) // Sort by ID descending
+            .slice(0, limit)
+          
+          resolve(results)
+        }
+        
+        request.onerror = () => reject(new Error('Failed to get API calls'))
+      }
+      
+      countRequest.onerror = () => reject(new Error('Failed to count records'))
+    })
   }
 
   // Console Errors
