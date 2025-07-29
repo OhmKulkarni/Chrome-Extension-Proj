@@ -89,42 +89,71 @@ if (!window.__extensionNetworkInterceptionActive) {
   XMLHttpRequest.prototype.send = function(body) {
     if (this._interceptData) {
       this.addEventListener('loadend', () => {
-        const endTime = Date.now();
-        
-        // Extract response headers
-        const responseHeaders = {};
-        const headerString = this.getAllResponseHeaders();
-        if (headerString) {
-          headerString.split('\r\n').forEach(line => {
-            const parts = line.split(': ');
-            if (parts.length === 2) {
-              responseHeaders[parts[0].toLowerCase()] = parts[1];
+        try {
+          const endTime = Date.now();
+          
+          // Extract response headers
+          const responseHeaders = {};
+          const headerString = this.getAllResponseHeaders();
+          if (headerString) {
+            headerString.split('\r\n').forEach(line => {
+              const parts = line.split(': ');
+              if (parts.length === 2) {
+                responseHeaders[parts[0].toLowerCase()] = parts[1];
+              }
+            });
+          }
+          
+          // Safe URL parsing
+          let domain;
+          try {
+            if (this._interceptData.url.startsWith('http')) {
+              domain = new URL(this._interceptData.url).hostname;
+            } else {
+              // Handle relative URLs
+              domain = window.location.hostname;
             }
-          });
+          } catch (urlError) {
+            console.log('🌍 MAIN-WORLD: URL parsing error:', urlError);
+            domain = window.location.hostname;
+          }
+          
+          // Safe response body extraction
+          let responseBody = null;
+          try {
+            if (this.responseType === '' || this.responseType === 'text') {
+              responseBody = this.responseText ? this.responseText.substring(0, 1000) : null;
+            }
+          } catch (responseError) {
+            console.log('🌍 MAIN-WORLD: Response text access error:', responseError);
+            responseBody = null;
+          }
+          
+          const requestData = {
+            id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            url: this._interceptData.url,
+            method: this._interceptData.method,
+            timestamp: new Date().toISOString(),
+            domain: domain,
+            status: this.status,
+            statusText: this.statusText,
+            duration: endTime - this._interceptData.startTime,
+            type: 'main-world-xhr',
+            headers: {
+              request: this._interceptData.requestHeaders || {},
+              response: responseHeaders
+            },
+            requestBody: body ? body.toString().substring(0, 1000) : null,
+            responseBody: responseBody
+          };
+          
+          // Send to content script using custom event
+          window.dispatchEvent(new CustomEvent('networkRequestIntercepted', {
+            detail: requestData
+          }));
+        } catch (error) {
+          console.log('🌍 MAIN-WORLD: Error processing XHR response:', error);
         }
-        
-        const requestData = {
-          id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          url: this._interceptData.url,
-          method: this._interceptData.method,
-          timestamp: new Date().toISOString(),
-          domain: new URL(this._interceptData.url).hostname,
-          status: this.status,
-          statusText: this.statusText,
-          duration: endTime - this._interceptData.startTime,
-          type: 'main-world-xhr',
-          headers: {
-            request: this._interceptData.requestHeaders || {},
-            response: responseHeaders
-          },
-          requestBody: body ? body.toString().substring(0, 1000) : null,
-          responseBody: this.responseText ? this.responseText.substring(0, 1000) : null
-        };
-        
-        // Send to content script using custom event
-        window.dispatchEvent(new CustomEvent('networkRequestIntercepted', {
-          detail: requestData
-        }));
       });
     }
     
