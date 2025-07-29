@@ -24,6 +24,45 @@ interface SettingsData {
     privacy: {
       autoRedact: boolean;
     };
+    // New scoped interception options
+    urlPatterns: {
+      enabled: boolean;
+      patterns: Array<{
+        id: string;
+        pattern: string;
+        active: boolean;
+        description?: string;
+      }>;
+    };
+    tabSpecific: {
+      enabled: boolean;
+      defaultState: 'active' | 'paused';
+    };
+    // New filtering options
+    requestFilters: {
+      methods: {
+        enabled: boolean;
+        allowed: Array<'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD'>;
+      };
+      contentTypes: {
+        enabled: boolean;
+        allowed: Array<'json' | 'html' | 'image' | 'script' | 'css' | 'xml' | 'text' | 'other'>;
+      };
+      pathFilters: {
+        enabled: boolean;
+        keywords: string[];
+        regex: string[];
+        includeMode: boolean; // true = include matching, false = exclude matching
+      };
+    };
+    // Profiles for quick switching
+    profiles: Array<{
+      id: string;
+      name: string;
+      description?: string;
+      active: boolean;
+      settings: Partial<SettingsData['networkInterception']>;
+    }>;
   };
 }
 
@@ -47,6 +86,46 @@ const defaultSettings: SettingsData = {
     privacy: {
       autoRedact: true,
     },
+    urlPatterns: {
+      enabled: false,
+      patterns: [
+        {
+          id: 'example-1',
+          pattern: 'https://example.com/*',
+          active: true,
+          description: 'Example pattern for example.com'
+        }
+      ]
+    },
+    tabSpecific: {
+      enabled: false,
+      defaultState: 'active'
+    },
+    requestFilters: {
+      methods: {
+        enabled: false,
+        allowed: ['GET', 'POST', 'PUT', 'DELETE']
+      },
+      contentTypes: {
+        enabled: false,
+        allowed: ['json', 'html', 'script']
+      },
+      pathFilters: {
+        enabled: false,
+        keywords: [],
+        regex: [],
+        includeMode: true
+      }
+    },
+    profiles: [
+      {
+        id: 'default',
+        name: 'Default Profile',
+        description: 'Standard network interception settings',
+        active: true,
+        settings: {}
+      }
+    ]
   },
 };
 
@@ -423,6 +502,210 @@ const Settings: React.FC = () => {
                 )}
               </div>
             </div>
+
+            {/* URL Pattern Scoping */}
+            {settings.networkInterception.enabled && (
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">URL Pattern Scoping</h2>
+                <div className="space-y-6">
+                  <div>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={settings.networkInterception.urlPatterns.enabled}
+                        onChange={(e) => updateSetting('networkInterception', {
+                          ...settings.networkInterception,
+                          urlPatterns: {
+                            ...settings.networkInterception.urlPatterns,
+                            enabled: e.target.checked
+                          }
+                        })}
+                        className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="ml-2 text-sm font-medium text-gray-700">Enable URL pattern filtering</span>
+                    </label>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Intercept requests only from specific URL patterns. Leave disabled to use domain filter above.
+                    </p>
+                  </div>
+
+                  {settings.networkInterception.urlPatterns.enabled && (
+                    <div className="ml-6 space-y-4 pl-4 border-l-2 border-green-100">
+                      <div className="space-y-3">
+                        {settings.networkInterception.urlPatterns.patterns.map((pattern, index) => (
+                          <div key={pattern.id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                            <input
+                              type="checkbox"
+                              checked={pattern.active}
+                              onChange={(e) => {
+                                const newPatterns = [...settings.networkInterception.urlPatterns.patterns];
+                                newPatterns[index] = { ...pattern, active: e.target.checked };
+                                updateSetting('networkInterception', {
+                                  ...settings.networkInterception,
+                                  urlPatterns: {
+                                    ...settings.networkInterception.urlPatterns,
+                                    patterns: newPatterns
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 text-green-600 rounded border-gray-300 focus:ring-green-500"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <input
+                                type="text"
+                                value={pattern.pattern}
+                                onChange={(e) => {
+                                  const newPatterns = [...settings.networkInterception.urlPatterns.patterns];
+                                  newPatterns[index] = { ...pattern, pattern: e.target.value };
+                                  updateSetting('networkInterception', {
+                                    ...settings.networkInterception,
+                                    urlPatterns: {
+                                      ...settings.networkInterception.urlPatterns,
+                                      patterns: newPatterns
+                                    }
+                                  });
+                                }}
+                                placeholder="https://example.com/* or *://*.api.example.com/*"
+                                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                              />
+                              {pattern.description && (
+                                <p className="mt-1 text-xs text-gray-500">{pattern.description}</p>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => {
+                                const newPatterns = settings.networkInterception.urlPatterns.patterns.filter((_, i) => i !== index);
+                                updateSetting('networkInterception', {
+                                  ...settings.networkInterception,
+                                  urlPatterns: {
+                                    ...settings.networkInterception.urlPatterns,
+                                    patterns: newPatterns
+                                  }
+                                });
+                              }}
+                              className="text-red-600 hover:text-red-800 p-1"
+                              title="Remove pattern"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex space-x-3">
+                        <button
+                          onClick={() => {
+                            const newPattern = {
+                              id: `pattern_${Date.now()}`,
+                              pattern: '',
+                              active: true,
+                              description: ''
+                            };
+                            updateSetting('networkInterception', {
+                              ...settings.networkInterception,
+                              urlPatterns: {
+                                ...settings.networkInterception.urlPatterns,
+                                patterns: [...settings.networkInterception.urlPatterns.patterns, newPattern]
+                              }
+                            });
+                          }}
+                          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+                        >
+                          Add Pattern
+                        </button>
+                        
+                        <button
+                          onClick={() => {
+                            const commonPatterns = [
+                              { id: `pattern_${Date.now()}_1`, pattern: 'https://api.example.com/*', active: true, description: 'API endpoints' },
+                              { id: `pattern_${Date.now()}_2`, pattern: '*://*.googleapis.com/*', active: true, description: 'Google APIs' },
+                              { id: `pattern_${Date.now()}_3`, pattern: 'https://*/api/*', active: true, description: 'Any /api/ paths' }
+                            ];
+                            updateSetting('networkInterception', {
+                              ...settings.networkInterception,
+                              urlPatterns: {
+                                ...settings.networkInterception.urlPatterns,
+                                patterns: [...settings.networkInterception.urlPatterns.patterns, ...commonPatterns]
+                              }
+                            });
+                          }}
+                          className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+                        >
+                          Add Common Patterns
+                        </button>
+                      </div>
+
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <h4 className="text-sm font-medium text-blue-800 mb-2">Pattern Examples:</h4>
+                        <ul className="text-xs text-blue-700 space-y-1">
+                          <li><code>https://example.com/*</code> - All pages on example.com</li>
+                          <li><code>*://*.api.example.com/*</code> - Any subdomain of api.example.com</li>
+                          <li><code>https://*/api/*</code> - Any /api/ path on any HTTPS site</li>
+                          <li><code>*://news-site.com/article/*</code> - Article pages on news-site.com</li>
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Tab-Specific Control */}
+            {settings.networkInterception.enabled && (
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Tab-Specific Control</h2>
+                <div className="space-y-4">
+                  <div>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={settings.networkInterception.tabSpecific.enabled}
+                        onChange={(e) => updateSetting('networkInterception', {
+                          ...settings.networkInterception,
+                          tabSpecific: {
+                            ...settings.networkInterception.tabSpecific,
+                            enabled: e.target.checked
+                          }
+                        })}
+                        className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="ml-2 text-sm font-medium text-gray-700">Enable per-tab logging control</span>
+                    </label>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Allow users to start/stop logging on individual tabs via the popup
+                    </p>
+                  </div>
+
+                  {settings.networkInterception.tabSpecific.enabled && (
+                    <div className="ml-6 pl-4 border-l-2 border-purple-100">
+                      <div>
+                        <label htmlFor="defaultTabState" className="block text-sm font-medium text-gray-700">
+                          Default state for new tabs
+                        </label>
+                        <select
+                          id="defaultTabState"
+                          value={settings.networkInterception.tabSpecific.defaultState}
+                          onChange={(e) => updateSetting('networkInterception', {
+                            ...settings.networkInterception,
+                            tabSpecific: {
+                              ...settings.networkInterception.tabSpecific,
+                              defaultState: e.target.value as 'active' | 'paused'
+                            }
+                          })}
+                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                        >
+                          <option value="active">Start logging immediately</option>
+                          <option value="paused">Wait for user to start logging</option>
+                        </select>
+                        <p className="mt-1 text-sm text-gray-500">
+                          Choose whether new tabs should start logging network requests automatically
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* About Section */}
             <div>

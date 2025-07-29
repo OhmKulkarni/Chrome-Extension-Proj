@@ -7,16 +7,29 @@ import { createRoot } from 'react-dom/client';
 interface TabInfo {
   url?: string;
   title?: string;
+  id?: number;
 }
 
 interface StorageData {
   extensionEnabled: boolean;
+  extensionSettings?: {
+    networkInterception?: {
+      enabled: boolean;
+      tabSpecific?: {
+        enabled: boolean;
+        defaultState: 'active' | 'paused';
+      };
+    };
+  };
 }
 
 const Popup: React.FC = () => {
   const [tabInfo, setTabInfo] = useState<TabInfo>({});
   const [extensionEnabled, setExtensionEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [settings, setSettings] = useState<StorageData['extensionSettings']>({});
+  const [tabLoggingActive, setTabLoggingActive] = useState(false);
+  const [requestCount, setRequestCount] = useState(0);
 
   useEffect(() => {
     // Get current tab info
@@ -33,11 +46,25 @@ const Popup: React.FC = () => {
       }
     });
 
-    // Get extension settings
-    chrome.storage.sync.get(['extensionEnabled'], (result) => {
+    // Get extension settings and tab-specific state
+    chrome.storage.sync.get(['extensionEnabled', 'extensionSettings'], (result) => {
       const data = result as Partial<StorageData>;
       setExtensionEnabled(data.extensionEnabled ?? true);
+      setSettings(data.extensionSettings || {});
       setLoading(false);
+    });
+
+    // Get current tab's logging state
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]?.id) {
+        chrome.storage.local.get([`tabLogging_${tabs[0].id}`], (result) => {
+          const tabState = result[`tabLogging_${tabs[0].id}`];
+          if (tabState) {
+            setTabLoggingActive(tabState.active);
+            setRequestCount(tabState.requestCount || 0);
+          }
+        });
+      }
     });
   }, []);
 
@@ -45,6 +72,30 @@ const Popup: React.FC = () => {
     const newState = !extensionEnabled;
     setExtensionEnabled(newState);
     chrome.storage.sync.set({ extensionEnabled: newState });
+  };
+
+  const toggleTabLogging = () => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]?.id) {
+        const tabId = tabs[0].id;
+        const newState = !tabLoggingActive;
+        setTabLoggingActive(newState);
+        
+        const tabState = {
+          active: newState,
+          startTime: newState ? Date.now() : undefined,
+          requestCount: newState ? 0 : requestCount
+        };
+        
+        chrome.storage.local.set({ [`tabLogging_${tabId}`]: tabState });
+        
+        // Send message to content script to start/stop logging
+        chrome.tabs.sendMessage(tabId, {
+          action: 'toggleLogging',
+          enabled: newState
+        });
+      }
+    });
   };
 
   const openDashboard = () => {
@@ -109,6 +160,30 @@ const Popup: React.FC = () => {
             />
           </button>
         </div>
+
+        {/* Tab-Specific Logging Control */}
+        {extensionEnabled && settings?.networkInterception?.tabSpecific?.enabled && (
+          <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+            <div>
+              <h3 className="font-semibold text-gray-800">Tab Logging</h3>
+              <p className="text-sm text-gray-600">
+                {tabLoggingActive ? `Active (${requestCount} requests)` : 'Paused'}
+              </p>
+            </div>
+            <button
+              onClick={toggleTabLogging}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                tabLoggingActive ? 'bg-green-500' : 'bg-gray-300'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  tabLoggingActive ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="space-y-2">
