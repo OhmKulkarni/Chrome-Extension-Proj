@@ -81,7 +81,7 @@ const Dashboard: React.FC = () => {
 
   const clearData = async () => {
     const confirmed = window.confirm(
-      '⚠️ WARNING: This will permanently delete all recorded network requests.\n\n' +
+      '⚠️ WARNING: This will permanently delete all recorded network requests and reset all tab counters.\n\n' +
       'This action cannot be undone. Are you sure you want to continue?'
     );
     
@@ -116,7 +116,7 @@ const Dashboard: React.FC = () => {
         setCurrentPage(1);
         
         // Show success message
-        alert('✅ All network request data has been cleared successfully.');
+        alert('✅ All network request data and popup counters have been cleared successfully.');
         
       } catch (error) {
         console.error('Error clearing data:', error);

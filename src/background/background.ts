@@ -215,6 +215,7 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
     
     // Filter out common noise/telemetry requests (if enabled)
     if (networkConfig.privacy?.filterNoise && isNoiseRequest(requestData.url)) {
+      console.log('🔇 BACKGROUND: Filtered noise request:', requestData.url);
       sendResponse({ success: false, reason: 'Filtered out noise/telemetry request' });
       return;
     }
@@ -313,16 +314,15 @@ function isNoiseRequest(url: string): boolean {
     const hostname = urlObj.hostname.toLowerCase();
     const pathname = urlObj.pathname.toLowerCase();
     
-    // Common telemetry and tracking domains
+    // Specific telemetry and tracking domains (exact matches or specific subdomains)
     const noiseDomains = [
       'edge.sdk.awswaf.com',        // AWS WAF telemetry
-      'waf.amazonaws.com',          // AWS WAF (broader pattern)
-      'googleapis.com/pagespeedonline', // Google PageSpeed
+      'waf.amazonaws.com',          // AWS WAF
       'googletagmanager.com',       // Google Tag Manager
       'google-analytics.com',       // Google Analytics
+      'www.google-analytics.com',   // Google Analytics www
       'doubleclick.net',            // Google Ads
-      'facebook.com/tr',            // Facebook Pixel
-      'connect.facebook.net',       // Facebook Connect
+      'connect.facebook.net',       // Facebook Connect/Pixel
       'hotjar.com',                 // Hotjar tracking
       'fullstory.com',              // FullStory tracking
       'intercom.io',                // Intercom tracking
@@ -340,7 +340,7 @@ function isNoiseRequest(url: string): boolean {
       'scorecardresearch.com'       // ComScore tracking
     ];
     
-    // Common telemetry paths
+    // More specific telemetry paths - avoid catching legitimate API endpoints
     const noisePaths = [
       '/telemetry',
       '/analytics',
@@ -348,29 +348,56 @@ function isNoiseRequest(url: string): boolean {
       '/beacon',
       '/collect',
       '/pixel',
-      '/impression',
-      '/event',
-      '/health',
-      '/healthcheck',
-      '/ping',
-      '/stats',
-      '/metrics'
+      '/impression'
     ];
     
-    // Check if hostname matches any noise domains
-    const domainMatch = noiseDomains.some(domain => hostname.includes(domain));
+    // Specific tracking endpoints that are commonly noise
+    const noisePathPatterns = [
+      '/google-analytics',
+      '/gtag/',
+      '/ga/',
+      '/facebook-pixel',
+      '/fb-pixel',
+      '/_tracking',
+      '/_analytics',
+      '/_telemetry'
+    ];
+    
+    // Check if hostname exactly matches any noise domains
+    const domainMatch = noiseDomains.some(domain => hostname === domain || hostname.endsWith('.' + domain));
     if (domainMatch) {
       return true;
     }
     
-    // Check if path matches any noise patterns
-    const pathMatch = noisePaths.some(path => pathname.includes(path));
+    // Check for specific Google services that are typically noise
+    if (hostname.includes('googleapis.com')) {
+      // Only filter specific Google services, not all googleapis.com
+      const googleNoiseServices = [
+        '/pagespeedonline',
+        '/analytics',
+        '/adsense',
+        '/doubleclick'
+      ];
+      if (googleNoiseServices.some(service => pathname.includes(service))) {
+        return true;
+      }
+    }
+    
+    // Check if path matches any noise patterns (exact matches for common paths)
+    const pathMatch = noisePaths.some(path => pathname === path || pathname.startsWith(path + '/'));
     if (pathMatch) {
       return true;
     }
     
-    // Filter out common tracking query parameters
-    if (urlObj.search.includes('utm_') || urlObj.search.includes('fbclid') || urlObj.search.includes('gclid')) {
+    // Check for specific tracking path patterns
+    const patternMatch = noisePathPatterns.some(pattern => pathname.includes(pattern));
+    if (patternMatch) {
+      return true;
+    }
+    
+    // Filter out common tracking query parameters (but be specific)
+    const search = urlObj.search.toLowerCase();
+    if (search.includes('utm_source=') || search.includes('fbclid=') || search.includes('gclid=')) {
       return true;
     }
     
@@ -413,9 +440,36 @@ async function handleClearAllData(sendResponse: (response: any) => void) {
     // Clear all stored network requests
     await storageManager.clearAllData();
     
+    // Also clear all tab-specific request counters
+    const allStorage = await chrome.storage.local.get(null);
+    const tabLoggingKeys = Object.keys(allStorage).filter(key => key.startsWith('tabLogging_'));
+    
+    // Reset request counts for all tabs while preserving their active/paused state
+    const updates: Record<string, any> = {};
+    for (const key of tabLoggingKeys) {
+      const tabState = allStorage[key];
+      if (tabState && typeof tabState === 'object') {
+        updates[key] = {
+          ...tabState,
+          requestCount: 0
+        };
+      } else if (typeof tabState === 'boolean') {
+        // Convert old boolean format to new object format with counter
+        updates[key] = {
+          active: tabState,
+          startTime: Date.now(),
+          requestCount: 0
+        };
+      }
+    }
+    
+    if (Object.keys(updates).length > 0) {
+      await chrome.storage.local.set(updates);
+    }
+    
     sendResponse({ 
       success: true, 
-      message: 'All data cleared successfully' 
+      message: 'All data and tab counters cleared successfully' 
     });
   } catch (error) {
     console.error('Error clearing all data:', error);
