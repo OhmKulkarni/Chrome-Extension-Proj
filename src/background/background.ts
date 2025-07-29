@@ -51,8 +51,6 @@ const initializeChromeStorageSettings = () => {
         dataCollection: true,
         networkInterception: {
           enabled: true, // Enable by default for testing
-          domainFilter: 'current-tab',
-          customDomains: [],
           bodyCapture: {
             mode: 'partial',
             captureRequests: false,
@@ -60,11 +58,25 @@ const initializeChromeStorageSettings = () => {
           },
           privacy: {
             autoRedact: true,
+            filterNoise: true,
           },
+          urlPatterns: {
+            enabled: false,
+            patterns: []
+          },
+          tabSpecific: {
+            enabled: true,
+            defaultState: 'paused'
+          },
+          requestFilters: {
+            enabled: false,
+            filters: []
+          },
+          profiles: []
         },
       };
       
-      chrome.storage.sync.set({ extensionSettings: defaultSettings }, () => {
+      chrome.storage.local.set({ settings: defaultSettings }, () => {
         console.log('[Web App Monitor] ✅ Chrome storage settings initialized');
         console.log('[Web App Monitor] Network interception enabled by default');
       });
@@ -140,11 +152,112 @@ const initializeChromeStorageSettings = () => {
 // --- Message Handlers for Popup Communication ---
 
 // Network request handler
-async function handleNetworkRequest(requestData: any, sendResponse: (response: any) => void) {
+async function handleNetworkRequest(requestData: any, sendResponse: (response: any) => void, sender?: chrome.runtime.MessageSender) {
   try {
     if (!storageManager.isInitialized()) {
       await storageManager.init();
     }
+    
+    // Get current settings to check filtering rules
+    const settingsResult = await chrome.storage.local.get(['settings']);
+    const settings = settingsResult.settings || {};
+    const networkConfig = settings.networkInterception || {};
+    
+    // Debug logging for noise filtering
+    console.log('🔍 BACKGROUND: Processing request:', requestData.url);
+    console.log('🔍 BACKGROUND: Full network config:', JSON.stringify(networkConfig, null, 2));
+    console.log('🔍 BACKGROUND: Privacy settings:', {
+      enabled: networkConfig.enabled,
+      filterNoise: networkConfig.privacy?.filterNoise,
+      hasPrivacy: !!networkConfig.privacy,
+      tabSpecificEnabled: networkConfig.tabSpecific?.enabled,
+      tabSpecificDefault: networkConfig.tabSpecific?.defaultState
+    });
+    
+    // Check if network interception is enabled
+    if (!networkConfig.enabled) {
+      sendResponse({ success: false, reason: 'Network interception disabled' });
+      return;
+    }
+    
+    // Check tab-specific control (ALWAYS check if enabled, regardless of default)
+    if (networkConfig.tabSpecific?.enabled) {
+      // Get the sender tab ID from the message
+      const tabId = sender?.tab?.id;
+      
+      if (tabId) {
+        try {
+          const tabStateResult = await chrome.storage.local.get([`tabLogging_${tabId}`]);
+          const tabState = tabStateResult[`tabLogging_${tabId}`];
+          
+          // Start with the default state from settings
+          let tabLoggingEnabled = networkConfig.tabSpecific?.defaultState === 'active';
+          
+          if (tabState !== undefined) {
+            // Override with actual tab state if it exists
+            if (typeof tabState === 'boolean') {
+              tabLoggingEnabled = tabState;
+            } else if (tabState && typeof tabState === 'object' && 'active' in tabState) {
+              tabLoggingEnabled = tabState.active;
+            }
+          }
+          
+          console.log(`🔍 BACKGROUND: Tab ${tabId} logging state:`, tabLoggingEnabled, 'tabState:', tabState);
+          
+          if (!tabLoggingEnabled) {
+            console.log(`🚫 BACKGROUND: Tab ${tabId} logging disabled, blocking request:`, requestData.url);
+            sendResponse({ success: false, reason: 'Tab logging disabled' });
+            return;
+          }
+        } catch (tabError) {
+          console.warn('Could not determine tab logging state, using default:', tabError);
+          // Use default state from settings
+          if (networkConfig.tabSpecific?.defaultState === 'paused') {
+            console.log('🚫 BACKGROUND: Tab state unknown, defaulting to paused, blocking request:', requestData.url);
+            sendResponse({ success: false, reason: 'Tab logging disabled (default)' });
+            return;
+          }
+        }
+      } else {
+        console.warn('No tab ID available for tab-specific filtering');
+        // If we can't get tab ID, use default state
+        if (networkConfig.tabSpecific?.defaultState === 'paused') {
+          console.log('🚫 BACKGROUND: No tab ID, defaulting to paused, blocking request:', requestData.url);
+          sendResponse({ success: false, reason: 'Tab logging disabled (no tab ID)' });
+          return;
+        }
+      }
+    }
+    
+    // Filter out common noise/telemetry requests (if enabled)
+    console.log('🔍 BACKGROUND: Checking noise filter. filterNoise enabled:', networkConfig.privacy?.filterNoise, 'URL:', requestData.url);
+    if (networkConfig.privacy?.filterNoise) {
+      const isNoise = isNoiseRequest(requestData.url);
+      console.log('🔍 BACKGROUND: isNoiseRequest result:', isNoise, 'for URL:', requestData.url);
+      if (isNoise) {
+        console.log('🔇 BACKGROUND: Filtered noise request:', requestData.url);
+        sendResponse({ success: false, reason: 'Filtered out noise/telemetry request' });
+        return;
+      }
+    }
+    
+    // Check URL pattern filtering (if enabled)
+    if (networkConfig.urlPatterns?.enabled && networkConfig.urlPatterns?.patterns?.length > 0) {
+      const activePatterns = networkConfig.urlPatterns.patterns.filter((p: any) => p.active);
+      
+      if (activePatterns.length > 0) {
+        const matchesPattern = activePatterns.some((pattern: any) => {
+          return matchesUrlPattern(requestData.url, pattern.pattern);
+        });
+        
+        if (!matchesPattern) {
+          sendResponse({ success: false, reason: 'URL does not match any active patterns' });
+          return;
+        }
+      }
+    }
+    
+    // All filters passed - store the request
     
     // Map the request data from main-world-script to storage API format
     const storageData = {
@@ -163,10 +276,134 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
     // Store the network request using the existing API call storage
     const id = await storageManager.insertApiCall(storageData);
     
+    // ALWAYS update tab request count (regardless of tab-specific setting)
+    // This ensures popup shows accurate count matching the dashboard
+    if (sender?.tab?.id) {
+      const tabId = sender.tab.id;
+      try {
+        const tabStateResult = await chrome.storage.local.get([`tabLogging_${tabId}`]);
+        const currentTabState = tabStateResult[`tabLogging_${tabId}`];
+        
+        if (currentTabState && typeof currentTabState === 'object') {
+          const updatedTabState = {
+            ...currentTabState,
+            requestCount: (currentTabState.requestCount || 0) + 1
+          };
+          await chrome.storage.local.set({ [`tabLogging_${tabId}`]: updatedTabState });
+        } else {
+          // Create tab state if it doesn't exist (for accurate counting)
+          const newTabState = {
+            active: networkConfig.tabSpecific?.defaultState === 'active',
+            startTime: Date.now(),
+            requestCount: 1
+          };
+          await chrome.storage.local.set({ [`tabLogging_${tabId}`]: newTabState });
+        }
+      } catch (tabUpdateError) {
+        console.warn('Failed to update tab request count:', tabUpdateError);
+      }
+    }
+    
     sendResponse({ success: true, id });
   } catch (error) {
     console.error('[Web App Monitor] Failed to store network request:', error);
     sendResponse({ error: error instanceof Error ? error.message : 'Storage failed' });
+  }
+}
+
+// Helper function to match URL patterns (supports wildcards)
+function matchesUrlPattern(url: string, pattern: string): boolean {
+  try {
+    // Convert pattern to regex
+    // Replace * with .* and escape other regex special characters
+    const regexPattern = pattern
+      .replace(/[.+?^${}()|[\]\\]/g, '\\$&') // Escape regex special chars
+      .replace(/\\\*/g, '.*'); // Convert * to .*
+    
+    const regex = new RegExp(`^${regexPattern}$`, 'i');
+    return regex.test(url);
+  } catch (error) {
+    console.error('Invalid URL pattern:', pattern, error);
+    return false;
+  }
+}
+
+// Helper function to filter out noise/telemetry requests
+function isNoiseRequest(url: string): boolean {
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname.toLowerCase();
+    const pathname = urlObj.pathname.toLowerCase();
+    
+    console.log('🔍 NOISE-FILTER: Checking URL:', url, 'hostname:', hostname, 'path:', pathname);
+    
+    // Common telemetry and tracking domains
+    const noiseDomains = [
+      'edge.sdk.awswaf.com',        // AWS WAF telemetry
+      'waf.amazonaws.com',          // AWS WAF (broader pattern)
+      'googleapis.com/pagespeedonline', // Google PageSpeed
+      'googletagmanager.com',       // Google Tag Manager
+      'google-analytics.com',       // Google Analytics
+      'doubleclick.net',            // Google Ads
+      'facebook.com/tr',            // Facebook Pixel
+      'connect.facebook.net',       // Facebook Connect
+      'hotjar.com',                 // Hotjar tracking
+      'fullstory.com',              // FullStory tracking
+      'intercom.io',                // Intercom tracking
+      'mixpanel.com',               // Mixpanel analytics
+      'segment.com',                // Segment analytics
+      'amplitude.com',              // Amplitude analytics
+      'bugsnag.com',                // Error tracking
+      'sentry.io',                  // Error tracking
+      'rollbar.com',                // Error tracking
+      'newrelic.com',               // Performance monitoring
+      'datadog.com',                // Performance monitoring
+      'telemetry.mozilla.org',      // Mozilla telemetry
+      'stats.wp.com',               // WordPress stats
+      'quantcast.com',              // Quantcast tracking
+      'scorecardresearch.com'       // ComScore tracking
+    ];
+    
+    // Common telemetry paths
+    const noisePaths = [
+      '/telemetry',
+      '/analytics',
+      '/tracking',
+      '/beacon',
+      '/collect',
+      '/pixel',
+      '/impression',
+      '/event',
+      '/health',
+      '/healthcheck',
+      '/ping',
+      '/stats',
+      '/metrics'
+    ];
+    
+    // Check if hostname matches any noise domains
+    const domainMatch = noiseDomains.some(domain => hostname.includes(domain));
+    if (domainMatch) {
+      console.log('🔇 NOISE-FILTER: Domain match, filtering:', hostname);
+      return true;
+    }
+    
+    // Check if path matches any noise patterns
+    const pathMatch = noisePaths.some(path => pathname.includes(path));
+    if (pathMatch) {
+      console.log('🔇 NOISE-FILTER: Path match, filtering:', pathname);
+      return true;
+    }
+    
+    // Filter out common tracking query parameters
+    if (urlObj.search.includes('utm_') || urlObj.search.includes('fbclid') || urlObj.search.includes('gclid')) {
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    // If URL parsing fails, don't filter it out
+    return false;
   }
 }
 
@@ -255,7 +492,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     case 'STORE_NETWORK_REQUEST':
     case 'NETWORK_REQUEST':
       // Store network request data from content script
-      handleNetworkRequest(message.data, sendResponse);
+      handleNetworkRequest(message.data, sendResponse, sender);
       return true; // Keep message channel open for async response
 
     case 'getNetworkRequests':

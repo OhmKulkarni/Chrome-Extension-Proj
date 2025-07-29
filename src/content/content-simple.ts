@@ -93,10 +93,17 @@ window.addEventListener('networkRequestIntercepted', (event: any) => {
       return;
     }
     
+    // Add tab context information
+    const enrichedData = {
+      ...requestData,
+      tabUrl: window.location.href,
+      tabDomain: window.location.hostname
+    };
+    
     // Send to background for storage
     chrome.runtime.sendMessage({
       type: 'NETWORK_REQUEST',
-      data: requestData
+      data: enrichedData
     }).then(() => {
       console.log('✅ CONTENT: Stored network request');
     }).catch((error) => {

@@ -47,25 +47,77 @@ const Popup: React.FC = () => {
     });
 
     // Get extension settings and tab-specific state
-    chrome.storage.sync.get(['extensionEnabled', 'extensionSettings'], (result) => {
-      const data = result as Partial<StorageData>;
-      setExtensionEnabled(data.extensionEnabled ?? true);
-      setSettings(data.extensionSettings || {});
+    chrome.storage.local.get(['settings'], (result) => {
+      const settings = result.settings || {};
+      setSettings({ networkInterception: settings.networkInterception });
       setLoading(false);
+    });
+
+    // Also get extension enabled state from sync storage (if it exists there)
+    chrome.storage.sync.get(['extensionEnabled'], (result) => {
+      setExtensionEnabled(result.extensionEnabled ?? true);
     });
 
     // Get current tab's logging state
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]?.id) {
-        chrome.storage.local.get([`tabLogging_${tabs[0].id}`], (result) => {
-          const tabState = result[`tabLogging_${tabs[0].id}`];
+        const tabId = tabs[0].id;
+        chrome.storage.local.get([`tabLogging_${tabId}`, 'settings'], (result) => {
+          const tabState = result[`tabLogging_${tabId}`];
+          const settings = result.settings || {};
+          const networkConfig = settings.networkInterception || {};
+          
           if (tabState) {
-            setTabLoggingActive(tabState.active);
-            setRequestCount(tabState.requestCount || 0);
+            // Tab state exists
+            if (typeof tabState === 'boolean') {
+              setTabLoggingActive(tabState);
+            } else if (tabState && typeof tabState === 'object' && 'active' in tabState) {
+              setTabLoggingActive(tabState.active);
+              setRequestCount(tabState.requestCount || 0);
+            }
+          } else {
+            // No tab state exists, use default from settings
+            const defaultActive = networkConfig.tabSpecific?.defaultState === 'active';
+            setTabLoggingActive(defaultActive);
+            
+            // Initialize tab state in storage
+            const initialTabState = {
+              active: defaultActive,
+              startTime: defaultActive ? Date.now() : undefined,
+              requestCount: 0
+            };
+            chrome.storage.local.set({ [`tabLogging_${tabId}`]: initialTabState });
           }
         });
       }
     });
+
+    // Listen for storage changes to update request count in real-time
+    const handleStorageChange = (changes: {[key: string]: chrome.storage.StorageChange}, areaName: string) => {
+      if (areaName === 'local') {
+        // Check if any tab logging state changed
+        Object.keys(changes).forEach(key => {
+          if (key.startsWith('tabLogging_')) {
+            const newValue = changes[key].newValue;
+            if (newValue && typeof newValue === 'object' && 'requestCount' in newValue) {
+              // Get current tab ID to see if this update is for the current tab
+              chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                if (tabs[0]?.id && key === `tabLogging_${tabs[0].id}`) {
+                  setRequestCount(newValue.requestCount || 0);
+                }
+              });
+            }
+          }
+        });
+      }
+    };
+
+    chrome.storage.onChanged.addListener(handleStorageChange);
+
+    // Cleanup listener on unmount
+    return () => {
+      chrome.storage.onChanged.removeListener(handleStorageChange);
+    };
   }, []);
 
   const toggleExtension = () => {
