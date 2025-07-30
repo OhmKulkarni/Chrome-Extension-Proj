@@ -7,6 +7,121 @@ import { EnvironmentStorageManager } from './environment-storage-manager';
 // Initialize environment-aware storage system
 const storageManager = new EnvironmentStorageManager();
 
+// --- Token Event Tracking ---
+interface TokenEvent {
+  type: 'acquire' | 'refresh' | 'expired' | 'refresh_error';
+  url: string;
+  method: string;
+  status: number;
+  timestamp: string;
+  source_url: string;
+  expiry?: number;
+  value_hash?: string;
+}
+
+// Token-related endpoint patterns
+const TOKEN_ENDPOINTS = {
+  acquire: ['/auth', '/login', '/token', '/signin', '/authenticate', '/oauth'],
+  refresh: ['/refresh', '/renew', '/reauth', '/token/refresh', '/auth/refresh']
+};
+
+// Utility function to check if URL matches token patterns
+function isTokenEndpoint(url: string, type: 'acquire' | 'refresh'): boolean {
+  const patterns = TOKEN_ENDPOINTS[type];
+  return patterns.some(pattern => url.toLowerCase().includes(pattern));
+}
+
+// Utility function to detect token events from network requests
+function detectTokenEvent(requestData: any): TokenEvent | null {
+  const { url, method, status } = requestData;
+  
+  if (!url || !method || status === undefined) {
+    return null;
+  }
+  
+  const timestamp = new Date().toISOString();
+  const source_url = requestData.tabUrl || requestData.source_url || url;
+  
+  // Detect token acquisition (successful auth requests)
+  if (method === 'POST' && status >= 200 && status < 300 && isTokenEndpoint(url, 'acquire')) {
+    return {
+      type: 'acquire',
+      url,
+      method,
+      status,
+      timestamp,
+      source_url,
+      value_hash: '[REDACTED - token acquired]'
+    };
+  }
+  
+  // Detect token refresh attempts
+  if ((method === 'POST' || method === 'GET') && isTokenEndpoint(url, 'refresh')) {
+    if (status >= 200 && status < 300) {
+      return {
+        type: 'refresh',
+        url,
+        method,
+        status,
+        timestamp,
+        source_url,
+        value_hash: '[REDACTED - token refreshed]'
+      };
+    } else if (status >= 400) {
+      return {
+        type: 'refresh_error',
+        url,
+        method,
+        status,
+        timestamp,
+        source_url
+      };
+    }
+  }
+  
+  // Detect token expiration (401/403 responses)
+  if (status === 401 || status === 403) {
+    return {
+      type: 'expired',
+      url,
+      method,
+      status,
+      timestamp,
+      source_url
+    };
+  }
+  
+  return null;
+}
+
+// Function to store token events
+async function storeTokenEvent(tokenEvent: TokenEvent): Promise<void> {
+  try {
+    if (!storageManager.isInitialized()) {
+      await storageManager.init();
+    }
+    
+    // Prepare token event data for storage
+    const tokenEventData = {
+      type: tokenEvent.type as 'jwt_token' | 'session_token' | 'api_key' | 'oauth_token',
+      value_hash: tokenEvent.value_hash || `[${tokenEvent.type.toUpperCase()}]`,
+      timestamp: new Date(tokenEvent.timestamp).getTime(),
+      source_url: tokenEvent.source_url,
+      expiry: tokenEvent.expiry
+    };
+    
+    await storageManager.insertTokenEvent(tokenEventData);
+    console.log(`[Token Tracker] ✅ Stored ${tokenEvent.type} event:`, {
+      type: tokenEvent.type,
+      url: tokenEvent.url,
+      status: tokenEvent.status,
+      timestamp: tokenEvent.timestamp
+    });
+  } catch (error) {
+    console.error('[Token Tracker] ❌ Failed to store token event:', error);
+  }
+}
+
 const initializeStorage = async () => {
   try {
     await storageManager.init();
@@ -360,6 +475,13 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
     
     // Store the network request using the existing API call storage
     const id = await storageManager.insertApiCall(storageData);
+    
+    // --- Token Event Tracking ---
+    // Check if this network request indicates a token-related event
+    const tokenEvent = detectTokenEvent(requestData);
+    if (tokenEvent) {
+      await storeTokenEvent(tokenEvent);
+    }
     
     // ALWAYS update tab request count (regardless of tab-specific setting)
     // This ensures popup shows accurate count matching the dashboard
