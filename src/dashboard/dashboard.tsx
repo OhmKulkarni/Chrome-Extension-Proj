@@ -11,6 +11,8 @@ interface DashboardData {
   totalRequests: number;
   consoleErrors: any[];
   totalErrors: number;
+  tokenEvents: any[];
+  totalTokenEvents: number;
 }
 
 interface SortConfig {
@@ -36,7 +38,9 @@ const Dashboard: React.FC = () => {
     networkRequests: [],
     totalRequests: 0,
     consoleErrors: [],
-    totalErrors: 0
+    totalErrors: 0,
+    tokenEvents: [],
+    totalTokenEvents: 0
   });
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -93,10 +97,23 @@ const Dashboard: React.FC = () => {
           }
         });
       });
+
+      // Get token events from background storage
+      const tokenData = await new Promise<any>((resolve) => {
+        chrome.runtime.sendMessage({ action: 'getTokenEvents', limit: 1000 }, (response) => {
+          if (chrome.runtime.lastError) {
+            console.error('Dashboard: Error getting token events:', chrome.runtime.lastError);
+            resolve({ events: [], total: 0 });
+          } else {
+            resolve(response || { events: [], total: 0 });
+          }
+        });
+      });
       
       // Calculate pagination
       const totalRequests = networkData.total || 0;
       const totalErrors = errorData.total || 0;
+      const totalTokenEvents = tokenData.total || 0;
       
       setData({
         totalTabs: tabs.length,
@@ -107,7 +124,9 @@ const Dashboard: React.FC = () => {
         networkRequests: networkData.requests || [],
         totalRequests: totalRequests,
         consoleErrors: errorData.errors || [],
-        totalErrors: totalErrors
+        totalErrors: totalErrors,
+        tokenEvents: tokenData.events || [],
+        totalTokenEvents: totalTokenEvents
       });
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -213,7 +232,9 @@ const Dashboard: React.FC = () => {
           networkRequests: [],
           totalRequests: 0,
           consoleErrors: [],
-          totalErrors: 0
+          totalErrors: 0,
+          tokenEvents: [],
+          totalTokenEvents: 0
         });
         
         setCurrentPage(1);
@@ -745,7 +766,7 @@ const Dashboard: React.FC = () => {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -833,6 +854,23 @@ const Dashboard: React.FC = () => {
                 <p className="text-2xl font-semibold text-gray-900">{totalFilteredErrors}</p>
                 {data.totalErrors > 0 && totalFilteredErrors !== data.totalErrors && (
                   <p className="text-xs text-gray-500">of {data.totalErrors} total</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <div className="w-8 h-8 bg-yellow-500 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold">🔐</span>
+                </div>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-500">Token Events</p>
+                <p className="text-2xl font-semibold text-gray-900">{data.totalTokenEvents}</p>
+                {data.totalTokenEvents > 0 && (
+                  <p className="text-xs text-gray-500">Auth & refresh events</p>
                 )}
               </div>
             </div>

@@ -860,6 +860,28 @@ async function handleGetConsoleErrors(limit: number, sendResponse: (response: an
   }
 }
 
+// Get token events handler
+async function handleGetTokenEvents(limit: number, sendResponse: (response: any) => void) {
+  try {
+    if (!storageManager.isInitialized()) {
+      await storageManager.init();
+    }
+    
+    // Get recent token events
+    const events = await storageManager.getTokenEvents(limit);
+    const counts = await storageManager.getTableCounts();
+    
+    sendResponse({ 
+      success: true, 
+      events: events || [], 
+      total: counts?.token_events || 0 
+    });
+  } catch (error) {
+    console.error('[Web App Monitor] Failed to get token events:', error);
+    sendResponse({ error: error instanceof Error ? error.message : 'Query failed' });
+  }
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.action || message.type) {
     case 'INJECT_MAIN_WORLD_SCRIPT':
@@ -945,6 +967,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     case 'getConsoleErrors':
       // Get stored console errors
       handleGetConsoleErrors(message.limit || 50, sendResponse);
+      return true; // Keep message channel open for async response
+
+    case 'getTokenEvents':
+      // Get stored token events
+      handleGetTokenEvents(message.limit || 50, sendResponse);
       return true; // Keep message channel open for async response
 
     default:
