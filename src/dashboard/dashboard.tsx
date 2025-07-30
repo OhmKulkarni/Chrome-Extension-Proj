@@ -56,6 +56,13 @@ const Dashboard: React.FC = () => {
   const [filterSeverity, setFilterSeverity] = useState<string>('all');
   const [errorSearchTerm, setErrorSearchTerm] = useState<string>('');
 
+  // Token events state
+  const [currentTokenPage, setCurrentTokenPage] = useState(1);
+  const [tokenEventsPerPage] = useState(10);
+  const [tokenSortConfig, setTokenSortConfig] = useState<SortConfig>({ key: 'timestamp', direction: 'desc' });
+  const [filterTokenType, setFilterTokenType] = useState<string>('all');
+  const [tokenSearchTerm, setTokenSearchTerm] = useState<string>('');
+
   // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [tabsLoggingStatus, setTabsLoggingStatus] = useState<TabLoggingStatus[]>([]);
@@ -201,7 +208,7 @@ const Dashboard: React.FC = () => {
 
   const clearData = async () => {
     const confirmed = window.confirm(
-      '⚠️ WARNING: This will permanently delete all recorded network requests, console errors, and reset all tab counters.\n\n' +
+      '⚠️ WARNING: This will permanently delete all recorded network requests, console errors, token events, and reset all tab counters.\n\n' +
       'This action cannot be undone. Are you sure you want to continue?'
     );
     
@@ -240,7 +247,7 @@ const Dashboard: React.FC = () => {
         setCurrentPage(1);
         
         // Show success message
-        alert('✅ All network request and console error data have been cleared successfully.');
+        alert('✅ All network request, console error, and token event data have been cleared successfully.');
         
       } catch (error) {
         console.error('Error clearing data:', error);
@@ -465,6 +472,94 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     setCurrentErrorPage(1);
   }, [errorSearchTerm, filterSeverity, totalFilteredErrorPages]);
+
+  // Token Events filtering and sorting
+  const getFilteredAndSortedTokenEvents = () => {
+    let filteredTokenEvents = [...data.tokenEvents];
+    
+    // Apply search filter
+    if (tokenSearchTerm) {
+      filteredTokenEvents = filteredTokenEvents.filter(event =>
+        event.url.toLowerCase().includes(tokenSearchTerm.toLowerCase()) ||
+        (event.type && event.type.toLowerCase().includes(tokenSearchTerm.toLowerCase()))
+      );
+    }
+    
+    // Apply token type filter
+    if (filterTokenType !== 'all') {
+      filteredTokenEvents = filteredTokenEvents.filter(event => 
+        event.type && event.type.toLowerCase() === filterTokenType.toLowerCase()
+      );
+    }
+    
+    // Apply sorting
+    filteredTokenEvents.sort((a, b) => {
+      const aValue = a[tokenSortConfig.key];
+      const bValue = b[tokenSortConfig.key];
+      
+      if (tokenSortConfig.key === 'timestamp') {
+        const aTime = new Date(aValue).getTime();
+        const bTime = new Date(bValue).getTime();
+        return tokenSortConfig.direction === 'asc' ? aTime - bTime : bTime - aTime;
+      }
+      
+      if (tokenSortConfig.key === 'status') {
+        const aNum = Number(aValue) || 0;
+        const bNum = Number(bValue) || 0;
+        return tokenSortConfig.direction === 'asc' ? aNum - bNum : bNum - aNum;
+      }
+      
+      const aStr = String(aValue || '').toLowerCase();
+      const bStr = String(bValue || '').toLowerCase();
+      if (aStr < bStr) return tokenSortConfig.direction === 'asc' ? -1 : 1;
+      if (aStr > bStr) return tokenSortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    
+    return filteredTokenEvents;
+  };
+
+  const filteredAndSortedTokenEvents = getFilteredAndSortedTokenEvents();
+  const totalFilteredTokenEvents = filteredAndSortedTokenEvents.length;
+  const totalFilteredTokenPages = Math.ceil(totalFilteredTokenEvents / tokenEventsPerPage);
+  
+  // Calculate current page data for token events
+  const indexOfLastTokenEvent = currentTokenPage * tokenEventsPerPage;
+  const indexOfFirstTokenEvent = indexOfLastTokenEvent - tokenEventsPerPage;
+  const currentTokenEvents = filteredAndSortedTokenEvents.slice(indexOfFirstTokenEvent, indexOfLastTokenEvent);
+
+  // Handle token events sorting
+  const handleTokenSort = (key: string) => {
+    setTokenSortConfig({
+      key,
+      direction: tokenSortConfig.key === key && tokenSortConfig.direction === 'asc' ? 'desc' : 'asc'
+    });
+    setCurrentTokenPage(1); // Reset to first page when sorting
+  };
+
+  // Token events pagination functions
+  const handleTokenPageChange = (page: number) => {
+    if (page >= 1 && page <= totalFilteredTokenPages) {
+      setCurrentTokenPage(page);
+    }
+  };
+
+  const handleTokenPrevious = () => {
+    if (currentTokenPage > 1) {
+      setCurrentTokenPage(currentTokenPage - 1);
+    }
+  };
+
+  const handleTokenNext = () => {
+    if (currentTokenPage < totalFilteredTokenPages) {
+      setCurrentTokenPage(currentTokenPage + 1);
+    }
+  };
+
+  // Reset token pagination when filters change
+  useEffect(() => {
+    setCurrentTokenPage(1);
+  }, [tokenSearchTerm, filterTokenType, totalFilteredTokenPages]);
 
   // Toggle network logging for a specific tab
   const toggleTabNetworkLogging = async (tabId: number) => {
@@ -1380,6 +1475,277 @@ const Dashboard: React.FC = () => {
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No console errors yet</h3>
                 <p className="text-gray-500">Console errors will appear here once you enable error logging on specific tabs via the popup.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Token Events Section */}
+        <div className="bg-white rounded-lg shadow mb-8">
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Token Events</h2>
+                <p className="text-xs text-gray-500 mt-1">Authentication events from all tabs (auth, login, refresh)</p>
+              </div>
+              <div className="flex items-center space-x-4">
+                <span className="text-sm text-gray-500">
+                  {totalFilteredTokenEvents > 0 && (
+                    `Showing ${indexOfFirstTokenEvent + 1}-${Math.min(indexOfLastTokenEvent, totalFilteredTokenEvents)} of ${totalFilteredTokenEvents}`
+                  )}
+                  {data.totalTokenEvents > 0 && totalFilteredTokenEvents !== data.totalTokenEvents && (
+                    ` (filtered from ${data.totalTokenEvents})`
+                  )}
+                </span>
+                {totalFilteredTokenPages > 1 && (
+                  <span className="text-sm text-gray-500">Page {currentTokenPage} of {totalFilteredTokenPages}</span>
+                )}
+              </div>
+            </div>
+
+            {/* Search and Filter Controls for Token Events */}
+            <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0 sm:space-x-4">
+              {/* Search */}
+              <div className="flex-1 max-w-md">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search by URL or event type..."
+                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    value={tokenSearchTerm}
+                    onChange={(e) => setTokenSearchTerm(e.target.value)}
+                  />
+                </div>
+              </div>
+              
+              {/* Event Type Filter */}
+              <div className="flex items-center space-x-3">
+                <label className="text-sm font-medium text-gray-700">Type:</label>
+                <select
+                  value={filterTokenType}
+                  onChange={(e) => setFilterTokenType(e.target.value)}
+                  className="block pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                >
+                  <option value="all">All Types</option>
+                  <option value="auth">Authentication</option>
+                  <option value="login">Login</option>
+                  <option value="refresh">Token Refresh</option>
+                </select>
+              </div>
+              
+              {/* Clear Filters */}
+              {(tokenSearchTerm || filterTokenType !== 'all') && (
+                <button
+                  onClick={() => {
+                    setTokenSearchTerm('');
+                    setFilterTokenType('all');
+                  }}
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
+            
+            {data.tokenEvents.length > 0 ? (
+              <div className="overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th 
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleTokenSort('type')}
+                        >
+                          <div className="flex items-center">
+                            Event Type
+                            {tokenSortConfig.key === 'type' && (
+                              <span className="ml-1">
+                                {tokenSortConfig.direction === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                        <th 
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleTokenSort('url')}
+                        >
+                          <div className="flex items-center">
+                            URL
+                            {tokenSortConfig.key === 'url' && (
+                              <span className="ml-1">
+                                {tokenSortConfig.direction === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                        <th 
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleTokenSort('status')}
+                        >
+                          <div className="flex items-center">
+                            Status
+                            {tokenSortConfig.key === 'status' && (
+                              <span className="ml-1">
+                                {tokenSortConfig.direction === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                        <th 
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleTokenSort('method')}
+                        >
+                          <div className="flex items-center">
+                            Method
+                            {tokenSortConfig.key === 'method' && (
+                              <span className="ml-1">
+                                {tokenSortConfig.direction === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                        <th 
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleTokenSort('timestamp')}
+                        >
+                          <div className="flex items-center">
+                            Time
+                            {tokenSortConfig.key === 'timestamp' && (
+                              <span className="ml-1">
+                                {tokenSortConfig.direction === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {currentTokenEvents.map((event, index) => (
+                        <tr key={index} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              event.type === 'auth' ? 'bg-blue-100 text-blue-800' :
+                              event.type === 'login' ? 'bg-green-100 text-green-800' :
+                              event.type === 'refresh' ? 'bg-purple-100 text-purple-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {event.type === 'auth' ? '🔐 Auth' :
+                               event.type === 'login' ? '🔑 Login' :
+                               event.type === 'refresh' ? '🔄 Refresh' :
+                               `🔐 ${event.type}`}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-gray-900 truncate max-w-xs" title={event.url}>
+                              {event.url}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              event.status >= 200 && event.status < 300 ? 'bg-green-100 text-green-800' :
+                              event.status >= 300 && event.status < 400 ? 'bg-yellow-100 text-yellow-800' :
+                              event.status >= 400 ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {event.status || 'N/A'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              event.method === 'GET' ? 'bg-blue-100 text-blue-800' :
+                              event.method === 'POST' ? 'bg-green-100 text-green-800' :
+                              event.method === 'PUT' ? 'bg-yellow-100 text-yellow-800' :
+                              event.method === 'DELETE' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {event.method || 'N/A'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {new Date(event.timestamp).toLocaleTimeString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                
+                {/* Pagination Controls for Token Events */}
+                {totalFilteredTokenPages > 1 && (
+                  <div className="mt-6 flex items-center justify-between">
+                    <div className="flex items-center">
+                      <p className="text-sm text-gray-700">
+                        Showing <span className="font-medium">{indexOfFirstTokenEvent + 1}</span> to{' '}
+                        <span className="font-medium">{Math.min(indexOfLastTokenEvent, totalFilteredTokenEvents)}</span> of{' '}
+                        <span className="font-medium">{totalFilteredTokenEvents}</span> results
+                        {data.totalTokenEvents > 0 && totalFilteredTokenEvents !== data.totalTokenEvents && (
+                          <span className="text-gray-500"> (filtered from {data.totalTokenEvents})</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {/* Previous Button */}
+                      <button
+                        onClick={handleTokenPrevious}
+                        disabled={currentTokenPage === 1}
+                        className={`px-3 py-2 text-sm font-medium rounded-md ${
+                          currentTokenPage === 1
+                            ? 'text-gray-400 cursor-not-allowed'
+                            : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        Previous
+                      </button>
+                      
+                      {/* Page Numbers */}
+                      <div className="flex items-center space-x-1">
+                        {Array.from({ length: Math.min(5, totalFilteredTokenPages) }, (_, i) => {
+                          const pageNum = i + 1;
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => handleTokenPageChange(pageNum)}
+                              className={`px-3 py-2 text-sm font-medium rounded-md ${
+                                pageNum === currentTokenPage
+                                  ? 'bg-blue-500 text-white'
+                                  : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      
+                      {/* Next Button */}
+                      <button
+                        onClick={handleTokenNext}
+                        disabled={currentTokenPage === totalFilteredTokenPages}
+                        className={`px-3 py-2 text-sm font-medium rounded-md ${
+                          currentTokenPage === totalFilteredTokenPages
+                            ? 'text-gray-400 cursor-not-allowed'
+                            : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                  <span className="text-2xl">🔐</span>
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No token events yet</h3>
+                <p className="text-gray-500">Token events will appear here when authentication, login, or token refresh activities are detected.</p>
               </div>
             )}
           </div>
