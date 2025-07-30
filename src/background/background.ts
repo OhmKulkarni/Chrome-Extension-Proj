@@ -7,6 +7,143 @@ import { EnvironmentStorageManager } from './environment-storage-manager';
 // Initialize environment-aware storage system
 const storageManager = new EnvironmentStorageManager();
 
+// --- Token Event Tracking ---
+interface TokenEvent {
+  type: 'acquire' | 'refresh' | 'expired' | 'refresh_error';
+  url: string;
+  method: string;
+  status: number;
+  timestamp: string;
+  source_url: string;
+  expiry?: number;
+  value_hash?: string;
+}
+
+// Token-related endpoint patterns
+const TOKEN_ENDPOINTS = {
+  acquire: [
+    '/auth', '/login', '/token', '/signin', '/authenticate', '/oauth', 
+    '/api/auth', '/api/login', '/api/token', '/api/signin', '/api/authenticate',
+    '/v1/auth', '/v2/auth', '/session', '/sso', '/connect'
+  ],
+  refresh: [
+    '/refresh', '/renew', '/reauth', '/token/refresh', '/auth/refresh',
+    '/api/refresh', '/api/renew', '/api/reauth', '/api/token/refresh',
+    '/v1/refresh', '/v2/refresh', '/session/refresh'
+  ]
+};
+
+// Utility function to check if URL matches token patterns
+function isTokenEndpoint(url: string, type: 'acquire' | 'refresh'): boolean {
+  const patterns = TOKEN_ENDPOINTS[type];
+  return patterns.some(pattern => url.toLowerCase().includes(pattern));
+}
+
+// Utility function to detect token events from network requests
+function detectTokenEvent(requestData: any): TokenEvent | null {
+  const { url, method, status } = requestData;
+  
+  if (!url || !method || status === undefined) {
+    return null;
+  }
+  
+  const timestamp = new Date().toISOString();
+  const source_url = requestData.tabUrl || requestData.source_url || url;
+  
+  // Log all requests for debugging
+  if (url.toLowerCase().includes('auth') || url.toLowerCase().includes('token') || url.toLowerCase().includes('login')) {
+    console.log('🔍 Potential token endpoint detected:', {
+      url,
+      method,
+      status,
+      isAcquireEndpoint: isTokenEndpoint(url, 'acquire'),
+      isRefreshEndpoint: isTokenEndpoint(url, 'refresh')
+    });
+  }
+  
+  // Detect token acquisition (successful auth requests)
+  if (method === 'POST' && status >= 200 && status < 300 && isTokenEndpoint(url, 'acquire')) {
+    console.log('✅ Token acquisition detected:', url);
+    return {
+      type: 'acquire',
+      url,
+      method,
+      status,
+      timestamp,
+      source_url,
+      value_hash: '[REDACTED - token acquired]'
+    };
+  }
+  
+  // Detect token refresh attempts
+  if ((method === 'POST' || method === 'GET') && isTokenEndpoint(url, 'refresh')) {
+    if (status >= 200 && status < 300) {
+      console.log('✅ Token refresh detected:', url);
+      return {
+        type: 'refresh',
+        url,
+        method,
+        status,
+        timestamp,
+        source_url,
+        value_hash: '[REDACTED - token refreshed]'
+      };
+    } else if (status >= 400) {
+      console.log('❌ Token refresh error detected:', url);
+      return {
+        type: 'refresh_error',
+        url,
+        method,
+        status,
+        timestamp,
+        source_url
+      };
+    }
+  }
+  
+  // Detect token expiration (401/403 responses)
+  if (status === 401 || status === 403) {
+    return {
+      type: 'expired',
+      url,
+      method,
+      status,
+      timestamp,
+      source_url
+    };
+  }
+  
+  return null;
+}
+
+// Function to store token events
+async function storeTokenEvent(tokenEvent: TokenEvent): Promise<void> {
+  try {
+    if (!storageManager.isInitialized()) {
+      await storageManager.init();
+    }
+    
+    // Prepare token event data for storage
+    const tokenEventData = {
+      type: tokenEvent.type as 'jwt_token' | 'session_token' | 'api_key' | 'oauth_token',
+      value_hash: tokenEvent.value_hash || `[${tokenEvent.type.toUpperCase()}]`,
+      timestamp: new Date(tokenEvent.timestamp).getTime(),
+      source_url: tokenEvent.source_url,
+      expiry: tokenEvent.expiry
+    };
+    
+    await storageManager.insertTokenEvent(tokenEventData);
+    console.log(`[Token Tracker] ✅ Stored ${tokenEvent.type} event:`, {
+      type: tokenEvent.type,
+      url: tokenEvent.url,
+      status: tokenEvent.status,
+      timestamp: tokenEvent.timestamp
+    });
+  } catch (error) {
+    console.error('[Token Tracker] ❌ Failed to store token event:', error);
+  }
+}
+
 const initializeStorage = async () => {
   try {
     await storageManager.init();
@@ -50,7 +187,7 @@ const initializeChromeStorageSettings = () => {
         privacyMode: false,
         dataCollection: true,
         networkInterception: {
-          enabled: true, // Enable by default for testing
+          enabled: true, // Permission-based: enabled in settings
           bodyCapture: {
             mode: 'partial',
             captureRequests: false,
@@ -66,7 +203,7 @@ const initializeChromeStorageSettings = () => {
           },
           tabSpecific: {
             enabled: true,
-            defaultState: 'paused'
+            defaultState: 'paused' // Per-tab: starts paused, user must enable
           },
           requestFilters: {
             enabled: false,
@@ -74,11 +211,23 @@ const initializeChromeStorageSettings = () => {
           },
           profiles: []
         },
+        errorLogging: {
+          enabled: true, // Permission-based: enabled in settings
+          severityFilter: {
+            enabled: false,
+            allowed: ['error', 'warn', 'info']
+          },
+          tabSpecific: {
+            enabled: true,
+            defaultState: 'paused' // Per-tab: starts paused, user must enable
+          }
+        },
       };
       
       chrome.storage.local.set({ settings: defaultSettings }, () => {
         console.log('[Web App Monitor] ✅ Chrome storage settings initialized');
-        console.log('[Web App Monitor] Network interception enabled by default');
+        console.log('[Web App Monitor] Permission-based logging enabled: Network & Error logging capabilities enabled');
+        console.log('[Web App Monitor] Per-tab defaults: Both start paused, user must manually enable per tab');
       });
     } else {
       console.log('[Web App Monitor] Chrome storage settings already exist');
@@ -257,6 +406,28 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
     const settings = settingsResult.settings || {};
     const networkConfig = settings.networkInterception || {};
     
+    // Ensure we have default token logging settings if they don't exist
+    const tokenLoggingDefaults = {
+      enabled: true,
+      tabSpecific: {
+        enabled: true,
+        defaultState: 'paused'
+      },
+      eventTypes: {
+        acquire: true,
+        refresh: true,
+        expired: true,
+        refresh_error: true
+      }
+    };
+    
+    // Use default settings if tokenLogging config doesn't exist
+    if (!settings.tokenLogging) {
+      settings.tokenLogging = tokenLoggingDefaults;
+      // Save the default settings
+      await chrome.storage.local.set({ settings });
+    }
+    
     // Check if network interception is enabled
     if (!networkConfig.enabled) {
       sendResponse({ success: false, reason: 'Network interception disabled' });
@@ -330,7 +501,82 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
       }
     }
     
-    // All filters passed - store the request
+    // All filters passed - check if this is a token-related request
+    // and if token logging is disabled, skip storing this request entirely
+    
+    // First, detect if this is a token event BEFORE storing
+    const tokenEvent = detectTokenEvent(requestData);
+    console.log('🔐 Pre-storage Token Event Detection:', {
+      tokenEvent,
+      url: requestData.url,
+      method: requestData.method,
+      status: requestData.status
+    });
+    
+    // If this is a token-related request, check if token logging is enabled
+    if (tokenEvent) {
+      const tokenConfig = settings.tokenLogging || {};
+      console.log('🔐 Token Config Check (before storage):', tokenConfig);
+      
+      let shouldAllowTokenRequest = false;
+      
+      if (tokenConfig.enabled) {
+        console.log('🔐 Global token logging is enabled');
+        // Check tab-specific token logging (ONLY if tab-specific is enabled)
+        if (tokenConfig.tabSpecific?.enabled && sender?.tab?.id) {
+          console.log('🔐 Tab-specific token logging is enabled, checking tab state...');
+          const tabId = sender.tab.id;
+          try {
+            const tokenTabStateResult = await chrome.storage.local.get([`tabTokenLogging_${tabId}`]);
+            const tokenTabState = tokenTabStateResult[`tabTokenLogging_${tabId}`];
+            console.log('🔐 Tab Token State (pre-storage):', { tabId, tokenTabState });
+            
+            // Start with the default state from settings
+            let tabTokenLoggingEnabled = tokenConfig.tabSpecific?.defaultState === 'active';
+            console.log('🔐 Default state from settings (pre-storage):', tokenConfig.tabSpecific?.defaultState, 'enabled:', tabTokenLoggingEnabled);
+            
+            if (tokenTabState !== undefined) {
+              console.log('🔐 Tab state exists (pre-storage), checking value...');
+              // Override with actual tab state if it exists
+              if (typeof tokenTabState === 'boolean') {
+                tabTokenLoggingEnabled = tokenTabState;
+                console.log('🔐 Tab state is boolean (pre-storage):', tabTokenLoggingEnabled);
+              } else if (tokenTabState && typeof tokenTabState === 'object' && 'active' in tokenTabState) {
+                tabTokenLoggingEnabled = tokenTabState.active;
+                console.log('🔐 Tab state is object with active property (pre-storage):', tabTokenLoggingEnabled);
+              }
+            } else {
+              console.log('🔐 Tab state does not exist (pre-storage), using default');
+            }
+            
+            shouldAllowTokenRequest = tabTokenLoggingEnabled;
+            console.log('🔐 Final decision - Should Allow Token Request:', { shouldAllowTokenRequest, tabTokenLoggingEnabled });
+          } catch (tokenTabError) {
+            console.warn('Could not determine tab token logging state (pre-storage), using default:', tokenTabError);
+            // Use default state from settings
+            shouldAllowTokenRequest = tokenConfig.tabSpecific?.defaultState === 'active';
+          }
+        } else if (!tokenConfig.tabSpecific?.enabled) {
+          console.log('🔐 Tab-specific token logging is disabled, using global setting');
+          shouldAllowTokenRequest = true; // If tab-specific is disabled, use global setting
+        } else {
+          console.log('🔐 No tab ID available, using default');
+          shouldAllowTokenRequest = tokenConfig.tabSpecific?.defaultState === 'active';
+        }
+      } else {
+        console.log('🔐 Token logging globally disabled');
+        shouldAllowTokenRequest = false;
+      }
+      
+      // If token logging is disabled, don't store this request at all
+      if (!shouldAllowTokenRequest) {
+        console.log('🔐 Token logging disabled - skipping storage of auth request:', requestData.url);
+        sendResponse({ success: false, reason: 'Token logging disabled - auth request filtered' });
+        return;
+      }
+    }
+    
+    // Store the request (either non-token request or token request with logging enabled)
     
     // Map the request data from main-world-script to storage API format
     const storageData = {
@@ -348,6 +594,33 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
     
     // Store the network request using the existing API call storage
     const id = await storageManager.insertApiCall(storageData);
+    
+    // --- Token Event Tracking (for requests that made it through filtering) ---
+    // We already know this is a token event if we got here and tokenEvent is truthy
+    if (tokenEvent) {
+      console.log('🔐 STORING TOKEN EVENT (post-storage):', tokenEvent);
+      await storeTokenEvent(tokenEvent);
+      
+      // Update tab token count if we have a tab ID
+      if (sender?.tab?.id) {
+        const tabId = sender.tab.id;
+        try {
+          const tokenTabStateResult = await chrome.storage.local.get([`tabTokenLogging_${tabId}`]);
+          const currentTokenTabState = tokenTabStateResult[`tabTokenLogging_${tabId}`];
+          
+          if (currentTokenTabState && typeof currentTokenTabState === 'object') {
+            const updatedTokenTabState = {
+              ...currentTokenTabState,
+              tokenCount: (currentTokenTabState.tokenCount || 0) + 1
+            };
+            await chrome.storage.local.set({ [`tabTokenLogging_${tabId}`]: updatedTokenTabState });
+            console.log('🔐 Updated tab token count:', updatedTokenTabState.tokenCount);
+          }
+        } catch (tokenTabUpdateError) {
+          console.warn('Failed to update tab token count:', tokenTabUpdateError);
+        }
+      }
+    }
     
     // ALWAYS update tab request count (regardless of tab-specific setting)
     // This ensures popup shows accurate count matching the dashboard
@@ -390,6 +663,59 @@ async function handleConsoleError(errorData: any, sendResponse: (response: any) 
     if (!storageManager.isInitialized()) {
       await storageManager.init();
     }
+
+    // Check if error logging is enabled globally
+    const settings = await chrome.storage.local.get(['settings']);
+    const errorLoggingConfig = settings.settings?.errorLogging || {};
+    
+    if (!errorLoggingConfig.enabled) {
+      sendResponse({ success: false, reason: 'Error logging disabled' });
+      return;
+    }
+
+    // Check tab-specific error logging ONLY if tab-specific is enabled
+    if (errorLoggingConfig.tabSpecific?.enabled) {
+      if (errorData.tabId) {
+        try {
+          const tabData = await chrome.storage.local.get([`tabErrorLogging_${errorData.tabId}`]);
+          const tabState = tabData[`tabErrorLogging_${errorData.tabId}`];
+          
+          let isTabLoggingActive = false;
+          if (tabState) {
+            isTabLoggingActive = typeof tabState === 'boolean' ? tabState : tabState.active;
+          } else {
+            // No tab state exists, use default
+            isTabLoggingActive = errorLoggingConfig.tabSpecific?.defaultState === 'active';
+          }
+          
+          if (!isTabLoggingActive) {
+            sendResponse({ success: false, reason: 'Tab error logging paused' });
+            return;
+          }
+        } catch (tabError) {
+          console.warn('Could not determine tab error logging state, using default:', tabError);
+        }
+      } else {
+        // No tab ID provided but tab-specific is enabled - use default behavior
+        const defaultActive = errorLoggingConfig.tabSpecific?.defaultState === 'active';
+        if (!defaultActive) {
+          sendResponse({ success: false, reason: 'No tab ID and default state is paused' });
+          return;
+        }
+      }
+    }
+    // If tab-specific is disabled, log globally for all tabs (no additional checks needed)
+
+    // Check severity filtering if enabled
+    if (errorLoggingConfig.severityFilter?.enabled) {
+      const allowedSeverities = errorLoggingConfig.severityFilter.allowed || [];
+      const errorSeverity = errorData.severity || 'error';
+      
+      if (!allowedSeverities.includes(errorSeverity)) {
+        sendResponse({ success: false, reason: `Severity '${errorSeverity}' filtered out` });
+        return;
+      }
+    }
     
     // Map the error data from main-world-script to storage API format
     const storageData = {
@@ -402,10 +728,39 @@ async function handleConsoleError(errorData: any, sendResponse: (response: any) 
     
     // Store the console error
     const id = await storageManager.insertConsoleError(storageData);
+
+    // ALWAYS update tab error count (regardless of tab-specific setting)
+    // This ensures popup shows accurate count matching the dashboard
+    if (errorData.tabId) {
+      try {
+        const tabData = await chrome.storage.local.get([`tabErrorLogging_${errorData.tabId}`]);
+        const tabState = tabData[`tabErrorLogging_${errorData.tabId}`];
+        
+        if (tabState && typeof tabState === 'object') {
+          const updatedState = {
+            ...tabState,
+            errorCount: (tabState.errorCount || 0) + 1,
+            lastErrorTime: Date.now()
+          };
+          await chrome.storage.local.set({ [`tabErrorLogging_${errorData.tabId}`]: updatedState });
+        } else {
+          // Create tab state if it doesn't exist (for accurate counting)
+          const newTabState = {
+            active: errorLoggingConfig.tabSpecific?.defaultState === 'active',
+            startTime: Date.now(),
+            errorCount: 1,
+            lastErrorTime: Date.now()
+          };
+          await chrome.storage.local.set({ [`tabErrorLogging_${errorData.tabId}`]: newTabState });
+        }
+      } catch (tabUpdateError) {
+        console.warn('Failed to update tab error count:', tabUpdateError);
+      }
+    }
     
     // Update last activity timestamp
     await chrome.storage.sync.set({ lastActivity: Date.now() });
-    
+
     sendResponse({ success: true, id });
   } catch (error) {
     console.error('[Web App Monitor] Failed to store console error:', error);
@@ -566,6 +921,7 @@ async function handleClearAllData(sendResponse: (response: any) => void) {
     // Also clear all tab-specific request counters
     const allStorage = await chrome.storage.local.get(null);
     const tabLoggingKeys = Object.keys(allStorage).filter(key => key.startsWith('tabLogging_'));
+    const tabErrorLoggingKeys = Object.keys(allStorage).filter(key => key.startsWith('tabErrorLogging_'));
     
     // Reset request counts for all tabs while preserving their active/paused state
     const updates: Record<string, any> = {};
@@ -582,6 +938,24 @@ async function handleClearAllData(sendResponse: (response: any) => void) {
           active: tabState,
           startTime: Date.now(),
           requestCount: 0
+        };
+      }
+    }
+    
+    // Reset error counts for all tabs while preserving their active/paused state
+    for (const key of tabErrorLoggingKeys) {
+      const tabState = allStorage[key];
+      if (tabState && typeof tabState === 'object') {
+        updates[key] = {
+          ...tabState,
+          errorCount: 0
+        };
+      } else if (typeof tabState === 'boolean') {
+        // Convert old boolean format to new object format with counter
+        updates[key] = {
+          active: tabState,
+          startTime: Date.now(),
+          errorCount: 0
         };
       }
     }
@@ -625,6 +999,28 @@ async function handleGetConsoleErrors(limit: number, sendResponse: (response: an
   }
 }
 
+// Get token events handler
+async function handleGetTokenEvents(limit: number, sendResponse: (response: any) => void) {
+  try {
+    if (!storageManager.isInitialized()) {
+      await storageManager.init();
+    }
+    
+    // Get recent token events
+    const events = await storageManager.getTokenEvents(limit);
+    const counts = await storageManager.getTableCounts();
+    
+    sendResponse({ 
+      success: true, 
+      events: events || [], 
+      total: counts?.token_events || 0 
+    });
+  } catch (error) {
+    console.error('[Web App Monitor] Failed to get token events:', error);
+    sendResponse({ error: error instanceof Error ? error.message : 'Query failed' });
+  }
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.action || message.type) {
     case 'INJECT_MAIN_WORLD_SCRIPT':
@@ -646,6 +1042,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       break;
       
+    case 'getCurrentTabId':
     case 'GET_CURRENT_TAB_ID':
       // Get current tab ID for content script
       if (sender.tab && sender.tab.id) {
@@ -709,6 +1106,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     case 'getConsoleErrors':
       // Get stored console errors
       handleGetConsoleErrors(message.limit || 50, sendResponse);
+      return true; // Keep message channel open for async response
+
+    case 'getTokenEvents':
+      // Get stored token events
+      handleGetTokenEvents(message.limit || 50, sendResponse);
       return true; // Keep message channel open for async response
 
     default:

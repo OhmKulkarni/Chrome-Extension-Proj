@@ -12,8 +12,23 @@ let injectionAttempted = false;
 // Check if extension context is still valid
 function isExtensionContextValid(): boolean {
   try {
-    return !!(chrome && chrome.runtime && chrome.runtime.id);
+    // More thorough check for extension context
+    if (!chrome || !chrome.runtime) {
+      console.log('❌ CONTENT: Chrome runtime not available');
+      return false;
+    }
+    
+    // Check if runtime.id is accessible (throws error if context invalid)
+    const id = chrome.runtime.id;
+    if (!id) {
+      console.log('❌ CONTENT: Runtime ID not available');
+      return false;
+    }
+    
+    console.log('✅ CONTENT: Extension context valid, ID:', id);
+    return true;
   } catch (error) {
+    console.log('❌ CONTENT: Extension context check failed:', error);
     extensionContextValid = false;
     return false;
   }
@@ -86,13 +101,24 @@ async function tryWebAccessibleInjection(): Promise<boolean> {
 window.addEventListener('networkRequestIntercepted', (event: any) => {
   const requestData = event.detail;
   console.log('📡 CONTENT: Captured network request:', requestData.url);
+  console.log('📍 CONTENT: Current extension context valid?', extensionContextValid);
+  
+  // Always check context validity before processing
+  const contextValid = isExtensionContextValid();
+  console.log('🔍 CONTENT: Fresh context check result:', contextValid);
+  
+  if (!contextValid) {
+    console.log('⚠️ CONTENT: Extension context invalid, network request captured but not stored');
+    console.log('📊 CONTENT: Request details:', {
+      url: requestData.url,
+      method: requestData.method,
+      timestamp: new Date().toISOString(),
+      pageUrl: window.location.href
+    });
+    return;
+  }
   
   try {
-    if (!isExtensionContextValid()) {
-      console.log('⚠️ CONTENT: Extension context invalid, network request captured but not stored');
-      return;
-    }
-    
     // Add tab context information
     const enrichedData = {
       ...requestData,
@@ -100,19 +126,23 @@ window.addEventListener('networkRequestIntercepted', (event: any) => {
       tabDomain: window.location.hostname
     };
     
+    console.log('📤 CONTENT: Sending network request to background:', enrichedData.url);
+    
     // Send to background for storage
     chrome.runtime.sendMessage({
       type: 'NETWORK_REQUEST',
       data: enrichedData
-    }).then(() => {
-      console.log('✅ CONTENT: Stored network request');
+    }).then((response) => {
+      console.log('✅ CONTENT: Network request processed by background:', response);
     }).catch((error) => {
       console.log('❌ CONTENT: Failed to store network request:', error);
+      console.log('🔍 CONTENT: Error details:', error instanceof Error ? error.message : String(error));
       extensionContextValid = false;
     });
     
   } catch (error) {
     console.log('❌ CONTENT: Error processing network request:', error);
+    console.log('🔍 CONTENT: Error details:', error instanceof Error ? error.message : String(error));
     extensionContextValid = false;
   }
 });
@@ -128,28 +158,61 @@ window.addEventListener('consoleErrorIntercepted', (event: any) => {
       return;
     }
     
-    // Add tab context information
-    const enrichedData = {
-      ...errorData,
-      tabUrl: window.location.href,
-      tabDomain: window.location.hostname
-    };
-    
-    // Send to background for storage
-    chrome.runtime.sendMessage({
-      type: 'CONSOLE_ERROR',
-      data: enrichedData
-    }).then(() => {
-      console.log('✅ CONTENT: Stored console error');
-    }).catch((error) => {
-      console.log('❌ CONTENT: Failed to store console error:', error);
-      extensionContextValid = false;
+    // Get current tab ID
+    chrome.runtime.sendMessage({ action: 'getCurrentTabId' }).then((tabResponse) => {
+      // Add tab context information
+      const enrichedData = {
+        ...errorData,
+        tabUrl: window.location.href,
+        tabDomain: window.location.hostname,
+        tabId: tabResponse?.tabId
+      };
+      
+      // Send to background for storage
+      chrome.runtime.sendMessage({
+        type: 'CONSOLE_ERROR',
+        data: enrichedData
+      }).then(() => {
+        console.log('✅ CONTENT: Stored console error');
+      }).catch((error) => {
+        console.log('❌ CONTENT: Failed to store console error:', error);
+        extensionContextValid = false;
+      });
+    }).catch((tabError) => {
+      console.log('❌ CONTENT: Could not get tab ID:', tabError);
+      // Send without tab ID as fallback
+      const enrichedData = {
+        ...errorData,
+        tabUrl: window.location.href,
+        tabDomain: window.location.hostname
+      };
+      
+      chrome.runtime.sendMessage({
+        type: 'CONSOLE_ERROR',
+        data: enrichedData
+      });
     });
     
   } catch (error) {
     console.log('❌ CONTENT: Error processing console error:', error);
     extensionContextValid = false;
   }
+});
+
+// Listen for messages from popup/background
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message.action === 'toggleLogging') {
+    console.log('📱 CONTENT: Toggle network logging:', message.enabled);
+    // Network logging toggle is handled by main-world-script
+    // Just acknowledge the message
+    sendResponse({ success: true });
+  } else if (message.action === 'toggleErrorLogging') {
+    console.log('📱 CONTENT: Toggle error logging:', message.enabled);
+    // Error logging toggle is handled by main-world-script
+    // Just acknowledge the message
+    sendResponse({ success: true });
+  }
+  return true; // Keep the message channel open for async response
 });
 
 // Listen for extension context invalidation

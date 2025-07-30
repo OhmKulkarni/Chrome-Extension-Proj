@@ -11,11 +11,24 @@ interface DashboardData {
   totalRequests: number;
   consoleErrors: any[];
   totalErrors: number;
+  tokenEvents: any[];
+  totalTokenEvents: number;
 }
 
 interface SortConfig {
   key: string;
   direction: 'asc' | 'desc';
+}
+
+interface TabLoggingStatus {
+  tabId: number;
+  url: string;
+  title: string;
+  domain: string;
+  networkLogging: boolean;
+  errorLogging: boolean;
+  tokenLogging: boolean;
+  favicon?: string;
 }
 
 const Dashboard: React.FC = () => {
@@ -26,7 +39,9 @@ const Dashboard: React.FC = () => {
     networkRequests: [],
     totalRequests: 0,
     consoleErrors: [],
-    totalErrors: 0
+    totalErrors: 0,
+    tokenEvents: [],
+    totalTokenEvents: 0
   });
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -42,13 +57,26 @@ const Dashboard: React.FC = () => {
   const [filterSeverity, setFilterSeverity] = useState<string>('all');
   const [errorSearchTerm, setErrorSearchTerm] = useState<string>('');
 
+  // Token events state
+  const [currentTokenPage, setCurrentTokenPage] = useState(1);
+  const [tokenEventsPerPage] = useState(10);
+  const [tokenSortConfig, setTokenSortConfig] = useState<SortConfig>({ key: 'timestamp', direction: 'desc' });
+  const [filterTokenType, setFilterTokenType] = useState<string>('all');
+  const [tokenSearchTerm, setTokenSearchTerm] = useState<string>('');
+
+  // Sidebar state
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [tabsLoggingStatus, setTabsLoggingStatus] = useState<TabLoggingStatus[]>([]);
+  const [tabSearchTerm, setTabSearchTerm] = useState<string>('');
+
   useEffect(() => {
     loadDashboardData();
+    loadTabsLoggingStatus();
   }, []);
 
   const loadDashboardData = async () => {
     try {
-      // Get tabs count
+      // Get tabs count and current active tab
       const tabs = await chrome.tabs.query({});
       
       // Get storage data
@@ -56,7 +84,7 @@ const Dashboard: React.FC = () => {
       
       // Get network requests from background storage - request more for pagination
       const networkData = await new Promise<any>((resolve) => {
-        chrome.runtime.sendMessage({ action: 'getNetworkRequests', limit: 100 }, (response) => {
+        chrome.runtime.sendMessage({ action: 'getNetworkRequests', limit: 1000 }, (response) => {
           if (chrome.runtime.lastError) {
             console.error('Dashboard: Error getting network requests:', chrome.runtime.lastError);
             resolve({ requests: [], total: 0 });
@@ -66,9 +94,9 @@ const Dashboard: React.FC = () => {
         });
       });
 
-      // Get console errors from background storage
+      // Get console errors from background storage - request more for pagination
       const errorData = await new Promise<any>((resolve) => {
-        chrome.runtime.sendMessage({ action: 'getConsoleErrors', limit: 100 }, (response) => {
+        chrome.runtime.sendMessage({ action: 'getConsoleErrors', limit: 1000 }, (response) => {
           if (chrome.runtime.lastError) {
             console.error('Dashboard: Error getting console errors:', chrome.runtime.lastError);
             resolve({ errors: [], total: 0 });
@@ -77,10 +105,23 @@ const Dashboard: React.FC = () => {
           }
         });
       });
+
+      // Get token events from background storage
+      const tokenData = await new Promise<any>((resolve) => {
+        chrome.runtime.sendMessage({ action: 'getTokenEvents', limit: 1000 }, (response) => {
+          if (chrome.runtime.lastError) {
+            console.error('Dashboard: Error getting token events:', chrome.runtime.lastError);
+            resolve({ events: [], total: 0 });
+          } else {
+            resolve(response || { events: [], total: 0 });
+          }
+        });
+      });
       
       // Calculate pagination
       const totalRequests = networkData.total || 0;
       const totalErrors = errorData.total || 0;
+      const totalTokenEvents = tokenData.total || 0;
       
       setData({
         totalTabs: tabs.length,
@@ -91,12 +132,83 @@ const Dashboard: React.FC = () => {
         networkRequests: networkData.requests || [],
         totalRequests: totalRequests,
         consoleErrors: errorData.errors || [],
-        totalErrors: totalErrors
+        totalErrors: totalErrors,
+        tokenEvents: tokenData.events || [],
+        totalTokenEvents: totalTokenEvents
       });
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadTabsLoggingStatus = async () => {
+    try {
+      // Get all tabs
+      const tabs = await chrome.tabs.query({});
+      const tabStatuses: TabLoggingStatus[] = [];
+
+      for (const tab of tabs) {
+        if (tab.id && tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
+          // Get logging status for this tab
+          const result = await chrome.storage.local.get([`tabLogging_${tab.id}`, `tabErrorLogging_${tab.id}`, `tabTokenLogging_${tab.id}`, 'settings']);
+          const networkState = result[`tabLogging_${tab.id}`];
+          const errorState = result[`tabErrorLogging_${tab.id}`];
+          const tokenState = result[`tabTokenLogging_${tab.id}`];
+          const settings = result.settings || {};
+          
+          // Get domain from URL
+          let domain = '';
+          try {
+            domain = new URL(tab.url).hostname;
+          } catch (e) {
+            domain = tab.url;
+          }
+
+          // Determine logging status (same logic as popup)
+          const networkConfig = settings.networkInterception || {};
+          const errorConfig = settings.errorLogging || {};
+          const tokenConfig = settings.tokenLogging || {};
+          
+          let networkLogging = false;
+          let errorLogging = false;
+          let tokenLogging = false;
+
+          if (networkState) {
+            networkLogging = typeof networkState === 'boolean' ? networkState : networkState.active;
+          } else {
+            networkLogging = networkConfig.tabSpecific?.defaultState === 'active';
+          }
+
+          if (errorState) {
+            errorLogging = typeof errorState === 'boolean' ? errorState : errorState.active;
+          } else {
+            errorLogging = errorConfig.tabSpecific?.defaultState === 'active';
+          }
+
+          if (tokenState) {
+            tokenLogging = typeof tokenState === 'boolean' ? tokenState : tokenState.active;
+          } else {
+            tokenLogging = tokenConfig.tabSpecific?.defaultState === 'active';
+          }
+
+          tabStatuses.push({
+            tabId: tab.id,
+            url: tab.url,
+            title: tab.title || 'Untitled',
+            domain,
+            networkLogging,
+            errorLogging,
+            tokenLogging,
+            favicon: tab.favIconUrl
+          });
+        }
+      }
+
+      setTabsLoggingStatus(tabStatuses);
+    } catch (error) {
+      console.error('Error loading tabs logging status:', error);
     }
   };
 
@@ -107,7 +219,7 @@ const Dashboard: React.FC = () => {
 
   const clearData = async () => {
     const confirmed = window.confirm(
-      '⚠️ WARNING: This will permanently delete all recorded network requests and reset all tab counters.\n\n' +
+      '⚠️ WARNING: This will permanently delete all recorded network requests, console errors, token events, and reset all tab counters.\n\n' +
       'This action cannot be undone. Are you sure you want to continue?'
     );
     
@@ -138,13 +250,15 @@ const Dashboard: React.FC = () => {
           networkRequests: [],
           totalRequests: 0,
           consoleErrors: [],
-          totalErrors: 0
+          totalErrors: 0,
+          tokenEvents: [],
+          totalTokenEvents: 0
         });
         
         setCurrentPage(1);
         
         // Show success message
-        alert('✅ All network request data and popup counters have been cleared successfully.');
+        alert('✅ All network request, console error, and token event data have been cleared successfully.');
         
       } catch (error) {
         console.error('Error clearing data:', error);
@@ -370,6 +484,220 @@ const Dashboard: React.FC = () => {
     setCurrentErrorPage(1);
   }, [errorSearchTerm, filterSeverity, totalFilteredErrorPages]);
 
+  // Token Events filtering and sorting
+  const getFilteredAndSortedTokenEvents = () => {
+    let filteredTokenEvents = [...data.tokenEvents];
+    
+    // Apply search filter
+    if (tokenSearchTerm) {
+      filteredTokenEvents = filteredTokenEvents.filter(event =>
+        event.url.toLowerCase().includes(tokenSearchTerm.toLowerCase()) ||
+        (event.type && event.type.toLowerCase().includes(tokenSearchTerm.toLowerCase()))
+      );
+    }
+    
+    // Apply token type filter
+    if (filterTokenType !== 'all') {
+      filteredTokenEvents = filteredTokenEvents.filter(event => 
+        event.type && event.type.toLowerCase() === filterTokenType.toLowerCase()
+      );
+    }
+    
+    // Apply sorting
+    filteredTokenEvents.sort((a, b) => {
+      const aValue = a[tokenSortConfig.key];
+      const bValue = b[tokenSortConfig.key];
+      
+      if (tokenSortConfig.key === 'timestamp') {
+        const aTime = new Date(aValue).getTime();
+        const bTime = new Date(bValue).getTime();
+        return tokenSortConfig.direction === 'asc' ? aTime - bTime : bTime - aTime;
+      }
+      
+      if (tokenSortConfig.key === 'status') {
+        const aNum = Number(aValue) || 0;
+        const bNum = Number(bValue) || 0;
+        return tokenSortConfig.direction === 'asc' ? aNum - bNum : bNum - aNum;
+      }
+      
+      const aStr = String(aValue || '').toLowerCase();
+      const bStr = String(bValue || '').toLowerCase();
+      if (aStr < bStr) return tokenSortConfig.direction === 'asc' ? -1 : 1;
+      if (aStr > bStr) return tokenSortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    
+    return filteredTokenEvents;
+  };
+
+  const filteredAndSortedTokenEvents = getFilteredAndSortedTokenEvents();
+  const totalFilteredTokenEvents = filteredAndSortedTokenEvents.length;
+  const totalFilteredTokenPages = Math.ceil(totalFilteredTokenEvents / tokenEventsPerPage);
+  
+  // Calculate current page data for token events
+  const indexOfLastTokenEvent = currentTokenPage * tokenEventsPerPage;
+  const indexOfFirstTokenEvent = indexOfLastTokenEvent - tokenEventsPerPage;
+  const currentTokenEvents = filteredAndSortedTokenEvents.slice(indexOfFirstTokenEvent, indexOfLastTokenEvent);
+
+  // Handle token events sorting
+  const handleTokenSort = (key: string) => {
+    setTokenSortConfig({
+      key,
+      direction: tokenSortConfig.key === key && tokenSortConfig.direction === 'asc' ? 'desc' : 'asc'
+    });
+    setCurrentTokenPage(1); // Reset to first page when sorting
+  };
+
+  // Token events pagination functions
+  const handleTokenPageChange = (page: number) => {
+    if (page >= 1 && page <= totalFilteredTokenPages) {
+      setCurrentTokenPage(page);
+    }
+  };
+
+  const handleTokenPrevious = () => {
+    if (currentTokenPage > 1) {
+      setCurrentTokenPage(currentTokenPage - 1);
+    }
+  };
+
+  const handleTokenNext = () => {
+    if (currentTokenPage < totalFilteredTokenPages) {
+      setCurrentTokenPage(currentTokenPage + 1);
+    }
+  };
+
+  // Reset token pagination when filters change
+  useEffect(() => {
+    setCurrentTokenPage(1);
+  }, [tokenSearchTerm, filterTokenType, totalFilteredTokenPages]);
+
+  // Toggle network logging for a specific tab
+  const toggleTabNetworkLogging = async (tabId: number) => {
+    try {
+      const currentTab = tabsLoggingStatus.find(tab => tab.tabId === tabId);
+      if (!currentTab) return;
+
+      const newState = !currentTab.networkLogging;
+      
+      // Get current tab state to preserve counter when disabling
+      const tabStorageData = await chrome.storage.local.get([`tabLogging_${tabId}`]);
+      const currentTabState = tabStorageData[`tabLogging_${tabId}`];
+      const currentCount = currentTabState?.requestCount || 0;
+      
+      const tabState = {
+        active: newState,
+        startTime: newState ? Date.now() : undefined,
+        requestCount: newState ? 0 : currentCount  // Reset only when enabling, preserve when disabling
+      };
+      
+      await chrome.storage.local.set({ [`tabLogging_${tabId}`]: tabState });
+      
+      // Send message to content script
+      try {
+        await chrome.tabs.sendMessage(tabId, {
+          action: 'toggleLogging',
+          enabled: newState
+        });
+      } catch (error) {
+        console.log('Could not send message to tab (may not have content script):', error);
+      }
+      
+      // Update local state
+      setTabsLoggingStatus(prev => 
+        prev.map(tab => 
+          tab.tabId === tabId ? { ...tab, networkLogging: newState } : tab
+        )
+      );
+    } catch (error) {
+      console.error('Error toggling network logging:', error);
+    }
+  };
+
+  // Toggle error logging for a specific tab
+  const toggleTabErrorLogging = async (tabId: number) => {
+    try {
+      const currentTab = tabsLoggingStatus.find(tab => tab.tabId === tabId);
+      if (!currentTab) return;
+
+      const newState = !currentTab.errorLogging;
+      
+      // Get current tab state to preserve counter when disabling
+      const tabStorageData = await chrome.storage.local.get([`tabErrorLogging_${tabId}`]);
+      const currentTabState = tabStorageData[`tabErrorLogging_${tabId}`];
+      const currentCount = currentTabState?.errorCount || 0;
+      
+      const tabState = {
+        active: newState,
+        startTime: newState ? Date.now() : undefined,
+        errorCount: newState ? 0 : currentCount  // Reset only when enabling, preserve when disabling
+      };
+      
+      await chrome.storage.local.set({ [`tabErrorLogging_${tabId}`]: tabState });
+      
+      // Send message to content script
+      try {
+        await chrome.tabs.sendMessage(tabId, {
+          action: 'toggleErrorLogging',
+          enabled: newState
+        });
+      } catch (error) {
+        console.log('Could not send message to tab (may not have content script):', error);
+      }
+      
+      // Update local state
+      setTabsLoggingStatus(prev => 
+        prev.map(tab => 
+          tab.tabId === tabId ? { ...tab, errorLogging: newState } : tab
+        )
+      );
+    } catch (error) {
+      console.error('Error toggling error logging:', error);
+    }
+  };
+
+  // Toggle token logging for a specific tab
+  const toggleTabTokenLogging = async (tabId: number) => {
+    try {
+      const currentTab = tabsLoggingStatus.find(tab => tab.tabId === tabId);
+      if (!currentTab) return;
+
+      const newState = !currentTab.tokenLogging;
+      
+      // Get current tab state to preserve counter when disabling
+      const tabStorageData = await chrome.storage.local.get([`tabTokenLogging_${tabId}`]);
+      const currentTabState = tabStorageData[`tabTokenLogging_${tabId}`];
+      const currentCount = currentTabState?.tokenCount || 0;
+      
+      const tabState = {
+        active: newState,
+        startTime: newState ? Date.now() : undefined,
+        tokenCount: newState ? 0 : currentCount  // Reset only when enabling, preserve when disabling
+      };
+      
+      await chrome.storage.local.set({ [`tabTokenLogging_${tabId}`]: tabState });
+      
+      // Note: Token logging doesn't require content script communication
+      // as it's handled purely in the background script via network interception
+      
+      // Update local state
+      setTabsLoggingStatus(prev => 
+        prev.map(tab => 
+          tab.tabId === tabId ? { ...tab, tokenLogging: newState } : tab
+        )
+      );
+    } catch (error) {
+      console.error('Error toggling token logging:', error);
+    }
+  };
+
+  // Filter tabs based on search term
+  const filteredTabs = tabsLoggingStatus.filter(tab => 
+    tab.title.toLowerCase().includes(tabSearchTerm.toLowerCase()) ||
+    tab.domain.toLowerCase().includes(tabSearchTerm.toLowerCase()) ||
+    tab.url.toLowerCase().includes(tabSearchTerm.toLowerCase())
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -379,14 +707,201 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Collapsible Sidebar */}
+      <div className={`fixed inset-y-0 left-0 z-50 w-80 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
+        <div className="flex flex-col h-full">
+          {/* Sidebar Header */}
+          <div className="flex items-center justify-between p-4 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">Page Logging Status</h2>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Search Bar */}
+          <div className="p-4 border-b border-gray-200">
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                placeholder="Search pages, domains, URLs..."
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                value={tabSearchTerm}
+                onChange={(e) => setTabSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Tabs List */}
+          <div className="flex-1 overflow-y-auto">
+            {filteredTabs.length > 0 ? (
+              <div className="divide-y divide-gray-200">
+                {filteredTabs.map((tab) => (
+                  <div key={tab.tabId} className="p-4 hover:bg-gray-50">
+                    {/* Tab Info */}
+                    <div className="flex items-center mb-3">
+                      {tab.favicon && (
+                        <img
+                          src={tab.favicon}
+                          alt=""
+                          className="w-4 h-4 mr-2 flex-shrink-0"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate" title={tab.title}>
+                          {tab.title}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate" title={tab.domain}>
+                          {tab.domain}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Toggle Controls */}
+                    <div className="space-y-2">
+                      {/* Network Logging Toggle */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-700">Network Requests</span>
+                        <button
+                          onClick={() => toggleTabNetworkLogging(tab.tabId)}
+                          className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                            tab.networkLogging ? 'bg-blue-600' : 'bg-gray-200'
+                          }`}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200 ${
+                              tab.networkLogging ? 'translate-x-5' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      {/* Error Logging Toggle */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-700">Console Errors</span>
+                        <button
+                          onClick={() => toggleTabErrorLogging(tab.tabId)}
+                          className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
+                            tab.errorLogging ? 'bg-red-600' : 'bg-gray-200'
+                          }`}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200 ${
+                              tab.errorLogging ? 'translate-x-5' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      {/* Token Logging Toggle */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-700">Token Events</span>
+                        <button
+                          onClick={() => toggleTabTokenLogging(tab.tabId)}
+                          className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 ${
+                            tab.tokenLogging ? 'bg-yellow-600' : 'bg-gray-200'
+                          }`}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200 ${
+                              tab.tokenLogging ? 'translate-x-5' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 text-center">
+                <div className="text-gray-500 text-sm">
+                  {tabSearchTerm ? 'No tabs match your search' : 'No tabs available'}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar Footer */}
+          <div className="p-4 border-t border-gray-200">
+            <button
+              onClick={loadTabsLoggingStatus}
+              className="w-full bg-blue-500 hover:bg-blue-600 text-white text-sm py-2 px-4 rounded-md transition-colors"
+            >
+              Refresh Status
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Sidebar Overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Main Content */}
+      <div className="flex-1">
       {/* Header */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Web App Monitor Dashboard</h1>
-              <p className="text-gray-600">Monitor and analyze your client-side web applications</p>
+            <div className="flex items-center">
+              {/* Sidebar Toggle Button with Indicator */}
+              <div className="relative mr-4">
+                <button
+                  onClick={() => setSidebarOpen(true)}
+                  className="p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 relative"
+                  title="Open Logging Status Panel"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                  {/* Notification dot for active tabs */}
+                  {tabsLoggingStatus.some(tab => tab.networkLogging || tab.errorLogging) && (
+                    <span className="absolute -top-1 -right-1 h-3 w-3 bg-blue-500 rounded-full animate-pulse"></span>
+                  )}
+                </button>
+                {/* Helper tooltip */}
+                <div className="absolute top-full left-0 mt-2 w-48 bg-gray-800 text-white text-xs rounded-lg py-2 px-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10 pointer-events-none">
+                  View and control logging for all tabs
+                  <div className="absolute -top-1 left-4 w-2 h-2 bg-gray-800 transform rotate-45"></div>
+                </div>
+              </div>
+              
+              <div className="flex-1">
+                <div className="flex items-center gap-3">
+                  <div>
+                    <h1 className="text-3xl font-bold text-gray-900">Web App Monitor Dashboard</h1>
+                    <p className="text-gray-600">Monitor and analyze your client-side web applications</p>
+                  </div>
+                  
+                  {/* Sidebar Discovery Hint */}
+                  <div className="hidden lg:flex items-center bg-blue-50 text-blue-700 px-3 py-2 rounded-lg text-sm border border-blue-200">
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Click the menu icon to control logging for all tabs</span>
+                  </div>
+                </div>
+              </div>
             </div>
             <div className="flex gap-3">
               <button
@@ -409,7 +924,7 @@ const Dashboard: React.FC = () => {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -466,8 +981,16 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Network Requests</p>
-                <p className="text-2xl font-semibold text-gray-900">{data.totalRequests}</p>
+                <p className="text-sm font-medium text-gray-500">
+                  Network Requests
+                  {data.totalRequests > 0 && totalFilteredRequests !== data.totalRequests && (
+                    <span className="text-xs text-gray-400 ml-1">(filtered)</span>
+                  )}
+                </p>
+                <p className="text-2xl font-semibold text-gray-900">{totalFilteredRequests}</p>
+                {data.totalRequests > 0 && totalFilteredRequests !== data.totalRequests && (
+                  <p className="text-xs text-gray-500">of {data.totalRequests} total</p>
+                )}
               </div>
             </div>
           </div>
@@ -480,8 +1003,33 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Console Errors</p>
-                <p className="text-2xl font-semibold text-gray-900">{data.totalErrors}</p>
+                <p className="text-sm font-medium text-gray-500">
+                  Console Errors
+                  {data.totalErrors > 0 && totalFilteredErrors !== data.totalErrors && (
+                    <span className="text-xs text-gray-400 ml-1">(filtered)</span>
+                  )}
+                </p>
+                <p className="text-2xl font-semibold text-gray-900">{totalFilteredErrors}</p>
+                {data.totalErrors > 0 && totalFilteredErrors !== data.totalErrors && (
+                  <p className="text-xs text-gray-500">of {data.totalErrors} total</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <div className="w-8 h-8 bg-yellow-500 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold">🔐</span>
+                </div>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-500">Token Events</p>
+                <p className="text-2xl font-semibold text-gray-900">{data.totalTokenEvents}</p>
+                {data.totalTokenEvents > 0 && (
+                  <p className="text-xs text-gray-500">Auth acquire & refresh events</p>
+                )}
               </div>
             </div>
           </div>
@@ -491,13 +1039,16 @@ const Dashboard: React.FC = () => {
         <div className="bg-white rounded-lg shadow mb-8">
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Network Requests</h2>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Network Requests</h2>
+                <p className="text-xs text-gray-500 mt-1">Global requests from all tabs (Popup shows current tab only)</p>
+              </div>
               <div className="flex items-center space-x-4">
                 <span className="text-sm text-gray-500">
                   {totalFilteredRequests > 0 && (
                     `Showing ${indexOfFirstRequest + 1}-${Math.min(indexOfLastRequest, totalFilteredRequests)} of ${totalFilteredRequests}`
                   )}
-                  {totalFilteredRequests !== data.totalRequests && (
+                  {data.totalRequests > 0 && totalFilteredRequests !== data.totalRequests && (
                     ` (filtered from ${data.totalRequests})`
                   )}
                 </span>
@@ -681,7 +1232,7 @@ const Dashboard: React.FC = () => {
                         Showing <span className="font-medium">{indexOfFirstRequest + 1}</span> to{' '}
                         <span className="font-medium">{Math.min(indexOfLastRequest, totalFilteredRequests)}</span> of{' '}
                         <span className="font-medium">{totalFilteredRequests}</span> results
-                        {totalFilteredRequests !== data.totalRequests && (
+                        {data.totalRequests > 0 && totalFilteredRequests !== data.totalRequests && (
                           <span className="text-gray-500"> (filtered from {data.totalRequests})</span>
                         )}
                       </p>
@@ -742,7 +1293,7 @@ const Dashboard: React.FC = () => {
                   <span className="text-2xl">🌐</span>
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No network requests yet</h3>
-                <p className="text-gray-500">Network requests will appear here as they are captured.</p>
+                <p className="text-gray-500">Network requests will appear here once you enable logging on specific tabs via the popup.</p>
               </div>
             )}
           </div>
@@ -752,13 +1303,16 @@ const Dashboard: React.FC = () => {
         <div className="bg-white rounded-lg shadow mb-8">
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Console Errors</h2>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Console Errors</h2>
+                <p className="text-xs text-gray-500 mt-1">Global errors from all tabs (Popup shows current tab only)</p>
+              </div>
               <div className="flex items-center space-x-4">
                 <span className="text-sm text-gray-500">
                   {totalFilteredErrors > 0 && (
                     `Showing ${indexOfFirstError + 1}-${Math.min(indexOfLastError, totalFilteredErrors)} of ${totalFilteredErrors}`
                   )}
-                  {totalFilteredErrors !== data.totalErrors && (
+                  {data.totalErrors > 0 && totalFilteredErrors !== data.totalErrors && (
                     ` (filtered from ${data.totalErrors})`
                   )}
                 </span>
@@ -922,7 +1476,7 @@ const Dashboard: React.FC = () => {
                         Showing <span className="font-medium">{indexOfFirstError + 1}</span> to{' '}
                         <span className="font-medium">{Math.min(indexOfLastError, totalFilteredErrors)}</span> of{' '}
                         <span className="font-medium">{totalFilteredErrors}</span> results
-                        {totalFilteredErrors !== data.totalErrors && (
+                        {data.totalErrors > 0 && totalFilteredErrors !== data.totalErrors && (
                           <span className="text-gray-500"> (filtered from {data.totalErrors})</span>
                         )}
                       </p>
@@ -983,7 +1537,278 @@ const Dashboard: React.FC = () => {
                   <span className="text-2xl">⚠️</span>
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No console errors yet</h3>
-                <p className="text-gray-500">Console errors will appear here as they are captured.</p>
+                <p className="text-gray-500">Console errors will appear here once you enable error logging on specific tabs via the popup.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Token Events Section */}
+        <div className="bg-white rounded-lg shadow mb-8">
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Token Events</h2>
+                <p className="text-xs text-gray-500 mt-1">Authentication events from all tabs (auth, login, refresh)</p>
+              </div>
+              <div className="flex items-center space-x-4">
+                <span className="text-sm text-gray-500">
+                  {totalFilteredTokenEvents > 0 && (
+                    `Showing ${indexOfFirstTokenEvent + 1}-${Math.min(indexOfLastTokenEvent, totalFilteredTokenEvents)} of ${totalFilteredTokenEvents}`
+                  )}
+                  {data.totalTokenEvents > 0 && totalFilteredTokenEvents !== data.totalTokenEvents && (
+                    ` (filtered from ${data.totalTokenEvents})`
+                  )}
+                </span>
+                {totalFilteredTokenPages > 1 && (
+                  <span className="text-sm text-gray-500">Page {currentTokenPage} of {totalFilteredTokenPages}</span>
+                )}
+              </div>
+            </div>
+
+            {/* Search and Filter Controls for Token Events */}
+            <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0 sm:space-x-4">
+              {/* Search */}
+              <div className="flex-1 max-w-md">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search by URL or event type..."
+                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    value={tokenSearchTerm}
+                    onChange={(e) => setTokenSearchTerm(e.target.value)}
+                  />
+                </div>
+              </div>
+              
+              {/* Event Type Filter */}
+              <div className="flex items-center space-x-3">
+                <label className="text-sm font-medium text-gray-700">Type:</label>
+                <select
+                  value={filterTokenType}
+                  onChange={(e) => setFilterTokenType(e.target.value)}
+                  className="block pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                >
+                  <option value="all">All Types</option>
+                  <option value="acquire">Token Acquire</option>
+                  <option value="refresh">Token Refresh</option>
+                  <option value="refresh_error">Refresh Error</option>
+                </select>
+              </div>
+              
+              {/* Clear Filters */}
+              {(tokenSearchTerm || filterTokenType !== 'all') && (
+                <button
+                  onClick={() => {
+                    setTokenSearchTerm('');
+                    setFilterTokenType('all');
+                  }}
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
+            
+            {data.tokenEvents.length > 0 ? (
+              <div className="overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th 
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleTokenSort('type')}
+                        >
+                          <div className="flex items-center">
+                            Event Type
+                            {tokenSortConfig.key === 'type' && (
+                              <span className="ml-1">
+                                {tokenSortConfig.direction === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                        <th 
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleTokenSort('url')}
+                        >
+                          <div className="flex items-center">
+                            URL
+                            {tokenSortConfig.key === 'url' && (
+                              <span className="ml-1">
+                                {tokenSortConfig.direction === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                        <th 
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleTokenSort('status')}
+                        >
+                          <div className="flex items-center">
+                            Status
+                            {tokenSortConfig.key === 'status' && (
+                              <span className="ml-1">
+                                {tokenSortConfig.direction === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                        <th 
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleTokenSort('method')}
+                        >
+                          <div className="flex items-center">
+                            Method
+                            {tokenSortConfig.key === 'method' && (
+                              <span className="ml-1">
+                                {tokenSortConfig.direction === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                        <th 
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleTokenSort('timestamp')}
+                        >
+                          <div className="flex items-center">
+                            Time
+                            {tokenSortConfig.key === 'timestamp' && (
+                              <span className="ml-1">
+                                {tokenSortConfig.direction === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {currentTokenEvents.map((event, index) => (
+                        <tr key={index} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              event.type === 'acquire' ? 'bg-blue-100 text-blue-800' :
+                              event.type === 'refresh' ? 'bg-green-100 text-green-800' :
+                              event.type === 'refresh_error' ? 'bg-red-100 text-red-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {event.type === 'acquire' ? '🔐 Acquire' :
+                               event.type === 'refresh' ? '� Refresh' :
+                               event.type === 'refresh_error' ? '❌ Refresh Error' :
+                               `🔐 ${event.type}`}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-gray-900 truncate max-w-xs" title={event.url}>
+                              {event.url}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              event.status >= 200 && event.status < 300 ? 'bg-green-100 text-green-800' :
+                              event.status >= 300 && event.status < 400 ? 'bg-yellow-100 text-yellow-800' :
+                              event.status >= 400 ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {event.status || 'N/A'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              event.method === 'GET' ? 'bg-blue-100 text-blue-800' :
+                              event.method === 'POST' ? 'bg-green-100 text-green-800' :
+                              event.method === 'PUT' ? 'bg-yellow-100 text-yellow-800' :
+                              event.method === 'DELETE' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {event.method || 'N/A'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {new Date(event.timestamp).toLocaleTimeString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                
+                {/* Pagination Controls for Token Events */}
+                {totalFilteredTokenPages > 1 && (
+                  <div className="mt-6 flex items-center justify-between">
+                    <div className="flex items-center">
+                      <p className="text-sm text-gray-700">
+                        Showing <span className="font-medium">{indexOfFirstTokenEvent + 1}</span> to{' '}
+                        <span className="font-medium">{Math.min(indexOfLastTokenEvent, totalFilteredTokenEvents)}</span> of{' '}
+                        <span className="font-medium">{totalFilteredTokenEvents}</span> results
+                        {data.totalTokenEvents > 0 && totalFilteredTokenEvents !== data.totalTokenEvents && (
+                          <span className="text-gray-500"> (filtered from {data.totalTokenEvents})</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {/* Previous Button */}
+                      <button
+                        onClick={handleTokenPrevious}
+                        disabled={currentTokenPage === 1}
+                        className={`px-3 py-2 text-sm font-medium rounded-md ${
+                          currentTokenPage === 1
+                            ? 'text-gray-400 cursor-not-allowed'
+                            : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        Previous
+                      </button>
+                      
+                      {/* Page Numbers */}
+                      <div className="flex items-center space-x-1">
+                        {Array.from({ length: Math.min(5, totalFilteredTokenPages) }, (_, i) => {
+                          const pageNum = i + 1;
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => handleTokenPageChange(pageNum)}
+                              className={`px-3 py-2 text-sm font-medium rounded-md ${
+                                pageNum === currentTokenPage
+                                  ? 'bg-blue-500 text-white'
+                                  : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      
+                      {/* Next Button */}
+                      <button
+                        onClick={handleTokenNext}
+                        disabled={currentTokenPage === totalFilteredTokenPages}
+                        className={`px-3 py-2 text-sm font-medium rounded-md ${
+                          currentTokenPage === totalFilteredTokenPages
+                            ? 'text-gray-400 cursor-not-allowed'
+                            : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                  <span className="text-2xl">🔐</span>
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No token events yet</h3>
+                <p className="text-gray-500">Token events will appear here when authentication, login, or token refresh activities are detected.</p>
               </div>
             )}
           </div>
@@ -1040,9 +1865,12 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       </main>
+      </div>
     </div>
   );
 };
+
+export default Dashboard;
 
 const container = document.getElementById('dashboard-root');
 if (container) {
