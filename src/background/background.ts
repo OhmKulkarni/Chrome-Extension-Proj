@@ -21,8 +21,16 @@ interface TokenEvent {
 
 // Token-related endpoint patterns
 const TOKEN_ENDPOINTS = {
-  acquire: ['/auth', '/login', '/token', '/signin', '/authenticate', '/oauth'],
-  refresh: ['/refresh', '/renew', '/reauth', '/token/refresh', '/auth/refresh']
+  acquire: [
+    '/auth', '/login', '/token', '/signin', '/authenticate', '/oauth', 
+    '/api/auth', '/api/login', '/api/token', '/api/signin', '/api/authenticate',
+    '/v1/auth', '/v2/auth', '/session', '/sso', '/connect'
+  ],
+  refresh: [
+    '/refresh', '/renew', '/reauth', '/token/refresh', '/auth/refresh',
+    '/api/refresh', '/api/renew', '/api/reauth', '/api/token/refresh',
+    '/v1/refresh', '/v2/refresh', '/session/refresh'
+  ]
 };
 
 // Utility function to check if URL matches token patterns
