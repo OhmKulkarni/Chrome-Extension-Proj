@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Token Events Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .error-btn {
+            background: #dc3545;
+        }
+        .error-btn:hover {
+            background: #c82333;
+        }
+        #output {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #007bff;
+            background: white;
+        }
+        .log-success {
+            border-left-color: #28a745;
+        }
+        .log-error {
+            border-left-color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Token Events Test Page</h1>
+        <p>This page simulates various authentication-related network requests to test the token event tracking feature.</p>
+        
+        <div class="test-section">
+            <h3>Token Acquisition Tests</h3>
+            <p>These simulate successful login/authentication requests:</p>
+            <button onclick="testTokenAcquire('/auth/login')">POST /auth/login</button>
+            <button onclick="testTokenAcquire('/api/auth')">POST /api/auth</button>
+            <button onclick="testTokenAcquire('/signin')">POST /signin</button>
+            <button onclick="testTokenAcquire('/oauth/token')">POST /oauth/token</button>
+            <button onclick="testTokenAcquire('/authenticate')">POST /authenticate</button>
+        </div>
+
+        <div class="test-section">
+            <h3>Token Refresh Tests</h3>
+            <p>These simulate token refresh requests:</p>
+            <button onclick="testTokenRefresh('/auth/refresh')">POST /auth/refresh</button>
+            <button onclick="testTokenRefresh('/token/refresh')">POST /token/refresh</button>
+            <button onclick="testTokenRefresh('/api/refresh')">GET /api/refresh</button>
+            <button onclick="testTokenRefresh('/renew')">POST /renew</button>
+        </div>
+
+        <div class="test-section">
+            <h3>Error Tests</h3>
+            <p>These simulate failed authentication requests:</p>
+            <button class="error-btn" onclick="testTokenError('/auth/refresh', 401)">401 Refresh Error</button>
+            <button class="error-btn" onclick="testTokenError('/auth/login', 403)">403 Auth Error</button>
+            <button class="error-btn" onclick="testTokenError('/token/refresh', 400)">400 Refresh Error</button>
+        </div>
+
+        <div class="test-section">
+            <h3>Mixed Scenarios</h3>
+            <button onclick="runMixedTest()">Run Mixed Test Scenario</button>
+            <button onclick="clearOutput()">Clear Output</button>
+        </div>
+
+        <div id="output">
+            <div class="log-entry">Ready to test token event tracking...</div>
+        </div>
+    </div>
+
+    <script>
+        let requestCount = 0;
+
+        function log(message, type = 'info') {
+            const output = document.getElementById('output');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            output.appendChild(entry);
+            output.scrollTop = output.scrollHeight;
+        }
+
+        async function makeTestRequest(url, method = 'POST', expectedStatus = 200) {
+            requestCount++;
+            const testUrl = `https://httpbin.org/status/${expectedStatus}`;
+            
+            try {
+                log(`Making ${method} request to ${url} (simulated via ${testUrl})`, 'info');
+                
+                const response = await fetch(testUrl, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Test-URL': url  // This helps identify the simulated endpoint
+                    },
+                    body: method !== 'GET' ? JSON.stringify({
+                        test: true,
+                        endpoint: url,
+                        timestamp: new Date().toISOString()
+                    }) : undefined
+                });
+                
+                log(`Response: ${response.status} ${response.statusText}`, 
+                    response.ok ? 'success' : 'error');
+                    
+                return response;
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+
+        async function testTokenAcquire(endpoint) {
+            log(`=== Testing Token Acquisition: ${endpoint} ===`, 'info');
+            await makeTestRequest(endpoint, 'POST', 200);
+        }
+
+        async function testTokenRefresh(endpoint) {
+            log(`=== Testing Token Refresh: ${endpoint} ===`, 'info');
+            const method = endpoint.includes('api/refresh') ? 'GET' : 'POST';
+            await makeTestRequest(endpoint, method, 200);
+        }
+
+        async function testTokenError(endpoint, statusCode) {
+            log(`=== Testing Token Error: ${endpoint} (${statusCode}) ===`, 'error');
+            await makeTestRequest(endpoint, 'POST', statusCode);
+        }
+
+        async function runMixedTest() {
+            log('=== Running Mixed Test Scenario ===', 'info');
+            
+            const tests = [
+                { type: 'acquire', endpoint: '/auth/login', method: 'POST', status: 200 },
+                { type: 'refresh', endpoint: '/token/refresh', method: 'POST', status: 200 },
+                { type: 'acquire', endpoint: '/signin', method: 'POST', status: 200 },
+                { type: 'error', endpoint: '/auth/refresh', method: 'POST', status: 401 },
+                { type: 'refresh', endpoint: '/auth/refresh', method: 'POST', status: 200 },
+                { type: 'error', endpoint: '/authenticate', method: 'POST', status: 403 }
+            ];
+            
+            for (let i = 0; i < tests.length; i++) {
+                const test = tests[i];
+                await makeTestRequest(test.endpoint, test.method, test.status);
+                
+                // Add delay between requests
+                if (i < tests.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            }
+            
+            log('Mixed test scenario completed!', 'success');
+        }
+
+        function clearOutput() {
+            const output = document.getElementById('output');
+            output.innerHTML = '<div class="log-entry">Output cleared. Ready for new tests...</div>';
+            requestCount = 0;
+        }
+
+        // Log initial message
+        log('🔐 Token Events Test Page loaded successfully!', 'success');
+        log('Click any button above to simulate token-related network requests.', 'info');
+        log('Check the Chrome Extension Dashboard to see captured token events.', 'info');
+    </script>
+</body>
+</html>

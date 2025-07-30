@@ -965,7 +965,7 @@ const Dashboard: React.FC = () => {
                 <p className="text-sm font-medium text-gray-500">Token Events</p>
                 <p className="text-2xl font-semibold text-gray-900">{data.totalTokenEvents}</p>
                 {data.totalTokenEvents > 0 && (
-                  <p className="text-xs text-gray-500">Auth & refresh events</p>
+                  <p className="text-xs text-gray-500">Auth acquire & refresh events</p>
                 )}
               </div>
             </div>
@@ -1532,9 +1532,9 @@ const Dashboard: React.FC = () => {
                   className="block pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
                 >
                   <option value="all">All Types</option>
-                  <option value="auth">Authentication</option>
-                  <option value="login">Login</option>
+                  <option value="acquire">Token Acquire</option>
                   <option value="refresh">Token Refresh</option>
+                  <option value="refresh_error">Refresh Error</option>
                 </select>
               </div>
               
@@ -1630,14 +1630,14 @@ const Dashboard: React.FC = () => {
                         <tr key={index} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              event.type === 'auth' ? 'bg-blue-100 text-blue-800' :
-                              event.type === 'login' ? 'bg-green-100 text-green-800' :
-                              event.type === 'refresh' ? 'bg-purple-100 text-purple-800' :
+                              event.type === 'acquire' ? 'bg-blue-100 text-blue-800' :
+                              event.type === 'refresh' ? 'bg-green-100 text-green-800' :
+                              event.type === 'refresh_error' ? 'bg-red-100 text-red-800' :
                               'bg-yellow-100 text-yellow-800'
                             }`}>
-                              {event.type === 'auth' ? '🔐 Auth' :
-                               event.type === 'login' ? '🔑 Login' :
-                               event.type === 'refresh' ? '🔄 Refresh' :
+                              {event.type === 'acquire' ? '🔐 Acquire' :
+                               event.type === 'refresh' ? '� Refresh' :
+                               event.type === 'refresh_error' ? '❌ Refresh Error' :
                                `🔐 ${event.type}`}
                             </span>
                           </td>
