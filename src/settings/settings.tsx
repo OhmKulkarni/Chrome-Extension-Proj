@@ -74,6 +74,19 @@ interface SettingsData {
       defaultState: 'active' | 'paused';
     };
   };
+  tokenLogging: {
+    enabled: boolean;
+    tabSpecific: {
+      enabled: boolean;
+      defaultState: 'active' | 'paused';
+    };
+    eventTypes: {
+      acquire: boolean;
+      refresh: boolean;
+      expired: boolean;
+      refresh_error: boolean;
+    };
+  };
 }
 
 const defaultSettings: SettingsData = {
@@ -145,6 +158,19 @@ const defaultSettings: SettingsData = {
     tabSpecific: {
       enabled: true,
       defaultState: 'paused'
+    }
+  },
+  tokenLogging: {
+    enabled: true,
+    tabSpecific: {
+      enabled: true,
+      defaultState: 'paused'
+    },
+    eventTypes: {
+      acquire: true,
+      refresh: true,
+      expired: true,
+      refresh_error: true
     }
   },
 };

@@ -27,6 +27,7 @@ interface TabLoggingStatus {
   domain: string;
   networkLogging: boolean;
   errorLogging: boolean;
+  tokenLogging: boolean;
   favicon?: string;
 }
 
@@ -151,9 +152,10 @@ const Dashboard: React.FC = () => {
       for (const tab of tabs) {
         if (tab.id && tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
           // Get logging status for this tab
-          const result = await chrome.storage.local.get([`tabLogging_${tab.id}`, `tabErrorLogging_${tab.id}`, 'settings']);
+          const result = await chrome.storage.local.get([`tabLogging_${tab.id}`, `tabErrorLogging_${tab.id}`, `tabTokenLogging_${tab.id}`, 'settings']);
           const networkState = result[`tabLogging_${tab.id}`];
           const errorState = result[`tabErrorLogging_${tab.id}`];
+          const tokenState = result[`tabTokenLogging_${tab.id}`];
           const settings = result.settings || {};
           
           // Get domain from URL
@@ -167,9 +169,11 @@ const Dashboard: React.FC = () => {
           // Determine logging status (same logic as popup)
           const networkConfig = settings.networkInterception || {};
           const errorConfig = settings.errorLogging || {};
+          const tokenConfig = settings.tokenLogging || {};
           
           let networkLogging = false;
           let errorLogging = false;
+          let tokenLogging = false;
 
           if (networkState) {
             networkLogging = typeof networkState === 'boolean' ? networkState : networkState.active;
@@ -183,6 +187,12 @@ const Dashboard: React.FC = () => {
             errorLogging = errorConfig.tabSpecific?.defaultState === 'active';
           }
 
+          if (tokenState) {
+            tokenLogging = typeof tokenState === 'boolean' ? tokenState : tokenState.active;
+          } else {
+            tokenLogging = tokenConfig.tabSpecific?.defaultState === 'active';
+          }
+
           tabStatuses.push({
             tabId: tab.id,
             url: tab.url,
@@ -190,6 +200,7 @@ const Dashboard: React.FC = () => {
             domain,
             networkLogging,
             errorLogging,
+            tokenLogging,
             favicon: tab.favIconUrl
           });
         }
@@ -645,6 +656,41 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // Toggle token logging for a specific tab
+  const toggleTabTokenLogging = async (tabId: number) => {
+    try {
+      const currentTab = tabsLoggingStatus.find(tab => tab.tabId === tabId);
+      if (!currentTab) return;
+
+      const newState = !currentTab.tokenLogging;
+      
+      // Get current tab state to preserve counter when disabling
+      const tabStorageData = await chrome.storage.local.get([`tabTokenLogging_${tabId}`]);
+      const currentTabState = tabStorageData[`tabTokenLogging_${tabId}`];
+      const currentCount = currentTabState?.tokenCount || 0;
+      
+      const tabState = {
+        active: newState,
+        startTime: newState ? Date.now() : undefined,
+        tokenCount: newState ? 0 : currentCount  // Reset only when enabling, preserve when disabling
+      };
+      
+      await chrome.storage.local.set({ [`tabTokenLogging_${tabId}`]: tabState });
+      
+      // Note: Token logging doesn't require content script communication
+      // as it's handled purely in the background script via network interception
+      
+      // Update local state
+      setTabsLoggingStatus(prev => 
+        prev.map(tab => 
+          tab.tabId === tabId ? { ...tab, tokenLogging: newState } : tab
+        )
+      );
+    } catch (error) {
+      console.error('Error toggling token logging:', error);
+    }
+  };
+
   // Filter tabs based on search term
   const filteredTabs = tabsLoggingStatus.filter(tab => 
     tab.title.toLowerCase().includes(tabSearchTerm.toLowerCase()) ||
@@ -757,6 +803,23 @@ const Dashboard: React.FC = () => {
                           <span
                             className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200 ${
                               tab.errorLogging ? 'translate-x-5' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      {/* Token Logging Toggle */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-700">Token Events</span>
+                        <button
+                          onClick={() => toggleTabTokenLogging(tab.tabId)}
+                          className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 ${
+                            tab.tokenLogging ? 'bg-yellow-600' : 'bg-gray-200'
+                          }`}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200 ${
+                              tab.tokenLogging ? 'translate-x-5' : 'translate-x-0'
                             }`}
                           />
                         </button>

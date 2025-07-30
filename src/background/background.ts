@@ -50,8 +50,20 @@ function detectTokenEvent(requestData: any): TokenEvent | null {
   const timestamp = new Date().toISOString();
   const source_url = requestData.tabUrl || requestData.source_url || url;
   
+  // Log all requests for debugging
+  if (url.toLowerCase().includes('auth') || url.toLowerCase().includes('token') || url.toLowerCase().includes('login')) {
+    console.log('🔍 Potential token endpoint detected:', {
+      url,
+      method,
+      status,
+      isAcquireEndpoint: isTokenEndpoint(url, 'acquire'),
+      isRefreshEndpoint: isTokenEndpoint(url, 'refresh')
+    });
+  }
+  
   // Detect token acquisition (successful auth requests)
   if (method === 'POST' && status >= 200 && status < 300 && isTokenEndpoint(url, 'acquire')) {
+    console.log('✅ Token acquisition detected:', url);
     return {
       type: 'acquire',
       url,
@@ -66,6 +78,7 @@ function detectTokenEvent(requestData: any): TokenEvent | null {
   // Detect token refresh attempts
   if ((method === 'POST' || method === 'GET') && isTokenEndpoint(url, 'refresh')) {
     if (status >= 200 && status < 300) {
+      console.log('✅ Token refresh detected:', url);
       return {
         type: 'refresh',
         url,
@@ -76,6 +89,7 @@ function detectTokenEvent(requestData: any): TokenEvent | null {
         value_hash: '[REDACTED - token refreshed]'
       };
     } else if (status >= 400) {
+      console.log('❌ Token refresh error detected:', url);
       return {
         type: 'refresh_error',
         url,
@@ -392,6 +406,28 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
     const settings = settingsResult.settings || {};
     const networkConfig = settings.networkInterception || {};
     
+    // Ensure we have default token logging settings if they don't exist
+    const tokenLoggingDefaults = {
+      enabled: true,
+      tabSpecific: {
+        enabled: true,
+        defaultState: 'paused'
+      },
+      eventTypes: {
+        acquire: true,
+        refresh: true,
+        expired: true,
+        refresh_error: true
+      }
+    };
+    
+    // Use default settings if tokenLogging config doesn't exist
+    if (!settings.tokenLogging) {
+      settings.tokenLogging = tokenLoggingDefaults;
+      // Save the default settings
+      await chrome.storage.local.set({ settings });
+    }
+    
     // Check if network interception is enabled
     if (!networkConfig.enabled) {
       sendResponse({ success: false, reason: 'Network interception disabled' });
@@ -465,7 +501,82 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
       }
     }
     
-    // All filters passed - store the request
+    // All filters passed - check if this is a token-related request
+    // and if token logging is disabled, skip storing this request entirely
+    
+    // First, detect if this is a token event BEFORE storing
+    const tokenEvent = detectTokenEvent(requestData);
+    console.log('🔐 Pre-storage Token Event Detection:', {
+      tokenEvent,
+      url: requestData.url,
+      method: requestData.method,
+      status: requestData.status
+    });
+    
+    // If this is a token-related request, check if token logging is enabled
+    if (tokenEvent) {
+      const tokenConfig = settings.tokenLogging || {};
+      console.log('🔐 Token Config Check (before storage):', tokenConfig);
+      
+      let shouldAllowTokenRequest = false;
+      
+      if (tokenConfig.enabled) {
+        console.log('🔐 Global token logging is enabled');
+        // Check tab-specific token logging (ONLY if tab-specific is enabled)
+        if (tokenConfig.tabSpecific?.enabled && sender?.tab?.id) {
+          console.log('🔐 Tab-specific token logging is enabled, checking tab state...');
+          const tabId = sender.tab.id;
+          try {
+            const tokenTabStateResult = await chrome.storage.local.get([`tabTokenLogging_${tabId}`]);
+            const tokenTabState = tokenTabStateResult[`tabTokenLogging_${tabId}`];
+            console.log('🔐 Tab Token State (pre-storage):', { tabId, tokenTabState });
+            
+            // Start with the default state from settings
+            let tabTokenLoggingEnabled = tokenConfig.tabSpecific?.defaultState === 'active';
+            console.log('🔐 Default state from settings (pre-storage):', tokenConfig.tabSpecific?.defaultState, 'enabled:', tabTokenLoggingEnabled);
+            
+            if (tokenTabState !== undefined) {
+              console.log('🔐 Tab state exists (pre-storage), checking value...');
+              // Override with actual tab state if it exists
+              if (typeof tokenTabState === 'boolean') {
+                tabTokenLoggingEnabled = tokenTabState;
+                console.log('🔐 Tab state is boolean (pre-storage):', tabTokenLoggingEnabled);
+              } else if (tokenTabState && typeof tokenTabState === 'object' && 'active' in tokenTabState) {
+                tabTokenLoggingEnabled = tokenTabState.active;
+                console.log('🔐 Tab state is object with active property (pre-storage):', tabTokenLoggingEnabled);
+              }
+            } else {
+              console.log('🔐 Tab state does not exist (pre-storage), using default');
+            }
+            
+            shouldAllowTokenRequest = tabTokenLoggingEnabled;
+            console.log('🔐 Final decision - Should Allow Token Request:', { shouldAllowTokenRequest, tabTokenLoggingEnabled });
+          } catch (tokenTabError) {
+            console.warn('Could not determine tab token logging state (pre-storage), using default:', tokenTabError);
+            // Use default state from settings
+            shouldAllowTokenRequest = tokenConfig.tabSpecific?.defaultState === 'active';
+          }
+        } else if (!tokenConfig.tabSpecific?.enabled) {
+          console.log('🔐 Tab-specific token logging is disabled, using global setting');
+          shouldAllowTokenRequest = true; // If tab-specific is disabled, use global setting
+        } else {
+          console.log('🔐 No tab ID available, using default');
+          shouldAllowTokenRequest = tokenConfig.tabSpecific?.defaultState === 'active';
+        }
+      } else {
+        console.log('🔐 Token logging globally disabled');
+        shouldAllowTokenRequest = false;
+      }
+      
+      // If token logging is disabled, don't store this request at all
+      if (!shouldAllowTokenRequest) {
+        console.log('🔐 Token logging disabled - skipping storage of auth request:', requestData.url);
+        sendResponse({ success: false, reason: 'Token logging disabled - auth request filtered' });
+        return;
+      }
+    }
+    
+    // Store the request (either non-token request or token request with logging enabled)
     
     // Map the request data from main-world-script to storage API format
     const storageData = {
@@ -484,11 +595,31 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
     // Store the network request using the existing API call storage
     const id = await storageManager.insertApiCall(storageData);
     
-    // --- Token Event Tracking ---
-    // Check if this network request indicates a token-related event
-    const tokenEvent = detectTokenEvent(requestData);
+    // --- Token Event Tracking (for requests that made it through filtering) ---
+    // We already know this is a token event if we got here and tokenEvent is truthy
     if (tokenEvent) {
+      console.log('🔐 STORING TOKEN EVENT (post-storage):', tokenEvent);
       await storeTokenEvent(tokenEvent);
+      
+      // Update tab token count if we have a tab ID
+      if (sender?.tab?.id) {
+        const tabId = sender.tab.id;
+        try {
+          const tokenTabStateResult = await chrome.storage.local.get([`tabTokenLogging_${tabId}`]);
+          const currentTokenTabState = tokenTabStateResult[`tabTokenLogging_${tabId}`];
+          
+          if (currentTokenTabState && typeof currentTokenTabState === 'object') {
+            const updatedTokenTabState = {
+              ...currentTokenTabState,
+              tokenCount: (currentTokenTabState.tokenCount || 0) + 1
+            };
+            await chrome.storage.local.set({ [`tabTokenLogging_${tabId}`]: updatedTokenTabState });
+            console.log('🔐 Updated tab token count:', updatedTokenTabState.tokenCount);
+          }
+        } catch (tokenTabUpdateError) {
+          console.warn('Failed to update tab token count:', tokenTabUpdateError);
+        }
+      }
     }
     
     // ALWAYS update tab request count (regardless of tab-specific setting)
