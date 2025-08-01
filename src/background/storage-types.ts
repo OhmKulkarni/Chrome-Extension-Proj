@@ -10,6 +10,7 @@ export interface ApiCall {
   status: number
   response_body: string
   timestamp: number
+  response_time?: number // Response time in milliseconds
 }
 
 export interface ConsoleError {
@@ -28,6 +29,9 @@ export interface TokenEvent {
   timestamp: number
   source_url: string
   expiry?: number
+  status?: number
+  method?: string
+  url?: string
 }
 
 export interface MinifiedLibrary {

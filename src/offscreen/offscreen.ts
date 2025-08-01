@@ -37,7 +37,8 @@ async function initDatabase() {
         payload_size INTEGER,
         status INTEGER,
         response_body TEXT,
-        timestamp INTEGER NOT NULL
+        timestamp INTEGER NOT NULL,
+        response_time INTEGER
       );
       
       CREATE TABLE IF NOT EXISTS console_errors (
@@ -55,7 +56,10 @@ async function initDatabase() {
         value_hash TEXT NOT NULL,
         timestamp INTEGER NOT NULL,
         source_url TEXT,
-        expiry INTEGER
+        expiry INTEGER,
+        status INTEGER,
+        method TEXT,
+        url TEXT
       );
       
       CREATE TABLE IF NOT EXISTS minified_libraries (
@@ -100,8 +104,8 @@ function insertApiCall(data: any) {
   try {
     // Use a transaction to ensure we can get the ID properly
     const insertStmt = db.prepare(`
-      INSERT INTO api_calls (url, method, headers, payload_size, status, response_body, timestamp)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO api_calls (url, method, headers, payload_size, status, response_body, timestamp, response_time)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `)
     
     const insertParams = [
@@ -111,7 +115,8 @@ function insertApiCall(data: any) {
       data.payload_size || 0,
       data.status || 0,
       data.response_body || null,
-      data.timestamp || Date.now()
+      data.timestamp || Date.now(),
+      data.response_time || null
     ];
     
     console.log('[SQLite] Executing insert with params:', insertParams);
@@ -276,15 +281,18 @@ function deleteConsoleError(params: { id: number }) {
 // Token Events operations
 function insertTokenEvent(data: any) {
   const stmt = db.prepare(`
-    INSERT INTO token_events (type, value_hash, timestamp, source_url, expiry)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO token_events (type, value_hash, timestamp, source_url, expiry, status, method, url)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `)
   const result = stmt.run([
     data.type || null,
     data.value_hash || null,
     data.timestamp || Date.now(),
     data.source_url || null,
-    data.expiry || null
+    data.expiry || null,
+    data.status || null,
+    data.method || null,
+    data.url || null
   ])
   stmt.free()
   return { id: result.lastID }
@@ -292,7 +300,7 @@ function insertTokenEvent(data: any) {
 
 function getTokenEvents(params: { limit: number, offset: number }) {
   const stmt = db.prepare(`
-    SELECT id, type, value_hash, timestamp, source_url, expiry
+    SELECT id, type, value_hash, timestamp, source_url, expiry, status, method, url
     FROM token_events
     ORDER BY timestamp DESC
     LIMIT ? OFFSET ?

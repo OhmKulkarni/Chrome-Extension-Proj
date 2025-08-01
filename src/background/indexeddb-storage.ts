@@ -11,7 +11,7 @@ export class IndexedDBStorage implements StorageOperations {
 
   async init(): Promise<void> {
     return new Promise((resolve, reject) => {
-      const request = indexedDB.open('DevToolsExtension', 1)
+      const request = indexedDB.open('DevToolsExtension', 2)
       
       request.onerror = () => reject(new Error('Failed to open IndexedDB'))
       
