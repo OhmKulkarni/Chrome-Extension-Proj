@@ -31,6 +31,792 @@ interface TabLoggingStatus {
   favicon?: string;
 }
 
+// Detail Content Components
+const RequestDetailContent: React.FC<{ request: any; selectedField: string }> = ({ request, selectedField }) => {
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+
+  const formatJSON = (obj: any) => {
+    try {
+      return JSON.stringify(obj, null, 2);
+    } catch {
+      return obj;
+    }
+  };
+
+  // Debug info
+  console.log('RequestDetailContent - Request data:', request);
+  console.log('RequestDetailContent - Selected field:', selectedField);
+  console.log('RequestDetailContent - Available keys:', Object.keys(request));
+
+  if (selectedField === 'details') {
+    return (
+      <div className="space-y-4">
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-900">Request Details</h3>
+            <button
+              onClick={() => copyToClipboard(JSON.stringify(request, null, 2))}
+              className="copy-button text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+            >
+              Copy All
+            </button>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+            <div>
+              <span className="text-sm font-medium text-gray-700">Method:</span>
+              <p className="text-sm text-gray-900 mt-1">{request.method || 'N/A'}</p>
+            </div>
+            <div>
+              <span className="text-sm font-medium text-gray-700">URL:</span>
+              <p className="text-sm text-gray-900 mt-1 break-all">{request.url || 'N/A'}</p>
+            </div>
+            <div>
+              <span className="text-sm font-medium text-gray-700">Status:</span>
+              <span className={`inline-block px-2 py-1 text-xs rounded-full ml-2 ${
+                request.status >= 200 && request.status < 300 ? 'bg-green-100 text-green-800' :
+                request.status >= 300 && request.status < 400 ? 'bg-yellow-100 text-yellow-800' :
+                request.status >= 400 ? 'bg-red-100 text-red-800' :
+                'bg-gray-100 text-gray-800'
+              }`}>
+                {request.status || 'N/A'}
+              </span>
+            </div>
+            {request.payload_size && (
+              <div>
+                <span className="text-sm font-medium text-gray-700">Payload Size:</span>
+                <p className="text-sm text-gray-900 mt-1">{Math.round(request.payload_size / 1024)}KB</p>
+              </div>
+            )}
+            {request.response_time && (
+              <div>
+                <span className="text-sm font-medium text-gray-700">Response Time:</span>
+                <p className="text-sm text-gray-900 mt-1">{request.response_time}ms</p>
+              </div>
+            )}
+            <div>
+              <span className="text-sm font-medium text-gray-700">Timestamp:</span>
+              <p className="text-sm text-gray-900 mt-1">{new Date(request.timestamp).toLocaleString()}</p>
+            </div>
+            {request.tab_id && (
+              <div>
+                <span className="text-sm font-medium text-gray-700">Tab ID:</span>
+                <p className="text-sm text-gray-900 mt-1">{request.tab_id}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (selectedField === 'headers') {
+    let requestHeaders = {};
+    let responseHeaders = {};
+    
+    try {
+      // Try the new unified format first
+      if (request.headers) {
+        const headerData = typeof request.headers === 'string' ? JSON.parse(request.headers) : request.headers;
+        requestHeaders = headerData.request || {};
+        responseHeaders = headerData.response || {};
+      }
+      // Fallback to old format
+      else {
+        if (request.request_headers) {
+          requestHeaders = typeof request.request_headers === 'string' ? JSON.parse(request.request_headers) : request.request_headers;
+        }
+        if (request.response_headers) {
+          responseHeaders = typeof request.response_headers === 'string' ? JSON.parse(request.response_headers) : request.response_headers;
+        }
+      }
+    } catch (e) {
+      console.error('Error parsing headers:', e);
+      requestHeaders = {};
+      responseHeaders = {};
+    }
+
+    // Component for expandable header values
+    const ExpandableHeaderValue: React.FC<{ value: string }> = ({ value }) => {
+      const [expanded, setExpanded] = useState(false);
+      const stringValue = String(value);
+      const shouldTruncate = stringValue.length > 50;
+      
+      return (
+        <div className="space-y-1">
+          <div className="text-sm text-gray-600">
+            {shouldTruncate && !expanded ? (
+              <>
+                {stringValue.substring(0, 50)}...
+                <button
+                  onClick={() => setExpanded(true)}
+                  className="ml-2 text-xs text-blue-600 hover:text-blue-800 underline"
+                >
+                  Expand
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="break-all">{stringValue}</div>
+                {shouldTruncate && expanded && (
+                  <button
+                    onClick={() => setExpanded(false)}
+                    className="text-xs text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Collapse
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      );
+    };
+    
+    return (
+      <div className="space-y-6">
+        {/* Request Headers */}
+        {Object.keys(requestHeaders).length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-900">Request Headers ({Object.keys(requestHeaders).length})</h3>
+              <button
+                onClick={() => copyToClipboard(formatJSON(requestHeaders))}
+                className="copy-button text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+              >
+                Copy All
+              </button>
+            </div>
+            <div className="bg-gray-50 rounded-lg overflow-hidden">
+              <table className="min-w-full detail-table">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Header</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Value</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {Object.entries(requestHeaders).map(([key, value]) => (
+                    <tr key={key} className="table-row-hover">
+                      <td className="px-4 py-2 text-sm font-medium text-gray-900">{key}</td>
+                      <td className="px-4 py-2">
+                        <ExpandableHeaderValue value={String(value)} />
+                      </td>
+                      <td className="px-4 py-2">
+                        <button
+                          onClick={() => copyToClipboard(`${key}: ${value}`)}
+                          className="text-xs text-blue-600 hover:text-blue-800 mr-2"
+                        >
+                          Copy
+                        </button>
+                        <button
+                          onClick={() => copyToClipboard(String(value))}
+                          className="text-xs text-gray-600 hover:text-gray-800"
+                        >
+                          Copy Value
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Response Headers */}
+        {Object.keys(responseHeaders).length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-900">Response Headers ({Object.keys(responseHeaders).length})</h3>
+              <button
+                onClick={() => copyToClipboard(formatJSON(responseHeaders))}
+                className="copy-button text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+              >
+                Copy All
+              </button>
+            </div>
+            <div className="bg-gray-50 rounded-lg overflow-hidden">
+              <table className="min-w-full detail-table">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Header</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Value</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {Object.entries(responseHeaders).map(([key, value]) => (
+                    <tr key={key} className="table-row-hover">
+                      <td className="px-4 py-2 text-sm font-medium text-gray-900">{key}</td>
+                      <td className="px-4 py-2">
+                        <ExpandableHeaderValue value={String(value)} />
+                      </td>
+                      <td className="px-4 py-2">
+                        <button
+                          onClick={() => copyToClipboard(`${key}: ${value}`)}
+                          className="text-xs text-blue-600 hover:text-blue-800 mr-2"
+                        >
+                          Copy
+                        </button>
+                        <button
+                          onClick={() => copyToClipboard(String(value))}
+                          className="text-xs text-gray-600 hover:text-gray-800"
+                        >
+                          Copy Value
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Show message if no headers */}
+        {Object.keys(requestHeaders).length === 0 && Object.keys(responseHeaders).length === 0 && (
+          <div className="text-center py-8">
+            <div className="text-gray-500">No header data available for this request</div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (selectedField === 'body') {
+    const requestBody = request.request_body || request.requestBody;
+    const responseBody = request.response_body || request.responseBody || request.response_data;
+    
+    return (
+      <div className="space-y-6">
+        {/* Request Body */}
+        {requestBody && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-900">Request Body</h3>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => copyToClipboard(typeof requestBody === 'string' ? requestBody : formatJSON(requestBody))}
+                  className="copy-button text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+            <div className="code-block bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto text-sm font-mono">
+              <pre>{typeof requestBody === 'string' ? requestBody : formatJSON(requestBody)}</pre>
+            </div>
+          </div>
+        )}
+
+        {/* Response Body */}
+        {responseBody && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-900">Response Body</h3>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => copyToClipboard(typeof responseBody === 'string' ? responseBody : formatJSON(responseBody))}
+                  className="copy-button text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+            <div className="code-block bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto text-sm font-mono">
+              <pre>{typeof responseBody === 'string' ? responseBody : formatJSON(responseBody)}</pre>
+            </div>
+          </div>
+        )}
+        
+        {/* Show message if no body data */}
+        {!requestBody && !responseBody && (
+          <div className="text-center py-8">
+            <div className="text-gray-500">No request or response body data available</div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Fallback: show all request data
+  return (
+    <div className="space-y-4">
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <h3 className="text-sm font-semibold text-yellow-800 mb-2">Debug: Full Request Data</h3>
+        <p className="text-xs text-yellow-700 mb-3">Selected field "{selectedField}" - showing all available data:</p>
+        <div className="code-block bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto text-sm font-mono">
+          <pre>{formatJSON(request)}</pre>
+        </div>
+        <button
+          onClick={() => copyToClipboard(formatJSON(request))}
+          className="copy-button mt-3 text-xs bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
+        >
+          Copy All Data
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const ErrorDetailContent: React.FC<{ error: any; selectedField: string }> = ({ error, selectedField }) => {
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+
+  if (selectedField === 'details') {
+    return (
+      <div className="space-y-4">
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-900">Error Details</h3>
+            <button
+              onClick={() => copyToClipboard(JSON.stringify(error, null, 2))}
+              className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+            >
+              Copy All
+            </button>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+            <div>
+              <span className="text-sm font-medium text-gray-700">Message:</span>
+              <p className="text-sm text-gray-900 mt-1">{error.message}</p>
+            </div>
+            {error.url && (
+              <div>
+                <span className="text-sm font-medium text-gray-700">URL:</span>
+                <p className="text-sm text-gray-900 mt-1 break-all">{error.url}</p>
+              </div>
+            )}
+            {error.line && (
+              <div>
+                <span className="text-sm font-medium text-gray-700">Line:</span>
+                <p className="text-sm text-gray-900 mt-1">{error.line}</p>
+              </div>
+            )}
+            {error.column && (
+              <div>
+                <span className="text-sm font-medium text-gray-700">Column:</span>
+                <p className="text-sm text-gray-900 mt-1">{error.column}</p>
+              </div>
+            )}
+            {error.severity && (
+              <div>
+                <span className="text-sm font-medium text-gray-700">Severity:</span>
+                <span className={`inline-block px-2 py-1 text-xs rounded-full ml-2 ${
+                  error.severity === 'error' ? 'bg-red-100 text-red-800' :
+                  error.severity === 'warn' ? 'bg-yellow-100 text-yellow-800' :
+                  'bg-blue-100 text-blue-800'
+                }`}>
+                  {error.severity}
+                </span>
+              </div>
+            )}
+            <div>
+              <span className="text-sm font-medium text-gray-700">Timestamp:</span>
+              <p className="text-sm text-gray-900 mt-1">{new Date(error.timestamp).toLocaleString()}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (selectedField === 'stack') {
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-gray-900">Stack Trace</h3>
+          <button
+            onClick={() => copyToClipboard(error.stack_trace || error.stack || 'No stack trace available')}
+            className="copy-button text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+          >
+            Copy
+          </button>
+        </div>
+        
+        {(error.stack_trace || error.stack) ? (
+          <div className="text-sm text-gray-500">
+            <details className="cursor-pointer" open>
+              <summary className="text-blue-600 hover:text-blue-800 font-medium mb-2">
+                View Full Stack Trace
+              </summary>
+              <pre className="mt-2 whitespace-pre-wrap text-xs bg-gray-50 p-4 rounded border overflow-y-auto max-h-96 font-mono">
+                {error.stack_trace || error.stack}
+              </pre>
+            </details>
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <div className="text-gray-500">No stack trace available</div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return <div className="text-gray-500">No data available for selected field.</div>;
+};
+
+// Enhanced token event analysis utilities
+const analyzeTokenEvent = (event: any) => {
+  const url = (event.url || event.source_url || '').toLowerCase();
+  const headers = (() => {
+    try {
+      if (event.headers) {
+        const parsed = JSON.parse(event.headers);
+        return parsed.request || parsed.response || parsed;
+      }
+      return {};
+    } catch {
+      return {};
+    }
+  })();
+  
+  // Enhanced event type detection based on comprehensive analysis
+  const getEventType = (): string => {
+    const method = (event.method || event.request_method || '').toUpperCase();
+    const status = event.status || event.response_status;
+    const responseBody = event.response_body || event.responseBody || '';
+    const requestBody = event.request_body || event.requestBody || '';
+    
+    // Check for Login events
+    if (method === 'POST' && (url.includes('/auth/login') || url.includes('/login') || url.includes('/signin'))) {
+      // Successful login (200) or token acquisition
+      if (status >= 200 && status < 300) {
+        return 'Login';
+      }
+    }
+    
+    // Check for Logout events
+    if ((method === 'POST' || method === 'DELETE') && (url.includes('/auth/logout') || url.includes('/logout') || url.includes('/signout'))) {
+      return 'Logout';
+    }
+    
+    // Check for Token Refresh events
+    if (method === 'POST' && (url.includes('/auth/refresh') || url.includes('/refresh') || url.includes('/token'))) {
+      // Check if request body contains refresh_token grant type
+      if (requestBody.includes('grant_type') && requestBody.includes('refresh_token')) {
+        return 'Token Refresh';
+      }
+      // Or if it's a refresh endpoint
+      if (url.includes('refresh')) {
+        return 'Token Refresh';
+      }
+    }
+    
+    // Check for Expiry Check events
+    if (status === 401) {
+      // If there's a token present but request failed with 401
+      if (hasToken(headers)) {
+        return 'Expiry Check';
+      }
+    }
+    
+    // Check for silent token validation endpoints
+    if (method === 'GET' && (url.includes('/auth/validate') || url.includes('/auth/verify') || url.includes('/token/verify'))) {
+      return 'Expiry Check';
+    }
+    
+    // Check for token acquisition (successful auth responses with tokens)
+    if (event.type === 'acquire' || (status >= 200 && status < 300 && (
+      url.includes('/auth') || url.includes('/login') || url.includes('/token')
+    ))) {
+      // If response likely contains a token
+      if (responseBody.includes('token') || responseBody.includes('access_token') || responseBody.includes('jwt')) {
+        return 'Login';
+      }
+      return 'Login';
+    }
+    
+    // Check for Access events (using token to access protected routes)
+    if (hasToken(headers) && status >= 200 && status < 300) {
+      // If it's not an auth endpoint, it's likely accessing a protected resource
+      if (!url.includes('/auth') && !url.includes('/login') && !url.includes('/logout')) {
+        return 'Access';
+      }
+    }
+    
+    // Legacy fallbacks for backward compatibility
+    if (event.type === 'refresh_error') return 'Token Refresh';
+    if (url.includes('/auth/login') || url.includes('/login')) return 'Login';
+    if (url.includes('/auth/logout') || url.includes('/logout')) return 'Logout';
+    if (url.includes('/auth/refresh') || url.includes('/refresh')) return 'Token Refresh';
+    
+    // Default to Access if token is present, otherwise generic
+    return hasToken(headers) ? 'Access' : 'Token Event';
+  };
+
+  // Enhanced token type detection based on comprehensive analysis
+  const getTokenType = (): string => {
+    const authHeader = headers['authorization'] || headers['Authorization'] || '';
+    const cookieHeader = headers['cookie'] || headers['Cookie'] || '';
+    const csrfHeader = headers['x-csrf-token'] || headers['X-CSRF-Token'] || '';
+    const apiKeyHeader = headers['x-api-key'] || headers['X-API-Key'] || headers['api-key'] || '';
+    const contentType = headers['content-type'] || headers['Content-Type'] || '';
+    
+    // Helper function to check if token is JWT format
+    const isJwt = (token: string): boolean => token.split('.').length === 3;
+    
+    // Helper function to decode JWT header for additional analysis
+    const getJwtInfo = (token: string): any => {
+      try {
+        if (!isJwt(token)) return null;
+        const header = JSON.parse(atob(token.split('.')[0]));
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return { header, payload };
+      } catch {
+        return null;
+      }
+    };
+    
+    // 0. Token Acquisition Analysis (for events where tokens are being acquired/issued)
+    if (event.type === 'acquire' || url.includes('/auth') || url.includes('/login') || url.includes('/signin') || url.includes('/token')) {
+      // Check for refresh token acquisition
+      if (url.includes('/refresh') || url.includes('/renew')) {
+        return 'Refresh Token (Acquired)';
+      }
+      
+      // Check for OAuth/OIDC endpoints
+      if (url.includes('/oauth') || url.includes('/oidc') || url.includes('/openid')) {
+        return 'OAuth Token (Acquired)';
+      }
+      
+      // Check for API key endpoints
+      if (url.includes('/api-key') || url.includes('/apikey') || url.includes('/key')) {
+        return 'API Key (Acquired)';
+      }
+      
+      // General authentication endpoint - likely access token
+      if (url.includes('/auth') || url.includes('/login') || url.includes('/signin')) {
+        // If response is JSON, likely JWT or structured token
+        if (contentType.includes('application/json')) {
+          return 'Access Token (Acquired)';
+        }
+        return 'Auth Token (Acquired)';
+      }
+      
+      // Generic token endpoint
+      if (url.includes('/token')) {
+        return 'Access Token (Acquired)';
+      }
+    }
+    
+    // 1. Bearer Token Analysis (for existing tokens in requests)
+    if (authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      
+      if (isJwt(token)) {
+        const jwtInfo = getJwtInfo(token);
+        
+        // ID Token detection (OIDC)
+        if (jwtInfo?.payload && ('sub' in jwtInfo.payload && 'email' in jwtInfo.payload || 'aud' in jwtInfo.payload)) {
+          return 'ID Token (JWT)';
+        }
+        
+        // Refresh Token (JWT format but used for refresh)
+        if (url.includes('/refresh') || url.includes('/token') || url.includes('/renew')) {
+          return 'Refresh Token (JWT)';
+        }
+        
+        // Access Token (JWT)
+        return 'Access Token (JWT)';
+      } else {
+        // Opaque Bearer tokens
+        if (url.includes('/refresh') || url.includes('/token') || url.includes('/renew')) {
+          return 'Refresh Token (Opaque)';
+        }
+        return 'Access Token (Opaque)';
+      }
+    }
+    
+    // 2. Basic Authentication
+    if (authHeader.startsWith('Basic ')) {
+      return 'Basic Auth';
+    }
+    
+    // 3. API Key Authentication
+    if (authHeader.startsWith('ApiKey ') || authHeader.startsWith('API-Key ')) {
+      return 'API Key';
+    }
+    
+    // 4. Custom API Key Headers
+    if (apiKeyHeader) {
+      const key = apiKeyHeader;
+      if (key.startsWith('sk_') || key.includes('proj_') || key.includes('key_')) {
+        return 'API Key';
+      }
+      return 'API Key';
+    }
+    
+    // 5. CSRF Token Detection
+    if (csrfHeader) {
+      return 'CSRF Token';
+    }
+    
+    // 6. Session Token Detection (Cookies)
+    if (cookieHeader) {
+      if (cookieHeader.includes('sessionid=') || 
+          cookieHeader.includes('session=') || 
+          cookieHeader.includes('JSESSIONID=') ||
+          cookieHeader.includes('PHPSESSID=') ||
+          cookieHeader.includes('ASP.NET_SessionId=')) {
+        return 'Session Token';
+      }
+      
+      // Access token in cookie
+      if (cookieHeader.includes('access_token=')) {
+        return 'Access Token (Cookie)';
+      }
+    }
+    
+    // 7. State Token Detection (usually in OAuth flows)
+    if (url.includes('state=') || headers['x-state-token']) {
+      return 'State Token';
+    }
+    
+    // 8. Custom Authorization schemes
+    if (authHeader && !authHeader.startsWith('Bearer ') && !authHeader.startsWith('Basic ')) {
+      const scheme = authHeader.split(' ')[0];
+      return `${scheme} Token`;
+    }
+    
+    // 9. Fallback for acquisition events without clear patterns
+    if (event.type === 'acquire') {
+      return 'Token (Acquired)';
+    }
+    
+    // Final fallback to event type or unknown
+    return event.token_type || 'Unknown';
+  };
+
+  // Check if token is present in headers
+  const hasToken = (headers: any): boolean => {
+    const authHeader = headers['authorization'] || headers['Authorization'] || '';
+    const cookieHeader = headers['cookie'] || headers['Cookie'] || '';
+    return !!(authHeader || cookieHeader || headers['x-api-key'] || headers['X-API-Key']);
+  };
+
+  return {
+    type: getEventType(),
+    tokenType: getTokenType(),
+    url: event.url || event.source_url,
+    method: event.method || event.request_method || 'GET',
+    status: event.status || event.response_status,
+    valueHash: event.value_hash,
+    expiry: event.expiry,
+    timestamp: event.timestamp,
+    headers
+  };
+};
+
+const TokenDetailContent: React.FC<{ tokenEvent: any; selectedField: string }> = ({ tokenEvent, selectedField }) => {
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+
+  if (selectedField === 'details') {
+    const analysis = analyzeTokenEvent(tokenEvent);
+    
+    return (
+      <div className="space-y-4">
+        {/* Token Event Details Section */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-900">Token Event Details</h3>
+            <button
+              onClick={() => copyToClipboard(JSON.stringify(analysis, null, 2))}
+              className="copy-button text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+            >
+              Copy Analysis
+            </button>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+            {/* Event Classification */}
+            <div className="border-b border-gray-200 pb-3">
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Event Classification</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <span className="text-xs text-gray-500">Detected Type:</span>
+                  <p className="text-sm font-medium text-gray-900">{analysis.type}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-gray-500">Token Format:</span>
+                  <p className="text-sm font-medium text-gray-900">{analysis.tokenType}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Request Details */}
+            <div className="border-b border-gray-200 pb-3">
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Request Details</h4>
+              <div className="space-y-2">
+                <div>
+                  <span className="text-xs text-gray-500">URL Pattern:</span>
+                  <p className="text-sm text-gray-900 break-all">{analysis.url}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-xs text-gray-500">HTTP Method:</span>
+                    <p className="text-sm font-medium text-gray-900">{analysis.method}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500">Response Status:</span>
+                    <p className="text-sm font-medium text-gray-900">{analysis.status || 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Token Information */}
+            {analysis.valueHash && (
+              <div className="border-b border-gray-200 pb-3">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Token Information</h4>
+                <div className="space-y-2">
+                  <div>
+                    <span className="text-xs text-gray-500">Value Hash:</span>
+                    <p className="text-xs text-gray-900 font-mono break-all bg-gray-100 p-2 rounded">{analysis.valueHash}</p>
+                  </div>
+                  {analysis.expiry && (
+                    <div>
+                      <span className="text-xs text-gray-500">Expiry:</span>
+                      <p className="text-sm text-gray-900">{new Date(analysis.expiry * 1000).toLocaleString()}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Authentication Context */}
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Authentication Context</h4>
+              <div className="text-xs text-gray-600 space-y-1">
+                {analysis.headers.authorization && (
+                  <p><strong>Authorization Header:</strong> Present ({analysis.headers.authorization.split(' ')[0]})</p>
+                )}
+                {analysis.headers.cookie && (
+                  <p><strong>Cookies:</strong> Present</p>
+                )}
+                {(analysis.headers['x-api-key'] || analysis.headers['X-API-Key']) && (
+                  <p><strong>API Key:</strong> Present</p>
+                )}
+                <p><strong>Timestamp:</strong> {new Date(analysis.timestamp).toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Headers section removed as requested
+
+  return <div className="text-gray-500">No data available for selected field.</div>;
+};
+
 const Dashboard: React.FC = () => {
   const [data, setData] = useState<DashboardData>({
     totalTabs: 0,
@@ -68,6 +854,14 @@ const Dashboard: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [tabsLoggingStatus, setTabsLoggingStatus] = useState<TabLoggingStatus[]>([]);
   const [tabSearchTerm, setTabSearchTerm] = useState<string>('');
+
+  // Detail viewer state
+  const [detailViewerOpen, setDetailViewerOpen] = useState(false);
+  const [expandedItem, setExpandedItem] = useState<any>(null);
+  const [expandedItemType, setExpandedItemType] = useState<'request' | 'error' | 'token'>('request');
+  const [selectedField, setSelectedField] = useState<string>('details');
+  const [detailViewerHeight, setDetailViewerHeight] = useState(300); // Default height in pixels
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -318,7 +1112,7 @@ const Dashboard: React.FC = () => {
         return sortConfig.direction === 'asc' ? aTime - bTime : bTime - aTime;
       }
       
-      if (sortConfig.key === 'status' || sortConfig.key === 'payload_size') {
+      if (sortConfig.key === 'status' || sortConfig.key === 'payload_size' || sortConfig.key === 'response_time') {
         const aNum = Number(aValue) || 0;
         const bNum = Number(bValue) || 0;
         return sortConfig.direction === 'asc' ? aNum - bNum : bNum - aNum;
@@ -698,6 +1492,86 @@ const Dashboard: React.FC = () => {
     tab.url.toLowerCase().includes(tabSearchTerm.toLowerCase())
   );
 
+  // Detail viewer functions
+  const openDetailViewer = (item: any, type: 'request' | 'error' | 'token') => {
+    setExpandedItem(item);
+    setExpandedItemType(type);
+    setDetailViewerOpen(true);
+    
+    // Set default field based on item type
+    if (type === 'request') {
+      setSelectedField('details');
+    } else if (type === 'error') {
+      setSelectedField('details');
+    } else if (type === 'token') {
+      setSelectedField('details');
+    }
+    
+    // Scroll to bottom after a brief delay to ensure the component renders
+    setTimeout(() => {
+      const detailElement = document.getElementById('detail-viewer');
+      if (detailElement) {
+        detailElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }, 100);
+  };
+
+  const closeDetailViewer = () => {
+    setDetailViewerOpen(false);
+    setExpandedItem(null);
+  };
+
+  // Drag functionality for resizing detail viewer
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    e.preventDefault();
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging) return;
+    
+    const newHeight = window.innerHeight - e.clientY;
+    const minHeight = 200;
+    const maxHeight = window.innerHeight * 0.8;
+    
+    setDetailViewerHeight(Math.max(minHeight, Math.min(maxHeight, newHeight)));
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // Add event listeners for drag functionality
+  React.useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging]);
+
+  // Get available fields for the expanded item
+  const getAvailableFields = () => {
+    if (!expandedItem) return [];
+    
+    switch (expandedItemType) {
+      case 'request':
+        // Always show these 3 options for network requests
+        return ['details', 'body', 'headers'];
+        
+      case 'error':
+        return ['details', 'stack'];
+      case 'token':
+        return ['details'];
+      default:
+        return [];
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -1026,8 +1900,11 @@ const Dashboard: React.FC = () => {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-500">Token Events</p>
-                <p className="text-2xl font-semibold text-gray-900">{data.totalTokenEvents}</p>
-                {data.totalTokenEvents > 0 && (
+                <p className="text-2xl font-semibold text-gray-900">{totalFilteredTokenEvents}</p>
+                {data.totalTokenEvents > 0 && totalFilteredTokenEvents !== data.totalTokenEvents && (
+                  <p className="text-xs text-gray-500">Filtered from {data.totalTokenEvents}</p>
+                )}
+                {totalFilteredTokenEvents === data.totalTokenEvents && data.totalTokenEvents > 0 && (
                   <p className="text-xs text-gray-500">Auth acquire & refresh events</p>
                 )}
               </div>
@@ -1181,11 +2058,32 @@ const Dashboard: React.FC = () => {
                             )}
                           </div>
                         </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Headers Preview
+                        </th>
+                        <th 
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('response_time')}
+                        >
+                          <div className="flex items-center">
+                            Response Time
+                            {sortConfig.key === 'response_time' && (
+                              <span className="ml-1">
+                                {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {currentRequests.map((request, index) => (
-                        <tr key={index} className="hover:bg-gray-50">
+                        <tr 
+                          key={index} 
+                          className="hover:bg-gray-50 cursor-pointer" 
+                          onDoubleClick={() => openDetailViewer(request, 'request')}
+                          title="Double-click to view detailed information"
+                        >
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                               request.method === 'GET' ? 'bg-blue-100 text-blue-800' :
@@ -1217,6 +2115,41 @@ const Dashboard: React.FC = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {new Date(request.timestamp).toLocaleTimeString()}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-500">
+                            <div className="truncate max-w-xs">
+                              {(() => {
+                                try {
+                                  const headerData = request.headers ? JSON.parse(request.headers) : {};
+                                  const requestHeaders = headerData.request || {};
+                                  
+                                  // Priority headers to show in preview
+                                  const priorityHeaders = ['content-type', 'authorization', 'accept', 'user-agent', 'x-api-key'];
+                                  
+                                  for (const priority of priorityHeaders) {
+                                    if (requestHeaders[priority]) {
+                                      const value = String(requestHeaders[priority]);
+                                      return `${priority}: ${value.substring(0, 30)}${value.length > 30 ? '...' : ''}`;
+                                    }
+                                  }
+                                  
+                                  // If no priority headers, show first available header
+                                  const firstHeader = Object.entries(requestHeaders)[0];
+                                  if (firstHeader) {
+                                    const value = String(firstHeader[1]);
+                                    return `${firstHeader[0]}: ${value.substring(0, 30)}${value.length > 30 ? '...' : ''}`;
+                                  }
+                                  
+                                  return 'No headers';
+                                } catch {
+                                  return 'Invalid headers';
+                                }
+                              })()}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {request.response_time ? `${request.response_time}ms` : 
+                             request.time_taken ? `${request.time_taken}ms` : 'N/A'}
                           </td>
                         </tr>
                       ))}
@@ -1433,7 +2366,12 @@ const Dashboard: React.FC = () => {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {currentErrors.map((error, index) => (
-                        <tr key={index} className="hover:bg-gray-50">
+                        <tr 
+                          key={index} 
+                          className="hover:bg-gray-50 cursor-pointer"
+                          onDoubleClick={() => openDetailViewer(error, 'error')}
+                          title="Double-click to view detailed information"
+                        >
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                               error.severity === 'error' ? 'bg-red-100 text-red-800' :
@@ -1448,11 +2386,6 @@ const Dashboard: React.FC = () => {
                             <div className="text-sm text-gray-900 truncate max-w-md" title={error.message}>
                               {error.message}
                             </div>
-                            {error.stack_trace && (
-                              <div className="text-xs text-gray-500 mt-1 truncate max-w-md" title={error.stack_trace}>
-                                Stack: {error.stack_trace.split('\n')[0]}
-                              </div>
-                            )}
                           </td>
                           <td className="px-6 py-4">
                             <div className="text-sm text-gray-900 truncate max-w-xs" title={error.url}>
@@ -1636,6 +2569,19 @@ const Dashboard: React.FC = () => {
                         </th>
                         <th 
                           className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleTokenSort('token_type')}
+                        >
+                          <div className="flex items-center">
+                            Token Type
+                            {tokenSortConfig.key === 'token_type' && (
+                              <span className="ml-1">
+                                {tokenSortConfig.direction === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                        <th 
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                           onClick={() => handleTokenSort('url')}
                         >
                           <div className="flex items-center">
@@ -1675,6 +2621,32 @@ const Dashboard: React.FC = () => {
                         </th>
                         <th 
                           className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleTokenSort('value_hash')}
+                        >
+                          <div className="flex items-center">
+                            Value Hash
+                            {tokenSortConfig.key === 'value_hash' && (
+                              <span className="ml-1">
+                                {tokenSortConfig.direction === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                        <th 
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleTokenSort('expiry')}
+                        >
+                          <div className="flex items-center">
+                            Expiry
+                            {tokenSortConfig.key === 'expiry' && (
+                              <span className="ml-1">
+                                {tokenSortConfig.direction === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                        <th 
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                           onClick={() => handleTokenSort('timestamp')}
                         >
                           <div className="flex items-center">
@@ -1690,45 +2662,122 @@ const Dashboard: React.FC = () => {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {currentTokenEvents.map((event, index) => (
-                        <tr key={index} className="hover:bg-gray-50">
+                        <tr 
+                          key={index} 
+                          className="hover:bg-gray-50 cursor-pointer"
+                          onDoubleClick={() => openDetailViewer(event, 'token')}
+                          title="Double-click to view detailed information"
+                        >
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              event.type === 'acquire' ? 'bg-blue-100 text-blue-800' :
-                              event.type === 'refresh' ? 'bg-green-100 text-green-800' :
-                              event.type === 'refresh_error' ? 'bg-red-100 text-red-800' :
-                              'bg-yellow-100 text-yellow-800'
+                              (() => {
+                                const analysis = analyzeTokenEvent(event);
+                                const type = analysis.type;
+                                if (type === 'login') return 'bg-green-100 text-green-800';
+                                if (type === 'logout') return 'bg-gray-100 text-gray-800';
+                                if (type === 'refresh') return 'bg-blue-100 text-blue-800';
+                                if (type === 'expired') return 'bg-red-100 text-red-800';
+                                if (type === 'acquire') return 'bg-purple-100 text-purple-800';
+                                if (type === 'refresh_error') return 'bg-red-100 text-red-800';
+                                if (type === 'api_call') return 'bg-yellow-100 text-yellow-800';
+                                return 'bg-gray-100 text-gray-800';
+                              })()
                             }`}>
-                              {event.type === 'acquire' ? '🔐 Acquire' :
-                               event.type === 'refresh' ? '� Refresh' :
-                               event.type === 'refresh_error' ? '❌ Refresh Error' :
-                               `🔐 ${event.type}`}
+                              {(() => {
+                                const analysis = analyzeTokenEvent(event);
+                                const type = analysis.type;
+                                if (type === 'login') return '� Login';
+                                if (type === 'logout') return '🔒 Logout';
+                                if (type === 'refresh') return '🔄 Refresh';
+                                if (type === 'expired') return '⏰ Expired';
+                                if (type === 'acquire') return '🔐 Acquire';
+                                if (type === 'refresh_error') return '❌ Refresh Error';
+                                if (type === 'api_call') return '📡 API Call';
+                                return `🔐 ${type}`;
+                              })()}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              (() => {
+                                const analysis = analyzeTokenEvent(event);
+                                const tokenType = analysis.tokenType;
+                                
+                                // JWT-based tokens
+                                if (tokenType.includes('JWT')) return 'bg-purple-100 text-purple-800';
+                                // Access tokens
+                                if (tokenType.includes('Access Token')) return 'bg-blue-100 text-blue-800';
+                                // Refresh tokens
+                                if (tokenType.includes('Refresh Token')) return 'bg-cyan-100 text-cyan-800';
+                                // ID tokens
+                                if (tokenType.includes('ID Token')) return 'bg-emerald-100 text-emerald-800';
+                                // Authentication types
+                                if (tokenType === 'Basic Auth') return 'bg-orange-100 text-orange-800';
+                                if (tokenType === 'API Key') return 'bg-indigo-100 text-indigo-800';
+                                // Session and security tokens
+                                if (tokenType === 'Session Token') return 'bg-green-100 text-green-800';
+                                if (tokenType === 'CSRF Token') return 'bg-red-100 text-red-800';
+                                if (tokenType === 'State Token') return 'bg-yellow-100 text-yellow-800';
+                                // Custom schemes
+                                if (tokenType.includes('Token') && !tokenType.includes('Unknown')) return 'bg-teal-100 text-teal-800';
+                                
+                                // Legacy compatibility
+                                if (tokenType === 'JWT') return 'bg-purple-100 text-purple-800';
+                                if (tokenType === 'Bearer') return 'bg-blue-100 text-blue-800';
+                                if (tokenType === 'Basic') return 'bg-orange-100 text-orange-800';
+                                if (tokenType === 'Session') return 'bg-green-100 text-green-800';
+                                
+                                return 'bg-gray-100 text-gray-800';
+                              })()
+                            }`}>
+                              {(() => {
+                                const analysis = analyzeTokenEvent(event);
+                                const tokenType = analysis.tokenType;
+                                if (tokenType === 'JWT') return '🎫 JWT';
+                                if (tokenType === 'Bearer') return '🔐 Bearer';
+                                if (tokenType === 'Basic') return '� Basic';
+                                if (tokenType === 'Session') return '🍪 Session';
+                                if (tokenType === 'API Key') return '�️ API Key';
+                                return tokenType || 'Unknown';
+                              })()}
                             </span>
                           </td>
                           <td className="px-6 py-4">
-                            <div className="text-sm text-gray-900 truncate max-w-xs" title={event.url}>
-                              {event.url}
+                            <div className="text-sm text-gray-900 truncate max-w-xs" title={analyzeTokenEvent(event).url}>
+                              {analyzeTokenEvent(event).url}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              event.status >= 200 && event.status < 300 ? 'bg-green-100 text-green-800' :
-                              event.status >= 300 && event.status < 400 ? 'bg-yellow-100 text-yellow-800' :
-                              event.status >= 400 ? 'bg-red-100 text-red-800' :
+                              analyzeTokenEvent(event).status >= 200 && analyzeTokenEvent(event).status < 300 ? 'bg-green-100 text-green-800' :
+                              analyzeTokenEvent(event).status >= 300 && analyzeTokenEvent(event).status < 400 ? 'bg-yellow-100 text-yellow-800' :
+                              analyzeTokenEvent(event).status >= 400 ? 'bg-red-100 text-red-800' :
                               'bg-gray-100 text-gray-800'
                             }`}>
-                              {event.status || 'N/A'}
+                              {analyzeTokenEvent(event).status || 'N/A'}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              event.method === 'GET' ? 'bg-blue-100 text-blue-800' :
-                              event.method === 'POST' ? 'bg-green-100 text-green-800' :
-                              event.method === 'PUT' ? 'bg-yellow-100 text-yellow-800' :
-                              event.method === 'DELETE' ? 'bg-red-100 text-red-800' :
+                              analyzeTokenEvent(event).method === 'GET' ? 'bg-blue-100 text-blue-800' :
+                              analyzeTokenEvent(event).method === 'POST' ? 'bg-green-100 text-green-800' :
+                              analyzeTokenEvent(event).method === 'PUT' ? 'bg-yellow-100 text-yellow-800' :
+                              analyzeTokenEvent(event).method === 'DELETE' ? 'bg-red-100 text-red-800' :
                               'bg-gray-100 text-gray-800'
                             }`}>
-                              {event.method || 'N/A'}
+                              {analyzeTokenEvent(event).method}
                             </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-xs text-gray-600 font-mono truncate max-w-xs" title={event.value_hash}>
+                              {event.value_hash ? event.value_hash.substring(0, 16) + '...' : 'N/A'}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {event.expiry ? 
+                              new Date(event.expiry * 1000).toLocaleString() : 
+                              'No expiry'
+                            }
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {new Date(event.timestamp).toLocaleTimeString()}
@@ -1813,59 +2862,91 @@ const Dashboard: React.FC = () => {
             )}
           </div>
         </div>
-
-        {/* Feature Sections */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Quick Actions */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-              <div className="space-y-3">
-                <button className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg transition-colors">
-                  Analyze Current Tab
-                </button>
-                <button className="w-full bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg transition-colors">
-                  Export Data
-                </button>
-                <button className="w-full bg-purple-500 hover:bg-purple-600 text-white py-2 px-4 rounded-lg transition-colors">
-                  Clear Cache
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Recent Activity */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
-              <div className="space-y-3">
-                <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Extension activated</p>
-                    <p className="text-xs text-gray-500">2 minutes ago</p>
-                  </div>
-                </div>
-                <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-                  <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Settings updated</p>
-                    <p className="text-xs text-gray-500">5 minutes ago</p>
-                  </div>
-                </div>
-                <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full mr-3"></div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Data exported</p>
-                    <p className="text-xs text-gray-500">1 hour ago</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </main>
       </div>
+
+      {/* Detail Viewer Component */}
+      {detailViewerOpen && expandedItem && (
+        <div 
+          id="detail-viewer"
+          className="detail-viewer fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40"
+          style={{ height: `${detailViewerHeight}px` }}
+        >
+          {/* Drag Handle */}
+          <div 
+            className="detail-viewer-drag-handle w-full h-2 bg-gray-100 cursor-ns-resize hover:bg-gray-200 transition-colors flex items-center justify-center"
+            onMouseDown={handleMouseDown}
+          >
+            <div className="w-12 h-1 bg-gray-400 rounded"></div>
+          </div>
+          
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={closeDetailViewer}
+                className="flex items-center text-gray-600 hover:text-gray-800"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                </svg>
+                Collapse Detail View
+              </button>
+              
+              {/* Field Selector */}
+              {getAvailableFields().length > 1 && (
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-600">Viewing:</span>
+                  <select
+                    value={selectedField}
+                    onChange={(e) => setSelectedField(e.target.value)}
+                    className="text-sm border border-gray-300 rounded-md px-2 py-1 bg-white"
+                  >
+                    {getAvailableFields().map((field) => (
+                      <option key={field} value={field}>
+                        {field === 'details' && '� Details'}
+                        {field === 'body' && '📦 Body'}
+                        {field === 'headers' && '� Headers'}
+                        {field === 'stack' && '📚 Stack Trace'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <span className="text-xs text-gray-500">
+                {expandedItemType === 'request' && 'Network Request Details'}
+                {expandedItemType === 'error' && 'Console Error Details'}
+                {expandedItemType === 'token' && 'Token Event Details'}
+              </span>
+            </div>
+          </div>
+          
+          {/* Content Area */}
+          <div className="flex-1 overflow-y-auto p-4" style={{ height: `${detailViewerHeight - 120}px` }}>
+            {expandedItemType === 'request' && (
+              <RequestDetailContent 
+                request={expandedItem} 
+                selectedField={selectedField}
+              />
+            )}
+            {expandedItemType === 'error' && (
+              <ErrorDetailContent 
+                error={expandedItem} 
+                selectedField={selectedField}
+              />
+            )}
+            {expandedItemType === 'token' && (
+              <TokenDetailContent 
+                tokenEvent={expandedItem} 
+                selectedField={selectedField}
+              />
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

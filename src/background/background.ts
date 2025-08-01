@@ -39,6 +39,114 @@ function isTokenEndpoint(url: string, type: 'acquire' | 'refresh'): boolean {
   return patterns.some(pattern => url.toLowerCase().includes(pattern));
 }
 
+// Enhanced token type detection based on headers and context
+function detectTokenTypeFromHeaders(headers: any, url: string): string {
+  if (!headers || typeof headers !== 'object') return 'Unknown';
+  
+  // Parse headers if they're stored as JSON string
+  let headersObj = headers;
+  if (typeof headers === 'string') {
+    try {
+      headersObj = JSON.parse(headers);
+    } catch {
+      return 'Unknown';
+    }
+  }
+  
+  const authHeader = headersObj.authorization || headersObj.Authorization || '';
+  const cookieHeader = headersObj.cookie || headersObj.Cookie || '';
+  const csrfHeader = headersObj['x-csrf-token'] || headersObj['X-CSRF-Token'] || '';
+  const apiKeyHeader = headersObj['x-api-key'] || headersObj['X-API-Key'] || headersObj['api-key'] || '';
+  
+  // Helper to check JWT format
+  const isJwt = (token: string): boolean => token.split('.').length === 3;
+  
+  // Helper to get JWT payload for analysis
+  const getJwtPayload = (token: string): any => {
+    try {
+      if (!isJwt(token)) return null;
+      return JSON.parse(atob(token.split('.')[1]));
+    } catch {
+      return null;
+    }
+  };
+  
+  // 1. Bearer Token Analysis
+  if (authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    
+    if (isJwt(token)) {
+      const payload = getJwtPayload(token);
+      
+      // ID Token detection (OIDC)
+      if (payload && ('sub' in payload && 'email' in payload || 'aud' in payload)) {
+        return 'ID Token (JWT)';
+      }
+      
+      // Refresh Token (JWT format but used for refresh)
+      if (url.includes('/refresh') || url.includes('/token') || url.includes('/renew')) {
+        return 'Refresh Token (JWT)';
+      }
+      
+      return 'Access Token (JWT)';
+    } else {
+      // Opaque Bearer tokens
+      if (url.includes('/refresh') || url.includes('/token') || url.includes('/renew')) {
+        return 'Refresh Token (Opaque)';
+      }
+      return 'Access Token (Opaque)';
+    }
+  }
+  
+  // 2. Basic Authentication
+  if (authHeader.startsWith('Basic ')) {
+    return 'Basic Auth';
+  }
+  
+  // 3. API Key Authentication
+  if (authHeader.startsWith('ApiKey ') || authHeader.startsWith('API-Key ')) {
+    return 'API Key';
+  }
+  
+  // 4. Custom API Key Headers
+  if (apiKeyHeader) {
+    return 'API Key';
+  }
+  
+  // 5. CSRF Token Detection
+  if (csrfHeader) {
+    return 'CSRF Token';
+  }
+  
+  // 6. Session Token Detection (Cookies)
+  if (cookieHeader) {
+    if (cookieHeader.includes('sessionid=') || 
+        cookieHeader.includes('session=') || 
+        cookieHeader.includes('JSESSIONID=') ||
+        cookieHeader.includes('PHPSESSID=') ||
+        cookieHeader.includes('ASP.NET_SessionId=')) {
+      return 'Session Token';
+    }
+    
+    if (cookieHeader.includes('access_token=')) {
+      return 'Access Token (Cookie)';
+    }
+  }
+  
+  // 7. State Token Detection
+  if (url.includes('state=') || headersObj['x-state-token']) {
+    return 'State Token';
+  }
+  
+  // 8. Custom Authorization schemes
+  if (authHeader && !authHeader.startsWith('Bearer ') && !authHeader.startsWith('Basic ')) {
+    const scheme = authHeader.split(' ')[0];
+    return `${scheme} Token`;
+  }
+  
+  return 'Unknown';
+}
+
 // Utility function to detect token events from network requests
 function detectTokenEvent(requestData: any): TokenEvent | null {
   const { url, method, status } = requestData;
@@ -64,6 +172,7 @@ function detectTokenEvent(requestData: any): TokenEvent | null {
   // Detect token acquisition (successful auth requests)
   if (method === 'POST' && status >= 200 && status < 300 && isTokenEndpoint(url, 'acquire')) {
     console.log('✅ Token acquisition detected:', url);
+    const detectedTokenType = detectTokenTypeFromHeaders(requestData.headers, url);
     return {
       type: 'acquire',
       url,
@@ -71,7 +180,7 @@ function detectTokenEvent(requestData: any): TokenEvent | null {
       status,
       timestamp,
       source_url,
-      value_hash: '[REDACTED - token acquired]'
+      value_hash: `[REDACTED - token acquired: ${detectedTokenType}]`
     };
   }
   
@@ -79,6 +188,7 @@ function detectTokenEvent(requestData: any): TokenEvent | null {
   if ((method === 'POST' || method === 'GET') && isTokenEndpoint(url, 'refresh')) {
     if (status >= 200 && status < 300) {
       console.log('✅ Token refresh detected:', url);
+      const detectedTokenType = detectTokenTypeFromHeaders(requestData.headers, url);
       return {
         type: 'refresh',
         url,
@@ -86,30 +196,34 @@ function detectTokenEvent(requestData: any): TokenEvent | null {
         status,
         timestamp,
         source_url,
-        value_hash: '[REDACTED - token refreshed]'
+        value_hash: `[REDACTED - token refreshed: ${detectedTokenType}]`
       };
     } else if (status >= 400) {
       console.log('❌ Token refresh error detected:', url);
+      const detectedTokenType = detectTokenTypeFromHeaders(requestData.headers, url);
       return {
         type: 'refresh_error',
         url,
         method,
         status,
         timestamp,
-        source_url
+        source_url,
+        value_hash: `[REFRESH ERROR - ${detectedTokenType}]`
       };
     }
   }
   
   // Detect token expiration (401/403 responses)
   if (status === 401 || status === 403) {
+    const detectedTokenType = detectTokenTypeFromHeaders(requestData.headers, url);
     return {
       type: 'expired',
       url,
       method,
       status,
       timestamp,
-      source_url
+      source_url,
+      value_hash: `[EXPIRED TOKEN - ${detectedTokenType}]`
     };
   }
   
@@ -129,7 +243,10 @@ async function storeTokenEvent(tokenEvent: TokenEvent): Promise<void> {
       value_hash: tokenEvent.value_hash || `[${tokenEvent.type.toUpperCase()}]`,
       timestamp: new Date(tokenEvent.timestamp).getTime(),
       source_url: tokenEvent.source_url,
-      expiry: tokenEvent.expiry
+      expiry: tokenEvent.expiry,
+      status: tokenEvent.status,
+      method: tokenEvent.method,
+      url: tokenEvent.url
     };
     
     await storageManager.insertTokenEvent(tokenEventData);
@@ -589,7 +706,8 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
       payload_size: requestData.requestBody ? requestData.requestBody.length : 0,
       status: requestData.status || 0,
       response_body: requestData.responseBody || `Status: ${requestData.status} ${requestData.statusText}`,
-      timestamp: requestData.timestamp ? new Date(requestData.timestamp).getTime() : Date.now()
+      timestamp: requestData.timestamp ? new Date(requestData.timestamp).getTime() : Date.now(),
+      response_time: requestData.duration || null
     };
     
     // Store the network request using the existing API call storage
