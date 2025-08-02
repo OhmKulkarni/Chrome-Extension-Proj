@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON Body Capture Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #005a87;
+        }
+        .results {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>JSON Body Capture Test</h1>
+    <p>This page tests the Chrome extension's ability to capture JSON request and response bodies.</p>
+    
+    <div style="background: #f0f8ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <h3>🔧 Setup Instructions:</h3>
+        <ol>
+            <li>Load the extension from the <strong>dist</strong> folder</li>
+            <li>The extension automatically captures request and response bodies (up to 1000 characters each)</li>
+            <li>Click any test button below</li>
+            <li>Open the Extension Dashboard → Click on the request → Select <strong>"body"</strong> from dropdown</li>
+            <li>You should see the complete JSON request and response bodies!</li>
+        </ol>
+    </div>
+    
+    <div class="test-section">
+        <h2>Fetch API Test</h2>
+        <p>Test JSON POST request with fetch API:</p>
+        <button onclick="testFetchPost()">Send Fetch POST</button>
+        <button onclick="testFetchGet()">Send Fetch GET</button>
+        <div id="fetch-results" class="results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>XMLHttpRequest Test</h2>
+        <p>Test JSON POST request with XMLHttpRequest:</p>
+        <button onclick="testXhrPost()">Send XHR POST</button>
+        <button onclick="testXhrGet()">Send XHR GET</button>
+        <div id="xhr-results" class="results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Multiple Requests Test</h2>
+        <p>Test multiple rapid JSON requests:</p>
+        <button onclick="testMultipleRequests()">Send Multiple Requests</button>
+        <div id="multiple-results" class="results"></div>
+    </div>
+
+    <script>
+        // Mock JSON API endpoint using httpbin.org
+        const JSON_API_ENDPOINT = 'https://httpbin.org/json';
+        const POST_API_ENDPOINT = 'https://httpbin.org/post';
+
+        // Utility: Pretty-print JSON if possible
+        function prettyPrintIfJson(str) {
+            if (typeof str !== 'string') return str;
+            try {
+                const obj = JSON.parse(str);
+                return JSON.stringify(obj, null, 2);
+            } catch (e) {
+                return str;
+            }
+        }
+
+        function updateResults(elementId, text) {
+            document.getElementById(elementId).textContent = prettyPrintIfJson(text);
+        }
+
+        async function testFetchPost() {
+            updateResults('fetch-results', 'Sending fetch POST request...');
+            
+            try {
+                const testData = {
+                    message: 'Hello from fetch POST',
+                    timestamp: new Date().toISOString(),
+                    data: {
+                        test: true,
+                        numbers: [1, 2, 3, 4, 5],
+                        nested: {
+                            level: 1,
+                            value: 'nested data'
+                        }
+                    }
+                };
+
+                const response = await fetch(POST_API_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Test-Header': 'body-capture-test'
+                    },
+                    body: JSON.stringify(testData)
+                });
+
+                const result = await response.json();
+                updateResults('fetch-results', 
+                    `✅ Fetch POST completed!\n` +
+                    `Status: ${response.status}\n` +
+                    `Request Body Sent: ${JSON.stringify(testData, null, 2)}\n` +
+                    `Response: ${JSON.stringify(result, null, 2)}`
+                );
+            } catch (error) {
+                updateResults('fetch-results', `❌ Error: ${error.message}`);
+            }
+        }
+
+        async function testFetchGet() {
+            updateResults('fetch-results', 'Sending fetch GET request...');
+            
+            try {
+                const response = await fetch(JSON_API_ENDPOINT, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Test-Header': 'body-capture-test'
+                    }
+                });
+
+                const result = await response.json();
+                updateResults('fetch-results', 
+                    `✅ Fetch GET completed!\n` +
+                    `Status: ${response.status}\n` +
+                    `Response: ${JSON.stringify(result, null, 2)}`
+                );
+            } catch (error) {
+                updateResults('fetch-results', `❌ Error: ${error.message}`);
+            }
+        }
+
+        function testXhrPost() {
+            updateResults('xhr-results', 'Sending XHR POST request...');
+            
+            const xhr = new XMLHttpRequest();
+            const testData = {
+                message: 'Hello from XHR POST',
+                timestamp: new Date().toISOString(),
+                xhr: true,
+                complexData: {
+                    array: ['a', 'b', 'c'],
+                    boolean: true,
+                    number: 42
+                }
+            };
+
+            xhr.open('POST', POST_API_ENDPOINT);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.setRequestHeader('X-Test-Header', 'body-capture-test');
+
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    const result = JSON.parse(xhr.responseText);
+                    updateResults('xhr-results', 
+                        `✅ XHR POST completed!\n` +
+                        `Status: ${xhr.status}\n` +
+                        `Request Body Sent: ${JSON.stringify(testData, null, 2)}\n` +
+                        `Response: ${JSON.stringify(result, null, 2)}`
+                    );
+                } else {
+                    updateResults('xhr-results', `❌ XHR Error: ${xhr.status} ${xhr.statusText}`);
+                }
+            };
+
+            xhr.onerror = function() {
+                updateResults('xhr-results', `❌ XHR Network Error`);
+            };
+
+            xhr.send(JSON.stringify(testData));
+        }
+
+        function testXhrGet() {
+            updateResults('xhr-results', 'Sending XHR GET request...');
+            
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', JSON_API_ENDPOINT);
+            xhr.setRequestHeader('Accept', 'application/json');
+            xhr.setRequestHeader('X-Test-Header', 'body-capture-test');
+
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    const result = JSON.parse(xhr.responseText);
+                    updateResults('xhr-results', 
+                        `✅ XHR GET completed!\n` +
+                        `Status: ${xhr.status}\n` +
+                        `Response: ${JSON.stringify(result, null, 2)}`
+                    );
+                } else {
+                    updateResults('xhr-results', `❌ XHR Error: ${xhr.status} ${xhr.statusText}`);
+                }
+            };
+
+            xhr.onerror = function() {
+                updateResults('xhr-results', `❌ XHR Network Error`);
+            };
+
+            xhr.send();
+        }
+
+        async function testMultipleRequests() {
+            updateResults('multiple-results', 'Sending multiple JSON requests...');
+            
+            const requests = [];
+            
+            for (let i = 0; i < 3; i++) {
+                const testData = {
+                    requestId: i + 1,
+                    message: `Multiple request #${i + 1}`,
+                    timestamp: new Date().toISOString()
+                };
+
+                requests.push(
+                    fetch(POST_API_ENDPOINT, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Test-Request-Id': `multi-${i + 1}`
+                        },
+                        body: JSON.stringify(testData)
+                    })
+                );
+            }
+
+            try {
+                const responses = await Promise.all(requests);
+                const results = await Promise.all(responses.map(r => r.json()));
+                
+                updateResults('multiple-results', 
+                    `✅ Multiple requests completed!\n` +
+                    `${results.length} requests sent\n` +
+                    `All responses received successfully\n` +
+                    `Check the dashboard for captured bodies!`
+                );
+            } catch (error) {
+                updateResults('multiple-results', `❌ Error: ${error.message}`);
+            }
+        }
+
+        // Log when the page loads
+        console.log('🧪 JSON Body Capture Test Page Loaded');
+        console.log('📋 Expected Results:');
+        console.log('✅ REQUEST BODY: Complete JSON object sent to the API');
+        console.log('✅ RESPONSE BODY: Complete JSON response from httpbin.org');
+        console.log('✅ No truncation (should see full nested objects and arrays)');
+        console.log('✅ Properly formatted JSON with indentation');
+        console.log('');
+        console.log('🔍 How to verify:');
+        console.log('1. Load the extension from the dist folder');
+        console.log('2. Click any test button above');
+        console.log('3. Open extension dashboard and click on the request');
+        console.log('4. Select "body" from the dropdown');
+        console.log('5. You should see both request and response JSON bodies (up to 1000 chars each)');
+        console.log('6. Look for substantial JSON content instead of just "Status: 200"');
+    </script>
+</body>
+</html>
