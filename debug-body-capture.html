@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Body Capture</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .debug-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 5px 0;
+        }
+        .status.success { background: #d4edda; }
+        .status.warning { background: #fff3cd; }
+        .status.error { background: #f8d7da; }
+        button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #005a87;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Body Capture Debug Console</h1>
+    
+    <div class="debug-section">
+        <h2>Extension Status</h2>
+        <div id="extension-status"></div>
+        <button onclick="checkExtensionStatus()">Check Status</button>
+    </div>
+
+    <div class="debug-section">
+        <h2>Settings Status</h2>
+        <div id="settings-status"></div>
+        <button onclick="checkSettings()">Check Settings</button>
+    </div>
+
+    <div class="debug-section">
+        <h2>Test JSON Request</h2>
+        <div id="request-status"></div>
+        <button onclick="testRequest()">Send Test Request</button>
+    </div>
+
+    <div class="debug-section">
+        <h2>Recent Network Requests</h2>
+        <div id="recent-requests"></div>
+        <button onclick="checkRecentRequests()">Check Recent Requests</button>
+    </div>
+
+    <script>
+        function log(element, message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = message;
+            element.appendChild(div);
+        }
+
+        async function checkExtensionStatus() {
+            const statusEl = document.getElementById('extension-status');
+            statusEl.innerHTML = '';
+            
+            try {
+                // Check if extension APIs are available
+                if (typeof chrome !== 'undefined' && chrome.runtime) {
+                    log(statusEl, '✅ Chrome extension APIs available', 'success');
+                    
+                    // Check if we can communicate with background
+                    try {
+                        const response = await chrome.runtime.sendMessage({ action: 'ping' });
+                        log(statusEl, '✅ Background script communication working', 'success');
+                    } catch (error) {
+                        log(statusEl, '❌ Cannot communicate with background script: ' + error.message, 'error');
+                    }
+                } else {
+                    log(statusEl, '❌ Chrome extension APIs not available', 'error');
+                }
+            } catch (error) {
+                log(statusEl, '❌ Error checking extension: ' + error.message, 'error');
+            }
+        }
+
+        async function checkSettings() {
+            const statusEl = document.getElementById('settings-status');
+            statusEl.innerHTML = '';
+            
+            try {
+                const result = await chrome.storage.local.get('settings');
+                const settings = result.settings || {};
+                
+                log(statusEl, '📋 Current Settings:', 'info');
+                
+                const bodyCapture = settings.networkInterception?.bodyCapture;
+                if (bodyCapture) {
+                    log(statusEl, `Body Capture Mode: ${bodyCapture.mode || 'not set'}`, 
+                        bodyCapture.mode === 'full' ? 'success' : 'warning');
+                    log(statusEl, `Capture Requests: ${bodyCapture.captureRequests ? 'Yes' : 'No'}`, 
+                        bodyCapture.captureRequests ? 'success' : 'warning');
+                    log(statusEl, `Capture Responses: ${bodyCapture.captureResponses ? 'Yes' : 'No'}`, 
+                        bodyCapture.captureResponses ? 'success' : 'warning');
+                } else {
+                    log(statusEl, '❌ Body capture settings not found', 'error');
+                }
+                
+                const networkInterception = settings.networkInterception;
+                if (networkInterception) {
+                    log(statusEl, `Network Interception Enabled: ${networkInterception.enabled ? 'Yes' : 'No'}`, 
+                        networkInterception.enabled ? 'success' : 'warning');
+                } else {
+                    log(statusEl, '❌ Network interception settings not found', 'error');
+                }
+                
+                // Show full settings
+                const pre = document.createElement('pre');
+                pre.textContent = JSON.stringify(settings, null, 2);
+                statusEl.appendChild(pre);
+                
+            } catch (error) {
+                log(statusEl, '❌ Error reading settings: ' + error.message, 'error');
+            }
+        }
+
+        async function testRequest() {
+            const statusEl = document.getElementById('request-status');
+            statusEl.innerHTML = '';
+            
+            log(statusEl, '🚀 Sending test JSON request...', 'info');
+            
+            try {
+                const testData = {
+                    debugTest: true,
+                    timestamp: new Date().toISOString(),
+                    message: 'Debug test request'
+                };
+
+                const response = await fetch('https://httpbin.org/post', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Debug-Test': 'body-capture'
+                    },
+                    body: JSON.stringify(testData)
+                });
+
+                const result = await response.json();
+                
+                log(statusEl, `✅ Request completed with status: ${response.status}`, 'success');
+                log(statusEl, '📋 Response received:', 'info');
+                
+                const pre = document.createElement('pre');
+                pre.textContent = JSON.stringify(result, null, 2);
+                statusEl.appendChild(pre);
+                
+                log(statusEl, '💡 Check the dashboard for this request to see if body capture worked', 'info');
+                
+            } catch (error) {
+                log(statusEl, '❌ Request failed: ' + error.message, 'error');
+            }
+        }
+
+        async function checkRecentRequests() {
+            const statusEl = document.getElementById('recent-requests');
+            statusEl.innerHTML = '';
+            
+            try {
+                const response = await chrome.runtime.sendMessage({ 
+                    action: 'getNetworkRequests',
+                    limit: 5 
+                });
+                
+                if (response && response.requests) {
+                    log(statusEl, `📊 Found ${response.requests.length} recent requests:`, 'info');
+                    
+                    response.requests.forEach((req, index) => {
+                        const div = document.createElement('div');
+                        div.style.border = '1px solid #ccc';
+                        div.style.margin = '10px 0';
+                        div.style.padding = '10px';
+                        div.style.borderRadius = '4px';
+                        
+                        div.innerHTML = `
+                            <strong>#${index + 1}: ${req.method} ${req.url}</strong><br>
+                            Status: ${req.status}<br>
+                            Timestamp: ${new Date(req.timestamp).toLocaleString()}<br>
+                            Has Request Body: ${req.request_body ? 'Yes' : 'No'}<br>
+                            Has Response Body: ${req.response_body ? 'Yes' : 'No'}<br>
+                            Response Body Preview: ${req.response_body ? req.response_body.substring(0, 100) + '...' : 'None'}
+                        `;
+                        statusEl.appendChild(div);
+                    });
+                } else {
+                    log(statusEl, '❌ No requests found or error getting requests', 'error');
+                }
+                
+            } catch (error) {
+                log(statusEl, '❌ Error getting recent requests: ' + error.message, 'error');
+            }
+        }
+
+        // Auto-run status checks when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            checkExtensionStatus();
+            checkSettings();
+        });
+    </script>
+</body>
+</html>

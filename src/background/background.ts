@@ -706,6 +706,8 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
       payload_size: requestData.requestBody ? requestData.requestBody.length : 0,
       status: requestData.status || 0,
       response_body: requestData.responseBody || `Status: ${requestData.status} ${requestData.statusText}`,
+      // Add request body if captured
+      request_body: requestData.requestBody || null,
       timestamp: requestData.timestamp ? new Date(requestData.timestamp).getTime() : Date.now(),
       response_time: requestData.duration || null
     };

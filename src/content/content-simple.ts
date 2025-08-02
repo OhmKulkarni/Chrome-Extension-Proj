@@ -9,6 +9,26 @@ console.log('📍 CONTENT: Is Reddit?', isReddit);
 let extensionContextValid = true;
 let injectionAttempted = false;
 
+// Listen for settings requests from main-world script
+window.addEventListener('extensionRequestSettings', async () => {
+  try {
+    const result = await chrome.storage.sync.get(['networkInterception']);
+    const settings = result.networkInterception || { bodyCapture: { maxBodySize: 2000 } };
+    
+    window.dispatchEvent(new CustomEvent('extensionSettingsResponse', {
+      detail: { networkInterception: settings }
+    }));
+    
+    console.log('🌍 CONTENT: Settings sent to main-world script:', settings);
+  } catch (error) {
+    console.log('❌ CONTENT: Could not get settings:', error);
+    // Send default settings
+    window.dispatchEvent(new CustomEvent('extensionSettingsResponse', {
+      detail: { networkInterception: { bodyCapture: { maxBodySize: 2000 } } }
+    }));
+  }
+});
+
 // Check if extension context is still valid
 function isExtensionContextValid(): boolean {
   try {
