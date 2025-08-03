@@ -317,3 +317,218 @@ try {
 }
 
 console.log('🌍 MAIN-WORLD: Network interception script loaded and ready');
+
+// === Console Error Interception ===
+
+// Track original console methods
+let originalConsoleError = console.error;
+let originalConsoleWarn = console.warn;
+let isErrorIntercepting = false;
+
+// Check if error logging is enabled for current tab
+const isErrorLoggingEnabled = async () => {
+  try {
+    const tabId = await getCurrentTabId();
+    if (!tabId) return false;
+    
+    return new Promise((resolve) => {
+      if (typeof chrome !== 'undefined' && chrome.storage) {
+        chrome.storage.local.get([`tabErrorLogging_${tabId}`, 'settings'], (result) => {
+          if (chrome.runtime.lastError) {
+            console.warn('🌍 MAIN_WORLD: Error checking error logging state:', chrome.runtime.lastError);
+            resolve(false);
+          } else {
+            // Check global error logging setting
+            const settings = result.settings || {};
+            const errorLoggingConfig = settings.errorLogging || {};
+            
+            if (!errorLoggingConfig.enabled) {
+              resolve(false);
+              return;
+            }
+            
+            // Check tab-specific setting if enabled
+            if (errorLoggingConfig.tabSpecific?.enabled) {
+              const tabErrorLogging = result[`tabErrorLogging_${tabId}`];
+              const tabEnabled = tabErrorLogging?.active === true;
+              resolve(tabEnabled);
+            } else {
+              // Global error logging for all tabs
+              resolve(true);
+            }
+          }
+        });
+      } else {
+        resolve(false);
+      }
+    });
+  } catch (error) {
+    console.warn('🌍 MAIN_WORLD: Error in isErrorLoggingEnabled:', error);
+    return false;
+  }
+};
+
+// Function to capture and dispatch console errors
+const captureConsoleError = (originalMethod, severity) => {
+  return function(...args) {
+    // Call the original method first
+    originalMethod.apply(console, args);
+    
+    // Only capture if error logging is enabled
+    isErrorLoggingEnabled().then(enabled => {
+      if (enabled) {
+        try {
+          // Extract error information
+          const message = args.map(arg => {
+            if (typeof arg === 'string') return arg;
+            if (arg instanceof Error) return arg.message;
+            try {
+              return JSON.stringify(arg);
+            } catch {
+              return String(arg);
+            }
+          }).join(' ');
+          
+          // Get stack trace if available
+          let stack = '';
+          if (args[0] instanceof Error) {
+            stack = args[0].stack || '';
+          } else {
+            // Create a dummy error to get current stack
+            const dummyError = new Error();
+            if (dummyError.stack) {
+              const stackLines = dummyError.stack.split('\n');
+              // Remove the first few lines that are from this function
+              stack = stackLines.slice(3).join('\n');
+            }
+          }
+          
+          const errorData = {
+            message: message || 'Unknown error',
+            stack: stack,
+            severity: severity,
+            timestamp: new Date().toISOString(),
+            url: window.location.href,
+            userAgent: navigator.userAgent,
+            source: 'console'
+          };
+          
+          console.log('🌍 MAIN-WORLD: Dispatching console error:', errorData.message);
+          
+          // Dispatch custom event to content script
+          window.dispatchEvent(new CustomEvent('consoleErrorIntercepted', {
+            detail: errorData
+          }));
+        } catch (error) {
+          console.warn('🌍 MAIN-WORLD: Error capturing console error:', error);
+        }
+      }
+    });
+  };
+};
+
+// Global error handlers
+const handleGlobalError = (event) => {
+  isErrorLoggingEnabled().then(enabled => {
+    if (enabled) {
+      const errorData = {
+        message: event.message || 'Unknown error',
+        stack: event.error?.stack || '',
+        severity: 'error',
+        timestamp: new Date().toISOString(),
+        url: window.location.href,
+        filename: event.filename || '',
+        lineno: event.lineno || 0,
+        colno: event.colno || 0,
+        source: 'global'
+      };
+      
+      console.log('🌍 MAIN-WORLD: Dispatching global error:', errorData.message);
+      
+      window.dispatchEvent(new CustomEvent('consoleErrorIntercepted', {
+        detail: errorData
+      }));
+    }
+  });
+};
+
+const handleUnhandledRejection = (event) => {
+  isErrorLoggingEnabled().then(enabled => {
+    if (enabled) {
+      const reason = event.reason;
+      const message = reason instanceof Error ? reason.message : String(reason);
+      const stack = reason instanceof Error ? reason.stack : '';
+      
+      const errorData = {
+        message: `Unhandled Promise Rejection: ${message}`,
+        stack: stack,
+        severity: 'error',
+        timestamp: new Date().toISOString(),
+        url: window.location.href,
+        source: 'promise'
+      };
+      
+      console.log('🌍 MAIN-WORLD: Dispatching unhandled rejection:', errorData.message);
+      
+      window.dispatchEvent(new CustomEvent('consoleErrorIntercepted', {
+        detail: errorData
+      }));
+    }
+  });
+};
+
+// Start error interception
+const startErrorInterception = () => {
+  if (isErrorIntercepting) return;
+  
+  console.log('🎯 MAIN_WORLD: Starting console error interception...');
+  isErrorIntercepting = true;
+  
+  // Intercept console methods
+  console.error = captureConsoleError(originalConsoleError, 'error');
+  console.warn = captureConsoleError(originalConsoleWarn, 'warn');
+  
+  // Add global error handlers
+  window.addEventListener('error', handleGlobalError);
+  window.addEventListener('unhandledrejection', handleUnhandledRejection);
+};
+
+// Stop error interception
+const stopErrorInterception = () => {
+  if (!isErrorIntercepting) return;
+  
+  console.log('🛑 MAIN_WORLD: Stopping console error interception...');
+  isErrorIntercepting = false;
+  
+  // Restore original console methods
+  console.error = originalConsoleError;
+  console.warn = originalConsoleWarn;
+  
+  // Remove global error handlers
+  window.removeEventListener('error', handleGlobalError);
+  window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+};
+
+// Initial setup for error logging
+(async () => {
+  const errorLoggingEnabled = await isErrorLoggingEnabled();
+  if (errorLoggingEnabled) {
+    startErrorInterception();
+  }
+})();
+
+// Listen for storage changes to start/stop error interception
+if (typeof chrome !== 'undefined' && chrome.storage) {
+  chrome.storage.onChanged.addListener(async (changes, namespace) => {
+    if (namespace === 'local' || namespace === 'sync') {
+      const errorLoggingEnabled = await isErrorLoggingEnabled();
+      if (errorLoggingEnabled && !isErrorIntercepting) {
+        startErrorInterception();
+      } else if (!errorLoggingEnabled && isErrorIntercepting) {
+        stopErrorInterception();
+      }
+    }
+  });
+}
+
+console.log('🌍 MAIN-WORLD: Console error interception script loaded and ready');

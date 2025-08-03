@@ -1,4 +1,5 @@
 // Main world injection script - runs in the same context as the page
+(function() {
 console.log('🌍 MAIN-WORLD: Script injected into main world');
 
 // Prevent duplicate injections - check if we're already active
@@ -15,7 +16,7 @@ if (window.__networkInterceptorActive) {
   });
   
   // Exit early to prevent duplicate setup
-  throw new Error('Duplicate injection prevented');
+  return;
 }
 
 // Mark as active to prevent future duplicates
@@ -31,10 +32,13 @@ window.addEventListener('checkMainWorldActive', (event) => {
   }
 });
 
-// Default settings
-let extensionSettings = {
-  maxBodySize: 2000 // Default truncation limit
-};
+// Default settings (only declare if not already declared)
+if (typeof window.extensionSettings === 'undefined') {
+  window.extensionSettings = {
+    maxBodySize: 2000 // Default truncation limit
+  };
+}
+let extensionSettings = window.extensionSettings;
 
 // Try to get settings from extension storage
 try {
@@ -229,3 +233,205 @@ window.addEventListener('beforeunload', () => {
 });
 
 console.log('🌍 MAIN-WORLD: Network interception active in main world');
+
+// =============================================================================
+// CONSOLE ERROR INTERCEPTION
+// =============================================================================
+
+// Store original console methods
+const originalConsoleError = console.error;
+const originalConsoleWarn = console.warn;
+const originalConsoleLog = console.log;
+
+// Override console.error
+console.error = function(...args) {
+  // Call original method first
+  originalConsoleError.apply(console, args);
+  
+  // Capture and send to extension
+  try {
+    // Extract stack trace from Error objects
+    let stackTrace = null;
+    let errorObject = null;
+    
+    // Look for Error objects in the arguments
+    for (const arg of args) {
+      if (arg instanceof Error) {
+        errorObject = {
+          name: arg.name,
+          message: arg.message,
+          stack: arg.stack
+        };
+        stackTrace = arg.stack;
+        break;
+      }
+    }
+    
+    // If no Error object found, try to generate a stack trace
+    if (!stackTrace) {
+      try {
+        throw new Error();
+      } catch (e) {
+        stackTrace = e.stack;
+      }
+    }
+    
+    const errorData = {
+      type: 'console.error',
+      timestamp: Date.now(),
+      message: args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      ).join(' '),
+      stack: stackTrace,
+      error: errorObject,
+      url: window.location.href,
+      userAgent: navigator.userAgent
+    };
+    
+    window.dispatchEvent(new CustomEvent('consoleErrorIntercepted', {
+      detail: errorData
+    }));
+  } catch (e) {
+    originalConsoleError('🌍 MAIN-WORLD: Failed to capture console.error:', e);
+  }
+};
+
+// Override console.warn  
+console.warn = function(...args) {
+  // Call original method first
+  originalConsoleWarn.apply(console, args);
+  
+  // Capture and send to extension
+  try {
+    // Extract stack trace from Error objects
+    let stackTrace = null;
+    let errorObject = null;
+    
+    // Look for Error objects in the arguments
+    for (const arg of args) {
+      if (arg instanceof Error) {
+        errorObject = {
+          name: arg.name,
+          message: arg.message,
+          stack: arg.stack
+        };
+        stackTrace = arg.stack;
+        break;
+      }
+    }
+    
+    // If no Error object found, try to generate a stack trace
+    if (!stackTrace) {
+      try {
+        throw new Error();
+      } catch (e) {
+        stackTrace = e.stack;
+      }
+    }
+    
+    const warnData = {
+      type: 'console.warn',
+      timestamp: Date.now(),
+      message: args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      ).join(' '),
+      stack: stackTrace,
+      error: errorObject,
+      url: window.location.href,
+      userAgent: navigator.userAgent
+    };
+    
+    window.dispatchEvent(new CustomEvent('consoleErrorIntercepted', {
+      detail: warnData
+    }));
+  } catch (e) {
+    originalConsoleError('🌍 MAIN-WORLD: Failed to capture console.warn:', e);
+  }
+};
+
+// Global error handler for uncaught exceptions
+window.addEventListener('error', (event) => {
+  try {
+    const errorData = {
+      type: 'error',
+      timestamp: Date.now(),
+      message: event.message || 'Unknown error',
+      stack: event.error ? event.error.stack : null,
+      filename: event.filename || window.location.href,
+      lineno: event.lineno || 0,
+      colno: event.colno || 0,
+      error: event.error ? {
+        name: event.error.name,
+        message: event.error.message,
+        stack: event.error.stack
+      } : null,
+      url: window.location.href,
+      userAgent: navigator.userAgent
+    };
+    
+    window.dispatchEvent(new CustomEvent('consoleErrorIntercepted', {
+      detail: errorData
+    }));
+  } catch (e) {
+    originalConsoleError('🌍 MAIN-WORLD: Failed to capture global error:', e);
+  }
+});
+
+// Unhandled promise rejection handler
+window.addEventListener('unhandledrejection', (event) => {
+  try {
+    // Extract stack trace and error details from rejection reason
+    let stackTrace = null;
+    let errorObject = null;
+    let message = 'Unhandled Promise Rejection';
+    
+    if (event.reason) {
+      if (event.reason instanceof Error) {
+        // If the reason is an Error object, extract its details
+        errorObject = {
+          name: event.reason.name,
+          message: event.reason.message,
+          stack: event.reason.stack
+        };
+        stackTrace = event.reason.stack;
+        message = `${event.reason.name}: ${event.reason.message}`;
+      } else {
+        // If reason is not an Error, convert to string and try to generate stack
+        message = String(event.reason);
+        try {
+          throw new Error();
+        } catch (e) {
+          stackTrace = e.stack;
+        }
+      }
+    } else {
+      // No reason provided, generate a stack trace
+      try {
+        throw new Error();
+      } catch (e) {
+        stackTrace = e.stack;
+      }
+    }
+    
+    const rejectionData = {
+      type: 'unhandledrejection',
+      timestamp: Date.now(),
+      message: message,
+      stack: stackTrace,
+      error: errorObject,
+      reason: event.reason,
+      url: window.location.href,
+      userAgent: navigator.userAgent
+    };
+    
+    window.dispatchEvent(new CustomEvent('consoleErrorIntercepted', {
+      detail: rejectionData
+    }));
+  } catch (e) {
+    originalConsoleError('🌍 MAIN-WORLD: Failed to capture promise rejection:', e);
+  }
+});
+
+console.log('🌍 MAIN-WORLD: Console error interception active');
+
+})(); // End of IIFE

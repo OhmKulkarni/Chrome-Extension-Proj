@@ -1,4 +1,4 @@
-// src/dashboard/dashboard.tsx
+﻿// src/dashboard/dashboard.tsx
 // This file contains the React component for the Chrome extension dashboard.
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -304,6 +304,7 @@ const RequestDetailContent: React.FC<{ request: any; selectedField: string }> = 
     // Check if response body looks like a status-only response (encrypted/non-JSON content)
     const isStatusOnlyResponse = (body: any): boolean => {
       if (!body || typeof body !== 'string') return false;
+      
       const trimmedBody = body.trim();
       
       // If it's empty or very short, it might be a status response
@@ -317,28 +318,33 @@ const RequestDetailContent: React.FC<{ request: any; selectedField: string }> = 
         // If it successfully parses as JSON, it's not a status-only response
         return false;
       } catch {
-        // Not valid JSON, continue checking for status patterns
-      }
-      
-      // More specific JSON indicator check - look for actual JSON structure, not just colons
-      const hasActualJsonStructure = /^[\s]*[{\[].*[}\]][\s]*$/.test(trimmedBody) ||
-                                    /^[\s]*".*"[\s]*$/.test(trimmedBody) ||
-                                    /[{}\[\]]/.test(trimmedBody);
-      
-      if (hasActualJsonStructure) {
-        return false; // It's likely JSON content, not a status message
+        // Not valid JSON, continue with status pattern checks
       }
       
       // Check if the entire body is just a status message (no additional content)
       const statusOnlyPatterns = [
         // Exact status format matches (entire string)
-        /^[\s]*\d{1,3}[\s]*$/,                 // "200", " 404 ", "0", "204", etc.
-        /^[\s]*\d{1,3}\s+[A-Za-z\s]+[\s]*$/,  // "404 Not Found", "200 OK", "0 Network Error", etc.
-        /^[\s]*[A-Za-z\s]+[\s]*$/,            // "OK", "Not Found", "Unauthorized", etc.
-        /^[\s]*\d{1,3}:\s*[A-Za-z\s]+[\s]*$/, // "404: Not Found", "0: Network Error", etc.
-        /^[\s]*Status:\s*\d{1,3}\s+[A-Za-z\s]+[\s]*$/,  // "Status: 404 Not Found", "Status: 0 Network Error"
-        /^[\s]*Status:\s*\d{1,3}[\s]*$/,      // "Status: 404", "Status: 0", "Status: 204"
+        /^Status:\s*\d+\s*$/i,
+        /^status:\s*\d+\s*$/i, // lowercase variant
+        /^\d+\s+(OK|Created|Accepted|No Content|Not Found|Unauthorized|Forbidden|Internal Server Error)\s*$/i,
+        /^HTTP\/\d\.\d\s+\d+\s+(OK|Created|Accepted|No Content|Not Found|Unauthorized|Forbidden|Internal Server Error)?\s*$/i,
+        /^Response Code:\s*\d+\s*$/i,
+        // Simple numeric status
+        /^\d{3}\s*$/,
+        // Common error messages that indicate encrypted/binary content
+        /^(Error|Failed|Unauthorized|Forbidden|Not Found|Internal Server Error)\s*$/i,
+        // Browser/network generated messages
+        /^(net::|ERR_|NETWORK_|Connection)/i
       ];
+      
+      // More specific JSON indicator check - look for actual JSON structure, not just colons
+      const hasActualJsonStructure = /^[\s]*[{\[].*[}\]][\s]*$/.test(trimmedBody) || 
+                                   /^[\s]*".*"[\s]*$/.test(trimmedBody) ||
+                                   /[{}\[\]]/.test(trimmedBody);
+      
+      if (hasActualJsonStructure) {
+        return false; // Contains actual JSON structure, not a status-only response
+      }
       
       // Check if it matches our strict status-only patterns
       return statusOnlyPatterns.some(pattern => pattern.test(trimmedBody));
@@ -347,74 +353,25 @@ const RequestDetailContent: React.FC<{ request: any; selectedField: string }> = 
     // Get explanation for why we can't show JSON content
     const getBodyExplanation = (body: any, status?: number): string => {
       if (isStatusOnlyResponse(body)) {
+        const explanations = [
+          "ðŸ”’ Response content is encrypted or binary",
+          "ðŸ” Server returned protected/encoded content", 
+          "ðŸ“¡ Content-Type indicates non-JSON response",
+          "ðŸ›¡ï¸ Response body was compressed or encrypted",
+          "ðŸš« Binary content cannot be displayed as text"
+        ];
+        
         if (status) {
-          // Special case for status code 0 (network/connection errors)
-          if (status === 0) {
-            return "🔌 Network Error - Connection failed, request was blocked, or network is unreachable";
-          }
-          
-          // 2xx Success responses
-          if (status >= 200 && status < 300) {
-            if (status === 200) return "✅ Success - Response body is empty or contains non-JSON data";
-            if (status === 201) return "✅ Created successfully - Response may contain status confirmation only";
-            if (status === 202) return "✅ Request accepted - Processing in background, minimal response body";
-            if (status === 204) return "✅ No Content - Request successful but no response body to display";
-            if (status === 206) return "✅ Partial Content - Response contains binary or encrypted data";
-            return "✅ Success - Response body contains non-displayable content";
-          }
-          
-          // 3xx Redirection responses
-          if (status >= 300 && status < 400) {
-            if (status === 301) return "↪️ Moved Permanently - Response body contains minimal redirect information";
-            if (status === 302) return "↪️ Found (Temporary Redirect) - Response body contains redirect status only";
-            if (status === 304) return "↪️ Not Modified - No response body, resource unchanged";
-            if (status === 307) return "↪️ Temporary Redirect - Response body contains redirect confirmation";
-            if (status === 308) return "↪️ Permanent Redirect - Response body contains redirect status";
-            return "↪️ Redirect response - Response body contains minimal redirect information";
-          }
-          
-          // 4xx Client Error responses
-          if (status >= 400 && status < 500) {
-            if (status === 400) return "❌ Bad Request - Response body may contain error details in non-JSON format";
-            if (status === 401) return "🔐 Unauthorized - Response body contains authentication error (possibly encrypted)";
-            if (status === 403) return "� Forbidden - Response body contains access denial information";
-            if (status === 404) return "🔍 Not Found - Response body contains minimal error information";
-            if (status === 405) return "❌ Method Not Allowed - Response body contains method restriction details";
-            if (status === 408) return "⏱️ Request Timeout - Response body contains timeout information";
-            if (status === 409) return "⚡ Conflict - Response body contains conflict resolution details";
-            if (status === 410) return "�️ Gone - Response body contains resource removal confirmation";
-            if (status === 413) return "📏 Payload Too Large - Response body contains size limit information";
-            if (status === 415) return "📋 Unsupported Media Type - Response body contains format error details";
-            if (status === 422) return "📝 Unprocessable Entity - Response body contains validation errors";
-            if (status === 429) return "🚦 Too Many Requests - Response body contains rate limit information";
-            return "❌ Client Error - Response body may contain error details in protected format";
-          }
-          
-          // 5xx Server Error responses
-          if (status >= 500) {
-            if (status === 500) return "💥 Internal Server Error - Response body contains server error details";
-            if (status === 501) return "🚧 Not Implemented - Response body contains capability information";
-            if (status === 502) return "🔗 Bad Gateway - Response body contains proxy/gateway error details";
-            if (status === 503) return "⏸️ Service Unavailable - Response body contains service status information";
-            if (status === 504) return "⏱️ Gateway Timeout - Response body contains timeout error details";
-            if (status === 507) return "💾 Insufficient Storage - Response body contains storage error information";
-            return "💥 Server Error - Response body contains server error information";
+          if (status >= 400) {
+            return "âŒ Error response - content may be encrypted or in binary format";
+          } else if (status >= 300) {
+            return "â†ªï¸ Redirect response - no readable content body";
           }
         }
         
-        // Fallback explanations when no status code is available
-        const explanations = [
-          "🔒 Response content is encrypted or binary",
-          "📄 Server returned protected/encoded content",
-          "📡 Content-Type indicates non-JSON response",
-          "🛡️ Response body was compressed or encrypted",
-          "🚫 Binary content cannot be displayed as text"
-        ];
-        
         return explanations[Math.floor(Math.random() * explanations.length)];
       }
-      
-      return "Content not available for display";
+      return "";
     };
 
     return (
@@ -462,9 +419,9 @@ const RequestDetailContent: React.FC<{ request: any; selectedField: string }> = 
                 {isStatusOnlyResponse(responseBody) && (
                   <div className="relative group">
                     <div className="w-4 h-4 bg-yellow-100 border border-yellow-300 rounded-full flex items-center justify-center cursor-help">
-                      <span className="text-yellow-600 text-sm">📄</span>
+                      <span className="text-yellow-600 text-xs font-bold">?</span>
                     </div>
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 bg-gray-800 text-white text-xs rounded-lg p-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 bg-gray-800 text-white text-xs rounded-lg py-2 px-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10 pointer-events-none">
                       <div className="text-center">
                         <p className="font-medium mb-1">Why can't I see the response content?</p>
                         <p className="text-gray-300">{getBodyExplanation(responseBody, request.status)}</p>
@@ -497,10 +454,16 @@ const RequestDetailContent: React.FC<{ request: any; selectedField: string }> = 
                 )}
               </div>
             </div>
+            
             {/* Enhanced response body display with status explanation */}
             {isStatusOnlyResponse(responseBody) ? (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
+                      <span className="text-yellow-600 text-sm">ðŸ“„</span>
+                    </div>
+                  </div>
                   <div className="flex-1">
                     <h4 className="text-sm font-medium text-yellow-800 mb-1">Response Content Not Available</h4>
                     <p className="text-sm text-yellow-700 mb-2">{getBodyExplanation(responseBody, request.status)}</p>
@@ -508,12 +471,13 @@ const RequestDetailContent: React.FC<{ request: any; selectedField: string }> = 
                       {responseBody}
                     </div>
                     <div className="mt-2 text-xs text-yellow-600">
-                      <p>The server returned a simple status message instead of structured data. This is common for:</p>
-                      <ul className="list-disc list-inside mt-1 space-y-1">
-                        <li>Authentication endpoints (login/logout)</li>
-                        <li>File upload confirmations</li>
-                        <li>Error responses with minimal content</li>
-                        <li>Redirect responses</li>
+                      <p><strong>Common reasons:</strong></p>
+                      <ul className="list-disc list-inside space-y-1 mt-1">
+                        <li>HTTPS encrypted responses</li>
+                        <li>Binary content (images, files, etc.)</li>
+                        <li>Compressed responses (gzip, deflate)</li>
+                        <li>Protected API endpoints</li>
+                        <li>Non-text content types</li>
                       </ul>
                     </div>
                   </div>
@@ -934,7 +898,7 @@ const TokenDetailContent: React.FC<{ tokenEvent: any; selectedField: string }> =
 
   const formatGitStyleHash = (hash: string): string => {
     if (hash.length < 8) return hash; // If hash is too short, return as-is
-    return hash.slice(0, 4) + "…" + hash.slice(-4);
+    return hash.slice(0, 4) + "â€¦" + hash.slice(-4);
   };
 
   if (selectedField === 'details') {
@@ -1087,7 +1051,7 @@ const Dashboard: React.FC = () => {
   // Carousel state for table navigation
   const [currentTableIndex, setCurrentTableIndex] = useState(0);
   const tableNames = ['Network Requests', 'Console Errors', 'Token Events'];
-  const tableIcons = ['🌐', '❌', '🔑'];
+  const tableIcons = ['ðŸŒ', 'âŒ', 'ðŸ”‘'];
   const tableDescriptions = [
     'Global requests from all tabs (Popup shows current tab only)',
     'JavaScript errors and warnings from monitored tabs',
@@ -1128,7 +1092,7 @@ const Dashboard: React.FC = () => {
 
   const formatGitStyleHash = (hash: string): string => {
     if (hash.length < 8) return hash; // If hash is too short, return as-is
-    return hash.slice(0, 4) + "…" + hash.slice(-4);
+    return hash.slice(0, 4) + "â€¦" + hash.slice(-4);
   };
 
   useEffect(() => {
@@ -1148,7 +1112,7 @@ const Dashboard: React.FC = () => {
         );
         
         if (hasTabLoggingChanges) {
-          console.log('📡 DASHBOARD: Tab logging states changed, updating sidebar...');
+          console.log('ðŸ“¡ DASHBOARD: Tab logging states changed, updating sidebar...');
           loadTabsLoggingStatus(); // Refresh the tab statuses
         }
       }
@@ -1165,14 +1129,14 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     // Set up periodic refresh every 5 seconds when dashboard is active
     const refreshInterval = setInterval(() => {
-      console.log('🔄 DASHBOARD: Periodic data refresh...');
+      console.log('ðŸ”„ DASHBOARD: Periodic data refresh...');
       loadDashboardData();
     }, 5000);
 
     // Listen for background script notifications about new data
     const handleBackgroundMessages = (message: any, _sender: any, _sendResponse: any) => {
       if (message.type === 'DATA_UPDATED') {
-        console.log('📡 DASHBOARD: Received data update notification:', message.dataType);
+        console.log('ðŸ“¡ DASHBOARD: Received data update notification:', message.dataType);
         loadDashboardData();
       }
     };
@@ -1335,7 +1299,7 @@ const Dashboard: React.FC = () => {
 
   const clearData = async () => {
     const confirmed = window.confirm(
-      '⚠️ WARNING: This will permanently delete all recorded network requests, console errors, token events, and reset all tab counters.\n\n' +
+      'âš ï¸ WARNING: This will permanently delete all recorded network requests, console errors, token events, and reset all tab counters.\n\n' +
       'This action cannot be undone. Are you sure you want to continue?'
     );
     
@@ -1374,11 +1338,11 @@ const Dashboard: React.FC = () => {
         setCurrentPage(1);
         
         // Show success message
-        alert('✅ All network request, console error, and token event data have been cleared successfully.');
+        alert('âœ… All network request, console error, and token event data have been cleared successfully.');
         
       } catch (error) {
         console.error('Error clearing data:', error);
-        alert('❌ Failed to clear data. Please try again.');
+        alert('âŒ Failed to clear data. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -2143,14 +2107,14 @@ const Dashboard: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-5">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold">📊</span>
+                  <span className="text-white font-bold">ðŸ“Š</span>
                 </div>
               </div>
               <div className="ml-4">
@@ -2348,7 +2312,7 @@ const Dashboard: React.FC = () => {
                             Method
                             {sortConfig.key === 'method' && (
                               <span className="ml-1">
-                                {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                                {sortConfig.direction === 'asc' ? 'â†‘' : 'â†“'}
                               </span>
                             )}
                           </div>
@@ -2361,7 +2325,7 @@ const Dashboard: React.FC = () => {
                             URL
                             {sortConfig.key === 'url' && (
                               <span className="ml-1">
-                                {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                                {sortConfig.direction === 'asc' ? 'â†‘' : 'â†“'}
                               </span>
                             )}
                           </div>
@@ -2374,7 +2338,7 @@ const Dashboard: React.FC = () => {
                             Status
                             {sortConfig.key === 'status' && (
                               <span className="ml-1">
-                                {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                                {sortConfig.direction === 'asc' ? 'â†‘' : 'â†“'}
                               </span>
                             )}
                           </div>
@@ -2387,7 +2351,7 @@ const Dashboard: React.FC = () => {
                             Size
                             {sortConfig.key === 'payload_size' && (
                               <span className="ml-1">
-                                {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                                {sortConfig.direction === 'asc' ? 'â†‘' : 'â†“'}
                               </span>
                             )}
                           </div>
@@ -2400,7 +2364,7 @@ const Dashboard: React.FC = () => {
                             Time
                             {sortConfig.key === 'timestamp' && (
                               <span className="ml-1">
-                                {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                                {sortConfig.direction === 'asc' ? 'â†‘' : 'â†“'}
                               </span>
                             )}
                           </div>
@@ -2416,7 +2380,7 @@ const Dashboard: React.FC = () => {
                             Response Time
                             {sortConfig.key === 'response_time' && (
                               <span className="ml-1">
-                                {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                                {sortConfig.direction === 'asc' ? 'â†‘' : 'â†“'}
                               </span>
                             )}
                           </div>
@@ -2467,48 +2431,28 @@ const Dashboard: React.FC = () => {
                             <div className="truncate max-w-xs">
                               {(() => {
                                 try {
-                                  let requestHeaders: any = {};
-                                  let responseHeaders: any = {};
-                                  
-                                  // Use same robust header parsing logic as detail view
-                                  if (request.headers) {
-                                    const headerData = typeof request.headers === 'string' ? JSON.parse(request.headers) : request.headers;
-                                    requestHeaders = headerData.request || {};
-                                    responseHeaders = headerData.response || {};
-                                  }
-                                  // Fallback to old format
-                                  else {
-                                    if (request.request_headers) {
-                                      requestHeaders = typeof request.request_headers === 'string' ? JSON.parse(request.request_headers) : request.request_headers;
-                                    }
-                                    if (request.response_headers) {
-                                      responseHeaders = typeof request.response_headers === 'string' ? JSON.parse(request.response_headers) : request.response_headers;
-                                    }
-                                  }
-                                  
-                                  // Combine both request and response headers for preview
-                                  const allHeaders: any = { ...requestHeaders, ...responseHeaders };
+                                  const headerData = request.headers ? JSON.parse(request.headers) : {};
+                                  const requestHeaders = headerData.request || {};
                                   
                                   // Priority headers to show in preview
                                   const priorityHeaders = ['content-type', 'authorization', 'accept', 'user-agent', 'x-api-key'];
                                   
                                   for (const priority of priorityHeaders) {
-                                    if (allHeaders[priority]) {
-                                      const value = String(allHeaders[priority]);
+                                    if (requestHeaders[priority]) {
+                                      const value = String(requestHeaders[priority]);
                                       return `${priority}: ${value.substring(0, 30)}${value.length > 30 ? '...' : ''}`;
                                     }
                                   }
                                   
                                   // If no priority headers, show first available header
-                                  const firstHeader = Object.entries(allHeaders)[0];
+                                  const firstHeader = Object.entries(requestHeaders)[0];
                                   if (firstHeader) {
                                     const value = String(firstHeader[1]);
                                     return `${firstHeader[0]}: ${value.substring(0, 30)}${value.length > 30 ? '...' : ''}`;
                                   }
                                   
                                   return 'No headers';
-                                } catch (e) {
-                                  console.error('Error parsing headers for preview:', e);
+                                } catch {
                                   return 'Invalid headers';
                                 }
                               })()}
@@ -2590,7 +2534,7 @@ const Dashboard: React.FC = () => {
             ) : (
               <div className="text-center py-8">
                 <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-                  <span className="text-2xl">🌐</span>
+                  <span className="text-2xl">ðŸŒ</span>
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No network requests yet</h3>
                 <p className="text-gray-500">Network requests will appear here once you enable logging on specific tabs via the popup.</p>
@@ -2685,7 +2629,7 @@ const Dashboard: React.FC = () => {
                             Severity
                             {errorSortConfig.key === 'severity' && (
                               <span className="ml-1">
-                                {errorSortConfig.direction === 'asc' ? '↑' : '↓'}
+                                {errorSortConfig.direction === 'asc' ? 'â†‘' : 'â†“'}
                               </span>
                             )}
                           </div>
@@ -2698,7 +2642,7 @@ const Dashboard: React.FC = () => {
                             Message
                             {errorSortConfig.key === 'message' && (
                               <span className="ml-1">
-                                {errorSortConfig.direction === 'asc' ? '↑' : '↓'}
+                                {errorSortConfig.direction === 'asc' ? 'â†‘' : 'â†“'}
                               </span>
                             )}
                           </div>
@@ -2711,7 +2655,7 @@ const Dashboard: React.FC = () => {
                             URL
                             {errorSortConfig.key === 'url' && (
                               <span className="ml-1">
-                                {errorSortConfig.direction === 'asc' ? '↑' : '↓'}
+                                {errorSortConfig.direction === 'asc' ? 'â†‘' : 'â†“'}
                               </span>
                             )}
                           </div>
@@ -2724,7 +2668,7 @@ const Dashboard: React.FC = () => {
                             Time
                             {errorSortConfig.key === 'timestamp' && (
                               <span className="ml-1">
-                                {errorSortConfig.direction === 'asc' ? '↑' : '↓'}
+                                {errorSortConfig.direction === 'asc' ? 'â†‘' : 'â†“'}
                               </span>
                             )}
                           </div>
@@ -2834,7 +2778,7 @@ const Dashboard: React.FC = () => {
             ) : (
               <div className="text-center py-8">
                 <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-                  <span className="text-2xl">⚠️</span>
+                  <span className="text-2xl">âš ï¸</span>
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No console errors yet</h3>
                 <p className="text-gray-500">Console errors will appear here once you enable error logging on specific tabs via the popup.</p>
@@ -2929,7 +2873,7 @@ const Dashboard: React.FC = () => {
                             Event Type
                             {tokenSortConfig.key === 'type' && (
                               <span className="ml-1">
-                                {tokenSortConfig.direction === 'asc' ? '↑' : '↓'}
+                                {tokenSortConfig.direction === 'asc' ? 'â†‘' : 'â†“'}
                               </span>
                             )}
                           </div>
@@ -2942,7 +2886,7 @@ const Dashboard: React.FC = () => {
                             Token Type
                             {tokenSortConfig.key === 'token_type' && (
                               <span className="ml-1">
-                                {tokenSortConfig.direction === 'asc' ? '↑' : '↓'}
+                                {tokenSortConfig.direction === 'asc' ? 'â†‘' : 'â†“'}
                               </span>
                             )}
                           </div>
@@ -2955,7 +2899,7 @@ const Dashboard: React.FC = () => {
                             URL
                             {tokenSortConfig.key === 'url' && (
                               <span className="ml-1">
-                                {tokenSortConfig.direction === 'asc' ? '↑' : '↓'}
+                                {tokenSortConfig.direction === 'asc' ? 'â†‘' : 'â†“'}
                               </span>
                             )}
                           </div>
@@ -2968,7 +2912,7 @@ const Dashboard: React.FC = () => {
                             Status
                             {tokenSortConfig.key === 'status' && (
                               <span className="ml-1">
-                                {tokenSortConfig.direction === 'asc' ? '↑' : '↓'}
+                                {tokenSortConfig.direction === 'asc' ? 'â†‘' : 'â†“'}
                               </span>
                             )}
                           </div>
@@ -2981,7 +2925,7 @@ const Dashboard: React.FC = () => {
                             Method
                             {tokenSortConfig.key === 'method' && (
                               <span className="ml-1">
-                                {tokenSortConfig.direction === 'asc' ? '↑' : '↓'}
+                                {tokenSortConfig.direction === 'asc' ? 'â†‘' : 'â†“'}
                               </span>
                             )}
                           </div>
@@ -2994,7 +2938,7 @@ const Dashboard: React.FC = () => {
                             Value Hash
                             {tokenSortConfig.key === 'value_hash' && (
                               <span className="ml-1">
-                                {tokenSortConfig.direction === 'asc' ? '↑' : '↓'}
+                                {tokenSortConfig.direction === 'asc' ? 'â†‘' : 'â†“'}
                               </span>
                             )}
                           </div>
@@ -3007,7 +2951,7 @@ const Dashboard: React.FC = () => {
                             Expiry
                             {tokenSortConfig.key === 'expiry' && (
                               <span className="ml-1">
-                                {tokenSortConfig.direction === 'asc' ? '↑' : '↓'}
+                                {tokenSortConfig.direction === 'asc' ? 'â†‘' : 'â†“'}
                               </span>
                             )}
                           </div>
@@ -3020,7 +2964,7 @@ const Dashboard: React.FC = () => {
                             Time
                             {tokenSortConfig.key === 'timestamp' && (
                               <span className="ml-1">
-                                {tokenSortConfig.direction === 'asc' ? '↑' : '↓'}
+                                {tokenSortConfig.direction === 'asc' ? 'â†‘' : 'â†“'}
                               </span>
                             )}
                           </div>
@@ -3053,14 +2997,14 @@ const Dashboard: React.FC = () => {
                               {(() => {
                                 const analysis = analyzeTokenEvent(event);
                                 const type = analysis.type;
-                                if (type === 'login') return '� Login';
-                                if (type === 'logout') return '🔒 Logout';
-                                if (type === 'refresh') return '🔄 Refresh';
-                                if (type === 'expired') return '⏰ Expired';
-                                if (type === 'acquire') return '🔐 Acquire';
-                                if (type === 'refresh_error') return '❌ Refresh Error';
-                                if (type === 'api_call') return '📡 API Call';
-                                return `🔐 ${type}`;
+                                if (type === 'login') return 'ï¿½ Login';
+                                if (type === 'logout') return 'ðŸ”’ Logout';
+                                if (type === 'refresh') return 'ðŸ”„ Refresh';
+                                if (type === 'expired') return 'â° Expired';
+                                if (type === 'acquire') return 'ðŸ” Acquire';
+                                if (type === 'refresh_error') return 'âŒ Refresh Error';
+                                if (type === 'api_call') return 'ðŸ“¡ API Call';
+                                return `ðŸ” ${type}`;
                               })()}
                             </span>
                           </td>
@@ -3100,11 +3044,11 @@ const Dashboard: React.FC = () => {
                               {(() => {
                                 const analysis = analyzeTokenEvent(event);
                                 const tokenType = analysis.tokenType;
-                                if (tokenType === 'JWT') return '🎫 JWT';
-                                if (tokenType === 'Bearer') return '🔐 Bearer';
-                                if (tokenType === 'Basic') return '� Basic';
-                                if (tokenType === 'Session') return '🍪 Session';
-                                if (tokenType === 'API Key') return '�️ API Key';
+                                if (tokenType === 'JWT') return 'ðŸŽ« JWT';
+                                if (tokenType === 'Bearer') return 'ðŸ” Bearer';
+                                if (tokenType === 'Basic') return 'ï¿½ Basic';
+                                if (tokenType === 'Session') return 'ðŸª Session';
+                                if (tokenType === 'API Key') return 'ï¿½ï¸ API Key';
                                 return tokenType || 'Unknown';
                               })()}
                             </span>
@@ -3141,10 +3085,38 @@ const Dashboard: React.FC = () => {
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {event.expiry ? 
-                              new Date(event.expiry * 1000).toLocaleString() : 
+                            {event.expiry ? (
+                              <div>
+                                <div>{new Date(event.expiry * 1000).toLocaleString()}</div>
+                                <div className="text-xs text-gray-400">
+                                  {(() => {
+                                    const now = Date.now();
+                                    const expiryTime = event.expiry * 1000;
+                                    const timeRemaining = expiryTime - now;
+                                    
+                                    if (timeRemaining <= 0) {
+                                      return <span className="text-red-500">âš ï¸ Expired</span>;
+                                    }
+                                    
+                                    const days = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
+                                    const hours = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                                    const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
+                                    
+                                    if (days > 0) {
+                                      return `${days}d ${hours}h remaining`;
+                                    } else if (hours > 0) {
+                                      return `${hours}h ${minutes}m remaining`;
+                                    } else if (minutes > 0) {
+                                      return `${minutes}m remaining`;
+                                    } else {
+                                      return <span className="text-orange-500">â° Expires soon</span>;
+                                    }
+                                  })()}
+                                </div>
+                              </div>
+                            ) : (
                               'No expiry'
-                            }
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {new Date(event.timestamp).toLocaleTimeString()}
@@ -3221,7 +3193,7 @@ const Dashboard: React.FC = () => {
             ) : (
               <div className="text-center py-8">
                 <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-                  <span className="text-2xl">🔐</span>
+                  <span className="text-2xl">ðŸ”</span>
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No token events yet</h3>
                 <p className="text-gray-500">Token events will appear here when authentication, login, or token refresh activities are detected.</p>
@@ -3282,10 +3254,11 @@ const Dashboard: React.FC = () => {
                   >
                     {getAvailableFields().map((field) => (
                       <option key={field} value={field}>
-                        {field === 'details' && '📋 Details'}
-                        {field === 'body' && '� Body'}
-                        {field === 'headers' && '🏷️ Headers'}
-                        {field === 'stack' && '📚 Stack Trace'}
+                        {field === 'details' && 'ðŸ“‹ Details'}
+                        {field === 'body' && '📄 Body'}
+                        {field === 'headers' && 'ðŸ·ï¸ Headers'}
+                        {field === 'stack' && 'ðŸ“š Stack Trace'}
+                        {!['details', 'body', 'headers', 'stack'].includes(field) && `ðŸ“ ${field.charAt(0).toUpperCase() + field.slice(1)}`}
                       </option>
                     ))}
                   </select>
@@ -3336,3 +3309,4 @@ if (container) {
   const root = createRoot(container);
   root.render(<Dashboard />);
 }
+

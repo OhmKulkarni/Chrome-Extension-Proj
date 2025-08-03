@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JWT Token Expiry Testing</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background-color: #fafafa;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #0066cc;
+        }
+        button {
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 8px;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #0052a3;
+        }
+        .results {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 6px;
+            background-color: #f0f0f0;
+            border-left: 4px solid #0066cc;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .info {
+            background-color: #e7f3ff;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #0066cc;
+        }
+        .warning {
+            background-color: #fff3cd;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 JWT Token Expiry Testing</h1>
+        
+        <div class="info">
+            <strong>📋 Instructions:</strong>
+            <br>1. Make sure the Chrome extension is enabled and logging is active
+            <br>2. Click the test buttons below to simulate JWT token requests
+            <br>3. Check the Dashboard > Token Events section to see captured expiry information
+            <br>4. Different tests will show tokens with various expiry times
+        </div>
+
+        <div class="test-section">
+            <h3>🎫 JWT Access Token Tests</h3>
+            <p>These tests simulate JWT access tokens with different expiry times:</p>
+            
+            <button onclick="testJWTToken('short')">Test Short-lived Token (5 minutes)</button>
+            <button onclick="testJWTToken('medium')">Test Medium-lived Token (1 hour)</button>
+            <button onclick="testJWTToken('long')">Test Long-lived Token (24 hours)</button>
+            
+            <div id="jwt-results" class="results" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔄 JWT Refresh Token Tests</h3>
+            <p>These tests simulate JWT refresh tokens with longer expiry times:</p>
+            
+            <button onclick="testRefreshToken('week')">Test Weekly Refresh Token</button>
+            <button onclick="testRefreshToken('month')">Test Monthly Refresh Token</button>
+            
+            <div id="refresh-results" class="results" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>⚠️ Expired Token Tests</h3>
+            <p>These tests simulate already expired tokens:</p>
+            
+            <button onclick="testExpiredToken()">Test Expired Token (past expiry)</button>
+            <button onclick="testNearExpiredToken()">Test Near-Expired Token (1 minute left)</button>
+            
+            <div id="expired-results" class="results" style="display: none;"></div>
+        </div>
+
+        <div class="warning">
+            <strong>🔒 Privacy Note:</strong> These tests use mock JWT tokens for testing purposes only. The actual token content is never stored - only the expiry timestamp is extracted and stored.
+        </div>
+    </div>
+
+    <script>
+        // Utility function to create a mock JWT token with specified expiry
+        function createMockJWT(expiryInSeconds) {
+            const header = {
+                "alg": "HS256",
+                "typ": "JWT"
+            };
+            
+            const now = Math.floor(Date.now() / 1000);
+            const payload = {
+                "sub": "1234567890",
+                "name": "Test User",
+                "iat": now,
+                "exp": now + expiryInSeconds
+            };
+            
+            // Base64 encode (mock - this is just for testing)
+            const headerB64 = btoa(JSON.stringify(header));
+            const payloadB64 = btoa(JSON.stringify(payload));
+            const signature = "mock_signature_for_testing";
+            
+            return `${headerB64}.${payloadB64}.${signature}`;
+        }
+
+        function updateResults(elementId, message) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.textContent = message;
+        }
+
+        async function testJWTToken(duration) {
+            let expirySeconds;
+            let description;
+            
+            switch(duration) {
+                case 'short':
+                    expirySeconds = 5 * 60; // 5 minutes
+                    description = '5-minute token';
+                    break;
+                case 'medium':
+                    expirySeconds = 60 * 60; // 1 hour
+                    description = '1-hour token';
+                    break;
+                case 'long':
+                    expirySeconds = 24 * 60 * 60; // 24 hours
+                    description = '24-hour token';
+                    break;
+            }
+            
+            const mockJWT = createMockJWT(expirySeconds);
+            const expiry = new Date((Math.floor(Date.now() / 1000) + expirySeconds) * 1000);
+            
+            try {
+                const response = await fetch('https://httpbin.org/post', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${mockJWT}`
+                    },
+                    body: JSON.stringify({
+                        grant_type: 'authorization_code',
+                        test_type: 'jwt_access_token',
+                        duration: description
+                    })
+                });
+
+                updateResults('jwt-results', 
+                    `✅ JWT Access Token Test (${description}) completed!\n` +
+                    `Status: ${response.status}\n` +
+                    `Token Expiry: ${expiry.toLocaleString()}\n` +
+                    `Time until expiry: ${Math.floor(expirySeconds / 60)} minutes\n` +
+                    `Check the dashboard for the token event with expiry information!`
+                );
+            } catch (error) {
+                updateResults('jwt-results', `❌ Error: ${error.message}`);
+            }
+        }
+
+        async function testRefreshToken(duration) {
+            let expirySeconds;
+            let description;
+            
+            switch(duration) {
+                case 'week':
+                    expirySeconds = 7 * 24 * 60 * 60; // 7 days
+                    description = '7-day refresh token';
+                    break;
+                case 'month':
+                    expirySeconds = 30 * 24 * 60 * 60; // 30 days
+                    description = '30-day refresh token';
+                    break;
+            }
+            
+            const mockJWT = createMockJWT(expirySeconds);
+            const expiry = new Date((Math.floor(Date.now() / 1000) + expirySeconds) * 1000);
+            
+            try {
+                const response = await fetch('https://httpbin.org/refresh', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${mockJWT}`
+                    },
+                    body: JSON.stringify({
+                        grant_type: 'refresh_token',
+                        test_type: 'jwt_refresh_token',
+                        duration: description
+                    })
+                });
+
+                updateResults('refresh-results', 
+                    `✅ JWT Refresh Token Test (${description}) completed!\n` +
+                    `Status: ${response.status}\n` +
+                    `Token Expiry: ${expiry.toLocaleString()}\n` +
+                    `Time until expiry: ${Math.floor(expirySeconds / (24 * 60 * 60))} days\n` +
+                    `Check the dashboard for the refresh token event with expiry information!`
+                );
+            } catch (error) {
+                updateResults('refresh-results', `❌ Error: ${error.message}`);
+            }
+        }
+
+        async function testExpiredToken() {
+            // Create a token that expired 1 hour ago
+            const expiredSeconds = -60 * 60; // -1 hour
+            const mockJWT = createMockJWT(expiredSeconds);
+            const expiry = new Date((Math.floor(Date.now() / 1000) + expiredSeconds) * 1000);
+            
+            try {
+                const response = await fetch('https://httpbin.org/auth', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${mockJWT}`
+                    },
+                    body: JSON.stringify({
+                        grant_type: 'authorization_code',
+                        test_type: 'expired_jwt_token'
+                    })
+                });
+
+                updateResults('expired-results', 
+                    `✅ Expired Token Test completed!\n` +
+                    `Status: ${response.status}\n` +
+                    `Token Expiry: ${expiry.toLocaleString()} (EXPIRED)\n` +
+                    `Expired: 1 hour ago\n` +
+                    `Check the dashboard - should show "⚠️ Expired" in the expiry column!`
+                );
+            } catch (error) {
+                updateResults('expired-results', `❌ Error: ${error.message}`);
+            }
+        }
+
+        async function testNearExpiredToken() {
+            // Create a token that expires in 1 minute
+            const nearExpirySeconds = 60; // 1 minute
+            const mockJWT = createMockJWT(nearExpirySeconds);
+            const expiry = new Date((Math.floor(Date.now() / 1000) + nearExpirySeconds) * 1000);
+            
+            try {
+                const response = await fetch('https://httpbin.org/token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${mockJWT}`
+                    },
+                    body: JSON.stringify({
+                        grant_type: 'authorization_code',
+                        test_type: 'near_expired_jwt_token'
+                    })
+                });
+
+                updateResults('expired-results', 
+                    `✅ Near-Expired Token Test completed!\n` +
+                    `Status: ${response.status}\n` +
+                    `Token Expiry: ${expiry.toLocaleString()}\n` +
+                    `Time until expiry: 1 minute\n` +
+                    `Check the dashboard - should show "⏰ Expires soon" in the expiry column!`
+                );
+            } catch (error) {
+                updateResults('expired-results', `❌ Error: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>

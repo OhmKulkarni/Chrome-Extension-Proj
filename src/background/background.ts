@@ -184,6 +184,46 @@ async function generateTokenHash(url: string, timestamp: string, tokenType: stri
   return longHash.slice(0, 40); // Return a 40-character hex string like SHA-1
 }
 
+// Helper function to extract expiry from JWT token in headers
+function extractTokenExpiry(headers: any): number | undefined {
+  if (!headers || typeof headers !== 'object') return undefined;
+  
+  // Parse headers if they're stored as JSON string
+  let headersObj = headers;
+  if (typeof headers === 'string') {
+    try {
+      headersObj = JSON.parse(headers);
+    } catch {
+      return undefined;
+    }
+  }
+  
+  const authHeader = headersObj.authorization || headersObj.Authorization || '';
+  
+  // Check for Bearer token (most common for JWT)
+  if (authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    
+    // Check if it's a JWT (3 parts separated by dots)
+    if (token.split('.').length === 3) {
+      try {
+        // Decode JWT payload (second part)
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        
+        // Extract expiry timestamp (standard 'exp' claim)
+        if (payload.exp && typeof payload.exp === 'number') {
+          console.log('🔐 JWT expiry extracted:', new Date(payload.exp * 1000));
+          return payload.exp; // JWT exp is in seconds since epoch
+        }
+      } catch (error) {
+        console.log('🔐 Failed to decode JWT for expiry:', error);
+      }
+    }
+  }
+  
+  return undefined;
+}
+
 // Utility function to detect token events from network requests
 async function detectTokenEvent(requestData: any): Promise<TokenEvent | null> {
   const { url, method, status } = requestData;
@@ -206,6 +246,9 @@ async function detectTokenEvent(requestData: any): Promise<TokenEvent | null> {
     });
   }
   
+  // Extract expiry information from JWT tokens in headers
+  const expiry = extractTokenExpiry(requestData.headers);
+  
   // Detect token acquisition (successful auth requests)
   if (method === 'POST' && status >= 200 && status < 300 && isTokenEndpoint(url, 'acquire')) {
     console.log('✅ Token acquisition detected:', url);
@@ -218,7 +261,8 @@ async function detectTokenEvent(requestData: any): Promise<TokenEvent | null> {
       status,
       timestamp,
       source_url,
-      value_hash: valueHash
+      value_hash: valueHash,
+      expiry
     };
   }
   
@@ -235,7 +279,8 @@ async function detectTokenEvent(requestData: any): Promise<TokenEvent | null> {
         status,
         timestamp,
         source_url,
-        value_hash: valueHash
+        value_hash: valueHash,
+        expiry
       };
     } else if (status >= 400) {
       console.log('❌ Token refresh error detected:', url);
@@ -247,7 +292,8 @@ async function detectTokenEvent(requestData: any): Promise<TokenEvent | null> {
         status,
         timestamp,
         source_url,
-        value_hash: 'refresh_error'
+        value_hash: 'refresh_error',
+        expiry
       };
     }
   }
@@ -261,7 +307,8 @@ async function detectTokenEvent(requestData: any): Promise<TokenEvent | null> {
       status,
       timestamp,
       source_url,
-      value_hash: 'expired'
+      value_hash: 'expired',
+      expiry
     };
   }
   
