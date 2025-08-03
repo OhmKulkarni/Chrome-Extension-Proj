@@ -5,6 +5,27 @@ console.log('✅ CONTENT: Script loaded on:', window.location.href);
 const isReddit = window.location.hostname.includes('reddit.com');
 console.log('📍 CONTENT: Is Reddit?', isReddit);
 
+// Check if extension should be active on this site
+function shouldInterceptOnThisSite(): boolean {
+  const hostname = window.location.hostname;
+  
+  // For now, only intercept on reddit.com
+  // TODO: Make this configurable in settings
+  if (hostname.includes('reddit.com')) {
+    return true;
+  }
+  
+  // Allow on test pages and localhost for development
+  if (hostname.includes('localhost') || 
+      hostname.includes('127.0.0.1') || 
+      hostname.includes('httpbin.org') ||
+      hostname === '') {
+    return true;
+  }
+  
+  return false;
+}
+
 // Track extension context validity
 let extensionContextValid = true;
 let injectionAttempted = false;
@@ -63,13 +84,19 @@ async function injectMainWorldScript() {
   
   injectionAttempted = true;
   
+  // Check if we should intercept on this site
+  if (!shouldInterceptOnThisSite()) {
+    console.log('🚫 CONTENT: Site not enabled for interception:', window.location.hostname);
+    return false;
+  }
+  
   try {
     if (!isExtensionContextValid()) {
       console.log('❌ CONTENT: Extension context invalid, cannot inject');
       return false;
     }
     
-    console.log('🌍 CONTENT: Injecting main world network interception...');
+    console.log('🌍 CONTENT: Injecting main world network interception on allowed site...');
     
     // Use web_accessible_resources script instead of inline injection
     return await tryWebAccessibleInjection();

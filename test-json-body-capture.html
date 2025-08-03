@@ -47,11 +47,15 @@
         <h3>🔧 Setup Instructions:</h3>
         <ol>
             <li>Load the extension from the <strong>dist</strong> folder</li>
-            <li>The extension automatically captures request and response bodies (up to 1000 characters each)</li>
+            <li>Go to Extension Settings → Network Interception → Body Capture → <strong>Body Size Limit</strong></li>
+            <li>Choose your preferred truncation limit (default: 2,000 characters, or "No limit" for full capture)</li>
             <li>Click any test button below</li>
             <li>Open the Extension Dashboard → Click on the request → Select <strong>"body"</strong> from dropdown</li>
-            <li>You should see the complete JSON request and response bodies!</li>
+            <li>You should see JSON request and response bodies up to your configured limit!</li>
         </ol>
+        <div style="background: #fff3cd; padding: 10px; border-radius: 4px; margin-top: 10px;">
+            <strong>💡 Tip:</strong> Higher truncation limits may impact performance. Start with 2,000 characters and increase if needed.
+        </div>
     </div>
     
     <div class="test-section">
@@ -274,11 +278,12 @@
         console.log('');
         console.log('🔍 How to verify:');
         console.log('1. Load the extension from the dist folder');
-        console.log('2. Click any test button above');
-        console.log('3. Open extension dashboard and click on the request');
-        console.log('4. Select "body" from the dropdown');
-        console.log('5. You should see both request and response JSON bodies (up to 1000 chars each)');
-        console.log('6. Look for substantial JSON content instead of just "Status: 200"');
+        console.log('2. Configure body size limit in Extension Settings (default: 2,000 characters)');
+        console.log('3. Click any test button above');
+        console.log('4. Open extension dashboard and click on the request');
+        console.log('5. Select "body" from the dropdown');
+        console.log('6. You should see JSON bodies up to your configured character limit');
+        console.log('7. For testing larger responses, set "No limit" in settings');
     </script>
 </body>
 </html>

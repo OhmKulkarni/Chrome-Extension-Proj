@@ -22,6 +22,16 @@ try {
   console.log('🌍 MAIN-WORLD: Could not get settings, using defaults:', error);
 }
 
+// Helper function to safely extract domain from URL
+function getSafeDomain(url) {
+  try {
+    return new URL(url).hostname;
+  } catch (error) {
+    console.log('🌍 MAIN-WORLD: Invalid URL, using fallback domain:', url);
+    return window.location.hostname || 'unknown';
+  }
+}
+
 // Helper function to truncate body based on settings
 function truncateBody(text, maxSize = extensionSettings.maxBodySize) {
   if (!text) return null;
@@ -85,7 +95,7 @@ window.fetch = function(input, init) {
       url: url,
       method: init?.method || 'GET',
       timestamp: new Date().toISOString(),
-      domain: new URL(url).hostname,
+      domain: getSafeDomain(url),
       status: response.status,
       statusText: response.statusText,
       duration: endTime - startTime,
@@ -159,7 +169,7 @@ XMLHttpRequest.prototype.send = function(body) {
         url: this._interceptData.url,
         method: this._interceptData.method,
         timestamp: new Date().toISOString(),
-        domain: new URL(this._interceptData.url).hostname,
+        domain: getSafeDomain(this._interceptData.url),
         status: this.status,
         statusText: this.statusText,
         duration: endTime - this._interceptData.startTime,
