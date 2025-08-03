@@ -1,4 +1,4 @@
-// src/dashboard/dashboard.tsx
+﻿// src/dashboard/dashboard.tsx
 // This file contains the React component for the Chrome extension dashboard.
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -3283,7 +3283,7 @@ const Dashboard: React.FC = () => {
                     {getAvailableFields().map((field) => (
                       <option key={field} value={field}>
                         {field === 'details' && '📋 Details'}
-                        {field === 'body' && '� Body'}
+                        {field === 'body' && '📄 Body'}
                         {field === 'headers' && '🏷️ Headers'}
                         {field === 'stack' && '📚 Stack Trace'}
                       </option>
@@ -3336,3 +3336,4 @@ if (container) {
   const root = createRoot(container);
   root.render(<Dashboard />);
 }
+
