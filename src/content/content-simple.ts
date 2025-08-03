@@ -6,24 +6,70 @@ const isReddit = window.location.hostname.includes('reddit.com');
 console.log('📍 CONTENT: Is Reddit?', isReddit);
 
 // Check if extension should be active on this site
-function shouldInterceptOnThisSite(): boolean {
-  const hostname = window.location.hostname;
-  
-  // For now, only intercept on reddit.com
-  // TODO: Make this configurable in settings
-  if (hostname.includes('reddit.com')) {
-    return true;
+async function shouldInterceptOnThisSite(): Promise<boolean> {
+  try {
+    // Get current settings from storage
+    const result = await chrome.storage.sync.get(['networkInterception']);
+    const networkSettings = result.networkInterception;
+    
+    // If network interception is completely disabled, don't inject
+    if (!networkSettings?.enabled) {
+      console.log('🚫 CONTENT: Network interception disabled in settings');
+      return false;
+    }
+    
+    const hostname = window.location.hostname;
+    const currentUrl = window.location.href;
+    
+    // Always allow on localhost and test domains for development
+    if (hostname.includes('localhost') || 
+        hostname.includes('127.0.0.1') || 
+        hostname.includes('httpbin.org') ||
+        hostname === '') {
+      console.log('✅ CONTENT: Development/test site allowed:', hostname);
+      return true;
+    }
+    
+    // Check URL patterns if enabled
+    if (networkSettings?.urlPatterns?.enabled && networkSettings?.urlPatterns?.patterns) {
+      for (const pattern of networkSettings.urlPatterns.patterns) {
+        if (pattern.active) {
+          // Convert glob pattern to regex for matching
+          const regexPattern = pattern.pattern
+            .replace(/\*/g, '.*')
+            .replace(/\./g, '\\.');
+          
+          const regex = new RegExp(regexPattern);
+          
+          if (regex.test(currentUrl) || regex.test(hostname)) {
+            console.log('✅ CONTENT: URL matches enabled pattern:', pattern.pattern);
+            return true;
+          }
+        }
+      }
+    }
+    
+    // Fallback: if no URL patterns are configured but network interception is enabled,
+    // allow on reddit.com for backward compatibility
+    if (!networkSettings?.urlPatterns?.enabled || 
+        !networkSettings?.urlPatterns?.patterns?.length) {
+      if (hostname.includes('reddit.com')) {
+        console.log('✅ CONTENT: Reddit allowed (fallback behavior)');
+        return true;
+      }
+    }
+    
+    console.log('🚫 CONTENT: Site not enabled for interception:', hostname);
+    return false;
+    
+  } catch (error) {
+    console.log('❌ CONTENT: Error checking site settings:', error);
+    // Fallback to conservative behavior - only allow known safe domains
+    const hostname = window.location.hostname;
+    return hostname.includes('localhost') || 
+           hostname.includes('127.0.0.1') || 
+           hostname.includes('httpbin.org');
   }
-  
-  // Allow on test pages and localhost for development
-  if (hostname.includes('localhost') || 
-      hostname.includes('127.0.0.1') || 
-      hostname.includes('httpbin.org') ||
-      hostname === '') {
-    return true;
-  }
-  
-  return false;
 }
 
 // Track extension context validity
@@ -84,8 +130,9 @@ async function injectMainWorldScript() {
   
   injectionAttempted = true;
   
-  // Check if we should intercept on this site
-  if (!shouldInterceptOnThisSite()) {
+  // Check if we should intercept on this site (async check)
+  const shouldIntercept = await shouldInterceptOnThisSite();
+  if (!shouldIntercept) {
     console.log('🚫 CONTENT: Site not enabled for interception:', window.location.hostname);
     return false;
   }
