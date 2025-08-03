@@ -18,15 +18,24 @@ body {
 
 /* Detail Viewer Styles */
 .detail-viewer {
-  transition: height 0.3s ease-in-out;
+  transition: height 0.1s ease-out;
+}
+
+.detail-viewer.dragging {
+  transition: none; /* Remove transition during dragging for immediate feedback */
 }
 
 .detail-viewer-drag-handle {
-  transition: background-color 0.2s ease;
+  transition: all 0.15s ease;
 }
 
 .detail-viewer-drag-handle:hover {
   background-color: #d1d5db;
+}
+
+.detail-viewer-drag-handle.dragging {
+  background-color: #dbeafe;
+  border-top: 1px solid #93c5fd;
 }
 
 .detail-viewer-content {
