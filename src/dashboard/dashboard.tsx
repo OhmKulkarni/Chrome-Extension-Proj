@@ -757,6 +757,23 @@ const TokenDetailContent: React.FC<{ tokenEvent: any; selectedField: string }> =
     navigator.clipboard.writeText(text);
   };
 
+  // Helper function to format hash values in git-style
+  const formatHashValue = (hash: string | null | undefined): string => {
+    if (!hash) return 'N/A';
+    
+    // Handle special cases
+    if (hash === 'expired') return '⏰ Expired';
+    if (hash === 'redacted') return formatGitStyleHash(hash);
+    
+    // For normal hash values, use git-style format
+    return formatGitStyleHash(hash);
+  };
+
+  const formatGitStyleHash = (hash: string): string => {
+    if (hash.length < 8) return hash; // If hash is too short, return as-is
+    return hash.slice(0, 4) + "…" + hash.slice(-4);
+  };
+
   if (selectedField === 'details') {
     const analysis = analyzeTokenEvent(tokenEvent);
     
@@ -817,7 +834,7 @@ const TokenDetailContent: React.FC<{ tokenEvent: any; selectedField: string }> =
                 <div className="space-y-2">
                   <div>
                     <span className="text-xs text-gray-500">Value Hash:</span>
-                    <p className="text-xs text-gray-900 font-mono break-all bg-gray-100 p-2 rounded">{analysis.valueHash}</p>
+                    <p className="text-xs text-gray-900 font-mono break-all bg-gray-100 p-2 rounded">{formatHashValue(analysis.valueHash)}</p>
                   </div>
                   {analysis.expiry && (
                     <div>
@@ -925,6 +942,23 @@ const Dashboard: React.FC = () => {
 
   const goToTable = (index: number) => {
     setCurrentTableIndex(index);
+  };
+
+  // Helper function to format hash values in git-style
+  const formatHashValue = (hash: string | null | undefined): string => {
+    if (!hash) return 'N/A';
+    
+    // Handle special cases
+    if (hash === 'expired') return '⏰ Expired';
+    if (hash === 'redacted') return formatGitStyleHash(hash);
+    
+    // For normal hash values, use git-style format
+    return formatGitStyleHash(hash);
+  };
+
+  const formatGitStyleHash = (hash: string): string => {
+    if (hash.length < 8) return hash; // If hash is too short, return as-is
+    return hash.slice(0, 4) + "…" + hash.slice(-4);
   };
 
   useEffect(() => {
@@ -2979,7 +3013,7 @@ const Dashboard: React.FC = () => {
                           </td>
                           <td className="px-6 py-4">
                             <div className="text-xs text-gray-600 font-mono truncate max-w-xs" title={event.value_hash}>
-                              {event.value_hash ? event.value_hash.substring(0, 16) + '...' : 'N/A'}
+                              {formatHashValue(event.value_hash)}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
