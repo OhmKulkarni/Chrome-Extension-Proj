@@ -761,12 +761,19 @@ const TokenDetailContent: React.FC<{ tokenEvent: any; selectedField: string }> =
   const formatHashValue = (hash: string | null | undefined): string => {
     if (!hash) return 'N/A';
     
-    // Handle special cases
-    if (hash === 'expired') return '⏰ Expired';
-    if (hash === 'redacted') return formatGitStyleHash(hash);
+    // Handle special status cases - keep them as-is
+    if (hash === 'expired' || hash === 'redacted' || hash === 'N/A') {
+      return hash;
+    }
     
-    // For normal hash values, use git-style format
-    return formatGitStyleHash(hash);
+    // For actual hash values (typically long hex strings), use git-style format
+    // Only apply git-style formatting if it looks like a hash (long string, mostly hex characters)
+    if (hash.length > 16 && /^[a-fA-F0-9]+$/.test(hash)) {
+      return formatGitStyleHash(hash);
+    }
+    
+    // For other values, return as-is
+    return hash;
   };
 
   const formatGitStyleHash = (hash: string): string => {
@@ -948,12 +955,19 @@ const Dashboard: React.FC = () => {
   const formatHashValue = (hash: string | null | undefined): string => {
     if (!hash) return 'N/A';
     
-    // Handle special cases
-    if (hash === 'expired') return '⏰ Expired';
-    if (hash === 'redacted') return formatGitStyleHash(hash);
+    // Handle special status cases - keep them as-is
+    if (hash === 'expired' || hash === 'redacted' || hash === 'N/A') {
+      return hash;
+    }
     
-    // For normal hash values, use git-style format
-    return formatGitStyleHash(hash);
+    // For actual hash values (typically long hex strings), use git-style format
+    // Only apply git-style formatting if it looks like a hash (long string, mostly hex characters)
+    if (hash.length > 16 && /^[a-fA-F0-9]+$/.test(hash)) {
+      return formatGitStyleHash(hash);
+    }
+    
+    // For other values, return as-is
+    return hash;
   };
 
   const formatGitStyleHash = (hash: string): string => {
