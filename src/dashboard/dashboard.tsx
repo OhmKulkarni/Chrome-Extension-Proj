@@ -902,6 +902,29 @@ const Dashboard: React.FC = () => {
   const [detailViewerHeight, setDetailViewerHeight] = useState(300); // Default height in pixels
   const [isDragging, setIsDragging] = useState(false);
 
+  // Carousel state for table navigation
+  const [currentTableIndex, setCurrentTableIndex] = useState(0);
+  const tableNames = ['Network Requests', 'Console Errors', 'Token Events'];
+  const tableIcons = ['🌐', '❌', '🔑'];
+  const tableDescriptions = [
+    'Global requests from all tabs (Popup shows current tab only)',
+    'JavaScript errors and warnings from monitored tabs',
+    'Token detection and authentication events'
+  ];
+
+  // Carousel navigation functions
+  const nextTable = () => {
+    setCurrentTableIndex((prev) => (prev + 1) % tableNames.length);
+  };
+
+  const prevTable = () => {
+    setCurrentTableIndex((prev) => (prev - 1 + tableNames.length) % tableNames.length);
+  };
+
+  const goToTable = (index: number) => {
+    setCurrentTableIndex(index);
+  };
+
   useEffect(() => {
     loadDashboardData();
     loadTabsLoggingStatus();
@@ -2005,8 +2028,74 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
+        {/* Table Navigation */}
+        <div className="bg-white rounded-lg shadow mb-6">
+          <div className="p-4 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                {/* Navigation Tabs */}
+                <div className="flex bg-gray-100 rounded-lg p-1">
+                  {tableNames.map((tableName, index) => (
+                    <button
+                      key={index}
+                      onClick={() => goToTable(index)}
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                        currentTableIndex === index
+                          ? 'bg-white text-blue-600 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                      }`}
+                    >
+                      <span className="flex items-center space-x-2">
+                        <span>{tableIcons[index]}</span>
+                        <span>{tableName}</span>
+                        <span className={`inline-flex items-center justify-center px-2 py-1 text-xs font-medium rounded-full ${
+                          currentTableIndex === index
+                            ? 'bg-blue-100 text-blue-600'
+                            : 'bg-gray-200 text-gray-600'
+                        }`}>
+                          {index === 0 ? (data.networkRequests?.length || 0) : 
+                           index === 1 ? (data.consoleErrors?.length || 0) : 
+                           (data.tokenEvents?.length || 0)}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                
+                {/* Arrow Navigation */}
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={prevTable}
+                    className="p-2 rounded-md border border-gray-300 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+                    title="Previous table"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={nextTable}
+                    className="p-2 rounded-md border border-gray-300 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+                    title="Next table"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Current Table Info */}
+              <div className="text-right">
+                <h2 className="text-lg font-semibold text-gray-900">{tableNames[currentTableIndex]}</h2>
+                <p className="text-xs text-gray-500 mt-1">{tableDescriptions[currentTableIndex]}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Network Requests Section */}
-        <div className="bg-white rounded-lg shadow mb-8">
+        <div className={`bg-white rounded-lg shadow mb-8 ${currentTableIndex === 0 ? 'block' : 'hidden'}`}>
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
               <div>
@@ -2326,7 +2415,7 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Console Errors Section */}
-        <div className="bg-white rounded-lg shadow mb-8">
+        <div className={`bg-white rounded-lg shadow mb-8 ${currentTableIndex === 1 ? 'block' : 'hidden'}`}>
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
               <div>
@@ -2570,7 +2659,7 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Token Events Section */}
-        <div className="bg-white rounded-lg shadow mb-8">
+        <div className={`bg-white rounded-lg shadow mb-8 ${currentTableIndex === 2 ? 'block' : 'hidden'}`}>
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
               <div>
