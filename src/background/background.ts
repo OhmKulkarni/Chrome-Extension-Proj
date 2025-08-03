@@ -250,6 +250,19 @@ async function storeTokenEvent(tokenEvent: TokenEvent): Promise<void> {
     };
     
     await storageManager.insertTokenEvent(tokenEventData);
+    
+    // Notify dashboard about new token event
+    try {
+      chrome.runtime.sendMessage({
+        type: 'DATA_UPDATED',
+        dataType: 'token_event',
+        tokenType: tokenEvent.type
+      });
+    } catch (notifyError) {
+      // Dashboard might not be open, ignore error
+      console.log('📡 BACKGROUND: Could not notify dashboard about token event (dashboard closed?):', notifyError);
+    }
+    
     console.log(`[Token Tracker] ✅ Stored ${tokenEvent.type} event:`, {
       type: tokenEvent.type,
       url: tokenEvent.url,
@@ -715,6 +728,18 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
     // Store the network request using the existing API call storage
     const id = await storageManager.insertApiCall(storageData);
     
+    // Notify dashboard about new data
+    try {
+      chrome.runtime.sendMessage({
+        type: 'DATA_UPDATED',
+        dataType: 'network_request',
+        id: id
+      });
+    } catch (notifyError) {
+      // Dashboard might not be open, ignore error
+      console.log('📡 BACKGROUND: Could not notify dashboard (dashboard closed?):', notifyError);
+    }
+    
     // --- Token Event Tracking (for requests that made it through filtering) ---
     // We already know this is a token event if we got here and tokenEvent is truthy
     if (tokenEvent) {
@@ -848,6 +873,18 @@ async function handleConsoleError(errorData: any, sendResponse: (response: any) 
     
     // Store the console error
     const id = await storageManager.insertConsoleError(storageData);
+
+    // Notify dashboard about new error data
+    try {
+      chrome.runtime.sendMessage({
+        type: 'DATA_UPDATED',
+        dataType: 'console_error',
+        id: id
+      });
+    } catch (notifyError) {
+      // Dashboard might not be open, ignore error
+      console.log('📡 BACKGROUND: Could not notify dashboard about error (dashboard closed?):', notifyError);
+    }
 
     // ALWAYS update tab error count (regardless of tab-specific setting)
     // This ensures popup shows accurate count matching the dashboard

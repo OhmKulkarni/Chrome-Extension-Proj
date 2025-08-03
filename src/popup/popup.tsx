@@ -188,7 +188,8 @@ const Popup: React.FC = () => {
         setTabLoggingActive(newState);
         
         const tabState = {
-          active: newState,
+          status: newState ? 'active' : 'inactive',
+          active: newState, // Keep for backward compatibility
           startTime: newState ? Date.now() : undefined,
           requestCount: 0
         };

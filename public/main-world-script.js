@@ -1,6 +1,36 @@
 // Main world injection script - runs in the same context as the page
 console.log('🌍 MAIN-WORLD: Script injected into main world');
 
+// Prevent duplicate injections - check if we're already active
+if (window.__networkInterceptorActive) {
+  console.log('⚠️ MAIN-WORLD: Network interceptor already active, skipping duplicate injection');
+  
+  // Still respond to activity checks
+  window.addEventListener('checkMainWorldActive', (event) => {
+    if (event.detail?.checkId) {
+      window.dispatchEvent(new CustomEvent('mainWorldActiveResponse', {
+        detail: { checkId: event.detail.checkId, isActive: true }
+      }));
+    }
+  });
+  
+  // Exit early to prevent duplicate setup
+  throw new Error('Duplicate injection prevented');
+}
+
+// Mark as active to prevent future duplicates
+window.__networkInterceptorActive = true;
+console.log('✅ MAIN-WORLD: Marked network interceptor as active');
+
+// Respond to activity checks from content script
+window.addEventListener('checkMainWorldActive', (event) => {
+  if (event.detail?.checkId) {
+    window.dispatchEvent(new CustomEvent('mainWorldActiveResponse', {
+      detail: { checkId: event.detail.checkId, isActive: window.__networkInterceptorActive === true }
+    }));
+  }
+});
+
 // Default settings
 let extensionSettings = {
   maxBodySize: 2000 // Default truncation limit
@@ -93,7 +123,7 @@ window.fetch = function(input, init) {
     const requestData = {
       id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       url: url,
-      method: init?.method || 'GET',
+      method: (init?.method || 'GET').toUpperCase(),
       timestamp: new Date().toISOString(),
       domain: getSafeDomain(url),
       status: response.status,
@@ -167,7 +197,7 @@ XMLHttpRequest.prototype.send = function(body) {
       const requestData = {
         id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         url: this._interceptData.url,
-        method: this._interceptData.method,
+        method: (this._interceptData.method || 'GET').toUpperCase(),
         timestamp: new Date().toISOString(),
         domain: getSafeDomain(this._interceptData.url),
         status: this.status,
@@ -191,5 +221,11 @@ XMLHttpRequest.prototype.send = function(body) {
   
   return originalXHRSend.apply(this, [body]);
 };
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+  console.log('🌍 MAIN-WORLD: Page unloading, cleaning up network interceptor');
+  window.__networkInterceptorActive = false;
+});
 
 console.log('🌍 MAIN-WORLD: Network interception active in main world');

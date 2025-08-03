@@ -9,17 +9,89 @@ console.log('📍 CONTENT: Is Reddit?', isReddit);
 async function shouldInterceptOnThisSite(): Promise<boolean> {
   try {
     // Get current settings from storage
-    const result = await chrome.storage.sync.get(['networkInterception']);
+    const result = await chrome.storage.sync.get(['networkInterception', 'extensionEnabled']);
     const networkSettings = result.networkInterception;
+    
+    console.log('🔍 CONTENT: Retrieved settings:', JSON.stringify(result, null, 2));
+    
+    // Check if extension is globally disabled
+    if (result.extensionEnabled === false) {
+      console.log('🚫 CONTENT: Extension globally disabled');
+      return false;
+    }
     
     // If network interception is completely disabled, don't inject
     if (!networkSettings?.enabled) {
       console.log('🚫 CONTENT: Network interception disabled in settings');
-      return false;
+      console.log('🔍 CONTENT: networkSettings:', networkSettings);
+      
+      // If no settings exist at all, initialize with defaults and allow
+      if (!networkSettings) {
+        console.log('🔧 CONTENT: No network settings found, initializing defaults...');
+        const defaultNetworkSettings = {
+          enabled: true,
+          bodyCapture: {
+            mode: 'partial',
+            captureRequests: true,
+            captureResponses: true,
+            maxBodySize: 2000
+          },
+          privacy: {
+            autoRedact: true,
+            filterNoise: true
+          },
+          urlPatterns: {
+            enabled: false,
+            patterns: []
+          }
+        };
+        
+        try {
+          await chrome.storage.sync.set({ 
+            networkInterception: defaultNetworkSettings,
+            extensionEnabled: true 
+          });
+          console.log('✅ CONTENT: Default settings initialized, allowing interception');
+          // Continue with the function since we just enabled it
+        } catch (setError) {
+          console.log('❌ CONTENT: Failed to set default settings:', setError);
+          return false;
+        }
+      } else {
+        return false;
+      }
     }
     
     const hostname = window.location.hostname;
     const currentUrl = window.location.href;
+    
+    // Check tab-specific logging state from popup controls FIRST
+    // This should override URL pattern restrictions
+    try {
+      const tabResponse = await chrome.runtime.sendMessage({ action: 'getCurrentTabId' });
+      if (tabResponse?.tabId) {
+        const localResult = await chrome.storage.local.get([`tabLogging_${tabResponse.tabId}`]);
+        const tabLoggingState = localResult[`tabLogging_${tabResponse.tabId}`];
+        
+        // If tab logging is explicitly disabled, don't intercept
+        if (tabLoggingState && tabLoggingState.status === 'inactive') {
+          console.log('🚫 CONTENT: Tab logging disabled via popup controls');
+          return false;
+        }
+        
+        // If tab logging is explicitly enabled, allow regardless of URL patterns
+        if (tabLoggingState && tabLoggingState.status === 'active') {
+          console.log('✅ CONTENT: Tab logging enabled via popup controls, allowing interception');
+          console.log('✅ CONTENT: Tab logging state:', tabLoggingState);
+          return true;
+        }
+        
+        console.log('✅ CONTENT: Tab logging state (default enabled):', tabLoggingState);
+      }
+    } catch (tabError) {
+      console.log('⚠️ CONTENT: Could not check tab logging state:', tabError);
+      // Continue with other checks if tab state unavailable
+    }
     
     // Always allow on localhost and test domains for development
     if (hostname.includes('localhost') || 
@@ -50,13 +122,11 @@ async function shouldInterceptOnThisSite(): Promise<boolean> {
     }
     
     // Fallback: if no URL patterns are configured but network interception is enabled,
-    // allow on reddit.com for backward compatibility
+    // allow on any site (this makes popup tab logging the primary control)
     if (!networkSettings?.urlPatterns?.enabled || 
         !networkSettings?.urlPatterns?.patterns?.length) {
-      if (hostname.includes('reddit.com')) {
-        console.log('✅ CONTENT: Reddit allowed (fallback behavior)');
-        return true;
-      }
+      console.log('✅ CONTENT: No URL patterns configured, allowing based on popup controls');
+      return true;
     }
     
     console.log('🚫 CONTENT: Site not enabled for interception:', hostname);
@@ -124,8 +194,36 @@ function isExtensionContextValid(): boolean {
 // MAIN WORLD INJECTION for page-level network interception
 async function injectMainWorldScript() {
   if (injectionAttempted) {
-    console.log('🌍 CONTENT: Injection already attempted');
-    return false;
+    console.log('🌍 CONTENT: Injection already attempted, checking if script is active...');
+    
+    // Check if main-world script is actually active by testing for our marker
+    const isActive = await new Promise<boolean>((resolve) => {
+      const checkId = Math.random().toString(36);
+      
+      const responseHandler = (event: any) => {
+        if (event.detail?.checkId === checkId) {
+          window.removeEventListener('mainWorldActiveResponse', responseHandler);
+          resolve(event.detail.isActive === true);
+        }
+      };
+      
+      window.addEventListener('mainWorldActiveResponse', responseHandler);
+      window.dispatchEvent(new CustomEvent('checkMainWorldActive', { detail: { checkId } }));
+      
+      // Timeout after 100ms if no response
+      setTimeout(() => {
+        window.removeEventListener('mainWorldActiveResponse', responseHandler);
+        resolve(false);
+      }, 100);
+    });
+    
+    if (isActive) {
+      console.log('✅ CONTENT: Main-world script already active, skipping injection');
+      return true;
+    } else {
+      console.log('🔄 CONTENT: Main-world script not active, proceeding with injection...');
+      injectionAttempted = false; // Reset to allow re-injection
+    }
   }
   
   injectionAttempted = true;
@@ -297,16 +395,45 @@ window.addEventListener('consoleErrorIntercepted', (event: any) => {
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === 'toggleLogging') {
     console.log('📱 CONTENT: Toggle network logging:', message.enabled);
-    // Network logging toggle is handled by main-world-script
-    // Just acknowledge the message
+    
+    // Try injection if enabled (the injection function will check if it's already active)
+    if (message.enabled) {
+      console.log('🔄 CONTENT: Logging enabled, attempting injection...');
+      injectMainWorldScript().then(success => {
+        console.log('🌍 CONTENT: Dynamic injection result:', success);
+      });
+    } else {
+      console.log('🚫 CONTENT: Network logging disabled');
+    }
+    
     sendResponse({ success: true });
   } else if (message.action === 'toggleErrorLogging') {
     console.log('📱 CONTENT: Toggle error logging:', message.enabled);
-    // Error logging toggle is handled by main-world-script
-    // Just acknowledge the message
     sendResponse({ success: true });
   }
   return true; // Keep the message channel open for async response
+});
+
+// Listen for storage changes to react to popup logging controls
+chrome.storage.onChanged.addListener((changes, namespace) => {
+  if (namespace === 'local') {
+    // Check for tab logging changes
+    for (const key in changes) {
+      if (key.startsWith('tabLogging_')) {
+        const tabId = key.replace('tabLogging_', '');
+        const change = changes[key];
+        console.log('📡 CONTENT: Tab logging state changed for tab', tabId, ':', change.newValue);
+        
+        // If logging was enabled and we haven't injected yet, try to inject
+        if (change.newValue?.status === 'active') {
+          console.log('🔄 CONTENT: Tab logging enabled via storage change, attempting injection...');
+          injectMainWorldScript().then(success => {
+            console.log('🌍 CONTENT: Storage-triggered injection result:', success);
+          });
+        }
+      }
+    }
+  }
 });
 
 // Listen for extension context invalidation
@@ -349,7 +476,7 @@ window.addEventListener('load', () => {
 };
 
 console.log('✅ CONTENT: Chrome APIs available');
-console.log('✅ CONTENT: Main world injection completed');
+console.log('✅ CONTENT: Main world injection setup completed');
 
-// Set up early injection as well
-injectMainWorldScript();
+// Single injection attempt on script load
+setTimeout(() => injectMainWorldScript(), 100);

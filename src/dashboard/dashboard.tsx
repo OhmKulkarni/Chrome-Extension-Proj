@@ -907,6 +907,55 @@ const Dashboard: React.FC = () => {
     loadTabsLoggingStatus();
   }, []);
 
+  // Listen for storage changes to update tab statuses in real-time
+  useEffect(() => {
+    const handleStorageChanges = (changes: any, namespace: string) => {
+      if (namespace === 'local') {
+        // Check if any tab logging states changed
+        const hasTabLoggingChanges = Object.keys(changes).some(key => 
+          key.startsWith('tabLogging_') || 
+          key.startsWith('tabErrorLogging_') || 
+          key.startsWith('tabTokenLogging_')
+        );
+        
+        if (hasTabLoggingChanges) {
+          console.log('📡 DASHBOARD: Tab logging states changed, updating sidebar...');
+          loadTabsLoggingStatus(); // Refresh the tab statuses
+        }
+      }
+    };
+
+    chrome.storage.onChanged.addListener(handleStorageChanges);
+    
+    return () => {
+      chrome.storage.onChanged.removeListener(handleStorageChanges);
+    };
+  }, []);
+
+  // Add real-time data refresh for network requests, errors, and tokens
+  useEffect(() => {
+    // Set up periodic refresh every 5 seconds when dashboard is active
+    const refreshInterval = setInterval(() => {
+      console.log('🔄 DASHBOARD: Periodic data refresh...');
+      loadDashboardData();
+    }, 5000);
+
+    // Listen for background script notifications about new data
+    const handleBackgroundMessages = (message: any, _sender: any, _sendResponse: any) => {
+      if (message.type === 'DATA_UPDATED') {
+        console.log('📡 DASHBOARD: Received data update notification:', message.dataType);
+        loadDashboardData();
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(handleBackgroundMessages);
+
+    return () => {
+      clearInterval(refreshInterval);
+      chrome.runtime.onMessage.removeListener(handleBackgroundMessages);
+    };
+  }, []);
+
   const loadDashboardData = async () => {
     try {
       // Get tabs count and current active tab
@@ -1009,7 +1058,12 @@ const Dashboard: React.FC = () => {
           let tokenLogging = false;
 
           if (networkState) {
-            networkLogging = typeof networkState === 'boolean' ? networkState : networkState.active;
+            // Check both 'status' and 'active' properties for compatibility
+            if (networkState.status !== undefined) {
+              networkLogging = networkState.status === 'active';
+            } else {
+              networkLogging = typeof networkState === 'boolean' ? networkState : networkState.active;
+            }
           } else {
             networkLogging = networkConfig.tabSpecific?.defaultState === 'active';
           }
