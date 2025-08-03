@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Settings</title>
+</head>
+<body>
+    <h1>Extension Settings Debug</h1>
+    <div id="output"></div>
+    <button id="enableNetworking">Enable Network Interception</button>
+    <button id="checkSettings">Check Current Settings</button>
+    
+    <script>
+        const output = document.getElementById('output');
+        
+        function log(message) {
+            output.innerHTML += '<div>' + JSON.stringify(message, null, 2) + '</div>';
+        }
+        
+        document.getElementById('checkSettings').addEventListener('click', async () => {
+            output.innerHTML = '<h2>Current Settings:</h2>';
+            
+            try {
+                const result = await chrome.storage.sync.get(['networkInterception', 'extensionEnabled']);
+                log('Sync Storage:');
+                log(result);
+                
+                const localResult = await chrome.storage.local.get();
+                log('Local Storage:');
+                log(localResult);
+            } catch (error) {
+                log('Error: ' + error.message);
+            }
+        });
+        
+        document.getElementById('enableNetworking').addEventListener('click', async () => {
+            try {
+                await chrome.storage.sync.set({
+                    networkInterception: {
+                        enabled: true,
+                        bodyCapture: {
+                            enabled: true,
+                            maxBodySize: 2000
+                        },
+                        urlPatterns: {
+                            enabled: false,
+                            patterns: []
+                        }
+                    },
+                    extensionEnabled: true
+                });
+                
+                log('Network interception enabled!');
+                log('Please reload the page you want to test.');
+            } catch (error) {
+                log('Error enabling: ' + error.message);
+            }
+        });
+        
+        // Auto-check on load
+        document.getElementById('checkSettings').click();
+    </script>
+</body>
+</html>

@@ -18,6 +18,7 @@ interface SettingsData {
       mode: 'disabled' | 'partial' | 'full';
       captureRequests: boolean;
       captureResponses: boolean;
+      maxBodySize: number; // Characters to capture (0 = no limit)
     };
     privacy: {
       autoRedact: boolean;
@@ -103,6 +104,7 @@ const defaultSettings: SettingsData = {
       mode: 'partial',
       captureRequests: false,
       captureResponses: false,
+      maxBodySize: 2000, // Default to 2000 characters
     },
     privacy: {
       autoRedact: true,
@@ -667,6 +669,43 @@ const Settings: React.FC = () => {
                             />
                             <span className="ml-2 text-sm font-medium text-gray-700">Capture response bodies</span>
                           </label>
+                        </div>
+
+                        <div>
+                          <label htmlFor="maxBodySize" className="block text-sm font-medium text-gray-700">
+                            Body Size Limit
+                          </label>
+                          <select
+                            id="maxBodySize"
+                            value={settings.networkInterception?.bodyCapture?.maxBodySize || 2000}
+                            onChange={(e) => updateSetting('networkInterception', {
+                              ...settings.networkInterception,
+                              bodyCapture: {
+                                ...(settings.networkInterception?.bodyCapture || {}),
+                                maxBodySize: parseInt(e.target.value)
+                              }
+                            })}
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                          >
+                            <option value={500}>500 characters</option>
+                            <option value={1000}>1,000 characters</option>
+                            <option value={1500}>1,500 characters</option>
+                            <option value={2000}>2,000 characters (default)</option>
+                            <option value={2500}>2,500 characters</option>
+                            <option value={3000}>3,000 characters</option>
+                            <option value={3500}>3,500 characters</option>
+                            <option value={4000}>4,000 characters</option>
+                            <option value={4500}>4,500 characters</option>
+                            <option value={5000}>5,000 characters</option>
+                            <option value={7500}>7,500 characters</option>
+                            <option value={10000}>10,000 characters</option>
+                            <option value={15000}>15,000 characters</option>
+                            <option value={20000}>20,000 characters</option>
+                            <option value={0}>No limit (capture full body)</option>
+                          </select>
+                          <p className="mt-1 text-sm text-gray-500">
+                            Maximum characters to capture from request/response bodies. Higher limits may impact performance.
+                          </p>
                         </div>
                       </div>
                     )}

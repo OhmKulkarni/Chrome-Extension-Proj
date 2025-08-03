@@ -289,7 +289,18 @@ const RequestDetailContent: React.FC<{ request: any; selectedField: string }> = 
   if (selectedField === 'body') {
     const requestBody = request.request_body || request.requestBody;
     const responseBody = request.response_body || request.responseBody || request.response_data;
-    
+
+    // Pretty-print JSON string bodies
+    const prettyPrintIfJson = (str: any) => {
+      if (typeof str !== 'string') return str;
+      try {
+        const obj = JSON.parse(str);
+        return JSON.stringify(obj, null, 2);
+      } catch {
+        return str;
+      }
+    };
+
     return (
       <div className="space-y-6">
         {/* Request Body */}
@@ -299,15 +310,29 @@ const RequestDetailContent: React.FC<{ request: any; selectedField: string }> = 
               <h3 className="text-sm font-semibold text-gray-900">Request Body</h3>
               <div className="flex space-x-2">
                 <button
-                  onClick={() => copyToClipboard(typeof requestBody === 'string' ? requestBody : formatJSON(requestBody))}
+                  onClick={() => copyToClipboard(typeof requestBody === 'string' ? prettyPrintIfJson(requestBody) : formatJSON(requestBody))}
                   className="copy-button text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
                 >
                   Copy
                 </button>
+                {requestBody && (typeof requestBody === 'string' ? requestBody.length : JSON.stringify(requestBody).length) > 1000 && (
+                  <button
+                    onClick={() => {
+                      const content = typeof requestBody === 'string' ? prettyPrintIfJson(requestBody) : formatJSON(requestBody);
+                      const newWindow = window.open('', '_blank');
+                      if (newWindow) {
+                        newWindow.document.write(`<pre style="white-space: pre-wrap; word-wrap: break-word; font-family: monospace; padding: 20px;">${content}</pre>`);
+                      }
+                    }}
+                    className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
+                  >
+                    View Full
+                  </button>
+                )}
               </div>
             </div>
-            <div className="code-block bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto text-sm font-mono">
-              <pre>{typeof requestBody === 'string' ? requestBody : formatJSON(requestBody)}</pre>
+            <div className="code-block bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto text-sm font-mono max-h-96">
+              <pre className="whitespace-pre-wrap break-words">{typeof requestBody === 'string' ? prettyPrintIfJson(requestBody) : formatJSON(requestBody)}</pre>
             </div>
           </div>
         )}
@@ -324,10 +349,24 @@ const RequestDetailContent: React.FC<{ request: any; selectedField: string }> = 
                 >
                   Copy
                 </button>
+                {responseBody && (typeof responseBody === 'string' ? responseBody.length : JSON.stringify(responseBody).length) > 1000 && (
+                  <button
+                    onClick={() => {
+                      const content = typeof responseBody === 'string' ? responseBody : formatJSON(responseBody);
+                      const newWindow = window.open('', '_blank');
+                      if (newWindow) {
+                        newWindow.document.write(`<pre style="white-space: pre-wrap; word-wrap: break-word; font-family: monospace; padding: 20px;">${content}</pre>`);
+                      }
+                    }}
+                    className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
+                  >
+                    View Full
+                  </button>
+                )}
               </div>
             </div>
-            <div className="code-block bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto text-sm font-mono">
-              <pre>{typeof responseBody === 'string' ? responseBody : formatJSON(responseBody)}</pre>
+            <div className="code-block bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto text-sm font-mono max-h-96">
+              <pre className="whitespace-pre-wrap break-words">{typeof responseBody === 'string' ? responseBody : formatJSON(responseBody)}</pre>
             </div>
           </div>
         )}
@@ -868,6 +907,55 @@ const Dashboard: React.FC = () => {
     loadTabsLoggingStatus();
   }, []);
 
+  // Listen for storage changes to update tab statuses in real-time
+  useEffect(() => {
+    const handleStorageChanges = (changes: any, namespace: string) => {
+      if (namespace === 'local') {
+        // Check if any tab logging states changed
+        const hasTabLoggingChanges = Object.keys(changes).some(key => 
+          key.startsWith('tabLogging_') || 
+          key.startsWith('tabErrorLogging_') || 
+          key.startsWith('tabTokenLogging_')
+        );
+        
+        if (hasTabLoggingChanges) {
+          console.log('📡 DASHBOARD: Tab logging states changed, updating sidebar...');
+          loadTabsLoggingStatus(); // Refresh the tab statuses
+        }
+      }
+    };
+
+    chrome.storage.onChanged.addListener(handleStorageChanges);
+    
+    return () => {
+      chrome.storage.onChanged.removeListener(handleStorageChanges);
+    };
+  }, []);
+
+  // Add real-time data refresh for network requests, errors, and tokens
+  useEffect(() => {
+    // Set up periodic refresh every 5 seconds when dashboard is active
+    const refreshInterval = setInterval(() => {
+      console.log('🔄 DASHBOARD: Periodic data refresh...');
+      loadDashboardData();
+    }, 5000);
+
+    // Listen for background script notifications about new data
+    const handleBackgroundMessages = (message: any, _sender: any, _sendResponse: any) => {
+      if (message.type === 'DATA_UPDATED') {
+        console.log('📡 DASHBOARD: Received data update notification:', message.dataType);
+        loadDashboardData();
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(handleBackgroundMessages);
+
+    return () => {
+      clearInterval(refreshInterval);
+      chrome.runtime.onMessage.removeListener(handleBackgroundMessages);
+    };
+  }, []);
+
   const loadDashboardData = async () => {
     try {
       // Get tabs count and current active tab
@@ -970,7 +1058,12 @@ const Dashboard: React.FC = () => {
           let tokenLogging = false;
 
           if (networkState) {
-            networkLogging = typeof networkState === 'boolean' ? networkState : networkState.active;
+            // Check both 'status' and 'active' properties for compatibility
+            if (networkState.status !== undefined) {
+              networkLogging = networkState.status === 'active';
+            } else {
+              networkLogging = typeof networkState === 'boolean' ? networkState : networkState.active;
+            }
           } else {
             networkLogging = networkConfig.tabSpecific?.defaultState === 'active';
           }

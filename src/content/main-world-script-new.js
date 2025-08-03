@@ -46,9 +46,7 @@ const isLoggingEnabled = async () => {
           } else {
             const globalEnabled = result.extensionEnabled !== false; // default true
             const tabLogging = result[`tabLogging_${tabId}`];
-            const tabEnabled = !tabLogging || 
-                              tabLogging.status === 'active' || 
-                              (tabLogging.status === undefined && tabLogging.active !== false); // default true
+            const tabEnabled = !tabLogging || tabLogging.status === 'active'; // default true
             resolve(globalEnabled && tabEnabled);
           }
         });
@@ -205,7 +203,7 @@ const interceptXHR = (xhr, originalXhrSend, data) => {
     // Send captured data
     const capturedData = {
       type: 'xhr',
-      method: (xhr._method || 'GET').toUpperCase(),
+      method: xhr._method || 'GET',
       url: xhr._url,
       domain: getSafeDomain(xhr._url),
       status: xhr.status,

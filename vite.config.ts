@@ -62,6 +62,7 @@ export default defineConfig({
       '@': resolve(__dirname, './src'),
     },
   },
+  publicDir: 'public',
   build: {
     target: 'es2020',
     outDir: 'dist',
@@ -73,7 +74,6 @@ export default defineConfig({
         dashboard: resolve(__dirname, 'src/dashboard/dashboard.html'),
         settings: resolve(__dirname, 'src/settings/settings.html'),
         offscreen: resolve(__dirname, 'src/offscreen/offscreen.html'),
-        'main-world-script': resolve(__dirname, 'public/main-world-script.js'),
       },
     }
   },
