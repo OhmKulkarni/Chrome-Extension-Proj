@@ -901,6 +901,8 @@ const Dashboard: React.FC = () => {
   const [selectedField, setSelectedField] = useState<string>('details');
   const [detailViewerHeight, setDetailViewerHeight] = useState(300); // Default height in pixels
   const [isDragging, setIsDragging] = useState(false);
+  const [dragStartY, setDragStartY] = useState(0);
+  const [dragStartHeight, setDragStartHeight] = useState(0);
 
   // Carousel state for table navigation
   const [currentTableIndex, setCurrentTableIndex] = useState(0);
@@ -1640,13 +1642,22 @@ const Dashboard: React.FC = () => {
   // Drag functionality for resizing detail viewer
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
+    setDragStartY(e.clientY);
+    setDragStartHeight(detailViewerHeight);
     e.preventDefault();
+    
+    // Add cursor style to body to show dragging state
+    document.body.style.cursor = 'ns-resize';
+    document.body.style.userSelect = 'none';
   };
 
   const handleMouseMove = (e: MouseEvent) => {
     if (!isDragging) return;
     
-    const newHeight = window.innerHeight - e.clientY;
+    // Calculate the delta from the initial drag position
+    const deltaY = dragStartY - e.clientY; // Inverted because we want upward drag to increase height
+    const newHeight = dragStartHeight + deltaY;
+    
     const minHeight = 200;
     const maxHeight = window.innerHeight * 0.8;
     
@@ -1654,7 +1665,23 @@ const Dashboard: React.FC = () => {
   };
 
   const handleMouseUp = () => {
-    setIsDragging(false);
+    if (isDragging) {
+      setIsDragging(false);
+      
+      // Reset cursor styles
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      
+      // Ensure minimum and maximum bounds are enforced smoothly
+      const minHeight = 200;
+      const maxHeight = window.innerHeight * 0.8;
+      
+      if (detailViewerHeight < minHeight) {
+        setDetailViewerHeight(minHeight);
+      } else if (detailViewerHeight > maxHeight) {
+        setDetailViewerHeight(maxHeight);
+      }
+    }
   };
 
   // Add event listeners for drag functionality
@@ -3051,15 +3078,26 @@ const Dashboard: React.FC = () => {
       {detailViewerOpen && expandedItem && (
         <div 
           id="detail-viewer"
-          className="detail-viewer fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40"
+          className={`detail-viewer fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40 ${
+            isDragging ? 'dragging' : ''
+          }`}
           style={{ height: `${detailViewerHeight}px` }}
         >
           {/* Drag Handle */}
           <div 
-            className="detail-viewer-drag-handle w-full h-2 bg-gray-100 cursor-ns-resize hover:bg-gray-200 transition-colors flex items-center justify-center"
+            className={`detail-viewer-drag-handle w-full h-3 cursor-ns-resize transition-all duration-150 flex items-center justify-center ${
+              isDragging 
+                ? 'bg-blue-200 border-t border-blue-300' 
+                : 'bg-gray-100 hover:bg-gray-200 border-t border-gray-200'
+            }`}
             onMouseDown={handleMouseDown}
+            title="Drag to resize"
           >
-            <div className="w-12 h-1 bg-gray-400 rounded"></div>
+            <div className={`transition-all duration-150 rounded-full ${
+              isDragging 
+                ? 'w-16 h-1.5 bg-blue-500' 
+                : 'w-12 h-1 bg-gray-400 hover:bg-gray-500'
+            }`}></div>
           </div>
           
           {/* Header */}
