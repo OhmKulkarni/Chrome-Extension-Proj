@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Improved Response Body Filtering Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .test-case {
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            border-left: 4px solid #007acc;
+        }
+        .result-true {
+            border-left-color: #ff6b6b;
+            background-color: #fff5f5;
+        }
+        .result-false {
+            border-left-color: #51cf66;
+            background-color: #f3fff3;
+        }
+        .code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .improvement {
+            background: #e8f5e8;
+            border-color: #c3e6c3;
+        }
+        .improvement h3 {
+            color: #2d5016;
+        }
+        .json-example {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Improved Response Body Filtering Logic</h1>
+    
+    <div class="test-section improvement">
+        <h3>✅ Enhancement Summary</h3>
+        <p><strong>Issue Fixed:</strong> Responses like "status: 204" and "status: 0" from encrypted requests were not being detected</p>
+        <p><strong>Root Cause:</strong> Previous logic excluded anything with ":" characters, missing lowercase status messages</p>
+        <p><strong>Solution:</strong> Enhanced JSON structure detection and added lowercase "status:" pattern matching</p>
+        <p><strong>Result:</strong> Now correctly identifies encrypted/binary responses that show simple status messages</p>
+    </div>
+
+    <div class="test-section">
+        <h3>🛠️ Improved Logic Features</h3>
+        <ul>
+            <li><strong>JSON Validation First:</strong> Always check if content is valid JSON before applying status patterns</li>
+            <li><strong>Length Boundaries:</strong> Empty or very long content (>200 chars) is unlikely to be simple status</li>
+            <li><strong>Stricter Patterns:</strong> Use end-of-string anchors ($) to match entire content, not just beginnings</li>
+            <li><strong>JSON Character Detection:</strong> Exclude content with JSON indicators like <span class="code">{}</span>, <span class="code">[]</span>, <span class="code">":"</span></li>
+            <li><strong>Exact Matching:</strong> Only flag responses that are purely status messages</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h3>🧪 Test Cases</h3>
+        <div id="testResults">
+            <!-- Test results will be populated by JavaScript -->
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h3>📝 New Detection Patterns</h3>
+        <ul>
+            <li><span class="code">^Status:\s*\d+\s*$</span> - Exact status format</li>
+            <li><span class="code">^\d+\s+(OK|Created|...)\s*$</span> - Complete HTTP status</li>
+            <li><span class="code">^HTTP/\d\.\d\s+\d+\s+.*\s*$</span> - Full HTTP response line</li>
+            <li><span class="code">^\d{3}\s*$</span> - Simple numeric status</li>
+            <li><span class="code">^(net::|ERR_|NETWORK_)</span> - Browser error codes</li>
+        </ul>
+    </div>
+
+    <script>
+        // Replicated improved filtering logic for testing
+        function isStatusOnlyResponse(body) {
+            if (!body || typeof body !== 'string') return false;
+            
+            const trimmedBody = body.trim();
+            
+            // If it's empty or very short, it might be a status response
+            if (trimmedBody.length === 0 || trimmedBody.length > 200) {
+                return false; // Empty or very long content is probably not a simple status
+            }
+            
+            // First check if it's valid JSON - if so, it's not a status-only response
+            try {
+                JSON.parse(trimmedBody);
+                // If it successfully parses as JSON, it's not a status-only response
+                return false;
+            } catch {
+                // Not valid JSON, continue with status pattern checks
+            }
+            
+            // Check if the entire body is just a status message (no additional content)
+            const statusOnlyPatterns = [
+                // Exact status format matches (entire string)
+                /^Status:\s*\d+\s*$/i,
+                /^status:\s*\d+\s*$/i, // lowercase variant
+                /^\d+\s+(OK|Created|Accepted|No Content|Not Found|Unauthorized|Forbidden|Internal Server Error)\s*$/i,
+                /^HTTP\/\d\.\d\s+\d+\s+(OK|Created|Accepted|No Content|Not Found|Unauthorized|Forbidden|Internal Server Error)?\s*$/i,
+                /^Response Code:\s*\d+\s*$/i,
+                // Simple numeric status
+                /^\d{3}\s*$/,
+                // Common error messages that indicate encrypted/binary content
+                /^(Error|Failed|Unauthorized|Forbidden|Not Found|Internal Server Error)\s*$/i,
+                // Browser/network generated messages
+                /^(net::|ERR_|NETWORK_|Connection)/i
+            ];
+            
+            // More specific JSON indicator check - look for actual JSON structure, not just colons
+            const hasActualJsonStructure = /^[\s]*[{\[].*[}\]][\s]*$/.test(trimmedBody) || 
+                                         /^[\s]*".*"[\s]*$/.test(trimmedBody) ||
+                                         /[{}\[\]]/.test(trimmedBody);
+            
+            if (hasActualJsonStructure) {
+                return false; // Contains actual JSON structure, not a status-only response
+            }
+            
+            // Check if it matches our strict status-only patterns
+            return statusOnlyPatterns.some(pattern => pattern.test(trimmedBody));
+        }
+
+        // Test cases to validate the improved logic
+        const testCases = [
+            // Should NOT trigger (valid JSON responses)
+            {
+                input: '{"status": 200, "data": "success"}',
+                expected: false,
+                description: 'Valid JSON with status field'
+            },
+            {
+                input: '{"error": "Unauthorized", "code": 401}',
+                expected: false,
+                description: 'JSON error response'
+            },
+            {
+                input: '[{"id": 1, "name": "Status Report"}]',
+                expected: false,
+                description: 'JSON array response'
+            },
+            {
+                input: '{"message": "Status: Active", "timestamp": "2025-08-03"}',
+                expected: false,
+                description: 'JSON with status-like content inside'
+            },
+            
+            // Should trigger (status-only responses) - YOUR SPECIFIC CASES
+            {
+                input: 'status: 204',
+                expected: true,
+                description: 'Encrypted request status 204 (your case)'
+            },
+            {
+                input: 'status: 0',
+                expected: true,
+                description: 'Encrypted request status 0 (your case)'
+            },
+            {
+                input: 'Status: 200',
+                expected: true,
+                description: 'Simple status message (uppercase)'
+            },
+            {
+                input: '200 OK',
+                expected: true,
+                description: 'HTTP status only'
+            },
+            {
+                input: '404',
+                expected: true,
+                description: 'Numeric status only'
+            },
+            {
+                input: 'HTTP/1.1 200 OK',
+                expected: true,
+                description: 'Full HTTP status line'
+            },
+            {
+                input: 'ERR_NETWORK_FAILED',
+                expected: true,
+                description: 'Browser network error'
+            },
+            {
+                input: 'Unauthorized',
+                expected: true,
+                description: 'Simple error message'
+            },
+            
+            // Edge cases
+            {
+                input: '',
+                expected: false,
+                description: 'Empty string'
+            },
+            {
+                input: 'a'.repeat(201),
+                expected: false,
+                description: 'Very long content (>200 chars)'
+            },
+            {
+                input: 'Status: 200 with additional content that makes it not a pure status',
+                expected: false,
+                description: 'Status with additional content'
+            }
+        ];
+
+        // Run tests and display results
+        function runTests() {
+            const resultsContainer = document.getElementById('testResults');
+            
+            testCases.forEach((testCase, index) => {
+                const actual = isStatusOnlyResponse(testCase.input);
+                const passed = actual === testCase.expected;
+                
+                const div = document.createElement('div');
+                div.className = `test-case ${actual ? 'result-true' : 'result-false'}`;
+                
+                div.innerHTML = `
+                    <strong>Test ${index + 1}:</strong> ${testCase.description}<br>
+                    <div class="json-example">${JSON.stringify(testCase.input)}</div>
+                    <strong>Expected:</strong> ${testCase.expected ? 'Show Tooltip' : 'No Tooltip'}<br>
+                    <strong>Actual:</strong> ${actual ? 'Show Tooltip' : 'No Tooltip'}<br>
+                    <strong>Result:</strong> ${passed ? '✅ PASS' : '❌ FAIL'}
+                `;
+                
+                resultsContainer.appendChild(div);
+            });
+        }
+
+        // Run tests when page loads
+        document.addEventListener('DOMContentLoaded', runTests);
+    </script>
+</body>
+</html>

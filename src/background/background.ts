@@ -147,8 +147,85 @@ function detectTokenTypeFromHeaders(headers: any, url: string): string {
   return 'Unknown';
 }
 
+// Utility function to generate a hash-like value from token metadata
+async function generateTokenHash(url: string, timestamp: string, tokenType: string, method: string): Promise<string> {
+  // Create a deterministic string from metadata
+  const dataToHash = `${url}-${timestamp}-${tokenType}-${method}`;
+  
+  try {
+    // Use Web Crypto API if available (Chrome extension environment)
+    if (typeof crypto !== 'undefined' && crypto.subtle) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(dataToHash);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      return hashHex;
+    }
+  } catch (error) {
+    console.warn('Web Crypto API not available, falling back to simple hash');
+  }
+  
+  // Fallback: Simple deterministic hash for display purposes
+  let hash = 0;
+  for (let i = 0; i < dataToHash.length; i++) {
+    const char = dataToHash.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  
+  // Convert to hex and pad to make it look like a proper hash
+  const simpleHash = Math.abs(hash).toString(16).padStart(8, '0');
+  // Create a longer, more realistic looking hash by repeating and modifying
+  const longHash = simpleHash + (hash * 7).toString(16).slice(-8).padStart(8, '0') + 
+                   (hash * 13).toString(16).slice(-8).padStart(8, '0') + 
+                   (hash * 17).toString(16).slice(-8).padStart(8, '0');
+  
+  return longHash.slice(0, 40); // Return a 40-character hex string like SHA-1
+}
+
+// Helper function to extract expiry from JWT token in headers
+function extractTokenExpiry(headers: any): number | undefined {
+  if (!headers || typeof headers !== 'object') return undefined;
+  
+  // Parse headers if they're stored as JSON string
+  let headersObj = headers;
+  if (typeof headers === 'string') {
+    try {
+      headersObj = JSON.parse(headers);
+    } catch {
+      return undefined;
+    }
+  }
+  
+  const authHeader = headersObj.authorization || headersObj.Authorization || '';
+  
+  // Check for Bearer token (most common for JWT)
+  if (authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    
+    // Check if it's a JWT (3 parts separated by dots)
+    if (token.split('.').length === 3) {
+      try {
+        // Decode JWT payload (second part)
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        
+        // Extract expiry timestamp (standard 'exp' claim)
+        if (payload.exp && typeof payload.exp === 'number') {
+          console.log('🔐 JWT expiry extracted:', new Date(payload.exp * 1000));
+          return payload.exp; // JWT exp is in seconds since epoch
+        }
+      } catch (error) {
+        console.log('🔐 Failed to decode JWT for expiry:', error);
+      }
+    }
+  }
+  
+  return undefined;
+}
+
 // Utility function to detect token events from network requests
-function detectTokenEvent(requestData: any): TokenEvent | null {
+async function detectTokenEvent(requestData: any): Promise<TokenEvent | null> {
   const { url, method, status } = requestData;
   
   if (!url || !method || status === undefined) {
@@ -169,10 +246,14 @@ function detectTokenEvent(requestData: any): TokenEvent | null {
     });
   }
   
+  // Extract expiry information from JWT tokens in headers
+  const expiry = extractTokenExpiry(requestData.headers);
+  
   // Detect token acquisition (successful auth requests)
   if (method === 'POST' && status >= 200 && status < 300 && isTokenEndpoint(url, 'acquire')) {
     console.log('✅ Token acquisition detected:', url);
     const detectedTokenType = detectTokenTypeFromHeaders(requestData.headers, url);
+    const valueHash = await generateTokenHash(url, timestamp, detectedTokenType, method);
     return {
       type: 'acquire',
       url,
@@ -180,7 +261,8 @@ function detectTokenEvent(requestData: any): TokenEvent | null {
       status,
       timestamp,
       source_url,
-      value_hash: `[REDACTED - token acquired: ${detectedTokenType}]`
+      value_hash: valueHash,
+      expiry
     };
   }
   
@@ -189,6 +271,7 @@ function detectTokenEvent(requestData: any): TokenEvent | null {
     if (status >= 200 && status < 300) {
       console.log('✅ Token refresh detected:', url);
       const detectedTokenType = detectTokenTypeFromHeaders(requestData.headers, url);
+      const valueHash = await generateTokenHash(url, timestamp, detectedTokenType, method);
       return {
         type: 'refresh',
         url,
@@ -196,11 +279,12 @@ function detectTokenEvent(requestData: any): TokenEvent | null {
         status,
         timestamp,
         source_url,
-        value_hash: `[REDACTED - token refreshed: ${detectedTokenType}]`
+        value_hash: valueHash,
+        expiry
       };
     } else if (status >= 400) {
       console.log('❌ Token refresh error detected:', url);
-      const detectedTokenType = detectTokenTypeFromHeaders(requestData.headers, url);
+      // For errors, we'll use a special indicator but still generate a hash
       return {
         type: 'refresh_error',
         url,
@@ -208,14 +292,14 @@ function detectTokenEvent(requestData: any): TokenEvent | null {
         status,
         timestamp,
         source_url,
-        value_hash: `[REFRESH ERROR - ${detectedTokenType}]`
+        value_hash: 'refresh_error',
+        expiry
       };
     }
   }
   
   // Detect token expiration (401/403 responses)
   if (status === 401 || status === 403) {
-    const detectedTokenType = detectTokenTypeFromHeaders(requestData.headers, url);
     return {
       type: 'expired',
       url,
@@ -223,7 +307,8 @@ function detectTokenEvent(requestData: any): TokenEvent | null {
       status,
       timestamp,
       source_url,
-      value_hash: `[EXPIRED TOKEN - ${detectedTokenType}]`
+      value_hash: 'expired',
+      expiry
     };
   }
   
@@ -635,7 +720,7 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
     // and if token logging is disabled, skip storing this request entirely
     
     // First, detect if this is a token event BEFORE storing
-    const tokenEvent = detectTokenEvent(requestData);
+    const tokenEvent = await detectTokenEvent(requestData);
     console.log('🔐 Pre-storage Token Event Detection:', {
       tokenEvent,
       url: requestData.url,

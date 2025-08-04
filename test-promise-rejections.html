@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Promise Rejection Stack Trace Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 8px;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #c82333;
+        }
+        .results {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 6px;
+            background-color: #f0f0f0;
+            border-left: 4px solid #0066cc;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Promise Rejection Stack Trace Test</h1>
+        
+        <p>These tests specifically target promise rejections with proper stack trace capture:</p>
+        
+        <button onclick="testPromiseWithError()">Test Promise Rejection with Error Object</button>
+        <button onclick="testPromiseWithString()">Test Promise Rejection with String</button>
+        <button onclick="testAsyncFunctionError()">Test Async Function Error</button>
+        <button onclick="testNestedPromiseRejection()">Test Nested Promise Rejection</button>
+        
+        <div id="results" class="results" style="display: none;"></div>
+        
+        <p><strong>Expected Result:</strong> All promise rejections should now appear in your extension dashboard with proper stack traces showing the function call hierarchy.</p>
+    </div>
+
+    <script>
+        function updateResults(message) {
+            const element = document.getElementById('results');
+            element.style.display = 'block';
+            element.textContent = new Date().toLocaleTimeString() + ': ' + message + '\n' + element.textContent;
+        }
+
+        function deepFunction() {
+            const error = new Error('Deep promise rejection with stack trace');
+            error.code = 'DEEP_REJECTION';
+            return Promise.reject(error);
+        }
+        
+        function middleFunction() {
+            return deepFunction();
+        }
+        
+        function topFunction() {
+            return middleFunction();
+        }
+
+        function testPromiseWithError() {
+            updateResults('Creating promise rejection with Error object...');
+            // This should create an unhandled rejection with a proper Error object
+            topFunction();
+        }
+
+        function testPromiseWithString() {
+            updateResults('Creating promise rejection with string...');
+            // This should create an unhandled rejection with a string reason
+            Promise.reject('Simple string rejection for testing stack trace generation');
+        }
+
+        async function errorAsyncFunction() {
+            throw new Error('Error from async function with stack trace');
+        }
+        
+        function testAsyncFunctionError() {
+            updateResults('Creating async function error...');
+            // Call async function without awaiting or catching
+            errorAsyncFunction();
+        }
+
+        function testNestedPromiseRejection() {
+            updateResults('Creating nested promise rejection...');
+            
+            const createNestedRejection = () => {
+                return new Promise((resolve, reject) => {
+                    setTimeout(() => {
+                        const error = new Error('Nested promise rejection with timeout');
+                        error.details = { nested: true, timeout: 100 };
+                        reject(error);
+                    }, 100);
+                });
+            };
+            
+            // Don't catch this promise
+            createNestedRejection();
+        }
+
+        // Auto-test on page load
+        window.addEventListener('load', () => {
+            console.log('🔄 Promise Rejection Test Page Loaded');
+            
+            // Generate a simple rejection after a delay
+            setTimeout(() => {
+                updateResults('Auto-generating test rejection...');
+                Promise.reject(new Error('Auto-generated promise rejection for testing'));
+            }, 2000);
+        });
+
+        // Add handlers to show what's being captured
+        window.addEventListener('unhandledrejection', (event) => {
+            console.log('🎯 Unhandled rejection detected:', event.reason);
+            updateResults('Rejection detected: ' + String(event.reason));
+        });
+    </script>
+</body>
+</html>

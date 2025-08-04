@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stack Trace Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 8px;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Stack Trace Test</h1>
+        
+        <p>Click this button to generate a console.error with a proper Error object that should include a stack trace:</p>
+        
+        <button onclick="testStackTrace()">Test Stack Trace Capture</button>
+        
+        <p><strong>Expected Result:</strong> The error should appear in your extension dashboard's Console Errors section with a proper stack trace showing the function call hierarchy.</p>
+    </div>
+
+    <script>
+        function levelThree() {
+            const error = new Error('This is a test error with a stack trace');
+            error.code = 'STACK_TRACE_TEST';
+            console.error('Testing stack trace capture:', error);
+        }
+        
+        function levelTwo() {
+            levelThree();
+        }
+        
+        function levelOne() {
+            levelTwo();
+        }
+        
+        function testStackTrace() {
+            levelOne();
+        }
+        
+        // Also test a simple error without Error object
+        setTimeout(() => {
+            console.error('Simple error message without Error object');
+        }, 2000);
+    </script>
+</body>
+</html>

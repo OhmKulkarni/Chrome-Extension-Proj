@@ -1,0 +1,9 @@
+                    {getAvailableFields().map((field) => (
+                      <option key={field} value={field}>
+                        {field === 'details' && '📋 Details'}
+                        {field === 'body' && '📄 Body'}
+                        {field === 'headers' && '🏷️ Headers'}
+                        {field === 'stack' && '📚 Stack Trace'}
+                        {!['details', 'body', 'headers', 'stack'].includes(field) && `📝 ${field.charAt(0).toUpperCase() + field.slice(1)}`}
+                      </option>
+                    ))}
