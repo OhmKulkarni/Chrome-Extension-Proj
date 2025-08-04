@@ -381,11 +381,6 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                 </button>
                               )}
                               <span className="truncate font-semibold">{stat.domain}</span>
-                              {stat.serviceGroup && (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800" title={`Service: ${stat.serviceGroup}`}>
-                                  Service
-                                </span>
-                              )}
                               {stat.tabContext?.isMainDomain && (
                                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800" title="Primary domain for tab">
                                   <Monitor className="h-3 w-3 mr-1" />
@@ -407,7 +402,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                             {/* Show primary tab URL when available */}
                             {stat.tabContext?.primaryTabUrl && (
                               <div className="text-xs text-gray-500 truncate max-w-[280px]" title={stat.tabContext.primaryTabUrl}>
-                                📄 {stat.tabContext.primaryTabUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                                {stat.tabContext.primaryTabUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}
                               </div>
                             )}
                           </div>
@@ -432,21 +427,31 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                       </TableCell>
                     </TableRow>
                     
-                    {/* Expanded grouped domains */}
-                    {stat.isGrouped && expandedDomains.has(stat.domain) && stat.groupedDomains.map((groupedDomain: string, subIndex: number) => (
+                    {/* Expanded grouped domains with stats */}
+                    {stat.isGrouped && expandedDomains.has(stat.domain) && stat.subdomainStats.map((subStat, subIndex: number) => (
                       <TableRow key={`${index}-${subIndex}`} className="bg-blue-50/30 border-l-2 border-l-blue-200">
                         <TableCell className="pl-8 text-sm text-gray-600">
                           <div className="flex items-center gap-2">
                             <span className="text-blue-500">└─</span>
-                            <span>{groupedDomain}</span>
+                            <span>{subStat.domain}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm text-gray-500">-</TableCell>
-                        <TableCell className="text-sm text-gray-500">-</TableCell>
-                        <TableCell className="text-sm text-gray-500">-</TableCell>
-                        <TableCell className="text-sm text-gray-500">-</TableCell>
-                        <TableCell className="text-sm text-gray-500">-</TableCell>
-                        <TableCell className="text-sm text-gray-500">-</TableCell>
+                        <TableCell className="text-sm font-medium text-green-600">{subStat.requests}</TableCell>
+                        <TableCell className="text-sm font-medium text-red-600">{subStat.errors}</TableCell>
+                        <TableCell className="text-sm font-medium text-yellow-600">{subStat.tokens}</TableCell>
+                        <TableCell className="text-sm">
+                          <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                            subStat.successRate >= 90 ? 'bg-green-100 text-green-700' :
+                            subStat.successRate >= 70 ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-red-100 text-red-700'
+                          }`}>
+                            {subStat.successRate}%
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-sm font-medium text-blue-600">
+                          {subStat.avgResponseTime > 0 ? `${subStat.avgResponseTime}ms` : 'N/A'}
+                        </TableCell>
+                        <TableCell className="text-sm text-gray-400">-</TableCell>
                       </TableRow>
                     ))}
                   </React.Fragment>

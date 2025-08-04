@@ -5,7 +5,6 @@ export interface DomainInfo {
   baseDomain: string;
   subdomain?: string;
   category: 'main' | 'api' | 'cdn' | 'static' | 'auth' | 'analytics' | 'other';
-  serviceGroup?: string;
   isGrouped: boolean;
 }
 
@@ -20,7 +19,6 @@ export interface DomainStats {
   baseDomain: string;
   subdomain?: string;
   category: string;
-  serviceGroup?: string;
   isGrouped: boolean;
   totalRequests: number;
   errors: number;
@@ -31,6 +29,14 @@ export interface DomainStats {
   subdomains: string[];
   groupedDomains: string[];
   ungroupedRequests: number;
+  subdomainStats: Array<{
+    domain: string;
+    requests: number;
+    errors: number;
+    tokens: number;
+    avgResponseTime: number;
+    successRate: number;
+  }>;
   tabContext: {
     tabIds: number[];
     primaryTabUrl?: string;
@@ -39,24 +45,7 @@ export interface DomainStats {
   };
 }
 
-// Known service groups for better organization
-const SERVICE_GROUPS: Record<string, string[]> = {
-  reddit: ['reddit.com', 'www.reddit.com', 'oauth.reddit.com', 'accounts.reddit.com', 'svc.reddit.com', 'shreddit.events'],
-  github: ['github.com', 'www.github.com', 'api.github.com', 'raw.githubusercontent.com', 'avatars.githubusercontent.com', 'codeload.github.com', 'github.dev'],
-  anthropic: ['claude.ai', 'www.claude.ai', 'api.anthropic.com', 'anthropic.com'],
-  google: ['google.com', 'www.google.com', 'apis.google.com', 'accounts.google.com', 'drive.google.com', 'docs.google.com', 'sheets.google.com'],
-  microsoft: ['microsoft.com', 'login.microsoftonline.com', 'graph.microsoft.com', 'outlook.office365.com', 'teams.microsoft.com'],
-  meta: ['facebook.com', 'www.facebook.com', 'graph.facebook.com', 'connect.facebook.net', 'instagram.com'],
-  twitter: ['twitter.com', 'x.com', 'api.twitter.com', 'abs.twimg.com', 'pbs.twimg.com'],
-  linkedin: ['linkedin.com', 'www.linkedin.com', 'api.linkedin.com', 'static.licdn.com'],
-  youtube: ['youtube.com', 'www.youtube.com', 'i.ytimg.com', 'ytimg.com'],
-  amazon: ['amazon.com', 'www.amazon.com', 'images-amazon.com', 'ssl-images-amazon.com', 'amazonaws.com'],
-  netflix: ['netflix.com', 'www.netflix.com', 'assets.nflxext.com', 'nflximg.net'],
-  stripe: ['stripe.com', 'api.stripe.com', 'js.stripe.com', 'checkout.stripe.com'],
-  paypal: ['paypal.com', 'www.paypal.com', 'api.paypal.com', 'checkout.paypal.com'],
-  spotify: ['spotify.com', 'accounts.spotify.com', 'api.spotify.com', 'i.scdn.co'],
-  discord: ['discord.com', 'discordapp.com', 'cdn.discordapp.com', 'gateway.discord.gg']
-};
+
 
 // Helper function to extract base domain from URL (fallback for legacy data)
 function extractBaseDomain(url: string): string {
@@ -80,21 +69,33 @@ function extractBaseDomain(url: string): string {
   }
 }
 
-// Get service group name for a domain
-function getServiceGroup(domain: string): string | undefined {
-  for (const [serviceKey, domains] of Object.entries(SERVICE_GROUPS)) {
-    if (domains.includes(domain)) {
-      return serviceKey;
-    }
-  }
-  return undefined;
-}
+
 
 // Parse domain information from URL
 function parseDomainInfo(url: string, _tabContext?: TabContext): DomainInfo {
   try {
+    // Skip if URL is invalid or unknown
+    if (!url || url === 'unknown' || url === 'Unknown' || url === 'Unknown URL') {
+      return {
+        fullDomain: 'unknown',
+        baseDomain: 'unknown',
+        category: 'other',
+        isGrouped: false
+      };
+    }
+    
     const urlObj = new URL(url);
     const hostname = urlObj.hostname;
+    
+    // Skip if hostname is empty or invalid
+    if (!hostname || hostname === 'unknown') {
+      return {
+        fullDomain: 'unknown',
+        baseDomain: 'unknown',
+        category: 'other',
+        isGrouped: false
+      };
+    }
     
     // Remove www prefix
     const withoutWww = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
@@ -117,16 +118,12 @@ function parseDomainInfo(url: string, _tabContext?: TabContext): DomainInfo {
     else if (lowerHostname.includes('analytics.') || lowerHostname.includes('tracking.')) category = 'analytics';
     else if (!subdomain) category = 'main';
     
-    // Check if this domain belongs to a known service group
-    const serviceGroup = getServiceGroup(baseDomain);
-    
     return {
       fullDomain: hostname,
       baseDomain,
       subdomain,
       category,
-      serviceGroup,
-      isGrouped: !!serviceGroup || !!subdomain
+      isGrouped: !!subdomain
     };
   } catch (error) {
     console.warn('Failed to parse domain info:', url, error);
@@ -153,12 +150,18 @@ export function groupDataByDomain(data: any[]): DomainStats[] {
     tabIds: Set<number>;
     relatedDomains: Set<string>;
     allGroupedDomains: Set<string>;
+    subdomainStats: Map<string, {
+      requests: any[];
+      errors: any[];
+      tokens: any[];
+      responseTimes: number[];
+    }>;
   }>();
   
   // Process each data item and group by the main_domain field
   data.forEach(item => {
     const itemUrl = item.url || item.request?.url || item.details?.url || item.source_url || '';
-    if (!itemUrl) return;
+    if (!itemUrl || itemUrl === 'unknown' || itemUrl === 'Unknown' || itemUrl === 'Unknown URL') return;
     
     const tabId = item.tab_id;
     const tabUrl = item.tab_url;
@@ -166,17 +169,16 @@ export function groupDataByDomain(data: any[]): DomainStats[] {
     // Use the main_domain field if available, otherwise fall back to domain parsing
     const mainDomain = item.main_domain || extractBaseDomain(itemUrl);
     
+    // Skip if we can't determine a valid main domain
+    if (!mainDomain || mainDomain === 'unknown' || mainDomain === 'Unknown') return;
+    
     const domainInfo = parseDomainInfo(itemUrl, tabId ? { tabId, tabUrl } : undefined);
     
     if (!domainMap.has(mainDomain)) {
-      // Determine if this is a known service group
-      const serviceGroup = getServiceGroup(mainDomain);
-      
       domainMap.set(mainDomain, {
         info: {
           ...domainInfo,
           baseDomain: mainDomain,
-          serviceGroup: serviceGroup,
           isGrouped: false
         },
         requests: [],
@@ -186,39 +188,60 @@ export function groupDataByDomain(data: any[]): DomainStats[] {
         responseTimes: [],
         tabIds: new Set(),
         relatedDomains: new Set(),
-        allGroupedDomains: new Set()
+        allGroupedDomains: new Set(),
+        subdomainStats: new Map()
       });
     }
     
     const group = domainMap.get(mainDomain)!;
     
     // Track all domains that are part of this main domain group
-    group.allGroupedDomains.add(domainInfo.baseDomain);
-    if (domainInfo.fullDomain !== domainInfo.baseDomain) {
+    // Only add valid domain names (skip 'unknown' entries)
+    if (domainInfo.baseDomain && domainInfo.baseDomain !== 'unknown') {
+      group.allGroupedDomains.add(domainInfo.baseDomain);
+    }
+    if (domainInfo.fullDomain !== domainInfo.baseDomain && domainInfo.fullDomain !== 'unknown') {
       group.allGroupedDomains.add(domainInfo.fullDomain);
     }
     
     // Add subdomain tracking
-    if (domainInfo.subdomain) {
+    if (domainInfo.subdomain && domainInfo.fullDomain !== 'unknown') {
       group.subdomains.add(domainInfo.fullDomain);
     }
+    
+    // Track stats for each individual domain (including subdomains)
+    const trackingDomain = domainInfo.fullDomain;
+    if (!group.subdomainStats.has(trackingDomain)) {
+      group.subdomainStats.set(trackingDomain, {
+        requests: [],
+        errors: [],
+        tokens: [],
+        responseTimes: []
+      });
+    }
+    
+    const subdomainGroup = group.subdomainStats.get(trackingDomain)!;
     
     // Add tab context
     if (tabId) {
       group.tabIds.add(tabId);
     }
     
-    // Categorize the data item
+    // Categorize the data item (add to both main group and subdomain group)
     if (item.type === 'error' || item.level === 'error' || item.source === 'console' || item.severity) {
       group.errors.push(item);
+      subdomainGroup.errors.push(item);
     } else if (item.type === 'token' || item.token || item.tokenType || item.value_hash) {
       group.tokens.push(item);
+      subdomainGroup.tokens.push(item);
     } else {
       group.requests.push(item);
+      subdomainGroup.requests.push(item);
       
       const responseTime = item.response_time || item.responseTime || item.duration || item.time;
       if (typeof responseTime === 'number' && responseTime > 0) {
         group.responseTimes.push(responseTime);
+        subdomainGroup.responseTimes.push(responseTime);
       }
     }
   });
@@ -238,7 +261,7 @@ export function groupDataByDomain(data: any[]): DomainStats[] {
     ).length;
     const successRate = totalRequests > 0 ? (successfulRequests / totalRequests) * 100 : 100;
     
-    const isGrouped = group.subdomains.size > 1 || group.allGroupedDomains.size > 1;
+    const isGrouped = group.subdomains.size > 0 || group.allGroupedDomains.size > 1;
     const subdomainsList = Array.from(group.subdomains).sort();
     const groupedDomainsList = Array.from(group.allGroupedDomains).sort();
     
@@ -253,13 +276,33 @@ export function groupDataByDomain(data: any[]): DomainStats[] {
     const primaryTabUrl = allItems.find(item => item.tab_id === primaryTabId)?.tab_url;
     const isMainDomain = true; // Since we're grouping by main_domain, this is always the main domain
     
+    // Calculate subdomain stats
+    const subdomainStatsArray = Array.from(group.subdomainStats.entries()).map(([domain, stats]) => {
+      const subAvgResponseTime = stats.responseTimes.length > 0
+        ? stats.responseTimes.reduce((sum, time) => sum + time, 0) / stats.responseTimes.length
+        : 0;
+      
+      const subSuccessfulRequests = stats.requests.filter(req => 
+        !req.status || req.status < 400
+      ).length;
+      const subSuccessRate = stats.requests.length > 0 ? (subSuccessfulRequests / stats.requests.length) * 100 : 100;
+      
+      return {
+        domain,
+        requests: stats.requests.length,
+        errors: stats.errors.length,
+        tokens: stats.tokens.length,
+        avgResponseTime: Math.round(subAvgResponseTime),
+        successRate: Math.round(subSuccessRate * 100) / 100
+      };
+    }).sort((a, b) => b.requests - a.requests);
+    
     return {
       domain: mainDomain,
       fullDomain: group.info.fullDomain,
       baseDomain: mainDomain, // This is now the main domain
       subdomain: group.info.subdomain,
       category: group.info.category,
-      serviceGroup: group.info.serviceGroup,
       isGrouped,
       totalRequests,
       errors,
@@ -270,6 +313,7 @@ export function groupDataByDomain(data: any[]): DomainStats[] {
       subdomains: subdomainsList,
       groupedDomains: groupedDomainsList,
       ungroupedRequests: isGrouped ? totalRequests : 0,
+      subdomainStats: subdomainStatsArray,
       tabContext: {
         tabIds: Array.from(group.tabIds),
         primaryTabUrl,
