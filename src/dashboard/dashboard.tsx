@@ -2,6 +2,7 @@
 // This file contains the React component for the Chrome extension dashboard.
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
+import StatisticsCard from './components/StatisticsCard';
 
 interface DashboardData {
   totalTabs: number;
@@ -3229,6 +3230,13 @@ const Dashboard: React.FC = () => {
             )}
           </div>
         </div>
+
+        {/* Statistics Card Component */}
+        <StatisticsCard 
+          networkRequests={data.networkRequests}
+          consoleErrors={data.consoleErrors}
+          tokenEvents={data.tokenEvents}
+        />
       </main>
       </div>
 
