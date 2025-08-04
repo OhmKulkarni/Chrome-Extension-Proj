@@ -3,9 +3,32 @@ console.log('Background service worker started');
 
 // --- Environment-Aware Storage System ---
 import { EnvironmentStorageManager } from './environment-storage-manager';
+import { tabDomainTracker } from '../dashboard/components/domainUtils';
 
 // Initialize environment-aware storage system
 const storageManager = new EnvironmentStorageManager();
+
+// Utility function to extract main domain from any URL
+function extractMainDomain(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname;
+    
+    // Remove 'www.' prefix if present
+    const withoutWww = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
+    
+    // For most cases, return the base domain (e.g., 'reddit.com' from 'api.reddit.com')
+    const parts = withoutWww.split('.');
+    if (parts.length >= 2) {
+      return parts.slice(-2).join('.');
+    }
+    
+    return withoutWww;
+  } catch (error) {
+    console.warn('Failed to extract main domain from URL:', url, error);
+    return 'unknown';
+  }
+}
 
 // --- Token Event Tracking ---
 interface TokenEvent {
@@ -316,11 +339,18 @@ async function detectTokenEvent(requestData: any): Promise<TokenEvent | null> {
 }
 
 // Function to store token events
-async function storeTokenEvent(tokenEvent: TokenEvent): Promise<void> {
+async function storeTokenEvent(tokenEvent: TokenEvent, sender?: chrome.runtime.MessageSender): Promise<void> {
   try {
     if (!storageManager.isInitialized()) {
       await storageManager.init();
     }
+    
+    // Get tab information for context
+    const tabId = sender?.tab?.id;
+    const tabUrl = sender?.tab?.url;
+    
+    // Extract main domain from the tab URL for intelligent grouping
+    const mainDomain = tabUrl ? extractMainDomain(tabUrl) : extractMainDomain(tokenEvent.source_url);
     
     // Prepare token event data for storage
     const tokenEventData = {
@@ -331,7 +361,11 @@ async function storeTokenEvent(tokenEvent: TokenEvent): Promise<void> {
       expiry: tokenEvent.expiry,
       status: tokenEvent.status,
       method: tokenEvent.method,
-      url: tokenEvent.url
+      url: tokenEvent.url,
+      // Add tab context for intelligent domain grouping  
+      tab_id: tabId,
+      tab_url: tabUrl,
+      main_domain: mainDomain // Store the main domain directly for reliable grouping
     };
     
     await storageManager.insertTokenEvent(tokenEventData);
@@ -352,7 +386,8 @@ async function storeTokenEvent(tokenEvent: TokenEvent): Promise<void> {
       type: tokenEvent.type,
       url: tokenEvent.url,
       status: tokenEvent.status,
-      timestamp: tokenEvent.timestamp
+      timestamp: tokenEvent.timestamp,
+      mainDomain: mainDomain
     });
   } catch (error) {
     console.error('[Token Tracker] ❌ Failed to store token event:', error);
@@ -793,6 +828,13 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
     
     // Store the request (either non-token request or token request with logging enabled)
     
+    // Get tab information for context
+    const tabId = sender?.tab?.id;
+    const tabUrl = sender?.tab?.url;
+    
+    // Extract main domain from the tab URL for intelligent grouping
+    const mainDomain = tabUrl ? extractMainDomain(tabUrl) : extractMainDomain(requestData.url);
+    
     // Map the request data from main-world-script to storage API format
     const storageData = {
       url: requestData.url,
@@ -807,11 +849,20 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
       // Add request body if captured
       request_body: requestData.requestBody || null,
       timestamp: requestData.timestamp ? new Date(requestData.timestamp).getTime() : Date.now(),
-      response_time: requestData.duration || null
+      response_time: requestData.duration || null,
+      // Add tab context for intelligent domain grouping
+      tab_id: tabId,
+      tab_url: tabUrl,
+      main_domain: mainDomain // Store the main domain directly for reliable grouping
     };
     
     // Store the network request using the existing API call storage
     const id = await storageManager.insertApiCall(storageData);
+    
+    // Track tab-domain relationship for intelligent grouping
+    if (tabId && requestData.url) {
+      tabDomainTracker.trackTabDomain(tabId, requestData.url, tabUrl);
+    }
     
     // Notify dashboard about new data
     try {
@@ -829,7 +880,7 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
     // We already know this is a token event if we got here and tokenEvent is truthy
     if (tokenEvent) {
       console.log('🔐 STORING TOKEN EVENT (post-storage):', tokenEvent);
-      await storeTokenEvent(tokenEvent);
+      await storeTokenEvent(tokenEvent, sender);
       
       // Update tab token count if we have a tab ID
       if (sender?.tab?.id) {
@@ -888,7 +939,7 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
 }
 
 // Console error handler
-async function handleConsoleError(errorData: any, sendResponse: (response: any) => void) {
+async function handleConsoleError(errorData: any, sendResponse: (response: any) => void, sender?: chrome.runtime.MessageSender) {
   try {
     if (!storageManager.isInitialized()) {
       await storageManager.init();
@@ -947,17 +998,33 @@ async function handleConsoleError(errorData: any, sendResponse: (response: any) 
       }
     }
     
+    // Get tab information for context
+    const tabId = sender?.tab?.id;
+    const tabUrl = sender?.tab?.url;
+    
+    // Extract main domain from the tab URL for intelligent grouping
+    const mainDomain = tabUrl ? extractMainDomain(tabUrl) : extractMainDomain(errorData.url || 'unknown');
+    
     // Map the error data from main-world-script to storage API format
     const storageData = {
       message: errorData.message || 'Unknown error',
       stack_trace: errorData.stack || 'No stack trace available',
       timestamp: errorData.timestamp ? new Date(errorData.timestamp).getTime() : Date.now(),
       severity: errorData.severity || 'error',
-      url: errorData.url || 'Unknown URL'
+      url: errorData.url || 'Unknown URL',
+      // Add tab context for intelligent domain grouping
+      tab_id: tabId,
+      tab_url: tabUrl,
+      main_domain: mainDomain // Store the main domain directly for reliableGrouping
     };
     
     // Store the console error
     const id = await storageManager.insertConsoleError(storageData);
+    
+    // Track tab-domain relationship for intelligent grouping
+    if (tabId && (errorData.url || tabUrl)) {
+      tabDomainTracker.trackTabDomain(tabId, errorData.url || tabUrl, tabUrl);
+    }
 
     // Notify dashboard about new error data
     try {
@@ -1332,7 +1399,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     case 'CONSOLE_ERROR':
       // Store console error data from content script
-      handleConsoleError(message.data, sendResponse);
+      handleConsoleError(message.data, sendResponse, sender);
       return true; // Keep message channel open for async response
 
     case 'getNetworkRequests':
