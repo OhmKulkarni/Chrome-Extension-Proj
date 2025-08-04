@@ -8,6 +8,28 @@ import { tabDomainTracker } from '../dashboard/components/domainUtils';
 // Initialize environment-aware storage system
 const storageManager = new EnvironmentStorageManager();
 
+// Utility function to extract main domain from any URL
+function extractMainDomain(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname;
+    
+    // Remove 'www.' prefix if present
+    const withoutWww = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
+    
+    // For most cases, return the base domain (e.g., 'reddit.com' from 'api.reddit.com')
+    const parts = withoutWww.split('.');
+    if (parts.length >= 2) {
+      return parts.slice(-2).join('.');
+    }
+    
+    return withoutWww;
+  } catch (error) {
+    console.warn('Failed to extract main domain from URL:', url, error);
+    return 'unknown';
+  }
+}
+
 // --- Token Event Tracking ---
 interface TokenEvent {
   type: 'acquire' | 'refresh' | 'expired' | 'refresh_error';
@@ -317,11 +339,18 @@ async function detectTokenEvent(requestData: any): Promise<TokenEvent | null> {
 }
 
 // Function to store token events
-async function storeTokenEvent(tokenEvent: TokenEvent): Promise<void> {
+async function storeTokenEvent(tokenEvent: TokenEvent, sender?: chrome.runtime.MessageSender): Promise<void> {
   try {
     if (!storageManager.isInitialized()) {
       await storageManager.init();
     }
+    
+    // Get tab information for context
+    const tabId = sender?.tab?.id;
+    const tabUrl = sender?.tab?.url;
+    
+    // Extract main domain from the tab URL for intelligent grouping
+    const mainDomain = tabUrl ? extractMainDomain(tabUrl) : extractMainDomain(tokenEvent.source_url);
     
     // Prepare token event data for storage
     const tokenEventData = {
@@ -332,7 +361,11 @@ async function storeTokenEvent(tokenEvent: TokenEvent): Promise<void> {
       expiry: tokenEvent.expiry,
       status: tokenEvent.status,
       method: tokenEvent.method,
-      url: tokenEvent.url
+      url: tokenEvent.url,
+      // Add tab context for intelligent domain grouping  
+      tab_id: tabId,
+      tab_url: tabUrl,
+      main_domain: mainDomain // Store the main domain directly for reliable grouping
     };
     
     await storageManager.insertTokenEvent(tokenEventData);
@@ -353,7 +386,8 @@ async function storeTokenEvent(tokenEvent: TokenEvent): Promise<void> {
       type: tokenEvent.type,
       url: tokenEvent.url,
       status: tokenEvent.status,
-      timestamp: tokenEvent.timestamp
+      timestamp: tokenEvent.timestamp,
+      mainDomain: mainDomain
     });
   } catch (error) {
     console.error('[Token Tracker] ❌ Failed to store token event:', error);
@@ -798,6 +832,9 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
     const tabId = sender?.tab?.id;
     const tabUrl = sender?.tab?.url;
     
+    // Extract main domain from the tab URL for intelligent grouping
+    const mainDomain = tabUrl ? extractMainDomain(tabUrl) : extractMainDomain(requestData.url);
+    
     // Map the request data from main-world-script to storage API format
     const storageData = {
       url: requestData.url,
@@ -815,7 +852,8 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
       response_time: requestData.duration || null,
       // Add tab context for intelligent domain grouping
       tab_id: tabId,
-      tab_url: tabUrl
+      tab_url: tabUrl,
+      main_domain: mainDomain // Store the main domain directly for reliable grouping
     };
     
     // Store the network request using the existing API call storage
@@ -842,7 +880,7 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
     // We already know this is a token event if we got here and tokenEvent is truthy
     if (tokenEvent) {
       console.log('🔐 STORING TOKEN EVENT (post-storage):', tokenEvent);
-      await storeTokenEvent(tokenEvent);
+      await storeTokenEvent(tokenEvent, sender);
       
       // Update tab token count if we have a tab ID
       if (sender?.tab?.id) {
@@ -964,6 +1002,9 @@ async function handleConsoleError(errorData: any, sendResponse: (response: any) 
     const tabId = sender?.tab?.id;
     const tabUrl = sender?.tab?.url;
     
+    // Extract main domain from the tab URL for intelligent grouping
+    const mainDomain = tabUrl ? extractMainDomain(tabUrl) : extractMainDomain(errorData.url || 'unknown');
+    
     // Map the error data from main-world-script to storage API format
     const storageData = {
       message: errorData.message || 'Unknown error',
@@ -973,7 +1014,8 @@ async function handleConsoleError(errorData: any, sendResponse: (response: any) 
       url: errorData.url || 'Unknown URL',
       // Add tab context for intelligent domain grouping
       tab_id: tabId,
-      tab_url: tabUrl
+      tab_url: tabUrl,
+      main_domain: mainDomain // Store the main domain directly for reliableGrouping
     };
     
     // Store the console error

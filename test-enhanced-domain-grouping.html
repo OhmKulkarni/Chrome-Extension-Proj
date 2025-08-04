@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Domain Grouping Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-case { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .test-case h3 { margin-top: 0; color: #333; }
+        .domain-group { background: #f5f5f5; padding: 10px; margin: 5px 0; border-radius: 3px; }
+        .domain-item { margin: 2px 0; font-family: monospace; }
+        .success { color: green; }
+        .warning { color: orange; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Enhanced Domain Grouping Test</h1>
+    <p>Testing the advanced domain relationship detection with Union-Find algorithms.</p>
+    
+    <div class="test-case">
+        <h3>Test Case 1: Reddit Domains</h3>
+        <p>These should be grouped together as they're all part of Reddit's infrastructure:</p>
+        <div class="domain-group">
+            <div class="domain-item">reddit.com</div>
+            <div class="domain-item">www.reddit.com</div>
+            <div class="domain-item">oauth.reddit.com</div>
+            <div class="domain-item">accounts.reddit.com</div>
+            <div class="domain-item">svc.reddit.com</div>
+            <div class="domain-item">svc.shreddit.events</div>
+        </div>
+    </div>
+    
+    <div class="test-case">
+        <h3>Test Case 2: GitHub Domains</h3>
+        <p>These should be grouped together as they're all part of GitHub's ecosystem:</p>
+        <div class="domain-group">
+            <div class="domain-item">github.com</div>
+            <div class="domain-item">www.github.com</div>
+            <div class="domain-item">api.github.com</div>
+            <div class="domain-item">raw.githubusercontent.com</div>
+            <div class="domain-item">avatars.githubusercontent.com</div>
+            <div class="domain-item">codeload.github.com</div>
+        </div>
+    </div>
+    
+    <div class="test-case">
+        <h3>Test Case 3: Anthropic/Claude Domains</h3>
+        <p>These should be grouped together as they're both part of Anthropic's Claude service:</p>
+        <div class="domain-group">
+            <div class="domain-item">claude.ai</div>
+            <div class="domain-item">www.claude.ai</div>
+            <div class="domain-item">api.anthropic.com</div>
+            <div class="domain-item">anthropic.com</div>
+        </div>
+    </div>
+    
+    <div class="test-case">
+        <h3>Test Case 4: Dynamic Co-occurrence Detection</h3>
+        <p>These domains might be discovered as related through tab co-occurrence analysis:</p>
+        <div class="domain-group">
+            <div class="domain-item">example.com</div>
+            <div class="domain-item">cdn.example.com</div>
+            <div class="domain-item">api.example.com</div>
+            <div class="domain-item">assets.example.com</div>
+        </div>
+    </div>
+    
+    <script type="module">
+        // Import the domain utilities (this would normally be from the extension context)
+        console.log('🧪 Enhanced Domain Grouping Test Started');
+        
+        // Test data simulating intercepted requests with tab context
+        const testData = [
+            // Reddit data in same tab
+            { url: 'https://reddit.com/r/programming', tab_id: 1, tab_url: 'https://reddit.com/r/programming', type: 'request' },
+            { url: 'https://www.reddit.com/api/morechildren', tab_id: 1, tab_url: 'https://reddit.com/r/programming', type: 'request' },
+            { url: 'https://oauth.reddit.com/api/v1/me', tab_id: 1, tab_url: 'https://reddit.com/r/programming', type: 'request' },
+            { url: 'https://svc.reddit.com/track', tab_id: 1, tab_url: 'https://reddit.com/r/programming', type: 'request' },
+            { url: 'https://svc.shreddit.events/events', tab_id: 1, tab_url: 'https://reddit.com/r/programming', type: 'request' },
+            
+            // GitHub data in same tab
+            { url: 'https://github.com/microsoft/vscode', tab_id: 2, tab_url: 'https://github.com/microsoft/vscode', type: 'request' },
+            { url: 'https://api.github.com/repos/microsoft/vscode', tab_id: 2, tab_url: 'https://github.com/microsoft/vscode', type: 'request' },
+            { url: 'https://raw.githubusercontent.com/microsoft/vscode/main/README.md', tab_id: 2, tab_url: 'https://github.com/microsoft/vscode', type: 'request' },
+            { url: 'https://avatars.githubusercontent.com/u/1234567', tab_id: 2, tab_url: 'https://github.com/microsoft/vscode', type: 'request' },
+            
+            // Anthropic/Claude data in same tab
+            { url: 'https://claude.ai/chat/new', tab_id: 3, tab_url: 'https://claude.ai/chat/new', type: 'request' },
+            { url: 'https://api.anthropic.com/v1/messages', tab_id: 3, tab_url: 'https://claude.ai/chat/new', type: 'request' },
+            { url: 'https://anthropic.com/privacy', tab_id: 3, tab_url: 'https://claude.ai/chat/new', type: 'request' },
+            
+            // Dynamic co-occurrence example
+            { url: 'https://example.com/page', tab_id: 4, tab_url: 'https://example.com/page', type: 'request' },
+            { url: 'https://cdn.example.com/assets/style.css', tab_id: 4, tab_url: 'https://example.com/page', type: 'request' },
+            { url: 'https://api.example.com/data', tab_id: 4, tab_url: 'https://example.com/page', type: 'request' },
+            
+            // Some errors and tokens
+            { url: 'https://reddit.com', source: 'console', level: 'error', tab_id: 1, tab_url: 'https://reddit.com/r/programming' },
+            { url: 'https://api.anthropic.com', token: 'sk-ant-...', tokenType: 'api_key', tab_id: 3, tab_url: 'https://claude.ai/chat/new' }
+        ];
+        
+        console.log('📊 Test data prepared:', testData.length, 'items');
+        console.log('🔍 Testing enhanced domain grouping...');
+        
+        // In a real scenario, this would use the actual groupDataByDomain function
+        // For this test, we'll simulate the expected behavior
+        const expectedGroups = [
+            {
+                name: 'Reddit Service Group',
+                domains: ['reddit.com', 'www.reddit.com', 'oauth.reddit.com', 'svc.reddit.com', 'svc.shreddit.events'],
+                shouldBeGrouped: true
+            },
+            {
+                name: 'GitHub Service Group', 
+                domains: ['github.com', 'api.github.com', 'raw.githubusercontent.com', 'avatars.githubusercontent.com'],
+                shouldBeGrouped: true
+            },
+            {
+                name: 'Anthropic/Claude Service Group',
+                domains: ['claude.ai', 'api.anthropic.com', 'anthropic.com'],
+                shouldBeGrouped: true
+            },
+            {
+                name: 'Dynamic Co-occurrence Group',
+                domains: ['example.com', 'cdn.example.com', 'api.example.com'],
+                shouldBeGrouped: true
+            }
+        ];
+        
+        console.log('✅ Expected grouping behavior:');
+        expectedGroups.forEach(group => {
+            console.log(`  📁 ${group.name}:`, group.domains);
+        });
+        
+        console.log('🎯 Key improvements implemented:');
+        console.log('  • Union-Find algorithm for efficient domain grouping');
+        console.log('  • Tab co-occurrence analysis for dynamic relationship detection');
+        console.log('  • Enhanced SERVICE_GROUPS mapping for known services');
+        console.log('  • Primary domain selection for group representation');
+        console.log('  • Statistical threshold-based relationship discovery');
+        console.log('');
+        console.log('🚀 To test in extension:');
+        console.log('  1. Load the extension in Chrome');
+        console.log('  2. Visit reddit.com, github.com, and claude.ai');
+        console.log('  3. Check dashboard - related domains should be grouped');
+        console.log('  4. Look for "Service" or "Grouped" badges on domain stats');
+    </script>
+</body>
+</html>

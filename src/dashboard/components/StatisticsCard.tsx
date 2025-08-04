@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Button } from './ui/button';
-import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor } from 'lucide-react';
+import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight } from 'lucide-react';
 import { groupDataByDomain, DomainStats } from './domainUtils';
 
 interface StatisticsCardProps {
@@ -34,9 +34,11 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   });
   
   const [domainSortConfig, setDomainSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({
-    key: 'requests',
+    key: 'totalRequests',
     direction: 'desc'
   });
+
+  const [expandedDomains, setExpandedDomains] = useState<Set<string>>(new Set());
 
   // Calculate global statistics
   const globalStats: GlobalStats = useMemo(() => {
@@ -123,6 +125,17 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       key,
       direction: domainSortConfig.key === key && domainSortConfig.direction === 'desc' ? 'asc' : 'desc'
     });
+  };
+
+  // Toggle expanded state for grouped domains
+  const toggleDomainExpansion = (domain: string) => {
+    const newExpanded = new Set(expandedDomains);
+    if (expandedDomains.has(domain)) {
+      newExpanded.delete(domain);
+    } else {
+      newExpanded.add(domain);
+    }
+    setExpandedDomains(newExpanded);
   };
 
   // Prepare sorted global stats for table
@@ -346,24 +359,42 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                 </TableHeader>
                 <TableBody>
                   {sortedDomainStats.map((stat, index) => (
-                    <TableRow key={index} className="hover:bg-blue-50/50">
-                      <TableCell className="font-medium max-w-[200px]" title={
-                        stat.isGrouped ? 
-                          `${stat.domain} (grouped from ${stat.subdomains.length} subdomains: ${stat.subdomains.join(', ')})` :
-                          `${stat.domain}${stat.tabContext?.primaryTabUrl ? ` - Tab: ${stat.tabContext.primaryTabUrl}` : ''}`
-                      }>
-                        <div className="flex items-center gap-2">
-                          <span className="truncate">{stat.domain}</span>
-                          {stat.tabContext?.isMainDomain && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800" title="Primary domain for tab">
-                              <Monitor className="h-3 w-3 mr-1" />
-                              Main
-                            </span>
-                          )}
-                          {stat.isGrouped && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800" title={`Grouped from: ${stat.subdomains.join(', ')}`}>
-                              <Layers className="h-3 w-3 mr-1" />
-                              {stat.subdomains.length}
+                    <React.Fragment key={index}>
+                      <TableRow className="hover:bg-blue-50/50">
+                        <TableCell className="font-medium max-w-[200px]" title={
+                          stat.isGrouped ? 
+                            `${stat.domain} (Service group with ${stat.groupedDomains.length} domains: ${stat.groupedDomains.join(', ')})` :
+                            `${stat.domain}${stat.tabContext?.primaryTabUrl ? ` - Tab: ${stat.tabContext.primaryTabUrl}` : ''}`
+                        }>
+                          <div className="flex items-center gap-2">
+                            {stat.isGrouped && (
+                              <button
+                                onClick={() => toggleDomainExpansion(stat.domain)}
+                                className="p-0.5 hover:bg-gray-100 rounded"
+                                title={expandedDomains.has(stat.domain) ? "Collapse grouped domains" : "Expand grouped domains"}
+                              >
+                                {expandedDomains.has(stat.domain) ? 
+                                  <ChevronDown className="h-3 w-3" /> : 
+                                  <ChevronRight className="h-3 w-3" />
+                                }
+                              </button>
+                            )}
+                            <span className="truncate">{stat.domain}</span>
+                            {stat.serviceGroup && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800" title={`Service: ${stat.serviceGroup}`}>
+                                Service
+                              </span>
+                            )}
+                            {stat.tabContext?.isMainDomain && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800" title="Primary domain for tab">
+                                <Monitor className="h-3 w-3 mr-1" />
+                                Main
+                              </span>
+                            )}
+                            {stat.isGrouped && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800" title={`Grouped from: ${stat.groupedDomains.join(', ')}`}>
+                                <Layers className="h-3 w-3 mr-1" />
+                                {stat.groupedDomains.length}
                             </span>
                           )}
                           {stat.tabContext?.tabIds && stat.tabContext.tabIds.length > 1 && (
@@ -392,6 +423,25 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                         {new Date(stat.lastSeen).toLocaleString()}
                       </TableCell>
                     </TableRow>
+                    
+                    {/* Expanded grouped domains */}
+                    {stat.isGrouped && expandedDomains.has(stat.domain) && stat.groupedDomains.map((groupedDomain: string, subIndex: number) => (
+                      <TableRow key={`${index}-${subIndex}`} className="bg-blue-50/30 border-l-2 border-l-blue-200">
+                        <TableCell className="pl-8 text-sm text-gray-600">
+                          <div className="flex items-center gap-2">
+                            <span className="text-blue-500">└─</span>
+                            <span>{groupedDomain}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm text-gray-500">-</TableCell>
+                        <TableCell className="text-sm text-gray-500">-</TableCell>
+                        <TableCell className="text-sm text-gray-500">-</TableCell>
+                        <TableCell className="text-sm text-gray-500">-</TableCell>
+                        <TableCell className="text-sm text-gray-500">-</TableCell>
+                        <TableCell className="text-sm text-gray-500">-</TableCell>
+                      </TableRow>
+                    ))}
+                  </React.Fragment>
                   ))}
                   {sortedDomainStats.length === 0 && (
                     <TableRow>

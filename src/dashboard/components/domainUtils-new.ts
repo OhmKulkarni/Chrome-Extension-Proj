@@ -91,7 +91,7 @@ function getServiceGroup(domain: string): string | undefined {
 }
 
 // Parse domain information from URL
-function parseDomainInfo(url: string, _tabContext?: TabContext): DomainInfo {
+function parseDomainInfo(url: string, tabContext?: TabContext): DomainInfo {
   try {
     const urlObj = new URL(url);
     const hostname = urlObj.hostname;

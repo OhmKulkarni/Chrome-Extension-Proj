@@ -13,6 +13,7 @@ export interface ApiCall {
   response_time?: number // Response time in milliseconds
   tab_id?: number // Track which tab this request came from
   tab_url?: string // Track the main tab URL for context
+  main_domain?: string // The main domain this request is associated with
   request_body?: string // Request body for analysis
 }
 
@@ -25,6 +26,7 @@ export interface ConsoleError {
   url: string
   tab_id?: number // Track which tab this error came from
   tab_url?: string // Track the main tab URL for context
+  main_domain?: string // The main domain this error is associated with
 }
 
 export interface TokenEvent {
@@ -39,6 +41,7 @@ export interface TokenEvent {
   url?: string
   tab_id?: number // Track which tab this token came from
   tab_url?: string // Track the main tab URL for context
+  main_domain?: string // The main domain this token is associated with
 }
 
 export interface MinifiedLibrary {
