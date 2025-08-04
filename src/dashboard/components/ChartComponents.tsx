@@ -164,8 +164,13 @@ export const TopEndpointsByVolumeChart: React.FC<ChartProps> = ({ networkRequest
     let endpoint = 'Unknown';
     
     try {
-      const urlObj = new URL(url);
-      endpoint = urlObj.pathname || url;
+      // Handle relative URLs (they start with /)
+      if (url.startsWith('/')) {
+        endpoint = url;
+      } else {
+        const urlObj = new URL(url);
+        endpoint = urlObj.pathname || url;
+      }
     } catch (e) {
       endpoint = url;
     }
@@ -240,8 +245,13 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
     
     let route = 'Unknown';
     try {
-      const urlObj = new URL(url);
-      route = urlObj.pathname || url;
+      // Handle relative URLs (they start with /)
+      if (url.startsWith('/')) {
+        route = url;
+      } else {
+        const urlObj = new URL(url);
+        route = urlObj.pathname || url;
+      }
     } catch (e) {
       route = url;
     }

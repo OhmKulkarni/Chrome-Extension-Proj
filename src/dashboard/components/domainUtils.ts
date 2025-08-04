@@ -50,7 +50,23 @@ export interface DomainStats {
 // Helper function to extract base domain from URL (fallback for legacy data)
 function extractBaseDomain(url: string): string {
   try {
-    const urlObj = new URL(url);
+    // Handle relative URLs (they start with /)
+    if (!url || url.startsWith('/')) {
+      return 'localhost';
+    }
+    
+    // Handle URLs that don't have a protocol
+    let fullUrl = url;
+    if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('//')) {
+      // Try to add https:// if it looks like a domain
+      if (url.includes('.') && !url.includes('/')) {
+        fullUrl = 'https://' + url;
+      } else {
+        return 'unknown';
+      }
+    }
+    
+    const urlObj = new URL(fullUrl);
     const hostname = urlObj.hostname;
     
     // Remove 'www.' prefix if present
@@ -84,7 +100,34 @@ function parseDomainInfo(url: string, _tabContext?: TabContext): DomainInfo {
       };
     }
     
-    const urlObj = new URL(url);
+    // Handle relative URLs (they start with /)
+    if (url.startsWith('/')) {
+      return {
+        fullDomain: 'localhost', // or use a generic identifier
+        baseDomain: 'localhost',
+        category: 'other',
+        isGrouped: false
+      };
+    }
+    
+    // Handle URLs that don't have a protocol
+    let fullUrl = url;
+    if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('//')) {
+      // Try to add https:// if it looks like a domain
+      if (url.includes('.') && !url.includes('/')) {
+        fullUrl = 'https://' + url;
+      } else {
+        // Skip malformed URLs
+        return {
+          fullDomain: 'unknown',
+          baseDomain: 'unknown',
+          category: 'other',
+          isGrouped: false
+        };
+      }
+    }
+    
+    const urlObj = new URL(fullUrl);
     const hostname = urlObj.hostname;
     
     // Skip if hostname is empty or invalid
