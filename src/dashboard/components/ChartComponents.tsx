@@ -435,3 +435,106 @@ export const TopFrequentErrorsChart: React.FC<ChartProps> = ({ consoleErrors }) 
     </ResponsiveContainer>
   );
 };
+
+// Requests Over Time (Line Chart)
+export const RequestsOverTimeChart: React.FC<ChartProps> = ({ networkRequests }) => {
+  console.log('RequestsOverTimeChart - networkRequests:', networkRequests?.length || 0);
+
+  if (!networkRequests || networkRequests.length === 0) {
+    return (
+      <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
+        <div className="text-center text-gray-400">
+          <p>No network requests data available</p>
+          <p className="text-xs mt-2">No timeline data to display</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Group requests by time periods (by hour for the last 24 hours or by day)
+  const timeGroups = networkRequests.reduce((acc, req) => {
+    const timestamp = req.timestamp ? new Date(req.timestamp) : new Date();
+    
+    // Group by hour for more granular view
+    const hourKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(), timestamp.getHours()).getTime();
+    
+    if (!acc[hourKey]) {
+      acc[hourKey] = {
+        timestamp: hourKey,
+        count: 0,
+        errors: 0,
+        success: 0
+      };
+    }
+    
+    acc[hourKey].count += 1;
+    
+    // Categorize by status
+    const status = req.status || req.response_status || 200;
+    if (status >= 200 && status < 400) {
+      acc[hourKey].success += 1;
+    } else {
+      acc[hourKey].errors += 1;
+    }
+    
+    return acc;
+  }, {} as { [key: number]: { timestamp: number; count: number; errors: number; success: number } });
+
+  console.log('RequestsOverTimeChart - timeGroups:', timeGroups);
+
+  // Convert to chart data and sort by time
+  const chartData = Object.values(timeGroups)
+    .sort((a, b) => (a as any).timestamp - (b as any).timestamp)
+    .map(group => {
+      const g = group as any;
+      return {
+        time: new Date(g.timestamp).toLocaleString('en-US', { 
+          month: 'short', 
+          day: 'numeric', 
+          hour: 'numeric',
+          hour12: true 
+        }),
+        timestamp: g.timestamp,
+        requests: g.count,
+        success: g.success,
+        errors: g.errors
+      };
+    });
+
+  console.log('RequestsOverTimeChart - chartData:', chartData);
+
+  if (chartData.length === 0) {
+    return (
+      <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
+        <div className="text-center text-gray-400">
+          <p>No timeline data available</p>
+          <p className="text-xs mt-2">Request timestamps may be missing</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={400}>
+      <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis 
+          dataKey="time" 
+          angle={-45}
+          textAnchor="end"
+          height={80}
+          fontSize={12}
+        />
+        <YAxis />
+        <Tooltip 
+          formatter={(value, name) => [value, name === 'requests' ? 'Total Requests' : name === 'success' ? 'Successful' : 'Errors']}
+          labelFormatter={(label) => `Time: ${label}`}
+        />
+        <Legend />
+        <Bar dataKey="requests" fill={COLORS.info} name="Total Requests" />
+        <Bar dataKey="success" fill={COLORS.success} name="Successful" />
+        <Bar dataKey="errors" fill={COLORS.error} name="Errors" />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+};

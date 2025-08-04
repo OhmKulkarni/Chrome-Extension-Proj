@@ -12,7 +12,8 @@ import {
   TopEndpointsByVolumeChart,
   AvgResponseTimePerRouteChart,
   AuthFailuresVsSuccessChart,
-  TopFrequentErrorsChart
+  TopFrequentErrorsChart,
+  RequestsOverTimeChart
 } from './ChartComponents';
 
 interface StatisticsCardProps {
@@ -243,6 +244,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     });
 
     switch (chartKey) {
+      case 'requests-over-time':
+        return <RequestsOverTimeChart {...chartData} />;
       case 'http-method-distribution':
         return <HttpMethodDistributionChart {...chartData} />;
       case 'status-code-breakdown':
