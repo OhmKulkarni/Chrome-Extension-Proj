@@ -16,6 +16,8 @@ interface GlobalStats {
   totalRequests: number;
   totalErrors: number;
   totalTokenEvents: number;
+  uniqueDomains: number;
+  maxResponseTime: number;
   requestsByMethod: { [method: string]: number };
   errorsBySeverity: { [severity: string]: number };
   tokensByType: { [type: string]: number };
@@ -45,6 +47,26 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     const totalRequests = networkRequests.length;
     const totalErrors = consoleErrors.length;
     const totalTokenEvents = tokenEvents.length;
+
+    // Calculate unique domains
+    const allData = [...networkRequests, ...consoleErrors, ...tokenEvents];
+    const uniqueDomainsSet = new Set();
+    allData.forEach(item => {
+      const itemUrl = item.url || item.request?.url || item.details?.url || item.source_url || '';
+      if (itemUrl && itemUrl !== 'unknown' && itemUrl !== 'Unknown' && itemUrl !== 'Unknown URL') {
+        try {
+          const hostname = new URL(itemUrl).hostname;
+          // Extract main domain (e.g., reddit.com from www.reddit.com)
+          const mainDomain = item.main_domain || hostname.replace(/^www\./, '').toLowerCase();
+          if (mainDomain && mainDomain !== 'unknown') {
+            uniqueDomainsSet.add(mainDomain);
+          }
+        } catch (e) {
+          // Skip invalid URLs
+        }
+      }
+    });
+    const uniqueDomains = uniqueDomainsSet.size;
 
     // Requests by method
     const requestsByMethod = networkRequests.reduce((acc, req) => {
@@ -79,12 +101,15 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       return acc;
     }, {} as { [type: string]: number });
 
-    // Calculate average response time
+    // Calculate average and max response time
     const responseTimes = networkRequests
       .map(req => req.response_time || req.responseTime)
       .filter(time => time && typeof time === 'number');
     const avgResponseTime = responseTimes.length > 0 
       ? Math.round(responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length)
+      : 0;
+    const maxResponseTime = responseTimes.length > 0 
+      ? Math.max(...responseTimes)
       : 0;
 
     // Calculate success rate
@@ -98,6 +123,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       totalRequests,
       totalErrors,
       totalTokenEvents,
+      uniqueDomains,
+      maxResponseTime,
       requestsByMethod,
       errorsBySeverity,
       tokensByType,
@@ -141,21 +168,32 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   // Prepare sorted global stats for table
   const globalStatsTable = useMemo(() => {
     const stats = [
+      // Network category metrics
       { metric: 'Total Requests', value: globalStats.totalRequests, category: 'Network' },
-      { metric: 'Total Errors', value: globalStats.totalErrors, category: 'Console' },
-      { metric: 'Total Token Events', value: globalStats.totalTokenEvents, category: 'Auth' },
-      { metric: 'Average Response Time', value: `${globalStats.avgResponseTime}ms`, category: 'Performance' },
-      { metric: 'Success Rate', value: `${globalStats.successRate}%`, category: 'Performance' },
+      { metric: 'Unique Domains', value: globalStats.uniqueDomains, category: 'Network' },
       ...Object.entries(globalStats.requestsByMethod).map(([method, count]) => ({
         metric: `${method} Requests`,
         value: count,
         category: 'Network'
       })),
-      ...Object.entries(globalStats.errorsBySeverity).map(([severity, count]) => ({
-        metric: `${severity.toUpperCase()} Errors`,
-        value: count,
-        category: 'Console'
-      })),
+      
+      // Performance category metrics
+      { metric: 'Success Rate', value: `${globalStats.successRate}%`, category: 'Performance' },
+      { metric: 'Average Response Time', value: `${globalStats.avgResponseTime}ms`, category: 'Performance' },
+      { metric: 'Max Response Time', value: `${globalStats.maxResponseTime}ms`, category: 'Performance' },
+      
+      // Console category metrics (Total Errors only - removed redundant ERROR Errors)
+      { metric: 'Total Errors', value: globalStats.totalErrors, category: 'Console' },
+      ...Object.entries(globalStats.errorsBySeverity)
+        .filter(([severity]) => severity.toLowerCase() !== 'error') // Remove redundant 'error' severity to avoid duplication
+        .map(([severity, count]) => ({
+          metric: `${severity.toUpperCase()} Errors`,
+          value: count,
+          category: 'Console'
+        })),
+      
+      // Auth category metrics
+      { metric: 'Total Token Events', value: globalStats.totalTokenEvents, category: 'Auth' },
       ...Object.entries(globalStats.tokensByType).map(([type, count]) => ({
         metric: type,
         value: count,
