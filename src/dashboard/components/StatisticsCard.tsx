@@ -361,48 +361,56 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                   {sortedDomainStats.map((stat, index) => (
                     <React.Fragment key={index}>
                       <TableRow className="hover:bg-blue-50/50">
-                        <TableCell className="font-medium max-w-[200px]" title={
+                        <TableCell className="font-medium max-w-[300px]" title={
                           stat.isGrouped ? 
                             `${stat.domain} (Service group with ${stat.groupedDomains.length} domains: ${stat.groupedDomains.join(', ')})` :
                             `${stat.domain}${stat.tabContext?.primaryTabUrl ? ` - Tab: ${stat.tabContext.primaryTabUrl}` : ''}`
                         }>
-                          <div className="flex items-center gap-2">
-                            {stat.isGrouped && (
-                              <button
-                                onClick={() => toggleDomainExpansion(stat.domain)}
-                                className="p-0.5 hover:bg-gray-100 rounded"
-                                title={expandedDomains.has(stat.domain) ? "Collapse grouped domains" : "Expand grouped domains"}
-                              >
-                                {expandedDomains.has(stat.domain) ? 
-                                  <ChevronDown className="h-3 w-3" /> : 
-                                  <ChevronRight className="h-3 w-3" />
-                                }
-                              </button>
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              {stat.isGrouped && (
+                                <button
+                                  onClick={() => toggleDomainExpansion(stat.domain)}
+                                  className="p-0.5 hover:bg-gray-100 rounded"
+                                  title={expandedDomains.has(stat.domain) ? "Collapse grouped domains" : "Expand grouped domains"}
+                                >
+                                  {expandedDomains.has(stat.domain) ? 
+                                    <ChevronDown className="h-3 w-3" /> : 
+                                    <ChevronRight className="h-3 w-3" />
+                                  }
+                                </button>
+                              )}
+                              <span className="truncate font-semibold">{stat.domain}</span>
+                              {stat.serviceGroup && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800" title={`Service: ${stat.serviceGroup}`}>
+                                  Service
+                                </span>
+                              )}
+                              {stat.tabContext?.isMainDomain && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800" title="Primary domain for tab">
+                                  <Monitor className="h-3 w-3 mr-1" />
+                                  Main
+                                </span>
+                              )}
+                              {stat.isGrouped && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800" title={`Grouped from: ${stat.groupedDomains.join(', ')}`}>
+                                  <Layers className="h-3 w-3 mr-1" />
+                                  {stat.groupedDomains.length}
+                                </span>
+                              )}
+                              {stat.tabContext?.tabIds && stat.tabContext.tabIds.length > 1 && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800" title={`Active in ${stat.tabContext.tabIds.length} tabs`}>
+                                  {stat.tabContext.tabIds.length}T
+                                </span>
+                              )}
+                            </div>
+                            {/* Show primary tab URL when available */}
+                            {stat.tabContext?.primaryTabUrl && (
+                              <div className="text-xs text-gray-500 truncate max-w-[280px]" title={stat.tabContext.primaryTabUrl}>
+                                📄 {stat.tabContext.primaryTabUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                              </div>
                             )}
-                            <span className="truncate">{stat.domain}</span>
-                            {stat.serviceGroup && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800" title={`Service: ${stat.serviceGroup}`}>
-                                Service
-                              </span>
-                            )}
-                            {stat.tabContext?.isMainDomain && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800" title="Primary domain for tab">
-                                <Monitor className="h-3 w-3 mr-1" />
-                                Main
-                              </span>
-                            )}
-                            {stat.isGrouped && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800" title={`Grouped from: ${stat.groupedDomains.join(', ')}`}>
-                                <Layers className="h-3 w-3 mr-1" />
-                                {stat.groupedDomains.length}
-                            </span>
-                          )}
-                          {stat.tabContext?.tabIds && stat.tabContext.tabIds.length > 1 && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800" title={`Active in ${stat.tabContext.tabIds.length} tabs`}>
-                              {stat.tabContext.tabIds.length}T
-                            </span>
-                          )}
-                        </div>
+                          </div>
                       </TableCell>
                       <TableCell className="font-semibold text-green-700">{stat.totalRequests}</TableCell>
                       <TableCell className="font-semibold text-red-700">{stat.errors}</TableCell>
