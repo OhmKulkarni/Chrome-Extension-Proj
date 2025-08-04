@@ -3,7 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Button } from './ui/button';
-import { ArrowUpDown, BarChart3, TrendingUp } from 'lucide-react';
+import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor } from 'lucide-react';
+import { groupDataByDomain, DomainStats } from './domainUtils';
 
 interface StatisticsCardProps {
   networkRequests: any[];
@@ -20,16 +21,6 @@ interface GlobalStats {
   tokensByType: { [type: string]: number };
   avgResponseTime: number;
   successRate: number;
-}
-
-interface DomainStats {
-  domain: string;
-  requests: number;
-  errors: number;
-  tokens: number;
-  successRate: number;
-  avgResponseTime: number;
-  lastActivity: string;
 }
 
 const StatisticsCard: React.FC<StatisticsCardProps> = ({
@@ -113,110 +104,10 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     };
   }, [networkRequests, consoleErrors, tokenEvents]);
 
-  // Calculate domain-specific statistics
+  // Calculate domain-specific statistics with enhanced grouping
   const domainStats: DomainStats[] = useMemo(() => {
-    const domainMap = new Map<string, {
-      requests: any[];
-      errors: any[];
-      tokens: any[];
-    }>();
-
-    // Group network requests by domain
-    networkRequests.forEach(req => {
-      const url = req.url || req.request_url || '';
-      try {
-        const domain = new URL(url).hostname || 'unknown';
-        if (!domainMap.has(domain)) {
-          domainMap.set(domain, { requests: [], errors: [], tokens: [] });
-        }
-        domainMap.get(domain)!.requests.push(req);
-      } catch {
-        const domain = 'invalid-url';
-        if (!domainMap.has(domain)) {
-          domainMap.set(domain, { requests: [], errors: [], tokens: [] });
-        }
-        domainMap.get(domain)!.requests.push(req);
-      }
-    });
-
-    // Group console errors by domain (if available)
-    consoleErrors.forEach(error => {
-      const url = error.source_url || error.url || '';
-      try {
-        const domain = url ? new URL(url).hostname : 'unknown';
-        if (!domainMap.has(domain)) {
-          domainMap.set(domain, { requests: [], errors: [], tokens: [] });
-        }
-        domainMap.get(domain)!.errors.push(error);
-      } catch {
-        const domain = 'unknown';
-        if (!domainMap.has(domain)) {
-          domainMap.set(domain, { requests: [], errors: [], tokens: [] });
-        }
-        domainMap.get(domain)!.errors.push(error);
-      }
-    });
-
-    // Group token events by domain
-    tokenEvents.forEach(token => {
-      const url = token.url || token.source_url || '';
-      try {
-        const domain = url ? new URL(url).hostname : 'unknown';
-        if (!domainMap.has(domain)) {
-          domainMap.set(domain, { requests: [], errors: [], tokens: [] });
-        }
-        domainMap.get(domain)!.tokens.push(token);
-      } catch {
-        const domain = 'unknown';
-        if (!domainMap.has(domain)) {
-          domainMap.set(domain, { requests: [], errors: [], tokens: [] });
-        }
-        domainMap.get(domain)!.tokens.push(token);
-      }
-    });
-
-    // Convert to array and calculate stats
-    return Array.from(domainMap.entries()).map(([domain, data]) => {
-      const requests = data.requests.length;
-      const errors = data.errors.length;
-      const tokens = data.tokens.length;
-
-      // Calculate success rate for this domain
-      const successfulRequests = data.requests.filter(req => {
-        const status = req.status || req.response_status;
-        return status >= 200 && status < 400;
-      }).length;
-      const successRate = requests > 0 ? Math.round((successfulRequests / requests) * 100) : 0;
-
-      // Calculate average response time for this domain
-      const responseTimes = data.requests
-        .map(req => req.response_time || req.responseTime)
-        .filter(time => time && typeof time === 'number');
-      const avgResponseTime = responseTimes.length > 0 
-        ? Math.round(responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length)
-        : 0;
-
-      // Get last activity timestamp
-      const allTimestamps = [
-        ...data.requests.map(r => r.timestamp),
-        ...data.errors.map(e => e.timestamp),
-        ...data.tokens.map(t => t.timestamp)
-      ].filter(Boolean);
-      
-      const lastActivity = allTimestamps.length > 0 
-        ? new Date(Math.max(...allTimestamps.map(t => new Date(t).getTime()))).toLocaleString()
-        : 'Never';
-
-      return {
-        domain,
-        requests,
-        errors,
-        tokens,
-        successRate,
-        avgResponseTime,
-        lastActivity
-      };
-    }).filter(stat => stat.requests > 0 || stat.errors > 0 || stat.tokens > 0);
+    const allData = [...networkRequests, ...consoleErrors, ...tokenEvents];
+    return groupDataByDomain(allData);
   }, [networkRequests, consoleErrors, tokenEvents]);
 
   // Sorting functions
@@ -391,6 +282,20 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
           </TabsContent>
           
           <TabsContent value="domain" className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+              <div className="flex items-start gap-2">
+                <Layers className="h-4 w-4 text-blue-600 mt-0.5" />
+                <div>
+                  <h4 className="text-sm font-medium text-blue-800 mb-1">Smart Domain Grouping</h4>
+                  <p className="text-xs text-blue-700">
+                    Domains are intelligently grouped by tab context and subdomain patterns. 
+                    <Layers className="h-3 w-3 inline mx-1" /> indicates grouped subdomains, 
+                    <Monitor className="h-3 w-3 inline mx-1" /> shows main tab domains.
+                    Hover for details.
+                  </p>
+                </div>
+              </div>
+            </div>
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
@@ -404,7 +309,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                     <TableHead className="font-semibold">
                       <div className="flex items-center gap-2">
                         Requests
-                        <SortButton column="requests" currentSort={domainSortConfig} onSort={handleDomainSort} />
+                        <SortButton column="totalRequests" currentSort={domainSortConfig} onSort={handleDomainSort} />
                       </div>
                     </TableHead>
                     <TableHead className="font-semibold">
@@ -434,7 +339,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                     <TableHead className="font-semibold">
                       <div className="flex items-center gap-2">
                         Last Activity
-                        <SortButton column="lastActivity" currentSort={domainSortConfig} onSort={handleDomainSort} />
+                        <SortButton column="lastSeen" currentSort={domainSortConfig} onSort={handleDomainSort} />
                       </div>
                     </TableHead>
                   </TableRow>
@@ -442,10 +347,33 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                 <TableBody>
                   {sortedDomainStats.map((stat, index) => (
                     <TableRow key={index} className="hover:bg-blue-50/50">
-                      <TableCell className="font-medium max-w-[200px] truncate" title={stat.domain}>
-                        {stat.domain}
+                      <TableCell className="font-medium max-w-[200px]" title={
+                        stat.isGrouped ? 
+                          `${stat.domain} (grouped from ${stat.subdomains.length} subdomains: ${stat.subdomains.join(', ')})` :
+                          `${stat.domain}${stat.tabContext?.primaryTabUrl ? ` - Tab: ${stat.tabContext.primaryTabUrl}` : ''}`
+                      }>
+                        <div className="flex items-center gap-2">
+                          <span className="truncate">{stat.domain}</span>
+                          {stat.tabContext?.isMainDomain && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800" title="Primary domain for tab">
+                              <Monitor className="h-3 w-3 mr-1" />
+                              Main
+                            </span>
+                          )}
+                          {stat.isGrouped && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800" title={`Grouped from: ${stat.subdomains.join(', ')}`}>
+                              <Layers className="h-3 w-3 mr-1" />
+                              {stat.subdomains.length}
+                            </span>
+                          )}
+                          {stat.tabContext?.tabIds && stat.tabContext.tabIds.length > 1 && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800" title={`Active in ${stat.tabContext.tabIds.length} tabs`}>
+                              {stat.tabContext.tabIds.length}T
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
-                      <TableCell className="font-semibold text-green-700">{stat.requests}</TableCell>
+                      <TableCell className="font-semibold text-green-700">{stat.totalRequests}</TableCell>
                       <TableCell className="font-semibold text-red-700">{stat.errors}</TableCell>
                       <TableCell className="font-semibold text-yellow-700">{stat.tokens}</TableCell>
                       <TableCell>
@@ -460,8 +388,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                       <TableCell className="font-medium text-blue-700">
                         {stat.avgResponseTime > 0 ? `${stat.avgResponseTime}ms` : 'N/A'}
                       </TableCell>
-                      <TableCell className="text-sm text-gray-600 max-w-[150px] truncate" title={stat.lastActivity}>
-                        {stat.lastActivity}
+                      <TableCell className="text-sm text-gray-600 max-w-[150px] truncate" title={new Date(stat.lastSeen).toLocaleString()}>
+                        {new Date(stat.lastSeen).toLocaleString()}
                       </TableCell>
                     </TableRow>
                   ))}

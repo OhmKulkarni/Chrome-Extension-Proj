@@ -11,6 +11,9 @@ export interface ApiCall {
   response_body: string
   timestamp: number
   response_time?: number // Response time in milliseconds
+  tab_id?: number // Track which tab this request came from
+  tab_url?: string // Track the main tab URL for context
+  request_body?: string // Request body for analysis
 }
 
 export interface ConsoleError {
@@ -20,6 +23,8 @@ export interface ConsoleError {
   timestamp: number
   severity: 'error' | 'warn' | 'info'
   url: string
+  tab_id?: number // Track which tab this error came from
+  tab_url?: string // Track the main tab URL for context
 }
 
 export interface TokenEvent {
@@ -32,6 +37,8 @@ export interface TokenEvent {
   status?: number
   method?: string
   url?: string
+  tab_id?: number // Track which tab this token came from
+  tab_url?: string // Track the main tab URL for context
 }
 
 export interface MinifiedLibrary {

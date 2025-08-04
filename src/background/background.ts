@@ -3,6 +3,7 @@ console.log('Background service worker started');
 
 // --- Environment-Aware Storage System ---
 import { EnvironmentStorageManager } from './environment-storage-manager';
+import { tabDomainTracker } from '../dashboard/components/domainUtils';
 
 // Initialize environment-aware storage system
 const storageManager = new EnvironmentStorageManager();
@@ -793,6 +794,10 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
     
     // Store the request (either non-token request or token request with logging enabled)
     
+    // Get tab information for context
+    const tabId = sender?.tab?.id;
+    const tabUrl = sender?.tab?.url;
+    
     // Map the request data from main-world-script to storage API format
     const storageData = {
       url: requestData.url,
@@ -807,11 +812,19 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
       // Add request body if captured
       request_body: requestData.requestBody || null,
       timestamp: requestData.timestamp ? new Date(requestData.timestamp).getTime() : Date.now(),
-      response_time: requestData.duration || null
+      response_time: requestData.duration || null,
+      // Add tab context for intelligent domain grouping
+      tab_id: tabId,
+      tab_url: tabUrl
     };
     
     // Store the network request using the existing API call storage
     const id = await storageManager.insertApiCall(storageData);
+    
+    // Track tab-domain relationship for intelligent grouping
+    if (tabId && requestData.url) {
+      tabDomainTracker.trackTabDomain(tabId, requestData.url, tabUrl);
+    }
     
     // Notify dashboard about new data
     try {
@@ -888,7 +901,7 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
 }
 
 // Console error handler
-async function handleConsoleError(errorData: any, sendResponse: (response: any) => void) {
+async function handleConsoleError(errorData: any, sendResponse: (response: any) => void, sender?: chrome.runtime.MessageSender) {
   try {
     if (!storageManager.isInitialized()) {
       await storageManager.init();
@@ -947,17 +960,29 @@ async function handleConsoleError(errorData: any, sendResponse: (response: any) 
       }
     }
     
+    // Get tab information for context
+    const tabId = sender?.tab?.id;
+    const tabUrl = sender?.tab?.url;
+    
     // Map the error data from main-world-script to storage API format
     const storageData = {
       message: errorData.message || 'Unknown error',
       stack_trace: errorData.stack || 'No stack trace available',
       timestamp: errorData.timestamp ? new Date(errorData.timestamp).getTime() : Date.now(),
       severity: errorData.severity || 'error',
-      url: errorData.url || 'Unknown URL'
+      url: errorData.url || 'Unknown URL',
+      // Add tab context for intelligent domain grouping
+      tab_id: tabId,
+      tab_url: tabUrl
     };
     
     // Store the console error
     const id = await storageManager.insertConsoleError(storageData);
+    
+    // Track tab-domain relationship for intelligent grouping
+    if (tabId && (errorData.url || tabUrl)) {
+      tabDomainTracker.trackTabDomain(tabId, errorData.url || tabUrl, tabUrl);
+    }
 
     // Notify dashboard about new error data
     try {
@@ -1332,7 +1357,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     case 'CONSOLE_ERROR':
       // Store console error data from content script
-      handleConsoleError(message.data, sendResponse);
+      handleConsoleError(message.data, sendResponse, sender);
       return true; // Keep message channel open for async response
 
     case 'getNetworkRequests':
