@@ -3,7 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Button } from './ui/button';
-import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { groupDataByDomain, DomainStats } from './domainUtils';
 
 interface StatisticsCardProps {
@@ -25,6 +26,18 @@ interface GlobalStats {
   successRate: number;
 }
 
+interface ChartDefinition {
+  name: string;
+  type: 'line' | 'area' | 'bar' | 'stackedBar' | 'pie' | 'donut' | 'horizontalBar' | 'histogram';
+  category: string;
+  description: string;
+  tooltip: string;
+}
+
+type ChartDefinitions = {
+  [key: string]: ChartDefinition;
+};
+
 const StatisticsCard: React.FC<StatisticsCardProps> = ({
   networkRequests,
   consoleErrors,
@@ -41,6 +54,132 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   });
 
   const [expandedDomains, setExpandedDomains] = useState<Set<string>>(new Set());
+
+  // Chart system state
+  const [viewMode, setViewMode] = useState<'list' | 'charts'>('list');
+  const [selectedChart, setSelectedChart] = useState<string | null>(null);
+  const [showAllCharts, setShowAllCharts] = useState(false);
+  const [chartSearch, setChartSearch] = useState('');
+
+  // Chart definitions based on user requirements
+  const chartDefinitions: ChartDefinitions = useMemo(() => ({
+    // Time-Series Charts
+    'requests-over-time': {
+      name: 'Requests Over Time',
+      type: 'line' as const,
+      category: 'Time-Series',
+      description: 'Track total API requests daily/hourly over time',
+      tooltip: 'Shows request volume trends to identify traffic patterns'
+    },
+    'error-frequency-over-time': {
+      name: 'Error Frequency Over Time', 
+      type: 'area' as const,
+      category: 'Time-Series',
+      description: 'Track 4xx/5xx errors over time',
+      tooltip: 'Monitor error trends to identify system issues'
+    },
+    'latency-over-time': {
+      name: 'Latency Over Time',
+      type: 'line' as const, 
+      category: 'Time-Series',
+      description: 'Response time (avg, max, min) trend',
+      tooltip: 'Track performance trends and identify slow periods'
+    },
+    'traffic-by-endpoint': {
+      name: 'Traffic by Endpoint',
+      type: 'bar' as const,
+      category: 'Time-Series', 
+      description: 'Most/least called endpoints over time',
+      tooltip: 'Identify hottest endpoints and usage patterns'
+    },
+    'method-usage-daily': {
+      name: 'Method Usage (Daily)',
+      type: 'stackedBar' as const,
+      category: 'Time-Series',
+      description: 'How often each HTTP method is used over time', 
+      tooltip: 'See HTTP method distribution changes over time'
+    },
+    
+    // Distribution & Count Charts
+    'http-method-distribution': {
+      name: 'HTTP Method Distribution',
+      type: 'pie' as const,
+      category: 'Distributions',
+      description: 'GET vs POST vs PATCH, etc.',
+      tooltip: 'Overall breakdown of HTTP methods used'
+    },
+    'status-code-breakdown': {
+      name: 'Status Code Breakdown', 
+      type: 'donut' as const,
+      category: 'Distributions',
+      description: '2xx vs 4xx vs 5xx ratios',
+      tooltip: 'Success vs error rate breakdown'
+    },
+    'top-frequent-errors': {
+      name: 'Top 5 Frequent Errors',
+      type: 'horizontalBar' as const,
+      category: 'Distributions',
+      description: 'Which error types are most common',
+      tooltip: 'Identify the most problematic error types'
+    },
+    'auth-failures-vs-success': {
+      name: 'Auth Failures vs Success',
+      type: 'pie' as const,
+      category: 'Distributions', 
+      description: 'Token expired vs invalid vs success',
+      tooltip: 'Authentication success/failure analysis'
+    },
+    'top-endpoints-by-volume': {
+      name: 'Top Endpoints by Volume',
+      type: 'bar' as const,
+      category: 'Distributions',
+      description: 'Which routes get the most hits',
+      tooltip: 'Most frequently accessed endpoints'
+    },
+    
+    // Performance & Experience Charts  
+    'avg-response-time-per-route': {
+      name: 'Avg Response Time (per route)',
+      type: 'horizontalBar' as const,
+      category: 'Performance',
+      description: 'Sorted by slowest endpoints',
+      tooltip: 'Identify performance bottlenecks by endpoint'
+    },
+    'payload-size-distribution': {
+      name: 'Payload Size Distribution',
+      type: 'histogram' as const,
+      category: 'Performance', 
+      description: 'Frequency of different response sizes',
+      tooltip: 'Understand typical response payload sizes'
+    },
+    'requests-by-time-of-day': {
+      name: 'Requests by Time of Day',
+      type: 'area' as const,
+      category: 'Performance',
+      description: 'Peak traffic hours',
+      tooltip: 'Identify peak usage times and traffic patterns'
+    },
+    'requests-by-domain': {
+      name: 'Requests by Domain',
+      type: 'pie' as const,
+      category: 'Performance',
+      description: 'Traffic distribution across domains',
+      tooltip: 'See which domains generate the most traffic'
+    }
+  }), []);
+
+  // Filtered charts based on search
+  const filteredCharts = useMemo(() => {
+    const charts = Object.entries(chartDefinitions);
+    if (!chartSearch.trim()) return charts;
+    
+    const searchLower = chartSearch.toLowerCase();
+    return charts.filter(([, chart]) => 
+      chart.name.toLowerCase().includes(searchLower) ||
+      chart.description.toLowerCase().includes(searchLower) ||
+      chart.category.toLowerCase().includes(searchLower)
+    );
+  }, [chartDefinitions, chartSearch]);
 
   // Calculate global statistics
   const globalStats: GlobalStats = useMemo(() => {
@@ -279,57 +418,232 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
           </TabsList>
           
           <TabsContent value="global" className="space-y-4">
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="font-semibold">
-                      <div className="flex items-center gap-2">
-                        Metric
-                        <SortButton column="metric" currentSort={globalSortConfig} onSort={handleGlobalSort} />
-                      </div>
-                    </TableHead>
-                    <TableHead className="font-semibold">
-                      <div className="flex items-center gap-2">
-                        Value
-                        <SortButton column="value" currentSort={globalSortConfig} onSort={handleGlobalSort} />
-                      </div>
-                    </TableHead>
-                    <TableHead className="font-semibold">
-                      <div className="flex items-center gap-2">
-                        Category
-                        <SortButton column="category" currentSort={globalSortConfig} onSort={handleGlobalSort} />
-                      </div>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {globalStatsTable.map((stat, index) => (
-                    <TableRow key={index} className="hover:bg-blue-50/50">
-                      <TableCell className="font-medium">{stat.metric}</TableCell>
-                      <TableCell className="font-semibold text-blue-700">{stat.value}</TableCell>
-                      <TableCell>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          stat.category === 'Network' ? 'bg-green-100 text-green-800' :
-                          stat.category === 'Console' ? 'bg-red-100 text-red-800' :
-                          stat.category === 'Auth' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-blue-100 text-blue-800'
-                        }`}>
-                          {stat.category}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {globalStatsTable.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-center text-gray-500 py-8">
-                        No statistics available yet
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+            {/* View Mode Toggle */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-4">
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('list')}
+                  className="flex items-center gap-2"
+                >
+                  <List className="h-4 w-4" />
+                  List View
+                </Button>
+                <Button
+                  variant={viewMode === 'charts' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('charts')}
+                  className="flex items-center gap-2"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  Charts View
+                </Button>
+              </div>
+              
+              {viewMode === 'charts' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAllCharts(!showAllCharts)}
+                  className="flex items-center gap-2"
+                >
+                  {showAllCharts ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showAllCharts ? 'Hide All Charts' : 'Show All Charts'}
+                </Button>
+              )}
             </div>
+
+            <AnimatePresence mode="wait">
+              {viewMode === 'list' ? (
+                <motion.div
+                  key="list-view"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className="rounded-md border"
+                >
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="font-semibold">
+                          <div className="flex items-center gap-2">
+                            Metric
+                            <SortButton column="metric" currentSort={globalSortConfig} onSort={handleGlobalSort} />
+                          </div>
+                        </TableHead>
+                        <TableHead className="font-semibold">
+                          <div className="flex items-center gap-2">
+                            Value
+                            <SortButton column="value" currentSort={globalSortConfig} onSort={handleGlobalSort} />
+                          </div>
+                        </TableHead>
+                        <TableHead className="font-semibold">
+                          <div className="flex items-center gap-2">
+                            Category
+                            <SortButton column="category" currentSort={globalSortConfig} onSort={handleGlobalSort} />
+                          </div>
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {globalStatsTable.map((stat, index) => (
+                        <TableRow key={index} className="hover:bg-blue-50/50">
+                          <TableCell className="font-medium">{stat.metric}</TableCell>
+                          <TableCell className="font-semibold text-blue-700">{stat.value}</TableCell>
+                          <TableCell>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              stat.category === 'Network' ? 'bg-green-100 text-green-800' :
+                              stat.category === 'Console' ? 'bg-red-100 text-red-800' :
+                              stat.category === 'Auth' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-blue-100 text-blue-800'
+                            }`}>
+                              {stat.category}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {globalStatsTable.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center text-gray-500 py-8">
+                            No statistics available yet
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="charts-view"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className="space-y-4"
+                >
+                  {/* Chart Search */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search charts..."
+                      value={chartSearch}
+                      onChange={(e) => setChartSearch(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  {showAllCharts ? (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {filteredCharts.map(([chartKey, chart]) => (
+                        <motion.div
+                          key={chartKey}
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ duration: 0.3, delay: 0.1 * filteredCharts.findIndex(([k]) => k === chartKey) }}
+                          className="bg-white border rounded-lg p-4 hover:shadow-md transition-shadow"
+                        >
+                          <h3 className="font-semibold text-lg mb-2">{chart.name}</h3>
+                          <p className="text-sm text-gray-600 mb-4">{chart.description}</p>
+                          <div className="h-64 bg-gray-50 rounded flex items-center justify-center">
+                            <div className="text-center text-gray-400">
+                              <BarChart3 className="h-12 w-12 mx-auto mb-2" />
+                              <p>Chart will render here</p>
+                              <p className="text-xs">({chart.type})</p>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  ) : (
+                    <>
+                      {/* Selected Chart Full View - Now appears ABOVE chart options */}
+                      {selectedChart && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -20 }}
+                          transition={{ duration: 0.4 }}
+                          className="bg-white border-2 border-blue-200 rounded-lg p-6 mb-6"
+                        >
+                          <div className="flex items-center justify-between mb-4">
+                            <div>
+                              <h2 className="text-xl font-semibold">{chartDefinitions[selectedChart].name}</h2>
+                              <p className="text-gray-600">{chartDefinitions[selectedChart].description}</p>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedChart(null)}
+                            >
+                              Close
+                            </Button>
+                          </div>
+                          <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
+                            <div className="text-center text-gray-400">
+                              <BarChart3 className="h-16 w-16 mx-auto mb-4" />
+                              <p className="text-lg font-medium">Chart Implementation Pending</p>
+                              <p className="text-sm">
+                                {chartDefinitions[selectedChart].name} ({chartDefinitions[selectedChart].type})
+                              </p>
+                              <p className="text-xs mt-2 max-w-md mx-auto">
+                                {chartDefinitions[selectedChart].tooltip}
+                              </p>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+
+                      {/* Chart Selection Cards - Now appears BELOW selected chart */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {filteredCharts.map(([chartKey, chart]) => (
+                          <motion.div
+                            key={chartKey}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, delay: 0.05 * filteredCharts.findIndex(([k]) => k === chartKey) }}
+                            className={`cursor-pointer border-2 rounded-lg p-4 transition-all hover:shadow-md ${
+                              selectedChart === chartKey 
+                                ? 'border-blue-500 bg-blue-50' 
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                            onClick={() => setSelectedChart(selectedChart === chartKey ? null : chartKey)}
+                            title={chart.tooltip}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="flex-shrink-0">
+                                <LineChart className="h-6 w-6 text-blue-600" />
+                              </div>
+                              <div className="flex-1">
+                                <h3 className="font-semibold text-sm mb-1">{chart.name}</h3>
+                                <p className="text-xs text-gray-600 mb-2">{chart.description}</p>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                                    {chart.category}
+                                  </span>
+                                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                                    {chart.type}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {filteredCharts.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <Search className="h-8 w-8 mx-auto mb-2" />
+                      <p>No charts found matching "{chartSearch}"</p>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </TabsContent>
           
           <TabsContent value="domain" className="space-y-4">
