@@ -6,6 +6,14 @@ import { Button } from './ui/button';
 import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { groupDataByDomain, DomainStats } from './domainUtils';
+import { 
+  HttpMethodDistributionChart,
+  StatusCodeBreakdownChart,
+  TopEndpointsByVolumeChart,
+  AvgResponseTimePerRouteChart,
+  AuthFailuresVsSuccessChart,
+  TopFrequentErrorsChart
+} from './ChartComponents';
 
 interface StatisticsCardProps {
   networkRequests: any[];
@@ -43,6 +51,44 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   consoleErrors,
   tokenEvents
 }) => {
+  // Debug mode: Add mock data for testing charts
+  const DEBUG_MODE = false; // Set to false to disable debug data
+  
+  const mockNetworkRequests = [
+    { method: 'GET', url: 'https://api.example.com/users', status: 200, response_status: 200, response_time: 150 },
+    { method: 'POST', url: 'https://api.example.com/login', status: 401, response_status: 401, response_time: 200 },
+    { method: 'GET', url: 'https://api.example.com/products', status: 200, response_status: 200, response_time: 100 },
+    { method: 'PUT', url: 'https://api.example.com/users/123', status: 500, response_status: 500, response_time: 300 },
+    { method: 'DELETE', url: 'https://api.example.com/users/456', status: 404, response_status: 404, response_time: 80 },
+    { method: 'GET', url: 'https://api.example.com/orders', status: 200, response_status: 200, response_time: 120 },
+    { method: 'POST', url: 'https://api.example.com/register', status: 400, response_status: 400, response_time: 180 }
+  ];
+
+  const mockConsoleErrors = [
+    { message: 'TypeError: Cannot read property of undefined', error: 'TypeError' },
+    { message: 'ReferenceError: variable is not defined', error: 'ReferenceError' },
+    { message: 'NetworkError: Failed to fetch', error: 'NetworkError' },
+    { message: 'TypeError: null is not an object', error: 'TypeError' },
+    { message: 'SyntaxError: Unexpected token', error: 'SyntaxError' }
+  ];
+
+  const mockTokenEvents = [
+    { type: 'token_validated', success: true },
+    { type: 'token_expired', success: false },
+    { type: 'token_validated', success: true },
+    { type: 'token_validation_failed', success: false },
+    { type: 'token_validated', success: true }
+  ];
+
+  // Use mock data in debug mode, otherwise use real data
+  const debugNetworkRequests = DEBUG_MODE && (!networkRequests || networkRequests.length === 0) ? mockNetworkRequests : networkRequests;
+  const debugConsoleErrors = DEBUG_MODE && (!consoleErrors || consoleErrors.length === 0) ? mockConsoleErrors : consoleErrors;
+  const debugTokenEvents = DEBUG_MODE && (!tokenEvents || tokenEvents.length === 0) ? mockTokenEvents : tokenEvents;
+
+  console.log('StatisticsCard Debug Data:');
+  console.log('- Network Requests:', debugNetworkRequests?.length || 0, debugNetworkRequests);
+  console.log('- Console Errors:', debugConsoleErrors?.length || 0, debugConsoleErrors);
+  console.log('- Token Events:', debugTokenEvents?.length || 0, debugTokenEvents);
   const [globalSortConfig, setGlobalSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({
     key: 'value',
     direction: 'desc'
@@ -181,14 +227,71 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     );
   }, [chartDefinitions, chartSearch]);
 
+  // Chart renderer function
+  const renderChart = (chartKey: string) => {
+    const chartData = {
+      data: globalStats,
+      networkRequests: debugNetworkRequests,
+      consoleErrors: debugConsoleErrors,
+      tokenEvents: debugTokenEvents
+    };
+
+    console.log('Rendering chart:', chartKey, 'with data:', {
+      networkRequests: debugNetworkRequests?.length || 0,
+      consoleErrors: debugConsoleErrors?.length || 0,
+      tokenEvents: debugTokenEvents?.length || 0
+    });
+
+    switch (chartKey) {
+      case 'http-method-distribution':
+        return <HttpMethodDistributionChart {...chartData} />;
+      case 'status-code-breakdown':
+        return <StatusCodeBreakdownChart {...chartData} />;
+      case 'top-endpoints-by-volume':
+        return <TopEndpointsByVolumeChart {...chartData} />;
+      case 'avg-response-time-per-route':
+        return <AvgResponseTimePerRouteChart {...chartData} />;
+      case 'auth-failures-vs-success':
+        return <AuthFailuresVsSuccessChart {...chartData} />;
+      case 'top-frequent-errors':
+        return <TopFrequentErrorsChart {...chartData} />;
+      default:
+        return (
+          <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
+            <div className="text-center text-gray-400">
+              <BarChart3 className="h-16 w-16 mx-auto mb-4" />
+              <p className="text-lg font-medium">Chart Implementation Pending</p>
+              <p className="text-sm">
+                {chartDefinitions[chartKey]?.name} ({chartDefinitions[chartKey]?.type})
+              </p>
+              <p className="text-xs mt-2 max-w-md mx-auto">
+                {chartDefinitions[chartKey]?.tooltip}
+              </p>
+            </div>
+          </div>
+        );
+    }
+  };
+
   // Calculate global statistics
   const globalStats: GlobalStats = useMemo(() => {
-    const totalRequests = networkRequests.length;
-    const totalErrors = consoleErrors.length;
-    const totalTokenEvents = tokenEvents.length;
+    // Use debug data if available
+    const effectiveNetworkRequests = debugNetworkRequests || networkRequests;
+    const effectiveConsoleErrors = debugConsoleErrors || consoleErrors;
+    const effectiveTokenEvents = debugTokenEvents || tokenEvents;
+
+    console.log('GlobalStats calculation with data:', {
+      networkRequests: effectiveNetworkRequests?.length || 0,
+      consoleErrors: effectiveConsoleErrors?.length || 0, 
+      tokenEvents: effectiveTokenEvents?.length || 0
+    });
+
+    const totalRequests = effectiveNetworkRequests.length;
+    const totalErrors = effectiveConsoleErrors.length;
+    const totalTokenEvents = effectiveTokenEvents.length;
 
     // Calculate unique domains
-    const allData = [...networkRequests, ...consoleErrors, ...tokenEvents];
+    const allData = [...effectiveNetworkRequests, ...effectiveConsoleErrors, ...effectiveTokenEvents];
     const uniqueDomainsSet = new Set();
     allData.forEach(item => {
       const itemUrl = item.url || item.request?.url || item.details?.url || item.source_url || '';
@@ -208,21 +311,21 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     const uniqueDomains = uniqueDomainsSet.size;
 
     // Requests by method
-    const requestsByMethod = networkRequests.reduce((acc, req) => {
+    const requestsByMethod = effectiveNetworkRequests.reduce((acc, req) => {
       const method = req.method || req.request_method || 'GET';
       acc[method] = (acc[method] || 0) + 1;
       return acc;
     }, {} as { [method: string]: number });
 
     // Errors by severity
-    const errorsBySeverity = consoleErrors.reduce((acc, error) => {
+    const errorsBySeverity = effectiveConsoleErrors.reduce((acc, error) => {
       const severity = error.level || error.severity || 'error';
       acc[severity] = (acc[severity] || 0) + 1;
       return acc;
     }, {} as { [severity: string]: number });
 
     // Tokens by type
-    const tokensByType = tokenEvents.reduce((acc, token) => {
+    const tokensByType = effectiveTokenEvents.reduce((acc, token) => {
       // Analyze token event to determine type
       const url = (token.url || token.source_url || '').toLowerCase();
       const method = (token.method || token.request_method || '').toUpperCase();
@@ -241,7 +344,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     }, {} as { [type: string]: number });
 
     // Calculate average and max response time
-    const responseTimes = networkRequests
+    const responseTimes = effectiveNetworkRequests
       .map(req => req.response_time || req.responseTime)
       .filter(time => time && typeof time === 'number');
     const avgResponseTime = responseTimes.length > 0 
@@ -252,7 +355,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       : 0;
 
     // Calculate success rate
-    const successfulRequests = networkRequests.filter(req => {
+    const successfulRequests = effectiveNetworkRequests.filter(req => {
       const status = req.status || req.response_status;
       return status >= 200 && status < 400;
     }).length;
@@ -270,13 +373,13 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       avgResponseTime,
       successRate
     };
-  }, [networkRequests, consoleErrors, tokenEvents]);
+  }, [debugNetworkRequests, debugConsoleErrors, debugTokenEvents]);
 
   // Calculate domain-specific statistics with enhanced grouping
   const domainStats: DomainStats[] = useMemo(() => {
-    const allData = [...networkRequests, ...consoleErrors, ...tokenEvents];
+    const allData = [...debugNetworkRequests, ...debugConsoleErrors, ...debugTokenEvents];
     return groupDataByDomain(allData);
-  }, [networkRequests, consoleErrors, tokenEvents]);
+  }, [debugNetworkRequests, debugConsoleErrors, debugTokenEvents]);
 
   // Sorting functions
   const handleGlobalSort = (key: string) => {
@@ -547,12 +650,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                         >
                           <h3 className="font-semibold text-lg mb-2">{chart.name}</h3>
                           <p className="text-sm text-gray-600 mb-4">{chart.description}</p>
-                          <div className="h-64 bg-gray-50 rounded flex items-center justify-center">
-                            <div className="text-center text-gray-400">
-                              <BarChart3 className="h-12 w-12 mx-auto mb-2" />
-                              <p>Chart will render here</p>
-                              <p className="text-xs">({chart.type})</p>
-                            </div>
+                          <div className="bg-white rounded">
+                            {renderChart(chartKey)}
                           </div>
                         </motion.div>
                       ))}
@@ -581,17 +680,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                               Close
                             </Button>
                           </div>
-                          <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
-                            <div className="text-center text-gray-400">
-                              <BarChart3 className="h-16 w-16 mx-auto mb-4" />
-                              <p className="text-lg font-medium">Chart Implementation Pending</p>
-                              <p className="text-sm">
-                                {chartDefinitions[selectedChart].name} ({chartDefinitions[selectedChart].type})
-                              </p>
-                              <p className="text-xs mt-2 max-w-md mx-auto">
-                                {chartDefinitions[selectedChart].tooltip}
-                              </p>
-                            </div>
+                          <div className="bg-white rounded">
+                            {renderChart(selectedChart)}
                           </div>
                         </motion.div>
                       )}

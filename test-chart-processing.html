@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chart Processing Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .test-section { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; }
+        .result { padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace; white-space: pre-wrap; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+    <h1>Chrome Extension Chart Processing Test</h1>
+    
+    <div class="test-section">
+        <h2>1. Status Code Breakdown Chart Test</h2>
+        <div id="status-test" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. Response Time Chart Test</h2>
+        <div id="response-time-test" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. Console Errors Chart Test</h2>
+        <div id="error-test" class="result"></div>
+    </div>
+
+    <script>
+        // Simulate real data structure from Chrome extension
+        const sampleNetworkRequests = [
+            { url: 'https://api.example.com/users', method: 'GET', status: 200, response_time: 150 },
+            { url: 'https://api.example.com/posts', method: 'POST', status: 201, response_time: 200 },
+            { url: 'https://api.example.com/login', method: 'POST', status: 401, response_time: 100 },
+            { url: 'https://api.example.com/data', method: 'GET', status: 500, response_time: 300 },
+            { url: 'https://api.example.com/profile', method: 'GET', status: 404, response_time: 80 },
+            { url: 'https://api.example.com/logout', method: 'POST', status: 200, response_time: 90 }
+        ];
+
+        const sampleConsoleErrors = [
+            { message: 'TypeError: Cannot read property of undefined', severity: 'error', url: 'https://example.com' },
+            { message: 'ReferenceError: variable is not defined', severity: 'error', url: 'https://example.com' },
+            { message: 'NetworkError: Failed to fetch', severity: 'error', url: 'https://example.com' },
+            { message: 'SyntaxError: Unexpected token', severity: 'warning', url: 'https://example.com' }
+        ];
+
+        // Test 1: Status Code Breakdown Chart Logic
+        function testStatusCodeBreakdown() {
+            console.log('Testing Status Code Breakdown...');
+            
+            const statusGroups = sampleNetworkRequests.reduce((acc, req) => {
+                console.log('Processing request:', req.url, 'status:', req.status);
+                
+                const status = req.status || req.response_status || 200;
+                let group = 'Unknown';
+                
+                if (status >= 200 && status < 300) group = '2xx Success';
+                else if (status >= 300 && status < 400) group = '3xx Redirect';
+                else if (status >= 400 && status < 500) group = '4xx Client Error';
+                else if (status >= 500) group = '5xx Server Error';
+                
+                acc[group] = (acc[group] || 0) + 1;
+                return acc;
+            }, {});
+            
+            console.log('Status groups result:', statusGroups);
+            
+            const chartData = Object.entries(statusGroups).map(([status, count]) => ({
+                status,
+                count: count,
+                percentage: Math.round((count / sampleNetworkRequests.length) * 100)
+            }));
+            
+            console.log('Chart data:', chartData);
+            
+            const result = chartData.length > 0 ? 
+                `SUCCESS: Generated ${chartData.length} status groups\n${JSON.stringify(chartData, null, 2)}` :
+                'ERROR: No chart data generated';
+            
+            document.getElementById('status-test').textContent = result;
+            document.getElementById('status-test').className = `result ${chartData.length > 0 ? 'success' : 'error'}`;
+            
+            return chartData.length > 0;
+        }
+
+        // Test 2: Response Time Chart Logic
+        function testResponseTimeChart() {
+            console.log('Testing Response Time Chart...');
+            
+            const routeGroups = sampleNetworkRequests.reduce((acc, req) => {
+                console.log('Processing request:', req.url, 'response_time:', req.response_time);
+                
+                const route = req.url ? new URL(req.url).pathname : '/unknown';
+                const responseTime = req.response_time || 0;
+                
+                if (!acc[route]) {
+                    acc[route] = { total: 0, count: 0 };
+                }
+                
+                if (responseTime > 0) {
+                    acc[route].total += responseTime;
+                    acc[route].count += 1;
+                }
+                
+                return acc;
+            }, {});
+            
+            console.log('Route groups result:', routeGroups);
+            
+            const chartData = Object.entries(routeGroups)
+                .map(([route, data]) => ({
+                    route,
+                    avgTime: data.count > 0 ? Math.round(data.total / data.count) : 0,
+                    requests: data.count
+                }))
+                .filter(item => item.avgTime > 0)
+                .sort((a, b) => b.avgTime - a.avgTime)
+                .slice(0, 10);
+            
+            console.log('Chart data:', chartData);
+            
+            const result = chartData.length > 0 ? 
+                `SUCCESS: Generated ${chartData.length} route groups\n${JSON.stringify(chartData, null, 2)}` :
+                'ERROR: No chart data generated - no response_time data found';
+            
+            document.getElementById('response-time-test').textContent = result;
+            document.getElementById('response-time-test').className = `result ${chartData.length > 0 ? 'success' : 'error'}`;
+            
+            return chartData.length > 0;
+        }
+
+        // Test 3: Console Errors Chart Logic
+        function testConsoleErrorsChart() {
+            console.log('Testing Console Errors Chart...');
+            
+            const errorGroups = sampleConsoleErrors.reduce((acc, error) => {
+                console.log('Processing error:', error.message);
+                
+                let errorType = error.message || error.error || 'Unknown Error';
+                
+                if (errorType.includes('TypeError')) errorType = 'TypeError';
+                else if (errorType.includes('ReferenceError')) errorType = 'ReferenceError';
+                else if (errorType.includes('SyntaxError')) errorType = 'SyntaxError';
+                else if (errorType.includes('NetworkError')) errorType = 'NetworkError';
+                else if (errorType.includes('SecurityError')) errorType = 'SecurityError';
+                else if (errorType.length > 30) errorType = errorType.substring(0, 27) + '...';
+                
+                acc[errorType] = (acc[errorType] || 0) + 1;
+                return acc;
+            }, {});
+            
+            console.log('Error groups result:', errorGroups);
+            
+            const chartData = Object.entries(errorGroups)
+                .sort(([, a], [, b]) => b - a)
+                .slice(0, 5)
+                .map(([errorType, count]) => ({
+                    errorType,
+                    count: count
+                }));
+            
+            console.log('Chart data:', chartData);
+            
+            const result = chartData.length > 0 ? 
+                `SUCCESS: Generated ${chartData.length} error groups\n${JSON.stringify(chartData, null, 2)}` :
+                'ERROR: No chart data generated';
+            
+            document.getElementById('error-test').textContent = result;
+            document.getElementById('error-test').className = `result ${chartData.length > 0 ? 'success' : 'error'}`;
+            
+            return chartData.length > 0;
+        }
+
+        // Run all tests
+        console.log('🔍 Starting Chart Processing Tests...');
+        
+        setTimeout(() => {
+            const test1 = testStatusCodeBreakdown();
+            const test2 = testResponseTimeChart();
+            const test3 = testConsoleErrorsChart();
+            
+            console.log('📊 Test Results:');
+            console.log('- Status Code Breakdown:', test1 ? '✅ PASS' : '❌ FAIL');
+            console.log('- Response Time Chart:', test2 ? '✅ PASS' : '❌ FAIL');
+            console.log('- Console Errors Chart:', test3 ? '✅ PASS' : '❌ FAIL');
+            
+            if (test1 && test2 && test3) {
+                console.log('🎉 All chart processing logic works correctly!');
+                console.log('🔍 The issue might be in React component rendering or data passing.');
+            } else {
+                console.log('❌ Some chart processing logic has issues.');
+            }
+        }, 100);
+    </script>
+</body>
+</html>
