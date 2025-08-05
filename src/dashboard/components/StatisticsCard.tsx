@@ -17,7 +17,10 @@ import {
   LatencyOverTimeChart,
   TrafficByEndpointChart,
   MethodUsageDailyChart,
-  StatusCodeBreakdownChartNew
+  StatusCodeBreakdownChartNew,
+  PayloadSizeDistributionChart,
+  RequestsByTimeOfDayChart,
+  RequestsByDomainChart
 } from './ChartComponents';
 
 interface StatisticsCardProps {
@@ -270,6 +273,12 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
         return <TrafficByEndpointChart {...chartData} />;
       case 'method-usage-daily':
         return <MethodUsageDailyChart {...chartData} />;
+      case 'payload-size-distribution':
+        return <PayloadSizeDistributionChart {...chartData} />;
+      case 'requests-by-time-of-day':
+        return <RequestsByTimeOfDayChart {...chartData} />;
+      case 'requests-by-domain':
+        return <RequestsByDomainChart {...chartData} />;
       default:
         return (
           <div className="h-96 bg-gray-50 rounded flex items-center justify-center">

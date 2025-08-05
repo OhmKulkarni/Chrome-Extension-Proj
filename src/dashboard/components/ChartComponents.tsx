@@ -14,7 +14,9 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ResponsiveContainer
+  ResponsiveContainer,
+  ComposedChart,
+  Scatter
 } from 'recharts';
 
 // Color palettes for consistent chart styling
@@ -215,8 +217,11 @@ export const TopEndpointsByVolumeChart: React.FC<ChartProps> = ({ networkRequest
   );
 };
 
-// Average Response Time per Route (Horizontal Bar Chart)
+// Average Response Time (Routes/Domains) - Enhanced Bar Chart with Alternative Lollipop Chart
 export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequests }) => {
+  const [topN, setTopN] = React.useState(10);
+  const [viewMode, setViewMode] = React.useState<'routes' | 'domains'>('routes');
+  
   console.log('AvgResponseTimePerRouteChart - networkRequests:', networkRequests.length);
   
   if (!networkRequests || networkRequests.length === 0) {
@@ -229,7 +234,41 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
     );
   }
 
-  const routeGroups = networkRequests.reduce((acc, req) => {
+  // Helper function to extract base domain (using same logic as domain stats)
+  const extractBaseDomain = (url: string): string => {
+    try {
+      if (!url || url.startsWith('/')) {
+        return 'localhost';
+      }
+      
+      let fullUrl = url;
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        if (url.includes('.') && !url.includes('/')) {
+          fullUrl = 'https://' + url;
+        } else {
+          return 'unknown';
+        }
+      }
+      
+      const urlObj = new URL(fullUrl);
+      const hostname = urlObj.hostname;
+      const withoutWww = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
+      const parts = withoutWww.split('.');
+      
+      if (parts.length >= 2) {
+        return parts.slice(-2).join('.');
+      }
+      
+      return withoutWww;
+    } catch (error) {
+      return 'unknown';
+    }
+  };
+
+  const routeGroups: { [key: string]: { total: number; count: number; times: number[] } } = {};
+  const domainGroups: { [key: string]: { total: number; count: number; times: number[] } } = {};
+
+  networkRequests.forEach(req => {
     const url = req.url || req.request?.url || 'Unknown';
     const responseTime = req.response_time || req.responseTime || 0;
     
@@ -244,9 +283,10 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
     
     if (responseTime <= 0) {
       console.log('Skipping request with no response time:', url);
-      return acc; // Skip requests without response times
+      return; // Skip requests without response times
     }
     
+    // Route processing
     let route = 'Unknown';
     try {
       // Handle relative URLs (they start with /)
@@ -265,28 +305,52 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
       route = route.substring(0, 22) + '...';
     }
     
-    if (!acc[route]) {
-      acc[route] = { total: 0, count: 0 };
+    if (!routeGroups[route]) {
+      routeGroups[route] = { total: 0, count: 0, times: [] };
     }
-    acc[route].total += responseTime;
-    acc[route].count += 1;
+    routeGroups[route].total += responseTime;
+    routeGroups[route].count += 1;
+    routeGroups[route].times.push(responseTime);
+
+    // Domain processing (using same logic as domain stats)
+    const mainDomain = req.main_domain || extractBaseDomain(url);
+    if (mainDomain && mainDomain !== 'unknown') {
+      if (!domainGroups[mainDomain]) {
+        domainGroups[mainDomain] = { total: 0, count: 0, times: [] };
+      }
+      domainGroups[mainDomain].total += responseTime;
+      domainGroups[mainDomain].count += 1;
+      domainGroups[mainDomain].times.push(responseTime);
+    }
     
-    console.log('Added response time', responseTime, 'for route', route);
-    
-    return acc;
-  }, {} as { [key: string]: { total: number; count: number } });
+    console.log('Added response time', responseTime, 'for route', route, 'and domain', mainDomain);
+  });
 
   console.log('AvgResponseTimePerRouteChart - routeGroups:', routeGroups);
+  console.log('AvgResponseTimePerRouteChart - domainGroups:', domainGroups);
 
-  const chartData = Object.entries(routeGroups)
-    .map(([route, data]) => ({
-      route,
-      avgTime: (data as any).count > 0 ? Math.round((data as any).total / (data as any).count) : 0,
-      requests: (data as any).count
-    }))
+  // Process data based on view mode
+  const activeGroups = viewMode === 'routes' ? routeGroups : domainGroups;
+  
+  const allChartData = Object.entries(activeGroups)
+    .map(([name, data]) => {
+      const avgTime = (data as any).count > 0 ? Math.round((data as any).total / (data as any).count) : 0;
+      return {
+        route: name, // Keep 'route' as dataKey for consistency
+        avgTime,
+        requests: (data as any).count,
+        maxTime: Math.max(...(data as any).times),
+        minTime: Math.min(...(data as any).times),
+        // Color-code by threshold
+        fill: avgTime < 100 ? '#10B981' : // Green < 100ms
+              avgTime < 300 ? '#F59E0B' : // Yellow < 300ms
+              '#EF4444' // Red > 300ms
+      };
+    })
     .filter(item => item.avgTime > 0)
-    .sort((a, b) => b.avgTime - a.avgTime)
-    .slice(0, 10); // Top 10 slowest
+    .sort((a, b) => b.avgTime - a.avgTime);
+
+  const chartData = allChartData.slice(0, topN);
 
   console.log('AvgResponseTimePerRouteChart - chartData:', chartData);
 
@@ -301,20 +365,163 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
     );
   }
 
+  // Top N options
+  const topNOptions = [5, 10, 15, 20, 25, 30];
+
   return (
-    <ResponsiveContainer width="100%" height={400}>
-      <BarChart
-        data={chartData}
-        layout="horizontal"
-        margin={{ top: 20, right: 30, left: 100, bottom: 5 }}
-      >
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis type="number" />
-        <YAxis dataKey="route" type="category" width={90} fontSize={12} />
-        <Tooltip formatter={(value) => [`${value}ms`, 'Avg Response Time']} />
-        <Bar dataKey="avgTime" fill={COLORS.warning} />
-      </BarChart>
-    </ResponsiveContainer>
+    <div className="space-y-4">
+      {/* Chart Info */}
+      <div className="flex justify-between items-center text-sm text-gray-600">
+        <div>
+          <span className="font-medium">Response Times by {viewMode === 'routes' ? 'Routes' : 'Domains'}:</span> Top {chartData.length} of {allChartData.length}
+        </div>
+        <div>
+          <span className="font-medium">Total Requests:</span> {viewMode === 'routes' 
+            ? Object.values(routeGroups).reduce((sum, group) => sum + group.count, 0)
+            : Object.values(domainGroups).reduce((sum, group) => sum + group.count, 0)}
+        </div>
+      </div>
+
+      {/* Chart Info and Controls */}
+      <div className="flex justify-between items-center text-sm text-gray-600">
+        <div className="flex gap-4 items-center">
+          {/* View Mode Toggle */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">View:</label>
+            <div className="flex border border-gray-300 rounded">
+              <button
+                onClick={() => setViewMode('routes')}
+                className={`px-3 py-1 text-sm rounded-l ${
+                  viewMode === 'routes'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Routes
+              </button>
+              <button
+                onClick={() => setViewMode('domains')}
+                className={`px-3 py-1 text-sm rounded-r ${
+                  viewMode === 'domains'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Domains
+              </button>
+            </div>
+          </div>
+
+          {/* Top N Selector */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">Show Top:</label>
+            <select 
+              value={topN} 
+              onChange={(e) => setTopN(Number(e.target.value))}
+              className="px-2 py-1 border border-gray-300 rounded text-sm"
+            >
+              {topNOptions.map(option => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <div>
+            <span className="font-medium">Color Key:</span>
+            <span className="ml-2 text-green-600">●</span> &lt;100ms
+            <span className="ml-2 text-yellow-600">●</span> &lt;300ms
+            <span className="ml-2 text-red-600">●</span> &gt;300ms
+          </div>
+        </div>
+      </div>
+
+      {/* Main Bar Chart */}
+      <ResponsiveContainer width="100%" height={400}>
+        <BarChart
+          data={chartData}
+          margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
+        >
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis 
+            dataKey="route"
+            angle={-45}
+            textAnchor="end"
+            height={80}
+            fontSize={11}
+            interval={0}
+          />
+          <YAxis 
+            label={{ value: 'Response Time (ms)', angle: -90, position: 'insideLeft' }}
+          />
+          <Tooltip 
+            content={({ active, payload }) => {
+              if (active && payload && payload.length > 0) {
+                const data = payload[0].payload;
+                return (
+                  <div className="bg-white p-3 border border-gray-200 rounded shadow-lg text-sm">
+                    <p className="font-medium text-gray-900">{viewMode === 'routes' ? 'Route' : 'Domain'}: {data.route}</p>
+                    <p className="text-blue-600 font-semibold">Average: {data.avgTime}ms</p>
+                    <p className="text-xs text-gray-500">Requests: {data.requests}</p>
+                    <p className="text-xs text-gray-500">Range: {data.minTime}ms - {data.maxTime}ms</p>
+                  </div>
+                );
+              }
+              return null;
+            }}
+          />
+          <Bar 
+            dataKey="avgTime"
+            radius={[4, 4, 0, 0]}
+          >
+            {chartData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.fill} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+
+      {/* Alternative View - Lollipop Chart */}
+      <div className="pt-4 border-t">
+        <h4 className="text-sm font-medium text-gray-700 mb-2">Response Time Distribution (Lollipop View)</h4>
+        <ResponsiveContainer width="100%" height={300}>
+          <ComposedChart
+            data={chartData}
+            margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis 
+              dataKey="route"
+              angle={-45}
+              textAnchor="end"
+              height={80}
+              fontSize={11}
+              interval={0}
+            />
+            <YAxis label={{ value: 'Response Time (ms)', angle: -90, position: 'insideLeft' }} />
+            <Tooltip 
+              formatter={(value) => [`${value}ms`, 'Average Response Time']}
+              labelFormatter={(label) => `${viewMode === 'routes' ? 'Route' : 'Domain'}: ${label}`}
+            />
+            {/* Vertical lines (sticks) - using thin bars from 0 to value */}
+            <Bar 
+              dataKey="avgTime" 
+              fill="transparent" 
+              stroke="#3B82F6" 
+              strokeWidth={2}
+              barSize={2}
+            />
+            {/* Dots at the top */}
+            <Scatter dataKey="avgTime" fill="#3B82F6" stroke="#3B82F6" strokeWidth={2}>
+              {chartData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.fill} />
+              ))}
+            </Scatter>
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
   );
 };
 
@@ -370,6 +577,7 @@ export const AuthFailuresVsSuccessChart: React.FC<ChartProps> = ({ tokenEvents }
 };
 
 // Top 5 Frequent Errors (Horizontal Bar Chart)
+// Top 5 Frequent Errors (Enhanced Bar Chart with Alternative Donut Chart)
 export const TopFrequentErrorsChart: React.FC<ChartProps> = ({ consoleErrors }) => {
   console.log('TopFrequentErrorsChart - consoleErrors:', consoleErrors);
   console.log('TopFrequentErrorsChart - consoleErrors length:', consoleErrors?.length || 0);
@@ -385,29 +593,61 @@ export const TopFrequentErrorsChart: React.FC<ChartProps> = ({ consoleErrors }) 
     );
   }
 
+  // Enhanced error grouping with full message tracking
   const errorGroups = consoleErrors.reduce((acc, error) => {
-    let errorType = error.message || error.error || 'Unknown Error';
+    const fullMessage = error.message || error.error || 'Unknown Error';
+    let errorType = fullMessage;
+    let severity = 'error'; // default severity
     
-    // Extract error type from message
-    if (errorType.includes('TypeError')) errorType = 'TypeError';
-    else if (errorType.includes('ReferenceError')) errorType = 'ReferenceError';
-    else if (errorType.includes('SyntaxError')) errorType = 'SyntaxError';
-    else if (errorType.includes('NetworkError')) errorType = 'NetworkError';
-    else if (errorType.includes('SecurityError')) errorType = 'SecurityError';
-    else if (errorType.length > 30) errorType = errorType.substring(0, 27) + '...';
+    // Extract error type and determine severity
+    if (fullMessage.includes('TypeError')) {
+      errorType = 'TypeError';
+      severity = 'error';
+    } else if (fullMessage.includes('ReferenceError')) {
+      errorType = 'ReferenceError';
+      severity = 'error';
+    } else if (fullMessage.includes('SyntaxError')) {
+      errorType = 'SyntaxError';
+      severity = 'error';
+    } else if (fullMessage.includes('NetworkError') || fullMessage.includes('Failed to fetch')) {
+      errorType = 'NetworkError';
+      severity = 'warning';
+    } else if (fullMessage.includes('SecurityError') || fullMessage.includes('CORS')) {
+      errorType = 'SecurityError';
+      severity = 'error';
+    } else if (fullMessage.includes('404') || fullMessage.includes('Not Found')) {
+      errorType = '404 Not Found';
+      severity = 'warning';
+    } else if (fullMessage.includes('500') || fullMessage.includes('Internal Server')) {
+      errorType = '500 Server Error';
+      severity = 'error';
+    } else if (errorType.length > 30) {
+      errorType = errorType.substring(0, 27) + '...';
+      severity = 'warning';
+    }
     
-    acc[errorType] = (acc[errorType] || 0) + 1;
+    if (!acc[errorType]) {
+      acc[errorType] = { count: 0, severity, fullMessages: [] };
+    }
+    acc[errorType].count += 1;
+    acc[errorType].fullMessages.push(fullMessage);
+    
     return acc;
-  }, {} as { [key: string]: number });
+  }, {} as { [key: string]: { count: number; severity: string; fullMessages: string[] } });
 
   console.log('TopFrequentErrorsChart - errorGroups:', errorGroups);
 
   const chartData = Object.entries(errorGroups)
-    .sort(([, a], [, b]) => (b as number) - (a as number))
+    .sort(([, a], [, b]) => (b as any).count - (a as any).count)
     .slice(0, 5) // Top 5
-    .map(([errorType, count]) => ({
+    .map(([errorType, data]) => ({
       errorType,
-      count: count as number
+      count: (data as any).count,
+      severity: (data as any).severity,
+      fullMessages: (data as any).fullMessages,
+      // Color based on severity
+      fill: (data as any).severity === 'error' ? '#EF4444' : 
+            (data as any).severity === 'warning' ? '#F59E0B' : '#6B7280'
     }));
 
   console.log('TopFrequentErrorsChart - chartData:', chartData);
@@ -424,19 +664,113 @@ export const TopFrequentErrorsChart: React.FC<ChartProps> = ({ consoleErrors }) 
   }
 
   return (
-    <ResponsiveContainer width="100%" height={400}>
-      <BarChart
-        data={chartData}
-        layout="horizontal"
-        margin={{ top: 20, right: 30, left: 120, bottom: 5 }}
-      >
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis type="number" />
-        <YAxis dataKey="errorType" type="category" width={110} fontSize={12} />
-        <Tooltip formatter={(value) => [value, 'Occurrences']} />
-        <Bar dataKey="count" fill={COLORS.error} />
-      </BarChart>
-    </ResponsiveContainer>
+    <div className="space-y-4">
+      {/* Chart Info */}
+      <div className="flex justify-between items-center text-sm text-gray-600">
+        <div>
+          <span className="font-medium">Top 5 Frequent Errors:</span> {chartData.length} error types
+        </div>
+        <div>
+          <span className="font-medium">Total Errors:</span> {chartData.reduce((sum, item) => sum + item.count, 0)}
+        </div>
+      </div>
+
+      {/* Main Bar Chart */}
+      <ResponsiveContainer width="100%" height={400}>
+        <BarChart
+          data={chartData}
+          margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
+        >
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis 
+            dataKey="errorType"
+            angle={-45}
+            textAnchor="end"
+            height={80}
+            fontSize={11}
+            interval={0}
+          />
+          <YAxis 
+            label={{ value: 'Error Count', angle: -90, position: 'insideLeft' }}
+          />
+          <Tooltip 
+            content={({ active, payload }) => {
+              if (active && payload && payload.length > 0) {
+                const data = payload[0].payload;
+                return (
+                  <div className="bg-white p-3 border border-gray-200 rounded shadow-lg text-sm max-w-md">
+                    <p className="font-medium text-gray-900">Error Type: {data.errorType}</p>
+                    <p className="text-red-600 font-semibold">{data.count} occurrences</p>
+                    <p className="text-xs text-gray-500 capitalize">Severity: {data.severity}</p>
+                    <div className="mt-2 max-h-20 overflow-y-auto">
+                      <p className="text-xs text-gray-500">Sample messages:</p>
+                      {data.fullMessages.slice(0, 3).map((msg: string, i: number) => (
+                        <p key={i} className="text-xs text-gray-700 truncate">{msg}</p>
+                      ))}
+                      {data.fullMessages.length > 3 && (
+                        <p className="text-xs text-gray-400">...and {data.fullMessages.length - 3} more</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            }}
+          />
+          <Bar 
+            dataKey="count" 
+            radius={[4, 4, 0, 0]}
+          >
+            {chartData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.fill} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+
+      {/* Alternative View - Donut Chart */}
+      <div className="pt-4 border-t">
+        <h4 className="text-sm font-medium text-gray-700 mb-2">Error Type Distribution</h4>
+        <ResponsiveContainer width="100%" height={300}>
+          <PieChart>
+            <Pie
+              data={chartData}
+              cx="50%"
+              cy="50%"
+              innerRadius={60}
+              outerRadius={100}
+              fill="#8884d8"
+              dataKey="count"
+              label={({errorType, percent}) => 
+                `${errorType.length > 12 ? errorType.substring(0, 9) + '...' : errorType}: ${((percent || 0) * 100).toFixed(1)}%`
+              }
+            >
+              {chartData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.fill} />
+              ))}
+            </Pie>
+            <Tooltip 
+              content={({ active, payload }) => {
+                if (active && payload && payload.length > 0) {
+                  const data = payload[0].payload;
+                  const totalErrors = chartData.reduce((sum, item) => sum + item.count, 0);
+                  const percentage = ((data.count / totalErrors) * 100).toFixed(1);
+                  return (
+                    <div className="bg-white p-3 border border-gray-200 rounded shadow-lg text-sm">
+                      <p className="font-medium text-gray-900">Error Type: {data.errorType}</p>
+                      <p className="text-red-600 font-semibold">{data.count} occurrences ({percentage}%)</p>
+                      <p className="text-xs text-gray-500 capitalize">Severity: {data.severity}</p>
+                    </div>
+                  );
+                }
+                return null;
+              }}
+            />
+            <Legend />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
   );
 };
 
@@ -1157,8 +1491,11 @@ export const LatencyOverTimeChart: React.FC<ChartProps> = ({ networkRequests }) 
   );
 };
 
-// Traffic by Endpoint (Vertical Bar Chart)
+// Traffic by Endpoints/Domains (Vertical Bar Chart with Alternative View)
 export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }) => {
+  const [topN, setTopN] = React.useState(10);
+  const [viewMode, setViewMode] = React.useState<'endpoints' | 'domains'>('endpoints');
+
   if (!networkRequests || networkRequests.length === 0) {
     return (
       <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
@@ -1170,37 +1507,201 @@ export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }
     );
   }
 
+  // Helper function to extract base domain (using same logic as domain stats)
+  const extractBaseDomain = (url: string): string => {
+    try {
+      if (!url || url.startsWith('/')) {
+        return 'localhost';
+      }
+      
+      let fullUrl = url;
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        if (url.includes('.') && !url.includes('/')) {
+          fullUrl = 'https://' + url;
+        } else {
+          return 'unknown';
+        }
+      }
+      
+      const urlObj = new URL(fullUrl);
+      const hostname = urlObj.hostname;
+      const withoutWww = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
+      const parts = withoutWww.split('.');
+      
+      if (parts.length >= 2) {
+        return parts.slice(-2).join('.');
+      }
+      
+      return withoutWww;
+    } catch (error) {
+      return 'unknown';
+    }
+  };
+
   // Group requests by endpoint URL pathname
   const endpointCounts: { [key: string]: number } = {};
+  const domainCounts: { [key: string]: number } = {};
   
   networkRequests.forEach(req => {
     if (req.url) {
       try {
+        // Endpoint grouping
         const url = new URL(req.url);
         const endpoint = url.pathname || '/';
         endpointCounts[endpoint] = (endpointCounts[endpoint] || 0) + 1;
+
+        // Domain grouping (using same logic as domain stats)
+        const mainDomain = req.main_domain || extractBaseDomain(req.url);
+        if (mainDomain && mainDomain !== 'unknown') {
+          domainCounts[mainDomain] = (domainCounts[mainDomain] || 0) + 1;
+        }
       } catch (error) {
-        // Skip invalid URLs
+        // For invalid URLs, try domain extraction anyway
+        const mainDomain = req.main_domain || extractBaseDomain(req.url);
+        if (mainDomain && mainDomain !== 'unknown') {
+          domainCounts[mainDomain] = (domainCounts[mainDomain] || 0) + 1;
+        }
       }
     }
   });
 
+  // Helper function to create unique display names
+  const createUniqueDisplayName = (items: Array<{fullName: string, requests: number}>) => {
+    const nameMap = new Map<string, number>();
+    
+    return items.map(item => {
+      let displayName = item.fullName.length > 30 ? `${item.fullName.substring(0, 27)}...` : item.fullName;
+      
+      // If this display name already exists, make it unique
+      if (nameMap.has(displayName)) {
+        const count = nameMap.get(displayName)! + 1;
+        nameMap.set(displayName, count);
+        // Add request count to make it unique
+        displayName = `${displayName.replace('...', '')}... (${item.requests})`;
+      } else {
+        nameMap.set(displayName, 1);
+      }
+      
+      return {
+        name: displayName,
+        fullName: item.fullName,
+        requests: item.requests,
+        id: `${item.fullName}_${item.requests}` // More unique ID
+      };
+    });
+  };
+
   // Convert to chart data format and sort by request count
-  const chartData = Object.entries(endpointCounts)
+  const allEndpointsRaw = Object.entries(endpointCounts)
     .map(([endpoint, count]) => ({
-      endpoint: endpoint.length > 30 ? `${endpoint.substring(0, 27)}...` : endpoint,
-      fullEndpoint: endpoint,
+      fullName: endpoint,
       requests: count
     }))
-    .sort((a, b) => b.requests - a.requests)
-    .slice(0, 10); // Show top 10 endpoints
+    .sort((a, b) => b.requests - a.requests);
+
+  const allDomainsRaw = Object.entries(domainCounts)
+    .map(([domain, count]) => ({
+      fullName: domain,
+      requests: count
+    }))
+    .sort((a, b) => b.requests - a.requests);
+
+  // Create unique display names
+  const allEndpoints = createUniqueDisplayName(allEndpointsRaw);
+  const allDomains = createUniqueDisplayName(allDomainsRaw);
+
+  // Apply Top N filter based on view mode
+  const chartData = viewMode === 'endpoints' 
+    ? allEndpoints.slice(0, topN)
+    : allDomains.slice(0, topN);
+
+  const totalItems = viewMode === 'endpoints' ? allEndpoints.length : allDomains.length;
+
+  // Debug logging to help identify data issues
+  console.log(`Traffic Chart Debug - ${viewMode} mode:`, {
+    totalItems,
+    chartDataLength: chartData.length,
+    sampleData: chartData.slice(0, 3).map(d => ({ 
+      name: d.name, 
+      fullName: d.fullName, 
+      requests: d.requests 
+    })),
+    duplicateNames: chartData.filter((item, index, arr) => 
+      arr.findIndex(other => other.name === item.name) !== index
+    ).map(d => ({ 
+      name: d.name, 
+      fullName: d.fullName, 
+      requests: d.requests,
+      duplicateOf: chartData.find((other, otherIndex) => 
+        other.name === d.name && otherIndex < chartData.findIndex(x => x.name === d.name)
+      )?.fullName
+    }))
+  });
+
+  // Top N options
+  const topNOptions = [5, 10, 15, 20, 25, 30];
 
   return (
     <div className="space-y-4">
-      <div className="text-sm text-gray-600 text-center">
-        Showing top {chartData.length} endpoints by request volume
+      {/* Chart Info */}
+      <div className="flex justify-between items-center text-sm text-gray-600">
+        <div>
+          <span className="font-medium">Traffic by {viewMode === 'endpoints' ? 'Endpoints' : 'Domains'}:</span> Top {chartData.length} of {totalItems}
+        </div>
+        <div>
+          <span className="font-medium">Total Requests:</span> {viewMode === 'endpoints' 
+            ? allEndpoints.reduce((sum, item) => sum + item.requests, 0)
+            : allDomains.reduce((sum, item) => sum + item.requests, 0)}
+        </div>
+      </div>
+
+      {/* Controls */}
+      <div className="flex flex-wrap gap-4 items-center justify-between">
+        <div className="flex gap-4 items-center">
+          {/* View Mode Toggle */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">View:</label>
+            <div className="flex border border-gray-300 rounded">
+              <button
+                onClick={() => setViewMode('endpoints')}
+                className={`px-3 py-1 text-sm rounded-l ${
+                  viewMode === 'endpoints'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Endpoints
+              </button>
+              <button
+                onClick={() => setViewMode('domains')}
+                className={`px-3 py-1 text-sm rounded-r ${
+                  viewMode === 'domains'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Domains
+              </button>
+            </div>
+          </div>
+
+          {/* Top N Selector */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">Show Top:</label>
+            <select 
+              value={topN} 
+              onChange={(e) => setTopN(Number(e.target.value))}
+              className="px-2 py-1 border border-gray-300 rounded text-sm"
+            >
+              {topNOptions.map(option => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
       
+      {/* Main Bar Chart */}
       <ResponsiveContainer width="100%" height={400}>
         <BarChart 
           data={chartData}
@@ -1208,7 +1709,7 @@ export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }
         >
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis 
-            dataKey="endpoint"
+            dataKey="name"
             angle={-45}
             textAnchor="end"
             height={80}
@@ -1219,8 +1720,23 @@ export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }
             label={{ value: 'Request Count', angle: -90, position: 'insideLeft' }}
           />
           <Tooltip 
-            formatter={(value) => [value, 'Requests']}
-            labelFormatter={(label) => `Endpoint: ${chartData.find(d => d.endpoint === label)?.fullEndpoint || label}`}
+            content={({ active, payload }) => {
+              if (active && payload && payload.length > 0) {
+                const data = payload[0].payload;
+                return (
+                  <div className="bg-white p-3 border border-gray-200 rounded shadow-lg text-sm">
+                    <p className="font-medium text-gray-900">
+                      {viewMode === 'endpoints' ? 'Endpoint:' : 'Domain:'} {data.fullName}
+                    </p>
+                    <p className="text-blue-600 font-semibold">{data.requests} requests</p>
+                    {data.name !== data.fullName && (
+                      <p className="text-xs text-gray-500">Display: {data.name}</p>
+                    )}
+                  </div>
+                );
+              }
+              return null;
+            }}
           />
           <Bar 
             dataKey="requests" 
@@ -1229,6 +1745,54 @@ export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }
           />
         </BarChart>
       </ResponsiveContainer>
+
+      {/* Alternative View - Pie Chart Distribution */}
+      <div className="pt-4 border-t">
+        <h4 className="text-sm font-medium text-gray-700 mb-2">
+          {viewMode === 'endpoints' ? 'Endpoint' : 'Domain'} Distribution
+        </h4>
+        <ResponsiveContainer width="100%" height={300}>
+          <PieChart>
+            <Pie
+              data={chartData}
+              cx="50%"
+              cy="50%"
+              outerRadius={100}
+              fill="#8884d8"
+              dataKey="requests"
+              label={({name, percent}) => 
+                `${name && name.length > 15 ? name.substring(0, 12) + '...' : name}: ${((percent || 0) * 100).toFixed(1)}%`
+              }
+            >
+              {chartData.map((_, index) => (
+                <Cell key={`cell-${index}`} fill={COLORS.primary[index % COLORS.primary.length]} />
+              ))}
+            </Pie>
+            <Tooltip 
+              content={({ active, payload }) => {
+                if (active && payload && payload.length > 0) {
+                  const data = payload[0].payload;
+                  const totalRequests = chartData.reduce((sum, item) => sum + item.requests, 0);
+                  const percentage = ((data.requests / totalRequests) * 100).toFixed(1);
+                  return (
+                    <div className="bg-white p-3 border border-gray-200 rounded shadow-lg text-sm">
+                      <p className="font-medium text-gray-900">
+                        {viewMode === 'endpoints' ? 'Endpoint:' : 'Domain:'} {data.fullName}
+                      </p>
+                      <p className="text-blue-600 font-semibold">{data.requests} requests ({percentage}%)</p>
+                      {data.name !== data.fullName && (
+                        <p className="text-xs text-gray-500">Display: {data.name}</p>
+                      )}
+                    </div>
+                  );
+                }
+                return null;
+              }}
+            />
+            <Legend />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 };
@@ -1789,7 +2353,7 @@ export const StatusCodeBreakdownChartNew: React.FC<ChartProps> = ({ networkReque
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="space-y-6">
         {/* Donut Chart */}
         <div>
           <h4 className="text-sm font-medium text-gray-700 mb-2">Status Distribution</h4>
@@ -1837,6 +2401,682 @@ export const StatusCodeBreakdownChartNew: React.FC<ChartProps> = ({ networkReque
             </BarChart>
           </ResponsiveContainer>
         </div>
+      </div>
+    </div>
+  );
+};
+
+// Payload Size Distribution (Histogram with Alternative Box Plot)
+export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequests }) => {
+  const [viewMode, setViewMode] = React.useState<'histogram' | 'timeline'>('histogram');
+  
+  console.log('PayloadSizeDistributionChart - networkRequests:', networkRequests?.length || 0);
+
+  if (!networkRequests || networkRequests.length === 0) {
+    return (
+      <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
+        <div className="text-center text-gray-400">
+          <p>No network requests data available</p>
+          <p className="text-xs mt-2">No payload size data to display</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Extract payload sizes from network requests with timestamps
+  const payloadSizes = networkRequests
+    .map(req => {
+      // Try to get payload size from various possible fields
+      const requestSize = req.requestSize || req.request_size || req.payload_size || 0;
+      const responseSize = req.responseSize || req.response_size || req.content_length || 0;
+      const totalSize = requestSize + responseSize;
+      const timestamp = req.timestamp || req.created_at;
+      
+      return {
+        requestSize,
+        responseSize,
+        totalSize,
+        timestamp,
+        url: req.url || 'Unknown'
+      };
+    })
+    .filter(item => item.totalSize > 0 && item.timestamp); // Only include requests with payload data and timestamps
+
+  console.log('PayloadSizeDistributionChart - payloadSizes:', payloadSizes.length);
+
+  if (payloadSizes.length === 0) {
+    return (
+      <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
+        <div className="text-center text-gray-400">
+          <p>No payload size data available</p>
+          <p className="text-xs mt-2">Network requests may not have size information</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Helper function to format bytes
+  function formatBytes(bytes: number): string {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  // Timeline data processing for area chart
+  const timelineData = React.useMemo(() => {
+    if (payloadSizes.length === 0) return [];
+
+    // Group by time intervals (hourly)
+    const timeGroups: { [key: string]: { sizes: number[]; timestamp: number } } = {};
+    
+    payloadSizes.forEach(item => {
+      try {
+        const date = new Date(item.timestamp);
+        // Group by hour
+        const hourKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:00`;
+        
+        if (!timeGroups[hourKey]) {
+          timeGroups[hourKey] = { sizes: [], timestamp: date.getTime() };
+        }
+        timeGroups[hourKey].sizes.push(item.totalSize);
+      } catch (error) {
+        console.warn('Invalid timestamp:', item.timestamp);
+      }
+    });
+
+    // Calculate average payload size for each time period
+    return Object.entries(timeGroups)
+      .map(([timeKey, data]) => {
+        const avgSize = data.sizes.reduce((sum, size) => sum + size, 0) / data.sizes.length;
+        const maxSize = Math.max(...data.sizes);
+        const minSize = Math.min(...data.sizes);
+        
+        return {
+          time: timeKey,
+          timestamp: data.timestamp,
+          avgSize: Math.round(avgSize),
+          maxSize,
+          minSize,
+          requestCount: data.sizes.length
+        };
+      })
+      .sort((a, b) => a.timestamp - b.timestamp);
+  }, [payloadSizes]);
+
+  // Histogram data processing
+  const sizes = payloadSizes.map(item => item.totalSize);
+  const minSize = Math.min(...sizes);
+  const maxSize = Math.max(...sizes);
+
+  // Create better histogram bins based on size ranges
+  const createSizeBins = () => {
+    const sizeRanges = [
+      { min: 0, max: 1024, label: '0-1KB' },
+      { min: 1024, max: 5 * 1024, label: '1-5KB' },
+      { min: 5 * 1024, max: 10 * 1024, label: '5-10KB' },
+      { min: 10 * 1024, max: 50 * 1024, label: '10-50KB' },
+      { min: 50 * 1024, max: 100 * 1024, label: '50-100KB' },
+      { min: 100 * 1024, max: Infinity, label: '100KB+' }
+    ];
+
+    return sizeRanges.map(range => {
+      const count = payloadSizes.filter(item => 
+        item.totalSize >= range.min && item.totalSize < range.max
+      ).length;
+
+      return {
+        range: range.label,
+        count,
+        binStart: range.min,
+        binEnd: range.max === Infinity ? maxSize : range.max
+      };
+    });
+  };
+
+  const bins = createSizeBins();
+
+  // Calculate statistics for box plot
+  const sortedSizes = [...sizes].sort((a, b) => a - b);
+  const q1 = sortedSizes[Math.floor(sortedSizes.length * 0.25)];
+  const median = sortedSizes[Math.floor(sortedSizes.length * 0.5)];
+  const q3 = sortedSizes[Math.floor(sortedSizes.length * 0.75)];
+  const iqr = q3 - q1;
+  const lowerFence = q1 - 1.5 * iqr;
+  const upperFence = q3 + 1.5 * iqr;
+  
+  // Find outliers
+  const outliers = sortedSizes.filter(size => size < lowerFence || size > upperFence);
+
+  console.log('PayloadSizeDistributionChart - bins:', bins);
+  console.log('PayloadSizeDistributionChart - timeline:', timelineData.slice(0, 3));
+  console.log('PayloadSizeDistributionChart - stats:', { minSize, maxSize, median, q1, q3, outliers: outliers.length });
+
+  return (
+    <div className="space-y-4">
+      {/* Chart Info and Controls */}
+      <div className="flex justify-between items-center text-sm text-gray-600">
+        <div>
+          <span className="font-medium">Payload Size Analysis:</span> {payloadSizes.length} requests with size data
+        </div>
+        <div className="flex items-center gap-4">
+          {/* View Mode Toggle */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">View:</label>
+            <div className="flex border border-gray-300 rounded">
+              <button
+                onClick={() => setViewMode('histogram')}
+                className={`px-3 py-1 text-sm rounded-l ${
+                  viewMode === 'histogram'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Histogram
+              </button>
+              <button
+                onClick={() => setViewMode('timeline')}
+                className={`px-3 py-1 text-sm rounded-r ${
+                  viewMode === 'timeline'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Timeline
+              </button>
+            </div>
+          </div>
+          
+          <div className="flex gap-4">
+            <span><strong>Min:</strong> {formatBytes(minSize)}</span>
+            <span><strong>Median:</strong> {formatBytes(median)}</span>
+            <span><strong>Max:</strong> {formatBytes(maxSize)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Histogram View */}
+      {viewMode === 'histogram' && (
+        <>
+          {/* Main Histogram */}
+          <div className="bg-white p-4 rounded-lg shadow">
+            <h3 className="text-lg font-semibold mb-4">Payload Size Distribution - Histogram</h3>
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart
+                data={bins}
+                margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                <XAxis 
+                  dataKey="range"
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                  fontSize={11}
+                  interval={0}
+                />
+                <YAxis 
+                  label={{ value: 'Number of Requests', angle: -90, position: 'insideLeft' }}
+                />
+                <Tooltip 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length > 0) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-white p-3 border border-gray-200 rounded shadow-lg text-sm">
+                          <p className="font-medium text-gray-900">Size Range: {data.range}</p>
+                          <p className="text-blue-600 font-semibold">{data.count} requests</p>
+                          <p className="text-xs text-gray-500">
+                            {((data.count / payloadSizes.length) * 100).toFixed(1)}% of total
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Bar 
+                  dataKey="count" 
+                  radius={[4, 4, 0, 0]}
+                >
+                  {bins.map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={`hsl(${210 + index * 15}, 70%, ${60 - index * 5}%)`} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Box Plot Summary */}
+          <div className="pt-4 border-t">
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Statistical Summary (Box Plot View)</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Statistical Summary */}
+              <div className="bg-gray-50 p-4 rounded">
+                <h5 className="text-sm font-medium text-gray-700 mb-3">Statistical Summary</h5>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Minimum:</span>
+                    <span className="font-medium">{formatBytes(minSize)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>1st Quartile (Q1):</span>
+                    <span className="font-medium">{formatBytes(q1)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Median (Q2):</span>
+                    <span className="font-medium">{formatBytes(median)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>3rd Quartile (Q3):</span>
+                    <span className="font-medium">{formatBytes(q3)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Maximum:</span>
+                    <span className="font-medium">{formatBytes(maxSize)}</span>
+                  </div>
+                  <div className="flex justify-between border-t pt-2">
+                    <span>Outliers:</span>
+                    <span className="font-medium text-red-600">{outliers.length}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Visual Box Plot */}
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart
+                  data={[
+                    { name: 'Min', value: minSize, color: '#6B7280' },
+                    { name: 'Q1', value: q1, color: '#3B82F6' },
+                    { name: 'Median', value: median, color: '#10B981' },
+                    { name: 'Q3', value: q3, color: '#3B82F6' },
+                    { name: 'Max', value: maxSize, color: '#6B7280' }
+                  ]}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" fontSize={12} />
+                  <YAxis 
+                    tickFormatter={(value) => formatBytes(value)}
+                    fontSize={11}
+                  />
+                  <Tooltip 
+                    formatter={(value) => [formatBytes(value as number), 'Size']}
+                  />
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                    {[
+                      { name: 'Min', value: minSize, color: '#6B7280' },
+                      { name: 'Q1', value: q1, color: '#3B82F6' },
+                      { name: 'Median', value: median, color: '#10B981' },
+                      { name: 'Q3', value: q3, color: '#3B82F6' },
+                      { name: 'Max', value: maxSize, color: '#6B7280' }
+                    ].map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Timeline View */}
+      {viewMode === 'timeline' && (
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="text-lg font-semibold mb-4">Payload Size Distribution Over Time</h3>
+          {timelineData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={400}>
+              <AreaChart
+                data={timelineData}
+                margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                <XAxis 
+                  dataKey="time"
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                  fontSize={11}
+                  interval={'preserveStartEnd'}
+                />
+                <YAxis 
+                  label={{ value: 'Average Payload Size', angle: -90, position: 'insideLeft' }}
+                  tickFormatter={(value) => formatBytes(value)}
+                  fontSize={11}
+                />
+                <Tooltip 
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length > 0) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-white p-3 border border-gray-200 rounded shadow-lg text-sm">
+                          <p className="font-medium text-gray-900">Time: {label}</p>
+                          <p className="text-blue-600 font-semibold">Average: {formatBytes(data.avgSize)}</p>
+                          <p className="text-xs text-gray-500">Max: {formatBytes(data.maxSize)}</p>
+                          <p className="text-xs text-gray-500">Min: {formatBytes(data.minSize)}</p>
+                          <p className="text-xs text-gray-500">Requests: {data.requestCount}</p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                {/* Average payload size area */}
+                <Area
+                  type="monotone"
+                  dataKey="avgSize"
+                  stroke="#3B82F6"
+                  fill="#3B82F6"
+                  fillOpacity={0.3}
+                  strokeWidth={2}
+                  name="Average Size"
+                />
+                {/* Max payload size line */}
+                <Area
+                  type="monotone"
+                  dataKey="maxSize"
+                  stroke="#EF4444"
+                  fill="transparent"
+                  strokeWidth={1}
+                  strokeDasharray="5 5"
+                  name="Max Size"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-64 text-gray-500">
+              <div className="text-center">
+                <p>No timeline data available</p>
+                <p className="text-xs mt-2">Requests may not have valid timestamps</p>
+              </div>
+            </div>
+          )}
+          
+          {/* Timeline Summary */}
+          {timelineData.length > 0 && (
+            <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="bg-blue-50 p-3 rounded">
+                <div className="font-medium text-blue-800">Time Periods</div>
+                <div className="text-blue-600">{timelineData.length}</div>
+              </div>
+              <div className="bg-green-50 p-3 rounded">
+                <div className="font-medium text-green-800">Avg Size</div>
+                <div className="text-green-600">
+                  {formatBytes(timelineData.reduce((sum, item) => sum + item.avgSize, 0) / timelineData.length)}
+                </div>
+              </div>
+              <div className="bg-yellow-50 p-3 rounded">
+                <div className="font-medium text-yellow-800">Peak Size</div>
+                <div className="text-yellow-600">
+                  {formatBytes(Math.max(...timelineData.map(item => item.maxSize)))}
+                </div>
+              </div>
+              <div className="bg-purple-50 p-3 rounded">
+                <div className="font-medium text-purple-800">Total Requests</div>
+                <div className="text-purple-600">
+                  {timelineData.reduce((sum, item) => sum + item.requestCount, 0)}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Requests by Time of Day (24-hour Area Chart)
+export const RequestsByTimeOfDayChart: React.FC<ChartProps> = ({ networkRequests }) => {
+  console.log('RequestsByTimeOfDayChart - networkRequests:', networkRequests?.length || 0);
+
+  if (!networkRequests || networkRequests.length === 0) {
+    return (
+      <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
+        <div className="text-center text-gray-400">
+          <p>No network requests data available</p>
+          <p className="text-xs mt-2">No time data to display</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Group requests by hour of day (0-23)
+  const hourlyData = Array.from({ length: 24 }, (_, hour) => ({
+    hour,
+    hourLabel: `${hour.toString().padStart(2, '0')}:00`,
+    requests: 0
+  }));
+
+  networkRequests.forEach(req => {
+    const timestamp = req.timestamp || req.created_at;
+    if (timestamp) {
+      try {
+        const date = new Date(timestamp);
+        const hour = date.getHours();
+        if (hour >= 0 && hour <= 23) {
+          hourlyData[hour].requests++;
+        }
+      } catch (error) {
+        console.warn('Invalid timestamp:', timestamp);
+      }
+    }
+  });
+
+  console.log('RequestsByTimeOfDayChart - hourlyData:', hourlyData.slice(0, 5));
+
+  // Calculate peak hour and total requests
+  const peakHour = hourlyData.reduce((peak, current) => 
+    current.requests > peak.requests ? current : peak
+  );
+  const totalRequests = hourlyData.reduce((sum, hour) => sum + hour.requests, 0);
+
+  return (
+    <div className="space-y-4">
+      {/* Chart Info */}
+      <div className="flex justify-between items-center text-sm text-gray-600">
+        <div>
+          <span className="font-medium">24-Hour Traffic Pattern:</span> {totalRequests} total requests
+        </div>
+        <div>
+          <span className="font-medium">Peak Hour:</span> {peakHour.hourLabel} ({peakHour.requests} requests)
+        </div>
+      </div>
+
+      {/* Chart */}
+      <div className="bg-white p-4 rounded-lg shadow">
+        <h3 className="text-lg font-semibold mb-4">Requests by Time of Day</h3>
+        <ResponsiveContainer width="100%" height={400}>
+          <AreaChart
+            data={hourlyData}
+            margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis 
+              dataKey="hourLabel"
+              fontSize={11}
+              interval={1}
+              angle={-45}
+              textAnchor="end"
+              height={60}
+            />
+            <YAxis 
+              label={{ value: 'Number of Requests', angle: -90, position: 'insideLeft' }}
+              fontSize={11}
+            />
+            <Tooltip 
+              labelFormatter={(label) => `Time: ${label}`}
+              formatter={(value) => [value, 'Requests']}
+            />
+            <Area
+              dataKey="requests"
+              stroke="#3B82F6"
+              fill="#3B82F6"
+              fillOpacity={0.3}
+              strokeWidth={2}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+};
+
+// Requests by Domain (Vertical Bar Chart with Top-N Dropdown)
+export const RequestsByDomainChart: React.FC<ChartProps> = ({ networkRequests }) => {
+  const [topN, setTopN] = React.useState(10);
+  
+  console.log('RequestsByDomainChart - networkRequests:', networkRequests?.length || 0);
+
+  if (!networkRequests || networkRequests.length === 0) {
+    return (
+      <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
+        <div className="text-center text-gray-400">
+          <p>No network requests data available</p>
+          <p className="text-xs mt-2">No domain data to display</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Extract domain from URL helper function
+  const extractDomain = (url: string): string => {
+    try {
+      if (!url) return 'Unknown';
+      
+      // Handle relative URLs
+      if (url.startsWith('/')) {
+        return 'localhost';
+      }
+      
+      // Handle URLs without protocol
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+      }
+      
+      const urlObj = new URL(url);
+      return urlObj.hostname;
+    } catch (error) {
+      console.warn('Invalid URL:', url);
+      return 'Invalid URL';
+    }
+  };
+
+  // Group requests by domain
+  const domainGroups: { [domain: string]: { requests: number; methods: { [method: string]: number } } } = {};
+
+  networkRequests.forEach(req => {
+    const domain = extractDomain(req.url || '');
+    const method = (req.method || 'GET').toUpperCase();
+    
+    if (!domainGroups[domain]) {
+      domainGroups[domain] = { requests: 0, methods: {} };
+    }
+    
+    domainGroups[domain].requests++;
+    domainGroups[domain].methods[method] = (domainGroups[domain].methods[method] || 0) + 1;
+  });
+
+  // Convert to array and sort by request count
+  const allDomainData = Object.entries(domainGroups)
+    .map(([domain, stats]) => ({
+      domain,
+      requests: stats.requests,
+      methods: stats.methods,
+      percentage: ((stats.requests / networkRequests.length) * 100).toFixed(1)
+    }))
+    .sort((a, b) => b.requests - a.requests);
+
+  const chartData = allDomainData.slice(0, topN);
+
+  console.log('RequestsByDomainChart - chartData:', chartData.slice(0, 3));
+
+  // Color function for bars
+  const getDomainColor = (index: number): string => {
+    const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#F97316', '#06B6D4', '#84CC16'];
+    return colors[index % colors.length];
+  };
+
+  // Top N options
+  const topNOptions = [5, 10, 15, 20, 25, 30];
+
+  return (
+    <div className="space-y-4">
+      {/* Chart Info and Controls */}
+      <div className="flex justify-between items-center text-sm text-gray-600">
+        <div>
+          <span className="font-medium">Requests by Domain:</span> Top {chartData.length} of {allDomainData.length}
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">Show Top:</label>
+            <select 
+              value={topN} 
+              onChange={(e) => setTopN(Number(e.target.value))}
+              className="px-2 py-1 border border-gray-300 rounded text-sm"
+            >
+              {topNOptions.map(option => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <span className="font-medium">Total Requests:</span> {networkRequests.length}
+          </div>
+        </div>
+      </div>
+
+      {/* Chart */}
+      <div className="bg-white p-4 rounded-lg shadow">
+        <h3 className="text-lg font-semibold mb-4">Traffic Distribution by Domain</h3>
+        <ResponsiveContainer width="100%" height={400}>
+          <BarChart
+            data={chartData}
+            margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis 
+              dataKey="domain"
+              angle={-45}
+              textAnchor="end"
+              height={80}
+              fontSize={11}
+              interval={0}
+            />
+            <YAxis 
+              label={{ value: 'Number of Requests', angle: -90, position: 'insideLeft' }}
+              fontSize={11}
+            />
+            <Tooltip 
+              content={({ active, payload }) => {
+                if (active && payload && payload.length > 0) {
+                  const data = payload[0].payload;
+                  const methodsText = Object.entries(data.methods)
+                    .map(([method, count]) => `${method}: ${count}`)
+                    .join(', ');
+                  
+                  return (
+                    <div className="bg-white p-3 border border-gray-200 rounded shadow-lg text-sm">
+                      <p className="font-medium text-gray-900">Domain: {data.domain}</p>
+                      <p className="text-blue-600 font-semibold">Requests: {data.requests} ({data.percentage}%)</p>
+                      <p className="text-xs text-gray-500">Methods: {methodsText}</p>
+                    </div>
+                  );
+                }
+                return null;
+              }}
+            />
+            <Bar 
+              dataKey="requests"
+              radius={[4, 4, 0, 0]}
+            >
+              {chartData.map((_, index) => (
+                <Cell key={`cell-${index}`} fill={getDomainColor(index)} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
       </div>
     </div>
   );
