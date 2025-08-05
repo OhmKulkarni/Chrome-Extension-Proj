@@ -1,6 +1,5 @@
 // Environment-aware storage manager that reads configuration from .env file
 import type { StorageOperations, StorageConfig, ApiCall, ConsoleError, TokenEvent, MinifiedLibrary } from './storage-types'
-import { SQLiteStorage } from './sqlite-storage'
 import { IndexedDBStorage } from './indexeddb-storage'
 
 export type StorageType = 'sqlite' | 'indexeddb' | 'auto'
@@ -60,33 +59,7 @@ export class EnvironmentStorageManager implements StorageOperations {
   }
 
   private async initWithSQLitePrimary(): Promise<void> {
-    try {
-      if (this.enableLogs) {
-        console.log('[EnvironmentStorageManager] Attempting SQLite initialization (primary)...')
-      }
-      
-      const sqliteStorage = new SQLiteStorage(this.config)
-      await sqliteStorage.init()
-      this.storage = sqliteStorage
-      this.storageType = 'sqlite'
-      
-      if (this.enableLogs) {
-        console.log('[EnvironmentStorageManager] ✅ SQLite initialized successfully')
-      }
-    } catch (error) {
-      if (this.enableLogs) {
-        console.warn('[EnvironmentStorageManager] SQLite initialization failed:', error instanceof Error ? error.message : String(error))
-      }
-
-      if (this.enableFallback) {
-        if (this.enableLogs) {
-          console.log('[EnvironmentStorageManager] Falling back to IndexedDB...')
-        }
-        await this.initIndexedDBFallback()
-      } else {
-        throw new Error('SQLite storage initialization failed and fallback is disabled')
-      }
-    }
+    throw new Error('SQLite storage has been disabled in this build for optimization. Use IndexedDB instead.')
   }
 
   private async initWithIndexedDBPrimary(): Promise<void> {
@@ -140,14 +113,7 @@ export class EnvironmentStorageManager implements StorageOperations {
       }
 
       try {
-        const sqliteStorage = new SQLiteStorage(this.config)
-        await sqliteStorage.init()
-        this.storage = sqliteStorage
-        this.storageType = 'sqlite'
-        
-        if (this.enableLogs) {
-          console.log('[EnvironmentStorageManager] ✅ Auto-detection: SQLite fallback initialized successfully')
-        }
+        throw new Error('SQLite storage has been disabled in this build for optimization. Use IndexedDB instead.')
       } catch (sqliteError) {
         if (this.enableLogs) {
           console.error('[EnvironmentStorageManager] Auto-detection: Both storage systems failed')
@@ -157,34 +123,8 @@ export class EnvironmentStorageManager implements StorageOperations {
     }
   }
 
-  private async initIndexedDBFallback(): Promise<void> {
-    try {
-      const indexedDBStorage = new IndexedDBStorage(this.config)
-      await indexedDBStorage.init()
-      this.storage = indexedDBStorage
-      this.storageType = 'indexeddb'
-      
-      if (this.enableLogs) {
-        console.log('[EnvironmentStorageManager] ✅ IndexedDB fallback initialized successfully')
-      }
-    } catch (error) {
-      throw new Error('IndexedDB fallback initialization failed')
-    }
-  }
-
   private async initSQLiteFallback(): Promise<void> {
-    try {
-      const sqliteStorage = new SQLiteStorage(this.config)
-      await sqliteStorage.init()
-      this.storage = sqliteStorage
-      this.storageType = 'sqlite'
-      
-      if (this.enableLogs) {
-        console.log('[EnvironmentStorageManager] ✅ SQLite fallback initialized successfully')
-      }
-    } catch (error) {
-      throw new Error('SQLite fallback initialization failed')
-    }
+    throw new Error('SQLite storage has been disabled in this build for optimization. Use IndexedDB instead.')
   }
 
   private async logPerformanceInfo(): Promise<void> {

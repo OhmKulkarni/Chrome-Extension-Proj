@@ -9,7 +9,7 @@ async function initDatabase() {
     const wasmBinary = await wasmResponse.arrayBuffer()
     
     const SQL = await initSqlJs({
-      wasmBinary: new Uint8Array(wasmBinary)
+      wasmBinary: wasmBinary
     })
     
     db = new SQL.Database()

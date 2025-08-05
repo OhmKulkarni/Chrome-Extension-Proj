@@ -41,8 +41,6 @@ export default defineConfig({
           {
             resources: [
               "main-world-script.js",
-              "sql-wasm.wasm",
-              "src/offscreen/offscreen.html",
               "assets/*"
             ],
             matches: ["<all_urls>"]
@@ -74,7 +72,6 @@ export default defineConfig({
         popup: resolve(__dirname, 'src/popup/popup.html'),
         dashboard: resolve(__dirname, 'src/dashboard/dashboard.html'),
         settings: resolve(__dirname, 'src/settings/settings.html'),
-        offscreen: resolve(__dirname, 'src/offscreen/offscreen.html'),
       },
       output: {
         manualChunks: {
