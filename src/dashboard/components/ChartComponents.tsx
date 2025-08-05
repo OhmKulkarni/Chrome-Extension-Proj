@@ -1157,19 +1157,8 @@ export const LatencyOverTimeChart: React.FC<ChartProps> = ({ networkRequests }) 
   );
 };
 
-// Traffic by Endpoint (Horizontal Bar Chart)
+// Traffic by Endpoint (Vertical Bar Chart)
 export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }) => {
-  console.log('TrafficByEndpointChart - networkRequests:', networkRequests?.length || 0);
-
-  // 🛠️ DEBUGGING CHECKLIST
-  console.log('=== TRAFFIC CHART DEBUG START ===');
-  console.log('1. Data Check - networkRequests:', {
-    exists: !!networkRequests,
-    isArray: Array.isArray(networkRequests),
-    length: networkRequests?.length || 0,
-    sample: networkRequests?.slice(0, 2)
-  });
-
   if (!networkRequests || networkRequests.length === 0) {
     return (
       <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
@@ -1181,367 +1170,65 @@ export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }
     );
   }
 
-  // State for filtering and limiting
-  const [topN, setTopN] = React.useState(10);
-  const [selectedMethod, setSelectedMethod] = React.useState<string>('ALL');
-  const [showAll, setShowAll] = React.useState(false);
-
-  // Function to normalize endpoints (group dynamic segments)
-  const normalizeEndpoint = (url: string): string => {
-    try {
-      const urlObj = new URL(url);
-      let pathname = urlObj.pathname;
-      
-      // Common dynamic segment patterns
-      pathname = pathname
-        .replace(/\/\d+/g, '/:id')           // /user/123 -> /user/:id
-        .replace(/\/[a-f0-9-]{36}/g, '/:uuid') // UUIDs
-        .replace(/\/[a-f0-9]{24}/g, '/:objectId') // MongoDB ObjectIds
-        .replace(/\/[a-zA-Z0-9_-]{10,}/g, '/:token') // Long tokens/hashes
-        .replace(/\/$/, '') || '/'; // Remove trailing slash
-      
-      return pathname;
-    } catch (e) {
-      // Handle relative URLs or malformed URLs
-      let pathname = url.startsWith('/') ? url : `/${url}`;
-      return pathname
-        .replace(/\/\d+/g, '/:id')
-        .replace(/\/[a-f0-9-]{36}/g, '/:uuid')
-        .replace(/\/[a-f0-9]{24}/g, '/:objectId')
-        .replace(/\/[a-zA-Z0-9_-]{10,}/g, '/:token')
-        .replace(/\/$/, '') || '/';
-    }
-  };
-
-  // Filter by method if selected
-  const filteredRequests = selectedMethod === 'ALL' 
-    ? networkRequests 
-    : networkRequests.filter(req => (req.method || 'GET').toUpperCase() === selectedMethod);
-
-  console.log('TrafficByEndpointChart - filteredRequests:', filteredRequests.length, 'method:', selectedMethod);
-
-  // 2. Empty Data Check
-  console.log('2. After Method Filter:', {
-    originalLength: networkRequests.length,
-    filteredLength: filteredRequests.length,
-    selectedMethod: selectedMethod,
-    sampleFiltered: filteredRequests.slice(0, 2)
-  });
-
-  // Group by normalized endpoint
-  const endpointCounts = filteredRequests.reduce((acc, req) => {
-    const url = req.url || req.request?.url || 'Unknown Endpoint';
-    const normalizedEndpoint = normalizeEndpoint(url);
-    const method = (req.method || 'GET').toUpperCase();
-    
-    const key = `${method} ${normalizedEndpoint}`;
-    
-    if (!acc[key]) {
-      acc[key] = {
-        endpoint: normalizedEndpoint,
-        method: method,
-        count: 0,
-        fullKey: key,
-        originalUrls: new Set()
-      };
-    }
-    
-    acc[key].count += 1;
-    acc[key].originalUrls.add(url);
-    
-    return acc;
-  }, {} as { [key: string]: { 
-    endpoint: string; 
-    method: string; 
-    count: number; 
-    fullKey: string;
-    originalUrls: Set<string>;
-  } });
-
-  console.log('TrafficByEndpointChart - endpointCounts:', Object.keys(endpointCounts).length, 'unique endpoints');
-  console.log('TrafficByEndpointChart - sample endpointCounts:', Object.entries(endpointCounts).slice(0, 3));
-
-  // 3. Endpoint Processing Check
-  console.log('3. Endpoint Processing:', {
-    uniqueEndpoints: Object.keys(endpointCounts).length,
-    endpointCountsKeys: Object.keys(endpointCounts),
-    endpointCountsValues: Object.values(endpointCounts),
-    totalProcessedRequests: Object.values(endpointCounts).reduce((sum, ep: any) => sum + ep.count, 0),
-    endpointCountsType: typeof endpointCounts,
-    isValidObject: endpointCounts && typeof endpointCounts === 'object' && !Array.isArray(endpointCounts)
-  });
-
-  // Safety check - ensure endpointCounts is valid
-  if (!endpointCounts || typeof endpointCounts !== 'object' || Array.isArray(endpointCounts)) {
-    console.error('Invalid endpointCounts object:', endpointCounts);
-    return (
-      <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
-        <div className="text-center text-gray-400">
-          <p>Error processing endpoint data</p>
-          <p className="text-xs mt-2">Invalid data structure detected</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Convert to array and sort by count - FIX: Use Object.entries() to get [key, data] pairs
-  const sortedEndpoints = Object.entries(endpointCounts)
-    .sort(([, a], [, b]) => (b as any).count - (a as any).count);
-
-  // Get available methods for filter
-  const availableMethods = ['ALL', ...new Set(networkRequests.map(req => (req.method || 'GET').toUpperCase()))];
-
-  // Determine how many to show
-  const endpointsToShow = showAll ? sortedEndpoints : sortedEndpoints.slice(0, topN);
-
-  console.log('TrafficByEndpointChart - endpointsToShow:', endpointsToShow.length, 'total:', sortedEndpoints.length);
-
-  // 4. Sorting and Slicing Check
-  console.log('4. Sorting & Slicing:', {
-    beforeSort: sortedEndpoints.length,
-    afterSort: endpointsToShow.length,
-    topN: topN,
-    showAll: showAll,
-    sortedSample: sortedEndpoints.slice(0, 3).map(([key, data]: any) => ({ key, count: data.count }))
-  });
-
-  if (sortedEndpoints.length === 0) {
-    return (
-      <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
-        <div className="text-center text-gray-400">
-          <p>No endpoint data available</p>
-          <p className="text-xs mt-2">No valid URLs found in requests</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Prepare chart data - FIX: endpointsToShow is array of [key, data] pairs
-  let chartData: Array<{
-    name: string;
-    fullName: string;
-    count: number;
-    method: string;
-    examples: string[];
-  }> = [];
+  // Group requests by endpoint URL pathname
+  const endpointCounts: { [key: string]: number } = {};
   
-  try {
-    chartData = endpointsToShow.map(([key, data]: any) => {
-      const displayName = selectedMethod === 'ALL' 
-        ? key // Show method + endpoint
-        : data.endpoint; // Show just endpoint when filtering by method
-      
-      return {
-        name: displayName && displayName.length > 50 ? displayName.substring(0, 47) + '...' : displayName || 'Unknown',
-        fullName: key,
-        count: data.count || 0,
-        method: data.method || 'UNKNOWN',
-        examples: data.urls || []
-      };
-    });
-    
-    console.log('5. Chart Data Preparation SUCCESS:', {
-      inputLength: endpointsToShow.length,
-      outputLength: chartData.length,
-      sampleData: chartData.slice(0, 2),
-      allHaveNames: chartData.every(item => item.name && item.name.length > 0),
-      allHaveCounts: chartData.every(item => typeof item.count === 'number')
-    });
-    
-  } catch (error) {
-    console.error('5. Chart Data Preparation FAILED:', error, {
-      endpointsToShowSample: endpointsToShow.slice(0, 2),
-      endpointsToShowType: typeof endpointsToShow,
-      isArray: Array.isArray(endpointsToShow)
-    });
-    chartData = [];
-  }
-
-  console.log('TrafficByEndpointChart - chartData sample:', chartData.slice(0, 3));
-  console.log('TrafficByEndpointChart - chartData structure check:', {
-    hasData: chartData.length > 0,
-    firstItem: chartData[0],
-    dataKeys: chartData[0] ? Object.keys(chartData[0]) : []
+  networkRequests.forEach(req => {
+    if (req.url) {
+      try {
+        const url = new URL(req.url);
+        const endpoint = url.pathname || '/';
+        endpointCounts[endpoint] = (endpointCounts[endpoint] || 0) + 1;
+      } catch (error) {
+        // Skip invalid URLs
+      }
+    }
   });
 
-  // 5. Final Chart Data Check - THE CRITICAL ONE!
-  console.log('5. FINAL CHART DATA CHECK:', {
-    chartDataLength: chartData.length,
-    chartDataExists: !!chartData,
-    chartDataIsArray: Array.isArray(chartData),
-    sampleChartData: chartData.slice(0, 3),
-    dataKeys: chartData.length > 0 ? Object.keys(chartData[0]) : [],
-    allCountValues: chartData.map(d => d.count),
-    hasZeroValues: chartData.some(d => d.count === 0),
-    maxCount: Math.max(...chartData.map(d => d.count || 0)),
-    minCount: Math.min(...chartData.map(d => d.count || 0))
-  });
-  console.log('=== TRAFFIC CHART DEBUG END ===');
-
-  // 6. Axis Configuration Check
-  console.log('6. AXIS CONFIG CHECK:', {
-    xAxisType: 'number', // Should be number for horizontal bars
-    yAxisType: 'category', // Should be category for horizontal bars  
-    yAxisDataKey: 'name', // Should match chart data field
-    chartDataHasNameField: chartData.length > 0 && 'name' in chartData[0],
-    chartDataHasCountField: chartData.length > 0 && 'count' in chartData[0]
-  });
-
-  // Method colors
-  const methodColors = {
-    'GET': '#10B981',     // Green
-    'POST': '#3B82F6',    // Blue
-    'PUT': '#F59E0B',     // Amber
-    'DELETE': '#EF4444',  // Red
-    'PATCH': '#8B5CF6',   // Purple
-    'OPTIONS': '#6B7280', // Gray
-    'HEAD': '#EC4899',    // Pink
-    'ALL': '#1F2937'      // Dark Gray
-  };
+  // Convert to chart data format and sort by request count
+  const chartData = Object.entries(endpointCounts)
+    .map(([endpoint, count]) => ({
+      endpoint: endpoint.length > 30 ? `${endpoint.substring(0, 27)}...` : endpoint,
+      fullEndpoint: endpoint,
+      requests: count
+    }))
+    .sort((a, b) => b.requests - a.requests)
+    .slice(0, 10); // Show top 10 endpoints
 
   return (
     <div className="space-y-4">
-      {/* Controls */}
-      <div className="flex flex-wrap gap-4 items-center justify-between">
-        <div className="flex gap-4 items-center">
-          {/* Method Filter */}
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">Method:</label>
-            <select 
-              value={selectedMethod} 
-              onChange={(e) => setSelectedMethod(e.target.value)}
-              className="px-2 py-1 border border-gray-300 rounded text-sm"
-            >
-              {availableMethods.map(method => (
-                <option key={method} value={method}>{method}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Top N Selector */}
-          {!showAll && (
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-700">Show Top:</label>
-              <select 
-                value={topN} 
-                onChange={(e) => setTopN(Number(e.target.value))}
-                className="px-2 py-1 border border-gray-300 rounded text-sm"
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-              </select>
-            </div>
-          )}
-
-          {/* Show All Toggle */}
-          <button
-            onClick={() => setShowAll(!showAll)}
-            className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-          >
-            {showAll ? 'Show Top N' : 'Show All'}
-          </button>
-        </div>
-
-        <div className="text-sm text-gray-600">
-          <span className="font-medium">Showing:</span> {endpointsToShow.length} of {sortedEndpoints.length} endpoints
-        </div>
+      <div className="text-sm text-gray-600 text-center">
+        Showing top {chartData.length} endpoints by request volume
       </div>
-
-      {/* Chart */}
-      <div className="bg-white p-4 rounded border">
-        {/* 7. Container Height Check */}
-        <div className="text-xs text-gray-400 mb-2">
-          Chart Height: {Math.max(400, endpointsToShow.length * 30 + 100)}px | Data Points: {chartData.length}
-        </div>
-        {(() => {
-          console.log('7. CONTAINER & FINAL RENDER CHECK:', {
-            containerHeight: Math.max(400, endpointsToShow.length * 30 + 100),
-            dataPoints: chartData.length,
-            chartDataSample: chartData.slice(0, 2),
-            rechartPropsCheck: {
-              hasData: chartData && chartData.length > 0,
-              layoutHorizontal: true,
-              xAxisType: 'number',
-              yAxisType: 'category',
-              yAxisDataKey: 'name',
-              barDataKey: 'count'
-            }
-          });
-          return null;
-        })()}
-        <ResponsiveContainer width="100%" height={Math.max(400, endpointsToShow.length * 30 + 100)}>
-          <BarChart
-            data={chartData}
-            layout="horizontal" 
-            margin={{ top: 20, right: 30, left: 150, bottom: 20 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis 
-              type="number" 
-              domain={[0, 'dataMax']}
-              tickFormatter={(value) => `${value}`}
-            />
-            <YAxis 
-              type="category" 
-              dataKey="name" 
-              width={140}
-              fontSize={10}
-              interval={0}
-              tick={{ textAnchor: 'end' }}
-            />
-            <Tooltip 
-              content={({ active, payload }) => {
-                if (active && payload && payload.length > 0) {
-                  const data = payload[0].payload;
-                  return (
-                    <div className="bg-white p-3 border border-gray-200 rounded shadow-lg text-sm">
-                      <p className="font-medium text-gray-900">{data.fullName}</p>
-                      <p className="text-blue-600 font-semibold">{data.count} requests</p>
-                      <p className="text-xs text-gray-500">{data.examples?.length || 0} URL examples</p>
-                    </div>
-                  );
-                }
-                return null;
-              }}
-            />
-            <Bar 
-              dataKey="count" 
-              fill="#3B82F6" 
-              radius={[0, 4, 4, 0]}
-              onAnimationEnd={() => console.log('8. BAR ANIMATION COMPLETE - Bars should now be visible')}
-            />
-            {(() => {
-              console.log('8. BAR COMPONENT PROPS:', {
-                dataKey: 'count',
-                fill: '#3B82F6',
-                dataValidation: {
-                  allCountsValid: chartData.every(d => typeof d.count === 'number' && d.count > 0),
-                  countRange: {
-                    min: Math.min(...chartData.map(d => d.count)),
-                    max: Math.max(...chartData.map(d => d.count))
-                  },
-                  sampleCounts: chartData.slice(0, 3).map(d => ({ name: d.name, count: d.count }))
-                }
-              });
-              return null;
-            })()}
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Legend */}
-      <div className="flex flex-wrap gap-4 justify-center text-sm">
-        {availableMethods.filter(m => m !== 'ALL').map(method => (
-          <div key={method} className="flex items-center gap-1">
-            <div 
-              className="w-3 h-3 rounded" 
-              style={{ backgroundColor: methodColors[method as keyof typeof methodColors] }}
-            />
-            <span>{method}</span>
-          </div>
-        ))}
-      </div>
+      
+      <ResponsiveContainer width="100%" height={400}>
+        <BarChart 
+          data={chartData}
+          margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
+        >
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis 
+            dataKey="endpoint"
+            angle={-45}
+            textAnchor="end"
+            height={80}
+            fontSize={11}
+            interval={0}
+          />
+          <YAxis 
+            label={{ value: 'Request Count', angle: -90, position: 'insideLeft' }}
+          />
+          <Tooltip 
+            formatter={(value) => [value, 'Requests']}
+            labelFormatter={(label) => `Endpoint: ${chartData.find(d => d.endpoint === label)?.fullEndpoint || label}`}
+          />
+          <Bar 
+            dataKey="requests" 
+            fill="#3B82F6"
+            radius={[4, 4, 0, 0]}
+          />
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   );
 };
