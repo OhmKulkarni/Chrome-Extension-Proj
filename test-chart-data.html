@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chart Test Data</title>
+</head>
+<body>
+    <h1>Chart Data Structure Test</h1>
+    
+    <script>
+        // Test data structures to see what's expected by charts
+        
+        // Sample Network Requests (for HTTP Method, Status Code, Top Endpoints, Response Time charts)
+        const sampleNetworkRequests = [
+            {
+                method: 'GET',
+                url: 'https://api.example.com/users',
+                status: 200,
+                response_status: 200,
+                response_time: 150,
+                timestamp: Date.now()
+            },
+            {
+                method: 'POST',
+                url: 'https://api.example.com/login',
+                status: 401,
+                response_status: 401,
+                response_time: 200,
+                timestamp: Date.now()
+            },
+            {
+                method: 'GET',
+                url: 'https://api.example.com/products',
+                status: 200,
+                response_status: 200,
+                response_time: 100,
+                timestamp: Date.now()
+            },
+            {
+                method: 'PUT',
+                url: 'https://api.example.com/users/123',
+                status: 500,
+                response_status: 500,
+                response_time: 300,
+                timestamp: Date.now()
+            },
+            {
+                method: 'DELETE',
+                url: 'https://api.example.com/users/456',
+                status: 404,
+                response_status: 404,
+                response_time: 80,
+                timestamp: Date.now()
+            }
+        ];
+
+        // Sample Console Errors (for Top Frequent Errors chart)
+        const sampleConsoleErrors = [
+            {
+                message: 'TypeError: Cannot read property of undefined',
+                error: 'TypeError',
+                timestamp: Date.now(),
+                url: 'https://example.com/app.js'
+            },
+            {
+                message: 'ReferenceError: variable is not defined',
+                error: 'ReferenceError',
+                timestamp: Date.now(),
+                url: 'https://example.com/main.js'
+            },
+            {
+                message: 'NetworkError: Failed to fetch',
+                error: 'NetworkError',
+                timestamp: Date.now(),
+                url: 'https://example.com/api.js'
+            },
+            {
+                message: 'TypeError: null is not an object',
+                error: 'TypeError',
+                timestamp: Date.now(),
+                url: 'https://example.com/utils.js'
+            }
+        ];
+
+        // Sample Token Events (for Auth Failures vs Success chart)
+        const sampleTokenEvents = [
+            {
+                type: 'token_validated',
+                success: true,
+                timestamp: Date.now()
+            },
+            {
+                type: 'token_expired',
+                success: false,
+                timestamp: Date.now()
+            },
+            {
+                type: 'token_validated',
+                success: true,
+                timestamp: Date.now()
+            },
+            {
+                type: 'token_validation_failed',
+                success: false,
+                timestamp: Date.now()
+            }
+        ];
+
+        console.log('Sample Network Requests:', sampleNetworkRequests);
+        console.log('Sample Console Errors:', sampleConsoleErrors);
+        console.log('Sample Token Events:', sampleTokenEvents);
+
+        // Test HTTP Method Distribution
+        console.log('\n=== HTTP Method Distribution Test ===');
+        const methodGroups = sampleNetworkRequests.reduce((acc, req) => {
+            const method = req.method || 'UNKNOWN';
+            acc[method] = (acc[method] || 0) + 1;
+            return acc;
+        }, {});
+        console.log('Method Groups:', methodGroups);
+
+        // Test Status Code Breakdown
+        console.log('\n=== Status Code Breakdown Test ===');
+        const statusGroups = sampleNetworkRequests.reduce((acc, req) => {
+            const status = req.status || req.response_status || 200;
+            let group = 'Unknown';
+            
+            if (status >= 200 && status < 300) group = '2xx Success';
+            else if (status >= 300 && status < 400) group = '3xx Redirect';
+            else if (status >= 400 && status < 500) group = '4xx Client Error';
+            else if (status >= 500) group = '5xx Server Error';
+            
+            acc[group] = (acc[group] || 0) + 1;
+            return acc;
+        }, {});
+        console.log('Status Groups:', statusGroups);
+
+        // Test Response Time Data
+        console.log('\n=== Response Time Test ===');
+        const routeGroups = sampleNetworkRequests.reduce((acc, req) => {
+            const route = req.url ? new URL(req.url).pathname : '/unknown';
+            const responseTime = req.response_time || 0;
+            
+            if (!acc[route]) {
+                acc[route] = { total: 0, count: 0 };
+            }
+            
+            if (responseTime > 0) {
+                acc[route].total += responseTime;
+                acc[route].count += 1;
+            }
+            
+            return acc;
+        }, {});
+        console.log('Route Groups:', routeGroups);
+
+        // Test Error Grouping
+        console.log('\n=== Error Grouping Test ===');
+        const errorGroups = sampleConsoleErrors.reduce((acc, error) => {
+            let errorType = error.message || error.error || 'Unknown Error';
+            
+            if (errorType.includes('TypeError')) errorType = 'TypeError';
+            else if (errorType.includes('ReferenceError')) errorType = 'ReferenceError';
+            else if (errorType.includes('SyntaxError')) errorType = 'SyntaxError';
+            else if (errorType.includes('NetworkError')) errorType = 'NetworkError';
+            else if (errorType.includes('SecurityError')) errorType = 'SecurityError';
+            else if (errorType.length > 30) errorType = errorType.substring(0, 27) + '...';
+            
+            acc[errorType] = (acc[errorType] || 0) + 1;
+            return acc;
+        }, {});
+        console.log('Error Groups:', errorGroups);
+
+        // Test Auth Success/Failure
+        console.log('\n=== Auth Success/Failure Test ===');
+        const authStats = sampleTokenEvents.reduce((acc, event) => {
+            if (event.success) {
+                acc.success = (acc.success || 0) + 1;
+            } else {
+                acc.failure = (acc.failure || 0) + 1;
+            }
+            return acc;
+        }, {});
+        console.log('Auth Stats:', authStats);
+    </script>
+</body>
+</html>

@@ -3,8 +3,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Button } from './ui/button';
-import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { groupDataByDomain, DomainStats } from './domainUtils';
+import { 
+  HttpMethodDistributionChart,
+  TopEndpointsByVolumeChart,
+  AvgResponseTimePerRouteChart,
+  AuthFailuresVsSuccessChart,
+  TopFrequentErrorsChart,
+  RequestsOverTimeChart,
+  ErrorFrequencyOverTimeChart,
+  LatencyOverTimeChart,
+  TrafficByEndpointChart,
+  MethodUsageDailyChart,
+  StatusCodeBreakdownChartNew,
+  PayloadSizeDistributionChart,
+  RequestsByTimeOfDayChart,
+  RequestsByDomainChart
+} from './ChartComponents';
 
 interface StatisticsCardProps {
   networkRequests: any[];
@@ -16,6 +33,8 @@ interface GlobalStats {
   totalRequests: number;
   totalErrors: number;
   totalTokenEvents: number;
+  uniqueDomains: number;
+  maxResponseTime: number;
   requestsByMethod: { [method: string]: number };
   errorsBySeverity: { [severity: string]: number };
   tokensByType: { [type: string]: number };
@@ -23,11 +42,61 @@ interface GlobalStats {
   successRate: number;
 }
 
+interface ChartDefinition {
+  name: string;
+  type: 'line' | 'area' | 'bar' | 'stackedBar' | 'pie' | 'donut' | 'horizontalBar' | 'histogram';
+  category: string;
+  description: string;
+  tooltip: string;
+}
+
+type ChartDefinitions = {
+  [key: string]: ChartDefinition;
+};
+
 const StatisticsCard: React.FC<StatisticsCardProps> = ({
   networkRequests,
   consoleErrors,
   tokenEvents
 }) => {
+  // Debug mode: Add mock data for testing charts
+  const DEBUG_MODE = false; // Set to false to disable debug data
+  
+  const mockNetworkRequests = [
+    { method: 'GET', url: 'https://api.example.com/users', status: 200, response_status: 200, response_time: 150 },
+    { method: 'POST', url: 'https://api.example.com/login', status: 401, response_status: 401, response_time: 200 },
+    { method: 'GET', url: 'https://api.example.com/products', status: 200, response_status: 200, response_time: 100 },
+    { method: 'PUT', url: 'https://api.example.com/users/123', status: 500, response_status: 500, response_time: 300 },
+    { method: 'DELETE', url: 'https://api.example.com/users/456', status: 404, response_status: 404, response_time: 80 },
+    { method: 'GET', url: 'https://api.example.com/orders', status: 200, response_status: 200, response_time: 120 },
+    { method: 'POST', url: 'https://api.example.com/register', status: 400, response_status: 400, response_time: 180 }
+  ];
+
+  const mockConsoleErrors = [
+    { message: 'TypeError: Cannot read property of undefined', error: 'TypeError' },
+    { message: 'ReferenceError: variable is not defined', error: 'ReferenceError' },
+    { message: 'NetworkError: Failed to fetch', error: 'NetworkError' },
+    { message: 'TypeError: null is not an object', error: 'TypeError' },
+    { message: 'SyntaxError: Unexpected token', error: 'SyntaxError' }
+  ];
+
+  const mockTokenEvents = [
+    { type: 'token_validated', success: true },
+    { type: 'token_expired', success: false },
+    { type: 'token_validated', success: true },
+    { type: 'token_validation_failed', success: false },
+    { type: 'token_validated', success: true }
+  ];
+
+  // Use mock data in debug mode, otherwise use real data
+  const debugNetworkRequests = DEBUG_MODE && (!networkRequests || networkRequests.length === 0) ? mockNetworkRequests : networkRequests;
+  const debugConsoleErrors = DEBUG_MODE && (!consoleErrors || consoleErrors.length === 0) ? mockConsoleErrors : consoleErrors;
+  const debugTokenEvents = DEBUG_MODE && (!tokenEvents || tokenEvents.length === 0) ? mockTokenEvents : tokenEvents;
+
+  console.log('StatisticsCard Debug Data:');
+  console.log('- Network Requests:', debugNetworkRequests?.length || 0, debugNetworkRequests);
+  console.log('- Console Errors:', debugConsoleErrors?.length || 0, debugConsoleErrors);
+  console.log('- Token Events:', debugTokenEvents?.length || 0, debugTokenEvents);
   const [globalSortConfig, setGlobalSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({
     key: 'value',
     direction: 'desc'
@@ -40,28 +109,247 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
 
   const [expandedDomains, setExpandedDomains] = useState<Set<string>>(new Set());
 
+  // Chart system state
+  const [viewMode, setViewMode] = useState<'list' | 'charts'>('list');
+  const [selectedChart, setSelectedChart] = useState<string | null>(null);
+  const [showAllCharts, setShowAllCharts] = useState(false);
+  const [chartSearch, setChartSearch] = useState('');
+
+  // Chart definitions based on user requirements
+  const chartDefinitions: ChartDefinitions = useMemo(() => ({
+    // Time-Series Charts
+    'requests-over-time': {
+      name: 'Requests Over Time',
+      type: 'line' as const,
+      category: 'Time-Series',
+      description: 'Track total API requests daily/hourly over time',
+      tooltip: 'Shows request volume trends to identify traffic patterns'
+    },
+    'error-frequency-over-time': {
+      name: 'Error Frequency Over Time', 
+      type: 'area' as const,
+      category: 'Time-Series',
+      description: 'Track 4xx/5xx errors over time',
+      tooltip: 'Monitor error trends to identify system issues'
+    },
+    'latency-over-time': {
+      name: 'Latency Over Time',
+      type: 'line' as const, 
+      category: 'Time-Series',
+      description: 'Response time (avg, max, min) trend',
+      tooltip: 'Track performance trends and identify slow periods'
+    },
+    'traffic-by-endpoint': {
+      name: 'Traffic by Endpoint',
+      type: 'bar' as const,
+      category: 'Time-Series', 
+      description: 'Most/least called endpoints over time',
+      tooltip: 'Identify hottest endpoints and usage patterns'
+    },
+    'method-usage-daily': {
+      name: 'Method Usage (Daily)',
+      type: 'stackedBar' as const,
+      category: 'Time-Series',
+      description: 'How often each HTTP method is used over time', 
+      tooltip: 'See HTTP method distribution changes over time'
+    },
+    
+    // Distribution & Count Charts
+    'http-method-distribution': {
+      name: 'HTTP Method Distribution',
+      type: 'pie' as const,
+      category: 'Distributions',
+      description: 'GET vs POST vs PATCH, etc.',
+      tooltip: 'Overall breakdown of HTTP methods used'
+    },
+    'status-code-breakdown': {
+      name: 'Status Code Breakdown', 
+      type: 'donut' as const,
+      category: 'Distributions',
+      description: '2xx vs 4xx vs 5xx ratios',
+      tooltip: 'Success vs error rate breakdown'
+    },
+    'top-frequent-errors': {
+      name: 'Top 5 Frequent Errors',
+      type: 'horizontalBar' as const,
+      category: 'Distributions',
+      description: 'Which error types are most common',
+      tooltip: 'Identify the most problematic error types'
+    },
+    'auth-failures-vs-success': {
+      name: 'Auth Failures vs Success',
+      type: 'pie' as const,
+      category: 'Distributions', 
+      description: 'Token expired vs invalid vs success',
+      tooltip: 'Authentication success/failure analysis'
+    },
+    'top-endpoints-by-volume': {
+      name: 'Top Endpoints by Volume',
+      type: 'bar' as const,
+      category: 'Distributions',
+      description: 'Which routes get the most hits',
+      tooltip: 'Most frequently accessed endpoints'
+    },
+    
+    // Performance & Experience Charts  
+    'avg-response-time-per-route': {
+      name: 'Avg Response Time (per route)',
+      type: 'horizontalBar' as const,
+      category: 'Performance',
+      description: 'Sorted by slowest endpoints',
+      tooltip: 'Identify performance bottlenecks by endpoint'
+    },
+    'payload-size-distribution': {
+      name: 'Payload Size Distribution',
+      type: 'histogram' as const,
+      category: 'Performance', 
+      description: 'Frequency of different response sizes',
+      tooltip: 'Understand typical response payload sizes'
+    },
+    'requests-by-time-of-day': {
+      name: 'Requests by Time of Day',
+      type: 'area' as const,
+      category: 'Performance',
+      description: 'Peak traffic hours',
+      tooltip: 'Identify peak usage times and traffic patterns'
+    },
+    'requests-by-domain': {
+      name: 'Requests by Domain',
+      type: 'pie' as const,
+      category: 'Performance',
+      description: 'Traffic distribution across domains',
+      tooltip: 'See which domains generate the most traffic'
+    }
+  }), []);
+
+  // Filtered charts based on search
+  const filteredCharts = useMemo(() => {
+    const charts = Object.entries(chartDefinitions);
+    if (!chartSearch.trim()) return charts;
+    
+    const searchLower = chartSearch.toLowerCase();
+    return charts.filter(([, chart]) => 
+      chart.name.toLowerCase().includes(searchLower) ||
+      chart.description.toLowerCase().includes(searchLower) ||
+      chart.category.toLowerCase().includes(searchLower)
+    );
+  }, [chartDefinitions, chartSearch]);
+
+  // Chart renderer function
+  const renderChart = (chartKey: string) => {
+    const chartData = {
+      data: globalStats,
+      networkRequests: debugNetworkRequests,
+      consoleErrors: debugConsoleErrors,
+      tokenEvents: debugTokenEvents
+    };
+
+    console.log('Rendering chart:', chartKey, 'with data:', {
+      networkRequests: debugNetworkRequests?.length || 0,
+      consoleErrors: debugConsoleErrors?.length || 0,
+      tokenEvents: debugTokenEvents?.length || 0
+    });
+
+    switch (chartKey) {
+      case 'requests-over-time':
+        return <RequestsOverTimeChart {...chartData} />;
+      case 'http-method-distribution':
+        return <HttpMethodDistributionChart {...chartData} />;
+      case 'status-code-breakdown':
+        return <StatusCodeBreakdownChartNew {...chartData} />;
+      case 'top-endpoints-by-volume':
+        return <TopEndpointsByVolumeChart {...chartData} />;
+      case 'avg-response-time-per-route':
+        return <AvgResponseTimePerRouteChart {...chartData} />;
+      case 'auth-failures-vs-success':
+        return <AuthFailuresVsSuccessChart {...chartData} />;
+      case 'top-frequent-errors':
+        return <TopFrequentErrorsChart {...chartData} />;
+      case 'error-frequency-over-time':
+        return <ErrorFrequencyOverTimeChart {...chartData} />;
+      case 'latency-over-time':
+        return <LatencyOverTimeChart {...chartData} />;
+      case 'traffic-by-endpoint':
+        return <TrafficByEndpointChart {...chartData} />;
+      case 'method-usage-daily':
+        return <MethodUsageDailyChart {...chartData} />;
+      case 'payload-size-distribution':
+        return <PayloadSizeDistributionChart {...chartData} />;
+      case 'requests-by-time-of-day':
+        return <RequestsByTimeOfDayChart {...chartData} />;
+      case 'requests-by-domain':
+        return <RequestsByDomainChart {...chartData} />;
+      default:
+        return (
+          <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
+            <div className="text-center text-gray-400">
+              <BarChart3 className="h-16 w-16 mx-auto mb-4" />
+              <p className="text-lg font-medium">Chart Implementation Pending</p>
+              <p className="text-sm">
+                {chartDefinitions[chartKey]?.name} ({chartDefinitions[chartKey]?.type})
+              </p>
+              <p className="text-xs mt-2 max-w-md mx-auto">
+                {chartDefinitions[chartKey]?.tooltip}
+              </p>
+            </div>
+          </div>
+        );
+    }
+  };
+
   // Calculate global statistics
   const globalStats: GlobalStats = useMemo(() => {
-    const totalRequests = networkRequests.length;
-    const totalErrors = consoleErrors.length;
-    const totalTokenEvents = tokenEvents.length;
+    // Use debug data if available
+    const effectiveNetworkRequests = debugNetworkRequests || networkRequests;
+    const effectiveConsoleErrors = debugConsoleErrors || consoleErrors;
+    const effectiveTokenEvents = debugTokenEvents || tokenEvents;
+
+    console.log('GlobalStats calculation with data:', {
+      networkRequests: effectiveNetworkRequests?.length || 0,
+      consoleErrors: effectiveConsoleErrors?.length || 0, 
+      tokenEvents: effectiveTokenEvents?.length || 0
+    });
+
+    const totalRequests = effectiveNetworkRequests.length;
+    const totalErrors = effectiveConsoleErrors.length;
+    const totalTokenEvents = effectiveTokenEvents.length;
+
+    // Calculate unique domains
+    const allData = [...effectiveNetworkRequests, ...effectiveConsoleErrors, ...effectiveTokenEvents];
+    const uniqueDomainsSet = new Set();
+    allData.forEach(item => {
+      const itemUrl = item.url || item.request?.url || item.details?.url || item.source_url || '';
+      if (itemUrl && itemUrl !== 'unknown' && itemUrl !== 'Unknown' && itemUrl !== 'Unknown URL') {
+        try {
+          const hostname = new URL(itemUrl).hostname;
+          // Extract main domain (e.g., reddit.com from www.reddit.com)
+          const mainDomain = item.main_domain || hostname.replace(/^www\./, '').toLowerCase();
+          if (mainDomain && mainDomain !== 'unknown') {
+            uniqueDomainsSet.add(mainDomain);
+          }
+        } catch (e) {
+          // Skip invalid URLs
+        }
+      }
+    });
+    const uniqueDomains = uniqueDomainsSet.size;
 
     // Requests by method
-    const requestsByMethod = networkRequests.reduce((acc, req) => {
+    const requestsByMethod = effectiveNetworkRequests.reduce((acc, req) => {
       const method = req.method || req.request_method || 'GET';
       acc[method] = (acc[method] || 0) + 1;
       return acc;
     }, {} as { [method: string]: number });
 
     // Errors by severity
-    const errorsBySeverity = consoleErrors.reduce((acc, error) => {
+    const errorsBySeverity = effectiveConsoleErrors.reduce((acc, error) => {
       const severity = error.level || error.severity || 'error';
       acc[severity] = (acc[severity] || 0) + 1;
       return acc;
     }, {} as { [severity: string]: number });
 
     // Tokens by type
-    const tokensByType = tokenEvents.reduce((acc, token) => {
+    const tokensByType = effectiveTokenEvents.reduce((acc, token) => {
       // Analyze token event to determine type
       const url = (token.url || token.source_url || '').toLowerCase();
       const method = (token.method || token.request_method || '').toUpperCase();
@@ -79,16 +367,19 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       return acc;
     }, {} as { [type: string]: number });
 
-    // Calculate average response time
-    const responseTimes = networkRequests
+    // Calculate average and max response time
+    const responseTimes = effectiveNetworkRequests
       .map(req => req.response_time || req.responseTime)
       .filter(time => time && typeof time === 'number');
     const avgResponseTime = responseTimes.length > 0 
       ? Math.round(responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length)
       : 0;
+    const maxResponseTime = responseTimes.length > 0 
+      ? Math.max(...responseTimes)
+      : 0;
 
     // Calculate success rate
-    const successfulRequests = networkRequests.filter(req => {
+    const successfulRequests = effectiveNetworkRequests.filter(req => {
       const status = req.status || req.response_status;
       return status >= 200 && status < 400;
     }).length;
@@ -98,19 +389,21 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       totalRequests,
       totalErrors,
       totalTokenEvents,
+      uniqueDomains,
+      maxResponseTime,
       requestsByMethod,
       errorsBySeverity,
       tokensByType,
       avgResponseTime,
       successRate
     };
-  }, [networkRequests, consoleErrors, tokenEvents]);
+  }, [debugNetworkRequests, debugConsoleErrors, debugTokenEvents]);
 
   // Calculate domain-specific statistics with enhanced grouping
   const domainStats: DomainStats[] = useMemo(() => {
-    const allData = [...networkRequests, ...consoleErrors, ...tokenEvents];
+    const allData = [...debugNetworkRequests, ...debugConsoleErrors, ...debugTokenEvents];
     return groupDataByDomain(allData);
-  }, [networkRequests, consoleErrors, tokenEvents]);
+  }, [debugNetworkRequests, debugConsoleErrors, debugTokenEvents]);
 
   // Sorting functions
   const handleGlobalSort = (key: string) => {
@@ -141,21 +434,32 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   // Prepare sorted global stats for table
   const globalStatsTable = useMemo(() => {
     const stats = [
+      // Network category metrics
       { metric: 'Total Requests', value: globalStats.totalRequests, category: 'Network' },
-      { metric: 'Total Errors', value: globalStats.totalErrors, category: 'Console' },
-      { metric: 'Total Token Events', value: globalStats.totalTokenEvents, category: 'Auth' },
-      { metric: 'Average Response Time', value: `${globalStats.avgResponseTime}ms`, category: 'Performance' },
-      { metric: 'Success Rate', value: `${globalStats.successRate}%`, category: 'Performance' },
+      { metric: 'Unique Domains', value: globalStats.uniqueDomains, category: 'Network' },
       ...Object.entries(globalStats.requestsByMethod).map(([method, count]) => ({
         metric: `${method} Requests`,
         value: count,
         category: 'Network'
       })),
-      ...Object.entries(globalStats.errorsBySeverity).map(([severity, count]) => ({
-        metric: `${severity.toUpperCase()} Errors`,
-        value: count,
-        category: 'Console'
-      })),
+      
+      // Performance category metrics
+      { metric: 'Success Rate', value: `${globalStats.successRate}%`, category: 'Performance' },
+      { metric: 'Average Response Time', value: `${globalStats.avgResponseTime}ms`, category: 'Performance' },
+      { metric: 'Max Response Time', value: `${globalStats.maxResponseTime}ms`, category: 'Performance' },
+      
+      // Console category metrics (Total Errors only - removed redundant ERROR Errors)
+      { metric: 'Total Errors', value: globalStats.totalErrors, category: 'Console' },
+      ...Object.entries(globalStats.errorsBySeverity)
+        .filter(([severity]) => severity.toLowerCase() !== 'error') // Remove redundant 'error' severity to avoid duplication
+        .map(([severity, count]) => ({
+          metric: `${severity.toUpperCase()} Errors`,
+          value: count,
+          category: 'Console'
+        })),
+      
+      // Auth category metrics
+      { metric: 'Total Token Events', value: globalStats.totalTokenEvents, category: 'Auth' },
       ...Object.entries(globalStats.tokensByType).map(([type, count]) => ({
         metric: type,
         value: count,
@@ -241,57 +545,219 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
           </TabsList>
           
           <TabsContent value="global" className="space-y-4">
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="font-semibold">
-                      <div className="flex items-center gap-2">
-                        Metric
-                        <SortButton column="metric" currentSort={globalSortConfig} onSort={handleGlobalSort} />
-                      </div>
-                    </TableHead>
-                    <TableHead className="font-semibold">
-                      <div className="flex items-center gap-2">
-                        Value
-                        <SortButton column="value" currentSort={globalSortConfig} onSort={handleGlobalSort} />
-                      </div>
-                    </TableHead>
-                    <TableHead className="font-semibold">
-                      <div className="flex items-center gap-2">
-                        Category
-                        <SortButton column="category" currentSort={globalSortConfig} onSort={handleGlobalSort} />
-                      </div>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {globalStatsTable.map((stat, index) => (
-                    <TableRow key={index} className="hover:bg-blue-50/50">
-                      <TableCell className="font-medium">{stat.metric}</TableCell>
-                      <TableCell className="font-semibold text-blue-700">{stat.value}</TableCell>
-                      <TableCell>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          stat.category === 'Network' ? 'bg-green-100 text-green-800' :
-                          stat.category === 'Console' ? 'bg-red-100 text-red-800' :
-                          stat.category === 'Auth' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-blue-100 text-blue-800'
-                        }`}>
-                          {stat.category}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {globalStatsTable.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-center text-gray-500 py-8">
-                        No statistics available yet
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+            {/* View Mode Toggle */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-4">
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('list')}
+                  className="flex items-center gap-2"
+                >
+                  <List className="h-4 w-4" />
+                  List View
+                </Button>
+                <Button
+                  variant={viewMode === 'charts' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('charts')}
+                  className="flex items-center gap-2"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  Charts View
+                </Button>
+              </div>
+              
+              {viewMode === 'charts' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAllCharts(!showAllCharts)}
+                  className="flex items-center gap-2"
+                >
+                  {showAllCharts ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showAllCharts ? 'Hide All Charts' : 'Show All Charts'}
+                </Button>
+              )}
             </div>
+
+            <AnimatePresence mode="wait">
+              {viewMode === 'list' ? (
+                <motion.div
+                  key="list-view"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className="rounded-md border"
+                >
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="font-semibold">
+                          <div className="flex items-center gap-2">
+                            Metric
+                            <SortButton column="metric" currentSort={globalSortConfig} onSort={handleGlobalSort} />
+                          </div>
+                        </TableHead>
+                        <TableHead className="font-semibold">
+                          <div className="flex items-center gap-2">
+                            Value
+                            <SortButton column="value" currentSort={globalSortConfig} onSort={handleGlobalSort} />
+                          </div>
+                        </TableHead>
+                        <TableHead className="font-semibold">
+                          <div className="flex items-center gap-2">
+                            Category
+                            <SortButton column="category" currentSort={globalSortConfig} onSort={handleGlobalSort} />
+                          </div>
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {globalStatsTable.map((stat, index) => (
+                        <TableRow key={index} className="hover:bg-blue-50/50">
+                          <TableCell className="font-medium">{stat.metric}</TableCell>
+                          <TableCell className="font-semibold text-blue-700">{stat.value}</TableCell>
+                          <TableCell>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              stat.category === 'Network' ? 'bg-green-100 text-green-800' :
+                              stat.category === 'Console' ? 'bg-red-100 text-red-800' :
+                              stat.category === 'Auth' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-blue-100 text-blue-800'
+                            }`}>
+                              {stat.category}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {globalStatsTable.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center text-gray-500 py-8">
+                            No statistics available yet
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="charts-view"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className="space-y-4"
+                >
+                  {/* Chart Search */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search charts..."
+                      value={chartSearch}
+                      onChange={(e) => setChartSearch(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  {showAllCharts ? (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {filteredCharts.map(([chartKey, chart]) => (
+                        <motion.div
+                          key={chartKey}
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ duration: 0.3, delay: 0.1 * filteredCharts.findIndex(([k]) => k === chartKey) }}
+                          className="bg-white border rounded-lg p-4 hover:shadow-md transition-shadow"
+                        >
+                          <h3 className="font-semibold text-lg mb-2">{chart.name}</h3>
+                          <p className="text-sm text-gray-600 mb-4">{chart.description}</p>
+                          <div className="bg-white rounded">
+                            {renderChart(chartKey)}
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  ) : (
+                    <>
+                      {/* Selected Chart Full View - Now appears ABOVE chart options */}
+                      {selectedChart && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -20 }}
+                          transition={{ duration: 0.4 }}
+                          className="bg-white border-2 border-blue-200 rounded-lg p-6 mb-6"
+                        >
+                          <div className="flex items-center justify-between mb-4">
+                            <div>
+                              <h2 className="text-xl font-semibold">{chartDefinitions[selectedChart].name}</h2>
+                              <p className="text-gray-600">{chartDefinitions[selectedChart].description}</p>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedChart(null)}
+                            >
+                              Close
+                            </Button>
+                          </div>
+                          <div className="bg-white rounded">
+                            {renderChart(selectedChart)}
+                          </div>
+                        </motion.div>
+                      )}
+
+                      {/* Chart Selection Cards - Now appears BELOW selected chart */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {filteredCharts.map(([chartKey, chart]) => (
+                          <motion.div
+                            key={chartKey}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, delay: 0.05 * filteredCharts.findIndex(([k]) => k === chartKey) }}
+                            className={`cursor-pointer border-2 rounded-lg p-4 transition-all hover:shadow-md ${
+                              selectedChart === chartKey 
+                                ? 'border-blue-500 bg-blue-50' 
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                            onClick={() => setSelectedChart(selectedChart === chartKey ? null : chartKey)}
+                            title={chart.tooltip}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="flex-shrink-0">
+                                <LineChart className="h-6 w-6 text-blue-600" />
+                              </div>
+                              <div className="flex-1">
+                                <h3 className="font-semibold text-sm mb-1">{chart.name}</h3>
+                                <p className="text-xs text-gray-600 mb-2">{chart.description}</p>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                                    {chart.category}
+                                  </span>
+                                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                                    {chart.type}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {filteredCharts.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <Search className="h-8 w-8 mx-auto mb-2" />
+                      <p>No charts found matching "{chartSearch}"</p>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </TabsContent>
           
           <TabsContent value="domain" className="space-y-4">
@@ -381,11 +847,6 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                 </button>
                               )}
                               <span className="truncate font-semibold">{stat.domain}</span>
-                              {stat.serviceGroup && (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800" title={`Service: ${stat.serviceGroup}`}>
-                                  Service
-                                </span>
-                              )}
                               {stat.tabContext?.isMainDomain && (
                                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800" title="Primary domain for tab">
                                   <Monitor className="h-3 w-3 mr-1" />
@@ -407,7 +868,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                             {/* Show primary tab URL when available */}
                             {stat.tabContext?.primaryTabUrl && (
                               <div className="text-xs text-gray-500 truncate max-w-[280px]" title={stat.tabContext.primaryTabUrl}>
-                                📄 {stat.tabContext.primaryTabUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                                {stat.tabContext.primaryTabUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}
                               </div>
                             )}
                           </div>
@@ -432,21 +893,31 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                       </TableCell>
                     </TableRow>
                     
-                    {/* Expanded grouped domains */}
-                    {stat.isGrouped && expandedDomains.has(stat.domain) && stat.groupedDomains.map((groupedDomain: string, subIndex: number) => (
+                    {/* Expanded grouped domains with stats */}
+                    {stat.isGrouped && expandedDomains.has(stat.domain) && stat.subdomainStats.map((subStat, subIndex: number) => (
                       <TableRow key={`${index}-${subIndex}`} className="bg-blue-50/30 border-l-2 border-l-blue-200">
                         <TableCell className="pl-8 text-sm text-gray-600">
                           <div className="flex items-center gap-2">
                             <span className="text-blue-500">└─</span>
-                            <span>{groupedDomain}</span>
+                            <span>{subStat.domain}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm text-gray-500">-</TableCell>
-                        <TableCell className="text-sm text-gray-500">-</TableCell>
-                        <TableCell className="text-sm text-gray-500">-</TableCell>
-                        <TableCell className="text-sm text-gray-500">-</TableCell>
-                        <TableCell className="text-sm text-gray-500">-</TableCell>
-                        <TableCell className="text-sm text-gray-500">-</TableCell>
+                        <TableCell className="text-sm font-medium text-green-600">{subStat.requests}</TableCell>
+                        <TableCell className="text-sm font-medium text-red-600">{subStat.errors}</TableCell>
+                        <TableCell className="text-sm font-medium text-yellow-600">{subStat.tokens}</TableCell>
+                        <TableCell className="text-sm">
+                          <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                            subStat.successRate >= 90 ? 'bg-green-100 text-green-700' :
+                            subStat.successRate >= 70 ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-red-100 text-red-700'
+                          }`}>
+                            {subStat.successRate}%
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-sm font-medium text-blue-600">
+                          {subStat.avgResponseTime > 0 ? `${subStat.avgResponseTime}ms` : 'N/A'}
+                        </TableCell>
+                        <TableCell className="text-sm text-gray-400">-</TableCell>
                       </TableRow>
                     ))}
                   </React.Fragment>

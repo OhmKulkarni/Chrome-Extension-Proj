@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Charts - Real Data Analysis</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .debug-section { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .data-sample { background: #f8f9fa; padding: 10px; border-radius: 4px; margin: 10px 0; font-family: monospace; font-size: 12px; overflow-x: auto; }
+        .chart-test { border: 2px solid #e9ecef; padding: 15px; margin: 10px 0; border-radius: 6px; }
+        .working { border-color: #28a745; background: #f8fff9; }
+        .broken { border-color: #dc3545; background: #fff8f8; }
+        .warning { border-color: #ffc107; background: #fffcf0; }
+        h1, h2, h3 { color: #333; }
+        .status { font-weight: bold; padding: 5px 10px; border-radius: 4px; display: inline-block; margin: 5px 0; }
+        .status.working { background: #d4edda; color: #155724; }
+        .status.broken { background: #f8d7da; color: #721c24; }
+        .status.warning { background: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Chrome Extension Charts Debug Analysis</h1>
+        <p><strong>Real Data Available:</strong> 195 network requests, 34 console errors, 7 token events</p>
+        
+        <div class="debug-section">
+            <h2>📊 Chart Status Overview</h2>
+            <div class="chart-test working">
+                <h3>✅ Working Charts</h3>
+                <div class="status working">HTTP Method Distribution</div>
+                <div class="status working">Auth Failures vs Success</div>
+                <div class="status working">Top Endpoints by Volume</div>
+            </div>
+            
+            <div class="chart-test broken">
+                <h3>❌ Non-Rendering Charts</h3>
+                <div class="status broken">Status Code Breakdown</div>
+                <div class="status broken">Avg Response Time per Route</div>
+                <div class="status broken">Top Frequent Errors</div>
+            </div>
+        </div>
+
+        <div class="debug-section">
+            <h2>🔍 Data Structure Analysis</h2>
+            <p>Let's analyze the actual data structure to understand why charts aren't rendering:</p>
+            
+            <div class="chart-test warning">
+                <h3>🔍 Status Code Breakdown - Debug Analysis</h3>
+                <p><strong>Expected Fields:</strong> <code>status</code> or <code>response_status</code></p>
+                <div id="status-debug" class="data-sample">Analyzing network request data...</div>
+            </div>
+            
+            <div class="chart-test warning">
+                <h3>🔍 Response Time Analysis - Debug Analysis</h3>
+                <p><strong>Expected Fields:</strong> <code>response_time</code> or <code>responseTime</code></p>
+                <div id="response-time-debug" class="data-sample">Analyzing response time data...</div>
+            </div>
+            
+            <div class="chart-test warning">
+                <h3>🔍 Console Errors Analysis - Debug Analysis</h3>
+                <p><strong>Expected Fields:</strong> <code>message</code> or <code>error</code></p>
+                <div id="error-debug" class="data-sample">Analyzing console error data...</div>
+            </div>
+        </div>
+
+        <div class="debug-section">
+            <h2>🛠️ Sample Data Analysis</h2>
+            <p>Based on the console output, here's what we need to investigate:</p>
+            
+            <h3>Network Request Sample Structure:</h3>
+            <div class="data-sample" id="network-sample">
+                // Expected structure from background.ts:
+                {
+                  method: "GET" | "POST" | "PUT" | "DELETE",
+                  url: "https://example.com/api/endpoint",
+                  status: 200, // OR response_status: 200
+                  response_time: 150, // OR responseTime: 150
+                  timestamp: 1722787200000
+                }
+            </div>
+            
+            <h3>Console Error Sample Structure:</h3>
+            <div class="data-sample" id="error-sample">
+                // Expected structure:
+                {
+                  message: "TypeError: Cannot read property...",
+                  error: "TypeError", // OR level/severity
+                  timestamp: 1722787200000,
+                  url: "https://example.com/script.js"
+                }
+            </div>
+            
+            <h3>Token Event Sample Structure:</h3>
+            <div class="data-sample" id="token-sample">
+                // Expected structure:
+                {
+                  type: "token_validated" | "token_expired",
+                  success: true | false,
+                  timestamp: 1722787200000
+                }
+            </div>
+        </div>
+
+        <div class="debug-section">
+            <h2>🎯 Debugging Strategy</h2>
+            <ol>
+                <li><strong>Status Code Issue:</strong> Check if network requests have <code>status</code> or <code>response_status</code> field</li>
+                <li><strong>Response Time Issue:</strong> Check if network requests have <code>response_time</code> or <code>responseTime</code> field</li>
+                <li><strong>Error Processing Issue:</strong> Check if console errors have <code>message</code> field and proper structure</li>
+                <li><strong>Data Filtering:</strong> Verify data isn't being filtered out by validation logic</li>
+                <li><strong>Chart Library Issues:</strong> Ensure Recharts components receive properly formatted data</li>
+            </ol>
+        </div>
+
+        <div class="debug-section">
+            <h2>💡 Potential Solutions</h2>
+            <div class="chart-test">
+                <h3>1. Field Name Mapping</h3>
+                <p>The extension might be storing data with different field names than expected by charts.</p>
+                <div class="data-sample">
+                // Instead of: req.status
+                // Try: req.response_status || req.responseStatus || req.status_code
+                </div>
+            </div>
+            
+            <div class="chart-test">
+                <h3>2. Data Type Validation</h3>
+                <p>Fields might be strings instead of numbers, or undefined/null values.</p>
+                <div class="data-sample">
+                // Ensure: typeof status === 'number' && !isNaN(status)
+                // Convert: parseInt(status) or Number(status)
+                </div>
+            </div>
+            
+            <div class="chart-test">
+                <h3>3. Empty Data Handling</h3>
+                <p>Charts might be failing silently on empty or malformed data arrays.</p>
+                <div class="data-sample">
+                // Add: if (!data || data.length === 0) return <EmptyState />
+                // Validate: data.every(item => item.hasRequiredFields)
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // This would analyze real data if we had access to it
+        console.log('🔍 Debug Charts Analysis Page Loaded');
+        console.log('📊 Ready to analyze chart rendering issues');
+        
+        // Sample data analysis functions
+        function analyzeNetworkRequests(requests) {
+            console.log('Network Requests Analysis:');
+            if (!requests || requests.length === 0) {
+                console.log('❌ No network requests data');
+                return;
+            }
+            
+            const sample = requests[0];
+            console.log('📝 Sample request:', sample);
+            console.log('🔍 Available fields:', Object.keys(sample));
+            
+            // Status field analysis
+            const statusFields = ['status', 'response_status', 'responseStatus', 'status_code'];
+            const foundStatusField = statusFields.find(field => sample[field] !== undefined);
+            console.log('📊 Status field:', foundStatusField, sample[foundStatusField]);
+            
+            // Response time analysis
+            const timeFields = ['response_time', 'responseTime', 'duration', 'time'];
+            const foundTimeField = timeFields.find(field => sample[field] !== undefined);
+            console.log('⏱️ Response time field:', foundTimeField, sample[foundTimeField]);
+        }
+        
+        function analyzeConsoleErrors(errors) {
+            console.log('Console Errors Analysis:');
+            if (!errors || errors.length === 0) {
+                console.log('❌ No console errors data');
+                return;
+            }
+            
+            const sample = errors[0];
+            console.log('📝 Sample error:', sample);
+            console.log('🔍 Available fields:', Object.keys(sample));
+            
+            // Message field analysis
+            const messageFields = ['message', 'error', 'description', 'text'];
+            const foundMessageField = messageFields.find(field => sample[field] !== undefined);
+            console.log('💬 Message field:', foundMessageField, sample[foundMessageField]);
+        }
+        
+        // If we had access to the extension data, we'd call these functions
+        // analyzeNetworkRequests(networkRequests);
+        // analyzeConsoleErrors(consoleErrors);
+    </script>
+</body>
+</html>
