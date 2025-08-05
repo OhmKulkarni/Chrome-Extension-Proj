@@ -1,6 +1,17 @@
-# Chrome Extension Documentation Index
+# Chrome Extension Project Documentation
 
-This directory contains comprehensive documentation for the Chrome Extension development and debugging process.
+Welcome to the Chrome Extension project documentation. This folder contains comprehensive guides, analysis reports, and technical documentation.
+
+## 📋 Quick Start Guides
+
+### Build & Environment
+- **[BUILD_MODES_COMPREHENSIVE_GUIDE.md](./BUILD_MODES_COMPREHENSIVE_GUIDE.md)** - Complete guide to development vs production modes
+- **[ENVIRONMENT_MODES.md](./ENVIRONMENT_MODES.md)** - Quick reference for switching build modes
+
+### Performance & Optimization  
+- **[SIZE_OPTIMIZATION_REPORT.md](./SIZE_OPTIMIZATION_REPORT.md)** - Extension size optimization summary
+- **[PERFORMANCE_ANALYSIS.md](./PERFORMANCE_ANALYSIS.md)** - Development vs production performance comparison
+- **[EXTENSION_OVERHEAD_ANALYSIS.md](./EXTENSION_OVERHEAD_ANALYSIS.md)** - Detailed size breakdown and optimization recommendations
 
 ## Core Architecture & Implementation
 
