@@ -5,6 +5,10 @@ import {
   Cell,
   BarChart,
   Bar,
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -436,7 +440,7 @@ export const TopFrequentErrorsChart: React.FC<ChartProps> = ({ consoleErrors }) 
   );
 };
 
-// Requests Over Time (Line Chart)
+// Requests Over Time (Line/Area Chart)
 export const RequestsOverTimeChart: React.FC<ChartProps> = ({ networkRequests }) => {
   console.log('RequestsOverTimeChart - networkRequests:', networkRequests?.length || 0);
 
@@ -451,34 +455,87 @@ export const RequestsOverTimeChart: React.FC<ChartProps> = ({ networkRequests })
     );
   }
 
-  // Group requests by time periods (by hour for the last 24 hours or by day)
+  // Determine time range and interval based on data span
+  const timestamps = networkRequests
+    .map(req => req.timestamp ? new Date(req.timestamp).getTime() : Date.now())
+    .sort((a, b) => a - b);
+    
+  const oldestTime = timestamps[0];
+  const newestTime = timestamps[timestamps.length - 1];
+  const timeSpan = newestTime - oldestTime;
+  
+  // Choose appropriate time interval
+  let interval: 'hour' | 'day' | 'minute' = 'hour';
+  let timeFormat: Intl.DateTimeFormatOptions;
+  
+  if (timeSpan <= 2 * 60 * 60 * 1000) { // Less than 2 hours
+    interval = 'minute';
+    timeFormat = { hour: 'numeric', minute: '2-digit', hour12: true };
+  } else if (timeSpan <= 7 * 24 * 60 * 60 * 1000) { // Less than 7 days
+    interval = 'hour';
+    timeFormat = { month: 'short', day: 'numeric', hour: 'numeric', hour12: true };
+  } else {
+    interval = 'day';
+    timeFormat = { month: 'short', day: 'numeric' };
+  }
+
+  console.log('RequestsOverTimeChart - Time span:', timeSpan, 'Interval:', interval);
+
+  // Group requests by time intervals and HTTP methods
   const timeGroups = networkRequests.reduce((acc, req) => {
     const timestamp = req.timestamp ? new Date(req.timestamp) : new Date();
+    const method = (req.method || 'GET').toUpperCase();
     
-    // Group by hour for more granular view
-    const hourKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(), timestamp.getHours()).getTime();
+    let timeKey: number;
     
-    if (!acc[hourKey]) {
-      acc[hourKey] = {
-        timestamp: hourKey,
-        count: 0,
-        errors: 0,
-        success: 0
+    // Create time bucket based on interval
+    if (interval === 'minute') {
+      timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(), 
+                        timestamp.getHours(), timestamp.getMinutes()).getTime();
+    } else if (interval === 'hour') {
+      timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(), 
+                        timestamp.getHours()).getTime();
+    } else { // day
+      timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate()).getTime();
+    }
+    
+    if (!acc[timeKey]) {
+      acc[timeKey] = {
+        timestamp: timeKey,
+        total: 0,
+        GET: 0,
+        POST: 0,
+        PUT: 0,
+        DELETE: 0,
+        PATCH: 0,
+        HEAD: 0,
+        OPTIONS: 0,
+        other: 0
       };
     }
     
-    acc[hourKey].count += 1;
+    acc[timeKey].total += 1;
     
-    // Categorize by status
-    const status = req.status || req.response_status || 200;
-    if (status >= 200 && status < 400) {
-      acc[hourKey].success += 1;
+    // Count by HTTP method
+    if (['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'].includes(method)) {
+      acc[timeKey][method as keyof typeof acc[typeof timeKey]] += 1;
     } else {
-      acc[hourKey].errors += 1;
+      acc[timeKey].other += 1;
     }
     
     return acc;
-  }, {} as { [key: number]: { timestamp: number; count: number; errors: number; success: number } });
+  }, {} as { [key: number]: { 
+    timestamp: number; 
+    total: number; 
+    GET: number; 
+    POST: number; 
+    PUT: number; 
+    DELETE: number; 
+    PATCH: number; 
+    HEAD: number; 
+    OPTIONS: number; 
+    other: number; 
+  } });
 
   console.log('RequestsOverTimeChart - timeGroups:', timeGroups);
 
@@ -488,16 +545,17 @@ export const RequestsOverTimeChart: React.FC<ChartProps> = ({ networkRequests })
     .map(group => {
       const g = group as any;
       return {
-        time: new Date(g.timestamp).toLocaleString('en-US', { 
-          month: 'short', 
-          day: 'numeric', 
-          hour: 'numeric',
-          hour12: true 
-        }),
+        time: new Date(g.timestamp).toLocaleString('en-US', timeFormat),
         timestamp: g.timestamp,
-        requests: g.count,
-        success: g.success,
-        errors: g.errors
+        total: g.total,
+        GET: g.GET,
+        POST: g.POST,
+        PUT: g.PUT,
+        DELETE: g.DELETE,
+        PATCH: g.PATCH,
+        HEAD: g.HEAD,
+        OPTIONS: g.OPTIONS,
+        other: g.other
       };
     });
 
@@ -514,27 +572,111 @@ export const RequestsOverTimeChart: React.FC<ChartProps> = ({ networkRequests })
     );
   }
 
+  // Determine which HTTP methods are actually present in the data
+  const activeMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS', 'other']
+    .filter(method => chartData.some(item => (item as any)[method] > 0));
+
+  console.log('RequestsOverTimeChart - activeMethods:', activeMethods);
+
+  // Method colors
+  const methodColors = {
+    GET: '#10B981',     // Green
+    POST: '#3B82F6',    // Blue  
+    PUT: '#F59E0B',     // Amber
+    DELETE: '#EF4444',  // Red
+    PATCH: '#8B5CF6',   // Purple
+    HEAD: '#06B6D4',    // Cyan
+    OPTIONS: '#84CC16', // Lime
+    other: '#6B7280',   // Gray
+    total: '#1F2937'    // Dark gray
+  };
+
   return (
-    <ResponsiveContainer width="100%" height={400}>
-      <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis 
-          dataKey="time" 
-          angle={-45}
-          textAnchor="end"
-          height={80}
-          fontSize={12}
-        />
-        <YAxis />
-        <Tooltip 
-          formatter={(value, name) => [value, name === 'requests' ? 'Total Requests' : name === 'success' ? 'Successful' : 'Errors']}
-          labelFormatter={(label) => `Time: ${label}`}
-        />
-        <Legend />
-        <Bar dataKey="requests" fill={COLORS.info} name="Total Requests" />
-        <Bar dataKey="success" fill={COLORS.success} name="Successful" />
-        <Bar dataKey="errors" fill={COLORS.error} name="Errors" />
-      </BarChart>
-    </ResponsiveContainer>
+    <div className="space-y-4">
+      {/* Chart Controls/Info */}
+      <div className="flex justify-between items-center text-sm text-gray-600">
+        <div>
+          <span className="font-medium">Time Range:</span> {interval === 'minute' ? 'By Minute' : interval === 'hour' ? 'By Hour' : 'By Day'}
+        </div>
+        <div>
+          <span className="font-medium">Total Requests:</span> {networkRequests.length}
+        </div>
+      </div>
+
+      {/* Main Timeline Chart - Area Chart for better visual impact */}
+      <ResponsiveContainer width="100%" height={400}>
+        <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis 
+            dataKey="time" 
+            angle={-45}
+            textAnchor="end"
+            height={80}
+            fontSize={12}
+            interval={'preserveStartEnd'}
+          />
+          <YAxis />
+          <Tooltip 
+            formatter={(value, name) => [value, name === 'total' ? 'Total Requests' : `${name} Requests`]}
+            labelFormatter={(label) => `Time: ${label}`}
+          />
+          <Legend />
+          
+          {/* Show stacked areas for each HTTP method */}
+          {activeMethods.includes('GET') && (
+            <Area type="monotone" dataKey="GET" stackId="1" stroke={methodColors.GET} fill={methodColors.GET} fillOpacity={0.6} />
+          )}
+          {activeMethods.includes('POST') && (
+            <Area type="monotone" dataKey="POST" stackId="1" stroke={methodColors.POST} fill={methodColors.POST} fillOpacity={0.6} />
+          )}
+          {activeMethods.includes('PUT') && (
+            <Area type="monotone" dataKey="PUT" stackId="1" stroke={methodColors.PUT} fill={methodColors.PUT} fillOpacity={0.6} />
+          )}
+          {activeMethods.includes('DELETE') && (
+            <Area type="monotone" dataKey="DELETE" stackId="1" stroke={methodColors.DELETE} fill={methodColors.DELETE} fillOpacity={0.6} />
+          )}
+          {activeMethods.includes('PATCH') && (
+            <Area type="monotone" dataKey="PATCH" stackId="1" stroke={methodColors.PATCH} fill={methodColors.PATCH} fillOpacity={0.6} />
+          )}
+          {activeMethods.includes('HEAD') && (
+            <Area type="monotone" dataKey="HEAD" stackId="1" stroke={methodColors.HEAD} fill={methodColors.HEAD} fillOpacity={0.6} />
+          )}
+          {activeMethods.includes('OPTIONS') && (
+            <Area type="monotone" dataKey="OPTIONS" stackId="1" stroke={methodColors.OPTIONS} fill={methodColors.OPTIONS} fillOpacity={0.6} />
+          )}
+          {activeMethods.includes('other') && (
+            <Area type="monotone" dataKey="other" stackId="1" stroke={methodColors.other} fill={methodColors.other} fillOpacity={0.6} />
+          )}
+        </AreaChart>
+      </ResponsiveContainer>
+
+      {/* Alternative: Total Requests Line Chart */}
+      <div className="pt-4 border-t">
+        <h4 className="text-sm font-medium text-gray-700 mb-2">Total Requests Trend</h4>
+        <ResponsiveContainer width="100%" height={200}>
+          <LineChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis 
+              dataKey="time" 
+              fontSize={11}
+              interval={'preserveStartEnd'}
+            />
+            <YAxis fontSize={11} />
+            <Tooltip 
+              formatter={(value) => [value, 'Total Requests']}
+              labelFormatter={(label) => `Time: ${label}`}
+            />
+            <Line 
+              type="monotone" 
+              dataKey="total" 
+              stroke={methodColors.total} 
+              strokeWidth={2}
+              dot={{ fill: methodColors.total, strokeWidth: 2, r: 3 }}
+              activeDot={{ r: 5 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
   );
 };
