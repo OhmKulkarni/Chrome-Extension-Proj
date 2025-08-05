@@ -424,7 +424,7 @@ export class IndexedDBStorage implements StorageOperations {
     return counts
   }
 
-  async getStorageInfo(): Promise<{type: 'sqlite' | 'indexeddb', size?: number}> {
+  async getStorageInfo(): Promise<{type: 'indexeddb', size?: number}> {
     // IndexedDB doesn't provide easy size calculation, but we can estimate
     let estimatedSize = 0
     const counts = await this.getTableCounts()

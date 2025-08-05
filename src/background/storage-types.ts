@@ -1,4 +1,4 @@
-// Comprehensive data storage system with SQLite WASM and IndexedDB fallback
+// IndexedDB-only data storage system (SQLite removed for optimization)
 // Schema definitions for all data types
 
 export interface ApiCall {
@@ -97,6 +97,6 @@ export interface StorageOperations {
   clearAllData(): Promise<void>
   getTableCounts(): Promise<{[table: string]: number}>
   
-  // Storage info
-  getStorageInfo(): Promise<{type: 'sqlite' | 'indexeddb', size?: number}>
+  // Storage info  
+  getStorageInfo(): Promise<{type: 'indexeddb', size?: number}>
 }
