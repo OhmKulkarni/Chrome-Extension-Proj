@@ -8,12 +8,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { groupDataByDomain, DomainStats } from './domainUtils';
 import { 
   HttpMethodDistributionChart,
-  StatusCodeBreakdownChart,
   TopEndpointsByVolumeChart,
   AvgResponseTimePerRouteChart,
   AuthFailuresVsSuccessChart,
   TopFrequentErrorsChart,
-  RequestsOverTimeChart
+  RequestsOverTimeChart,
+  ErrorFrequencyOverTimeChart,
+  LatencyOverTimeChart,
+  TrafficByEndpointChart,
+  MethodUsageDailyChart,
+  StatusCodeBreakdownChartNew
 } from './ChartComponents';
 
 interface StatisticsCardProps {
@@ -249,7 +253,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       case 'http-method-distribution':
         return <HttpMethodDistributionChart {...chartData} />;
       case 'status-code-breakdown':
-        return <StatusCodeBreakdownChart {...chartData} />;
+        return <StatusCodeBreakdownChartNew {...chartData} />;
       case 'top-endpoints-by-volume':
         return <TopEndpointsByVolumeChart {...chartData} />;
       case 'avg-response-time-per-route':
@@ -258,6 +262,14 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
         return <AuthFailuresVsSuccessChart {...chartData} />;
       case 'top-frequent-errors':
         return <TopFrequentErrorsChart {...chartData} />;
+      case 'error-frequency-over-time':
+        return <ErrorFrequencyOverTimeChart {...chartData} />;
+      case 'latency-over-time':
+        return <LatencyOverTimeChart {...chartData} />;
+      case 'traffic-by-endpoint':
+        return <TrafficByEndpointChart {...chartData} />;
+      case 'method-usage-daily':
+        return <MethodUsageDailyChart {...chartData} />;
       default:
         return (
           <div className="h-96 bg-gray-50 rounded flex items-center justify-center">

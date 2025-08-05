@@ -680,3 +680,1200 @@ export const RequestsOverTimeChart: React.FC<ChartProps> = ({ networkRequests })
     </div>
   );
 };
+
+// Error Frequency Over Time (Line Chart)
+export const ErrorFrequencyOverTimeChart: React.FC<ChartProps> = ({ consoleErrors }) => {
+  console.log('ErrorFrequencyOverTimeChart - consoleErrors:', consoleErrors?.length || 0);
+
+  if (!consoleErrors || consoleErrors.length === 0) {
+    return (
+      <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
+        <div className="text-center text-gray-400">
+          <p>No console errors data available</p>
+          <p className="text-xs mt-2">No error timeline data to display</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Determine time range and interval based on error data span
+  const timestamps = consoleErrors
+    .map(error => error.timestamp ? new Date(error.timestamp).getTime() : Date.now())
+    .sort((a, b) => a - b);
+    
+  const oldestTime = timestamps[0];
+  const newestTime = timestamps[timestamps.length - 1];
+  const timeSpan = newestTime - oldestTime;
+  
+  // Choose appropriate time interval
+  let interval: 'hour' | 'day' | 'minute' = 'hour';
+  let timeFormat: Intl.DateTimeFormatOptions;
+  
+  if (timeSpan <= 2 * 60 * 60 * 1000) { // Less than 2 hours
+    interval = 'minute';
+    timeFormat = { hour: 'numeric', minute: '2-digit', hour12: true };
+  } else if (timeSpan <= 7 * 24 * 60 * 60 * 1000) { // Less than 7 days
+    interval = 'hour';
+    timeFormat = { month: 'short', day: 'numeric', hour: 'numeric', hour12: true };
+  } else {
+    interval = 'day';
+    timeFormat = { month: 'short', day: 'numeric' };
+  }
+
+  console.log('ErrorFrequencyOverTimeChart - Time span:', timeSpan, 'Interval:', interval);
+
+  // Group errors by time intervals and severity levels
+  const timeGroups = consoleErrors.reduce((acc, error) => {
+    const timestamp = error.timestamp ? new Date(error.timestamp) : new Date();
+    const severity = (error.severity || error.level || 'error').toLowerCase();
+    
+    let timeKey: number;
+    
+    // Create time bucket based on interval
+    if (interval === 'minute') {
+      timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(), 
+                        timestamp.getHours(), timestamp.getMinutes()).getTime();
+    } else if (interval === 'hour') {
+      timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(), 
+                        timestamp.getHours()).getTime();
+    } else { // day
+      timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate()).getTime();
+    }
+    
+    if (!acc[timeKey]) {
+      acc[timeKey] = {
+        timestamp: timeKey,
+        total: 0,
+        error: 0,
+        warning: 0,
+        critical: 0,
+        info: 0,
+        debug: 0,
+        other: 0
+      };
+    }
+    
+    acc[timeKey].total += 1;
+    
+    // Count by severity level
+    if (['error', 'warning', 'critical', 'info', 'debug'].includes(severity)) {
+      acc[timeKey][severity as keyof typeof acc[typeof timeKey]] += 1;
+    } else {
+      acc[timeKey].other += 1;
+    }
+    
+    return acc;
+  }, {} as { [key: number]: { 
+    timestamp: number; 
+    total: number; 
+    error: number; 
+    warning: number; 
+    critical: number; 
+    info: number; 
+    debug: number; 
+    other: number; 
+  } });
+
+  console.log('ErrorFrequencyOverTimeChart - timeGroups:', timeGroups);
+
+  // Convert to chart data and sort by time
+  const chartData = Object.values(timeGroups)
+    .sort((a, b) => (a as any).timestamp - (b as any).timestamp)
+    .map(group => {
+      const g = group as any;
+      return {
+        time: new Date(g.timestamp).toLocaleString('en-US', timeFormat),
+        timestamp: g.timestamp,
+        total: g.total,
+        error: g.error,
+        warning: g.warning,
+        critical: g.critical,
+        info: g.info,
+        debug: g.debug,
+        other: g.other
+      };
+    });
+
+  console.log('ErrorFrequencyOverTimeChart - chartData:', chartData);
+
+  if (chartData.length === 0) {
+    return (
+      <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
+        <div className="text-center text-gray-400">
+          <p>No error timeline data available</p>
+          <p className="text-xs mt-2">Error timestamps may be missing</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Determine which severity levels are present
+  const activeSeverities = ['error', 'warning', 'critical', 'info', 'debug', 'other']
+    .filter(severity => chartData.some(item => (item as any)[severity] > 0));
+
+  // Severity colors
+  const severityColors = {
+    critical: '#DC2626',  // Red-600
+    error: '#EF4444',     // Red-500
+    warning: '#F59E0B',   // Amber-500
+    info: '#3B82F6',      // Blue-500
+    debug: '#6B7280',     // Gray-500
+    other: '#8B5CF6',     // Purple-500
+    total: '#1F2937'      // Gray-800
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Chart Info */}
+      <div className="flex justify-between items-center text-sm text-gray-600">
+        <div>
+          <span className="font-medium">Error Timeline:</span> {interval === 'minute' ? 'By Minute' : interval === 'hour' ? 'By Hour' : 'By Day'}
+        </div>
+        <div>
+          <span className="font-medium">Total Errors:</span> {consoleErrors.length}
+        </div>
+      </div>
+
+      {/* Main Error Timeline - Line Chart */}
+      <ResponsiveContainer width="100%" height={400}>
+        <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis 
+            dataKey="time" 
+            angle={-45}
+            textAnchor="end"
+            height={80}
+            fontSize={12}
+            interval={'preserveStartEnd'}
+          />
+          <YAxis />
+          <Tooltip 
+            formatter={(value, name) => [value, name === 'total' ? 'Total Errors' : `${String(name).charAt(0).toUpperCase() + String(name).slice(1)} Errors`]}
+            labelFormatter={(label) => `Time: ${label}`}
+          />
+          <Legend />
+          
+          {/* Show lines for each active severity level */}
+          {activeSeverities.includes('critical') && (
+            <Line type="monotone" dataKey="critical" stroke={severityColors.critical} strokeWidth={2} name="Critical" />
+          )}
+          {activeSeverities.includes('error') && (
+            <Line type="monotone" dataKey="error" stroke={severityColors.error} strokeWidth={2} name="Error" />
+          )}
+          {activeSeverities.includes('warning') && (
+            <Line type="monotone" dataKey="warning" stroke={severityColors.warning} strokeWidth={2} name="Warning" />
+          )}
+          {activeSeverities.includes('info') && (
+            <Line type="monotone" dataKey="info" stroke={severityColors.info} strokeWidth={2} name="Info" />
+          )}
+          {activeSeverities.includes('debug') && (
+            <Line type="monotone" dataKey="debug" stroke={severityColors.debug} strokeWidth={2} name="Debug" />
+          )}
+          {activeSeverities.includes('other') && (
+            <Line type="monotone" dataKey="other" stroke={severityColors.other} strokeWidth={2} name="Other" />
+          )}
+          
+          {/* Total errors line (thicker) */}
+          <Line 
+            type="monotone" 
+            dataKey="total" 
+            stroke={severityColors.total} 
+            strokeWidth={3}
+            name="Total Errors"
+            dot={{ fill: severityColors.total, strokeWidth: 2, r: 4 }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+
+      {/* Alternative: Bar Chart View */}
+      <div className="pt-4 border-t">
+        <h4 className="text-sm font-medium text-gray-700 mb-2">Error Frequency Distribution</h4>
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis 
+              dataKey="time" 
+              fontSize={11}
+              interval={'preserveStartEnd'}
+            />
+            <YAxis fontSize={11} />
+            <Tooltip 
+              formatter={(value, name) => [value, `${String(name).charAt(0).toUpperCase() + String(name).slice(1)} Errors`]}
+              labelFormatter={(label) => `Time: ${label}`}
+            />
+            <Bar dataKey="total" fill={severityColors.total} name="Total Errors" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+};
+
+// Latency Over Time (Line Chart)
+export const LatencyOverTimeChart: React.FC<ChartProps> = ({ networkRequests }) => {
+  console.log('LatencyOverTimeChart - networkRequests:', networkRequests?.length || 0);
+
+  if (!networkRequests || networkRequests.length === 0) {
+    return (
+      <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
+        <div className="text-center text-gray-400">
+          <p>No network requests data available</p>
+          <p className="text-xs mt-2">No latency timeline data to display</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Filter requests that have response times
+  const requestsWithLatency = networkRequests.filter(req => {
+    const responseTime = req.response_time || req.responseTime || req.duration;
+    return responseTime && typeof responseTime === 'number' && responseTime > 0;
+  });
+
+  console.log('LatencyOverTimeChart - requestsWithLatency:', requestsWithLatency.length);
+
+  if (requestsWithLatency.length === 0) {
+    return (
+      <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
+        <div className="text-center text-gray-400">
+          <p>No latency data available</p>
+          <p className="text-xs mt-2">Response times not captured or missing</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Determine time range and interval
+  const timestamps = requestsWithLatency
+    .map(req => req.timestamp ? new Date(req.timestamp).getTime() : Date.now())
+    .sort((a, b) => a - b);
+    
+  const oldestTime = timestamps[0];
+  const newestTime = timestamps[timestamps.length - 1];
+  const timeSpan = newestTime - oldestTime;
+  
+  let interval: 'hour' | 'day' | 'minute' = 'hour';
+  let timeFormat: Intl.DateTimeFormatOptions;
+  
+  if (timeSpan <= 2 * 60 * 60 * 1000) {
+    interval = 'minute';
+    timeFormat = { hour: 'numeric', minute: '2-digit', hour12: true };
+  } else if (timeSpan <= 7 * 24 * 60 * 60 * 1000) {
+    interval = 'hour';
+    timeFormat = { month: 'short', day: 'numeric', hour: 'numeric', hour12: true };
+  } else {
+    interval = 'day';
+    timeFormat = { month: 'short', day: 'numeric' };
+  }
+
+  // Group requests by time intervals and calculate latency statistics
+  const timeGroups = requestsWithLatency.reduce((acc, req) => {
+    const timestamp = req.timestamp ? new Date(req.timestamp) : new Date();
+    const method = (req.method || 'GET').toUpperCase();
+    const responseTime = req.response_time || req.responseTime || req.duration;
+    
+    let timeKey: number;
+    
+    if (interval === 'minute') {
+      timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(), 
+                        timestamp.getHours(), timestamp.getMinutes()).getTime();
+    } else if (interval === 'hour') {
+      timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(), 
+                        timestamp.getHours()).getTime();
+    } else {
+      timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate()).getTime();
+    }
+    
+    if (!acc[timeKey]) {
+      acc[timeKey] = {
+        timestamp: timeKey,
+        latencies: [],
+        getMethods: [],
+        postMethods: [],
+        otherMethods: [],
+        count: 0
+      };
+    }
+    
+    acc[timeKey].latencies.push(responseTime);
+    acc[timeKey].count += 1;
+    
+    // Categorize by method
+    if (method === 'GET') {
+      acc[timeKey].getMethods.push(responseTime);
+    } else if (method === 'POST') {
+      acc[timeKey].postMethods.push(responseTime);
+    } else {
+      acc[timeKey].otherMethods.push(responseTime);
+    }
+    
+    return acc;
+  }, {} as { [key: number]: { 
+    timestamp: number; 
+    latencies: number[];
+    getMethods: number[];
+    postMethods: number[];
+    otherMethods: number[];
+    count: number;
+  } });
+
+  // Calculate statistics for each time bucket
+  const chartData = Object.values(timeGroups)
+    .sort((a, b) => (a as any).timestamp - (b as any).timestamp)
+    .map(group => {
+      const g = group as any;
+      const latencies = g.latencies.sort((a: number, b: number) => a - b);
+      
+      const avgLatency = Math.round(latencies.reduce((sum: number, val: number) => sum + val, 0) / latencies.length);
+      const minLatency = Math.min(...latencies);
+      const maxLatency = Math.max(...latencies);
+      const medianLatency = latencies[Math.floor(latencies.length / 2)];
+      
+      // Calculate averages by method
+      const avgGet = g.getMethods.length > 0 ? Math.round(g.getMethods.reduce((sum: number, val: number) => sum + val, 0) / g.getMethods.length) : 0;
+      const avgPost = g.postMethods.length > 0 ? Math.round(g.postMethods.reduce((sum: number, val: number) => sum + val, 0) / g.postMethods.length) : 0;
+      const avgOther = g.otherMethods.length > 0 ? Math.round(g.otherMethods.reduce((sum: number, val: number) => sum + val, 0) / g.otherMethods.length) : 0;
+      
+      return {
+        time: new Date(g.timestamp).toLocaleString('en-US', timeFormat),
+        timestamp: g.timestamp,
+        avgLatency,
+        minLatency,
+        maxLatency,
+        medianLatency,
+        avgGet,
+        avgPost,
+        avgOther,
+        sampleSize: g.count
+      };
+    });
+
+  console.log('LatencyOverTimeChart - chartData:', chartData);
+
+  // Latency colors
+  const latencyColors = {
+    avg: '#3B82F6',      // Blue
+    min: '#10B981',      // Green
+    max: '#EF4444',      // Red
+    median: '#8B5CF6',   // Purple
+    get: '#10B981',      // Green
+    post: '#F59E0B',     // Amber
+    other: '#6B7280'     // Gray
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Chart Info */}
+      <div className="flex justify-between items-center text-sm text-gray-600">
+        <div>
+          <span className="font-medium">Latency Timeline:</span> {interval === 'minute' ? 'By Minute' : interval === 'hour' ? 'By Hour' : 'By Day'}
+        </div>
+        <div>
+          <span className="font-medium">Requests with Latency:</span> {requestsWithLatency.length}
+        </div>
+      </div>
+
+      {/* Main Latency Chart */}
+      <ResponsiveContainer width="100%" height={400}>
+        <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis 
+            dataKey="time" 
+            angle={-45}
+            textAnchor="end"
+            height={80}
+            fontSize={12}
+            interval={'preserveStartEnd'}
+          />
+          <YAxis label={{ value: 'Latency (ms)', angle: -90, position: 'insideLeft' }} />
+          <Tooltip 
+            formatter={(value, name) => [`${value}ms`, name === 'avgLatency' ? 'Average Latency' : 
+                                                       name === 'maxLatency' ? 'Max Latency' :
+                                                       name === 'minLatency' ? 'Min Latency' : 
+                                                       name === 'medianLatency' ? 'Median Latency' : name]}
+            labelFormatter={(label) => `Time: ${label}`}
+          />
+          <Legend />
+          
+          {/* Latency trend lines */}
+          <Line 
+            type="monotone" 
+            dataKey="avgLatency" 
+            stroke={latencyColors.avg} 
+            strokeWidth={3}
+            name="Average Latency"
+            dot={{ fill: latencyColors.avg, strokeWidth: 2, r: 4 }}
+          />
+          <Line 
+            type="monotone" 
+            dataKey="maxLatency" 
+            stroke={latencyColors.max} 
+            strokeWidth={2}
+            strokeDasharray="5 5"
+            name="Max Latency"
+          />
+          <Line 
+            type="monotone" 
+            dataKey="minLatency" 
+            stroke={latencyColors.min} 
+            strokeWidth={2}
+            strokeDasharray="5 5"
+            name="Min Latency"
+          />
+        </LineChart>
+      </ResponsiveContainer>
+
+      {/* By Request Type */}
+      <div className="pt-4 border-t">
+        <h4 className="text-sm font-medium text-gray-700 mb-2">Latency by Request Type</h4>
+        <ResponsiveContainer width="100%" height={250}>
+          <LineChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis 
+              dataKey="time" 
+              fontSize={11}
+              interval={'preserveStartEnd'}
+            />
+            <YAxis label={{ value: 'Latency (ms)', angle: -90, position: 'insideLeft' }} fontSize={11} />
+            <Tooltip 
+              formatter={(value, name) => [`${value}ms`, `${String(name).toUpperCase()} Average`]}
+              labelFormatter={(label) => `Time: ${label}`}
+            />
+            <Legend />
+            
+            {chartData.some(item => item.avgGet > 0) && (
+              <Line type="monotone" dataKey="avgGet" stroke={latencyColors.get} strokeWidth={2} name="GET Requests" />
+            )}
+            {chartData.some(item => item.avgPost > 0) && (
+              <Line type="monotone" dataKey="avgPost" stroke={latencyColors.post} strokeWidth={2} name="POST Requests" />
+            )}
+            {chartData.some(item => item.avgOther > 0) && (
+              <Line type="monotone" dataKey="avgOther" stroke={latencyColors.other} strokeWidth={2} name="Other Requests" />
+            )}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+};
+
+// Traffic by Endpoint (Horizontal Bar Chart)
+export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }) => {
+  console.log('TrafficByEndpointChart - networkRequests:', networkRequests?.length || 0);
+
+  if (!networkRequests || networkRequests.length === 0) {
+    return (
+      <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
+        <div className="text-center text-gray-400">
+          <p>No network requests data available</p>
+          <p className="text-xs mt-2">No endpoint traffic data to display</p>
+        </div>
+      </div>
+    );
+  }
+
+  // State for filtering and limiting
+  const [topN, setTopN] = React.useState(10);
+  const [selectedMethod, setSelectedMethod] = React.useState<string>('ALL');
+  const [showAll, setShowAll] = React.useState(false);
+
+  // Function to normalize endpoints (group dynamic segments)
+  const normalizeEndpoint = (url: string): string => {
+    try {
+      const urlObj = new URL(url);
+      let pathname = urlObj.pathname;
+      
+      // Common dynamic segment patterns
+      pathname = pathname
+        .replace(/\/\d+/g, '/:id')           // /user/123 -> /user/:id
+        .replace(/\/[a-f0-9-]{36}/g, '/:uuid') // UUIDs
+        .replace(/\/[a-f0-9]{24}/g, '/:objectId') // MongoDB ObjectIds
+        .replace(/\/[a-zA-Z0-9_-]{10,}/g, '/:token') // Long tokens/hashes
+        .replace(/\/$/, '') || '/'; // Remove trailing slash
+      
+      return pathname;
+    } catch (e) {
+      // Handle relative URLs or malformed URLs
+      let pathname = url.startsWith('/') ? url : `/${url}`;
+      return pathname
+        .replace(/\/\d+/g, '/:id')
+        .replace(/\/[a-f0-9-]{36}/g, '/:uuid')
+        .replace(/\/[a-f0-9]{24}/g, '/:objectId')
+        .replace(/\/[a-zA-Z0-9_-]{10,}/g, '/:token')
+        .replace(/\/$/, '') || '/';
+    }
+  };
+
+  // Filter by method if selected
+  const filteredRequests = selectedMethod === 'ALL' 
+    ? networkRequests 
+    : networkRequests.filter(req => (req.method || 'GET').toUpperCase() === selectedMethod);
+
+  console.log('TrafficByEndpointChart - filteredRequests:', filteredRequests.length, 'method:', selectedMethod);
+
+  // Group by normalized endpoint
+  const endpointCounts = filteredRequests.reduce((acc, req) => {
+    const url = req.url || req.request?.url || 'Unknown Endpoint';
+    const normalizedEndpoint = normalizeEndpoint(url);
+    const method = (req.method || 'GET').toUpperCase();
+    
+    const key = `${method} ${normalizedEndpoint}`;
+    
+    if (!acc[key]) {
+      acc[key] = {
+        endpoint: normalizedEndpoint,
+        method: method,
+        count: 0,
+        fullKey: key,
+        originalUrls: new Set()
+      };
+    }
+    
+    acc[key].count += 1;
+    acc[key].originalUrls.add(url);
+    
+    return acc;
+  }, {} as { [key: string]: { 
+    endpoint: string; 
+    method: string; 
+    count: number; 
+    fullKey: string;
+    originalUrls: Set<string>;
+  } });
+
+  console.log('TrafficByEndpointChart - endpointCounts:', Object.keys(endpointCounts).length, 'unique endpoints');
+  console.log('TrafficByEndpointChart - sample endpointCounts:', Object.entries(endpointCounts).slice(0, 3));
+
+  // Convert to array and sort by count
+  const sortedEndpoints = Object.values(endpointCounts)
+    .sort((a, b) => (b as any).count - (a as any).count);
+
+  // Get available methods for filter
+  const availableMethods = ['ALL', ...new Set(networkRequests.map(req => (req.method || 'GET').toUpperCase()))];
+
+  // Determine how many to show
+  const endpointsToShow = showAll ? sortedEndpoints : sortedEndpoints.slice(0, topN);
+
+  console.log('TrafficByEndpointChart - endpointsToShow:', endpointsToShow.length, 'total:', sortedEndpoints.length);
+
+  if (sortedEndpoints.length === 0) {
+    return (
+      <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
+        <div className="text-center text-gray-400">
+          <p>No endpoint data available</p>
+          <p className="text-xs mt-2">No valid URLs found in requests</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Prepare chart data
+  const chartData = endpointsToShow.map((item: any) => ({
+    endpoint: item.endpoint.length > 30 ? `${item.endpoint.substring(0, 30)}...` : item.endpoint,
+    fullEndpoint: item.endpoint,
+    method: item.method,
+    count: item.count,
+    fullKey: item.fullKey,
+    originalCount: item.originalUrls.size
+  }));
+
+  console.log('TrafficByEndpointChart - chartData sample:', chartData.slice(0, 3));
+  console.log('TrafficByEndpointChart - chartData structure check:', {
+    hasData: chartData.length > 0,
+    firstItem: chartData[0],
+    dataKeys: chartData[0] ? Object.keys(chartData[0]) : []
+  });
+
+  // Method colors
+  const methodColors = {
+    'GET': '#10B981',     // Green
+    'POST': '#3B82F6',    // Blue
+    'PUT': '#F59E0B',     // Amber
+    'DELETE': '#EF4444',  // Red
+    'PATCH': '#8B5CF6',   // Purple
+    'OPTIONS': '#6B7280', // Gray
+    'HEAD': '#EC4899',    // Pink
+    'ALL': '#1F2937'      // Dark Gray
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Controls */}
+      <div className="flex flex-wrap gap-4 items-center justify-between">
+        <div className="flex gap-4 items-center">
+          {/* Method Filter */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">Method:</label>
+            <select 
+              value={selectedMethod} 
+              onChange={(e) => setSelectedMethod(e.target.value)}
+              className="px-2 py-1 border border-gray-300 rounded text-sm"
+            >
+              {availableMethods.map(method => (
+                <option key={method} value={method}>{method}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Top N Selector */}
+          {!showAll && (
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Show Top:</label>
+              <select 
+                value={topN} 
+                onChange={(e) => setTopN(Number(e.target.value))}
+                className="px-2 py-1 border border-gray-300 rounded text-sm"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+          )}
+
+          {/* Show All Toggle */}
+          <button
+            onClick={() => setShowAll(!showAll)}
+            className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+          >
+            {showAll ? 'Show Top N' : 'Show All'}
+          </button>
+        </div>
+
+        <div className="text-sm text-gray-600">
+          <span className="font-medium">Showing:</span> {endpointsToShow.length} of {sortedEndpoints.length} endpoints
+        </div>
+      </div>
+
+      {/* Chart */}
+      <ResponsiveContainer width="100%" height={Math.max(400, endpointsToShow.length * 25 + 100)}>
+        <BarChart
+          data={chartData}
+          layout="horizontal"
+          margin={{ top: 20, right: 30, left: 120, bottom: 5 }}
+        >
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis type="number" />
+          <YAxis 
+            type="category" 
+            dataKey="endpoint" 
+            width={120}
+            fontSize={11}
+            interval={0}
+          />
+          <Tooltip 
+            formatter={(value, _name) => [`${value} requests`, 'Traffic']}
+            labelFormatter={(label) => {
+              const item = chartData.find(d => d.endpoint === label);
+              return `${item?.method} ${item?.fullEndpoint}`;
+            }}
+            content={({ active, payload }) => {
+              if (active && payload && payload.length) {
+                const data = payload[0].payload;
+                return (
+                  <div className="bg-white p-3 border border-gray-200 rounded shadow-lg">
+                    <p className="font-medium">{data.method} {data.fullEndpoint}</p>
+                    <p className="text-blue-600">{data.count} requests</p>
+                    <p className="text-xs text-gray-500">{data.originalCount} unique URLs</p>
+                  </div>
+                );
+              }
+              return null;
+            }}
+          />
+          <Bar 
+            dataKey="count"
+          >
+            {chartData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={methodColors[entry.method as keyof typeof methodColors] || methodColors.ALL} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+
+      {/* Legend */}
+      <div className="flex flex-wrap gap-4 justify-center text-sm">
+        {availableMethods.filter(m => m !== 'ALL').map(method => (
+          <div key={method} className="flex items-center gap-1">
+            <div 
+              className="w-3 h-3 rounded" 
+              style={{ backgroundColor: methodColors[method as keyof typeof methodColors] }}
+            />
+            <span>{method}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Method Usage Daily (Stacked Bar Chart)
+export const MethodUsageDailyChart: React.FC<ChartProps> = ({ networkRequests }) => {
+  console.log('MethodUsageDailyChart - networkRequests:', networkRequests?.length || 0);
+
+  if (!networkRequests || networkRequests.length === 0) {
+    return (
+      <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
+        <div className="text-center text-gray-400">
+          <p>No network requests data available</p>
+          <p className="text-xs mt-2">No daily method usage data to display</p>
+        </div>
+      </div>
+    );
+  }
+
+  // State for chart type toggle
+  const [chartType, setChartType] = React.useState<'stacked' | 'line'>('stacked');
+
+  // Group requests by day and method
+  const dailyMethodData = networkRequests.reduce((acc, req) => {
+    const timestamp = req.timestamp ? new Date(req.timestamp) : new Date();
+    const method = (req.method || 'GET').toUpperCase();
+    
+    // Create day key (YYYY-MM-DD)
+    const dayKey = timestamp.toISOString().split('T')[0];
+    
+    if (!acc[dayKey]) {
+      acc[dayKey] = {
+        date: dayKey,
+        timestamp: timestamp.getTime(),
+        GET: 0,
+        POST: 0,
+        PUT: 0,
+        DELETE: 0,
+        PATCH: 0,
+        OPTIONS: 0,
+        HEAD: 0,
+        OTHER: 0,
+        total: 0
+      };
+    }
+    
+    if (['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'].includes(method)) {
+      acc[dayKey][method as keyof typeof acc[typeof dayKey]] += 1;
+    } else {
+      acc[dayKey].OTHER += 1;
+    }
+    
+    acc[dayKey].total += 1;
+    
+    return acc;
+  }, {} as { [key: string]: { 
+    date: string; 
+    timestamp: number;
+    GET: number; 
+    POST: number; 
+    PUT: number; 
+    DELETE: number; 
+    PATCH: number; 
+    OPTIONS: number; 
+    HEAD: number; 
+    OTHER: number; 
+    total: number; 
+  } });
+
+  // Convert to chart data and sort by date
+  const chartData = Object.values(dailyMethodData)
+    .sort((a, b) => (a as any).timestamp - (b as any).timestamp)
+    .map((day: any) => ({
+      date: new Date(day.timestamp).toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric' 
+      }),
+      fullDate: day.date,
+      GET: day.GET,
+      POST: day.POST,
+      PUT: day.PUT,
+      DELETE: day.DELETE,
+      PATCH: day.PATCH,
+      OPTIONS: day.OPTIONS,
+      HEAD: day.HEAD,
+      OTHER: day.OTHER,
+      total: day.total
+    }));
+
+  console.log('MethodUsageDailyChart - chartData:', chartData.length, 'days');
+
+  // Determine which methods are actually used
+  const activeMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD', 'OTHER']
+    .filter(method => chartData.some(day => (day as any)[method] > 0));
+
+  // Method colors (consistent with other charts)
+  const methodColors = {
+    GET: '#10B981',     // Green
+    POST: '#3B82F6',    // Blue
+    PUT: '#F59E0B',     // Amber
+    DELETE: '#EF4444',  // Red
+    PATCH: '#8B5CF6',   // Purple
+    OPTIONS: '#6B7280', // Gray
+    HEAD: '#EC4899',    // Pink
+    OTHER: '#1F2937'    // Dark Gray
+  };
+
+  if (chartData.length === 0) {
+    return (
+      <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
+        <div className="text-center text-gray-400">
+          <p>No daily method data available</p>
+          <p className="text-xs mt-2">Request timestamps may be missing</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Controls */}
+      <div className="flex justify-between items-center">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setChartType('stacked')}
+            className={`px-3 py-1 text-sm rounded ${
+              chartType === 'stacked' 
+                ? 'bg-blue-500 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Stacked Bars
+          </button>
+          <button
+            onClick={() => setChartType('line')}
+            className={`px-3 py-1 text-sm rounded ${
+              chartType === 'line' 
+                ? 'bg-blue-500 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Line Chart
+          </button>
+        </div>
+        
+        <div className="text-sm text-gray-600">
+          <span className="font-medium">Period:</span> {chartData.length} days
+        </div>
+      </div>
+
+      {/* Stacked Bar Chart */}
+      {chartType === 'stacked' && (
+        <ResponsiveContainer width="100%" height={400}>
+          <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis 
+              dataKey="date" 
+              angle={-45}
+              textAnchor="end"
+              height={80}
+              fontSize={12}
+            />
+            <YAxis />
+            <Tooltip 
+              formatter={(value, name) => [`${value} requests`, String(name)]}
+              labelFormatter={(label) => `Date: ${label}`}
+            />
+            <Legend />
+            
+            {activeMethods.map(method => (
+              <Bar 
+                key={method}
+                dataKey={method} 
+                stackId="methods"
+                fill={methodColors[method as keyof typeof methodColors]}
+                name={method}
+              />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      )}
+
+      {/* Line Chart */}
+      {chartType === 'line' && (
+        <ResponsiveContainer width="100%" height={400}>
+          <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis 
+              dataKey="date" 
+              angle={-45}
+              textAnchor="end"
+              height={80}
+              fontSize={12}
+            />
+            <YAxis />
+            <Tooltip 
+              formatter={(value, name) => [`${value} requests`, String(name)]}
+              labelFormatter={(label) => `Date: ${label}`}
+            />
+            <Legend />
+            
+            {activeMethods.map(method => (
+              <Line 
+                key={method}
+                type="monotone" 
+                dataKey={method} 
+                stroke={methodColors[method as keyof typeof methodColors]}
+                strokeWidth={2}
+                name={method}
+                dot={{ fill: methodColors[method as keyof typeof methodColors], strokeWidth: 2, r: 3 }}
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      )}
+
+      {/* Summary Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        {activeMethods.slice(0, 4).map(method => {
+          const total = chartData.reduce((sum, day) => sum + (day as any)[method], 0);
+          const percentage = ((total / networkRequests.length) * 100).toFixed(1);
+          
+          return (
+            <div key={method} className="bg-gray-50 p-3 rounded">
+              <div className="flex items-center gap-2 mb-1">
+                <div 
+                  className="w-3 h-3 rounded" 
+                  style={{ backgroundColor: methodColors[method as keyof typeof methodColors] }}
+                />
+                <span className="font-medium">{method}</span>
+              </div>
+              <div className="text-gray-600">
+                {total} requests ({percentage}%)
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// Status Code Breakdown (Enhanced)
+export const StatusCodeBreakdownChartNew: React.FC<ChartProps> = ({ networkRequests }) => {
+  console.log('StatusCodeBreakdownChartNew - networkRequests:', networkRequests?.length || 0);
+
+  if (!networkRequests || networkRequests.length === 0) {
+    return (
+      <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
+        <div className="text-center text-gray-400">
+          <p>No network requests data available</p>
+          <p className="text-xs mt-2">No status code data to display</p>
+        </div>
+      </div>
+    );
+  }
+
+  // State for grouping toggle
+  const [groupByClass, setGroupByClass] = React.useState(true);
+
+  // Filter requests with valid status codes (including 0 for failed requests)
+  const requestsWithStatus = networkRequests.filter(req => {
+    const status = req.status || req.response?.status || req.statusCode;
+    return status !== undefined && status !== null && typeof status === 'number' && status >= 0 && status < 600;
+  });
+
+  console.log('StatusCodeBreakdownChartNew - requestsWithStatus:', requestsWithStatus.length);
+
+  if (requestsWithStatus.length === 0) {
+    return (
+      <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
+        <div className="text-center text-gray-400">
+          <p>No status code data available</p>
+          <p className="text-xs mt-2">Status codes not captured or missing</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Group by status codes
+  const statusCounts = requestsWithStatus.reduce((acc, req) => {
+    const status = req.status || req.response?.status || req.statusCode;
+    const statusStr = String(status);
+    
+    if (!acc[statusStr]) {
+      acc[statusStr] = {
+        code: statusStr,
+        count: 0,
+        class: status === 0 ? '0xx' : Math.floor(status / 100) + 'xx'
+      };
+    }
+    
+    acc[statusStr].count += 1;
+    
+    return acc;
+  }, {} as { [key: string]: { code: string; count: number; class: string; } });
+
+  // Prepare data based on grouping preference
+  const chartData = groupByClass 
+    ? // Group by class (2xx, 3xx, 4xx, 5xx)
+      Object.values(statusCounts).reduce((acc: any, item: any) => {
+        const className = item.class;
+        if (!acc[className]) {
+          acc[className] = {
+            name: className,
+            value: 0,
+            percentage: 0
+          };
+        }
+        acc[className].value += item.count;
+        return acc;
+      }, {} as { [key: string]: { name: string; value: number; percentage: number; } })
+    : // Individual status codes
+      Object.values(statusCounts).reduce((acc: any, item: any) => {
+        acc[item.code] = {
+          name: item.code,
+          value: item.count,
+          percentage: 0
+        };
+        return acc;
+      }, {} as { [key: string]: { name: string; value: number; percentage: number; } });
+
+  // Convert to array and calculate percentages
+  const finalData = Object.values(chartData as any)
+    .map((item: any) => ({
+      ...item,
+      percentage: ((item.value / requestsWithStatus.length) * 100)
+    }))
+    .sort((a, b) => b.value - a.value);
+
+  console.log('StatusCodeBreakdownChartNew - finalData:', finalData);
+
+  // Status class colors
+  const statusColors = {
+    '0xx': '#374151',  // Gray-700 - Network/Connection Errors
+    '1xx': '#6B7280',  // Gray - Informational
+    '2xx': '#10B981',  // Green - Success
+    '3xx': '#3B82F6',  // Blue - Redirection  
+    '4xx': '#F59E0B',  // Amber - Client Error
+    '5xx': '#EF4444',  // Red - Server Error
+    // Individual status code colors
+    '0': '#374151',    // Network failure
+    '200': '#10B981',
+    '201': '#059669',
+    '204': '#047857',
+    '301': '#3B82F6',
+    '302': '#2563EB',
+    '304': '#1D4ED8',
+    '400': '#F59E0B',
+    '401': '#D97706',
+    '403': '#B45309',
+    '404': '#92400E',
+    '500': '#EF4444',
+    '502': '#DC2626',
+    '503': '#B91C1C'
+  };
+
+  // Get color for status
+  const getColor = (name: string): string => {
+    if (groupByClass) {
+      return statusColors[name as keyof typeof statusColors] || '#6B7280';
+    } else {
+      // For individual codes, try exact match first, then class
+      const exactColor = statusColors[name as keyof typeof statusColors];
+      if (exactColor) return exactColor;
+      
+      const status = parseInt(name);
+      const statusClass = status === 0 ? '0xx' : Math.floor(status / 100) + 'xx';
+      return statusColors[statusClass as keyof typeof statusColors] || '#6B7280';
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Controls */}
+      <div className="flex justify-between items-center">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setGroupByClass(true)}
+            className={`px-3 py-1 text-sm rounded ${
+              groupByClass 
+                ? 'bg-blue-500 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            By Class (2xx, 4xx, 5xx)
+          </button>
+          <button
+            onClick={() => setGroupByClass(false)}
+            className={`px-3 py-1 text-sm rounded ${
+              !groupByClass 
+                ? 'bg-blue-500 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Exact Codes (200, 404, 500)
+          </button>
+        </div>
+        
+        <div className="text-sm text-gray-600">
+          <span className="font-medium">Requests with Status:</span> {requestsWithStatus.length}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Donut Chart */}
+        <div>
+          <h4 className="text-sm font-medium text-gray-700 mb-2">Status Distribution</h4>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={finalData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={120}
+                paddingAngle={2}
+              >
+                {finalData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={getColor(entry.name)} />
+                ))}
+              </Pie>
+              <Tooltip 
+                formatter={(value, name) => [`${value} requests (${((value as number / requestsWithStatus.length) * 100).toFixed(1)}%)`, `Status ${name}`]}
+              />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Bar Chart Alternative */}
+        <div>
+          <h4 className="text-sm font-medium text-gray-700 mb-2">Status Counts</h4>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={finalData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip 
+                formatter={(value, _name) => [`${value} requests`, 'Count']}
+                labelFormatter={(label) => `Status: ${label}`}
+              />
+              <Bar dataKey="value">
+                {finalData.map((entry, index) => (
+                  <Bar key={`bar-${index}`} fill={getColor(entry.name)} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Status Summary */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        {finalData.slice(0, 4).map(item => (
+          <div key={item.name} className="bg-gray-50 p-3 rounded">
+            <div className="flex items-center gap-2 mb-1">
+              <div 
+                className="w-3 h-3 rounded" 
+                style={{ backgroundColor: getColor(item.name) }}
+              />
+              <span className="font-medium">{groupByClass ? `${item.name} Status` : `HTTP ${item.name}`}</span>
+            </div>
+            <div className="text-gray-600">
+              {item.value} requests ({item.percentage.toFixed(1)}%)
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
