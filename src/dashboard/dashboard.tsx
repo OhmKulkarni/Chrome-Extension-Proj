@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import StatisticsCard from './components/StatisticsCard';
+import { PerformanceMonitoringDashboard } from './components/PerformanceMonitoringDashboard';
 
 interface DashboardData {
   totalTabs: number;
@@ -1087,8 +1088,8 @@ const Dashboard: React.FC = () => {
 
   // Carousel state for table navigation
   const [currentTableIndex, setCurrentTableIndex] = useState(0);
-  const tableNames = ['Network Requests', 'Console Errors', 'Token Events'];
-  const tableIcons = ['🌐', '❌', '🔑'];
+  const tableNames = ['Network Requests', 'Console Errors', 'Token Events', 'Performance Monitoring'];
+  const tableIcons = ['🌐', '❌', '🔑', '📊'];
   const tableDescriptions = [
     'Global requests from all tabs (Popup shows current tab only)',
     'JavaScript errors and warnings from monitored tabs',
@@ -2221,7 +2222,8 @@ const Dashboard: React.FC = () => {
                         }`}>
                           {index === 0 ? (data.networkRequests?.length || 0) : 
                            index === 1 ? (data.consoleErrors?.length || 0) : 
-                           (data.tokenEvents?.length || 0)}
+                           index === 2 ? (data.tokenEvents?.length || 0) :
+                           'LIVE'}
                         </span>
                       </span>
                     </button>
@@ -3229,6 +3231,11 @@ const Dashboard: React.FC = () => {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Performance Monitoring Section */}
+        <div className={`bg-white rounded-lg shadow mb-8 ${currentTableIndex === 3 ? 'block' : 'hidden'}`}>
+          <PerformanceMonitoringDashboard />
         </div>
 
         {/* Statistics Card Component */}

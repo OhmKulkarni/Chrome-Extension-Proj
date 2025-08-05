@@ -1,5 +1,77 @@
-// IndexedDB implementation as fallback storage
-import type { StorageOperations, ApiCall, ConsoleError, TokenEvent, MinifiedLibrary, StorageConfig } from './storage-types'
+// IndexedDB implementation with performance monitoring
+import type { StorageOperations, ApiCall, ConsoleError, TokenEvent, MinifiedLibrary, StorageConfig, PerformanceStats } from './storage-types'
+
+// Simple performance tracking for background context
+class BackgroundPerformanceTracker {
+  private operationCounts: Record<string, number> = {}
+  private operationTimes: Record<string, number[]> = {}
+  private startTime = Date.now()
+  private memoryPeak = 0
+
+  trackOperation(operation: string, duration: number): void {
+    this.operationCounts[operation] = (this.operationCounts[operation] || 0) + 1
+    if (!this.operationTimes[operation]) {
+      this.operationTimes[operation] = []
+    }
+    this.operationTimes[operation].push(duration)
+    
+    // Keep only recent measurements (last 100)
+    if (this.operationTimes[operation].length > 100) {
+      this.operationTimes[operation].shift()
+    }
+
+    // Track memory usage if available
+    if ('memory' in performance) {
+      const memory = (performance as any).memory
+      if (memory.usedJSHeapSize > this.memoryPeak) {
+        this.memoryPeak = memory.usedJSHeapSize
+      }
+    }
+
+    // Log performance for monitoring
+    if (this.operationCounts[operation] % 10 === 0) {
+      const times = this.operationTimes[operation]
+      const avg = times.reduce((a, b) => a + b, 0) / times.length
+      console.log(`[IndexedDB-Perf] ${operation}: ${avg.toFixed(2)}ms avg (${this.operationCounts[operation]} ops)`)
+    }
+  }
+
+  getStats(): PerformanceStats {
+    const totalOperations = Object.values(this.operationCounts).reduce((a, b) => a + b, 0)
+    const allTimes = Object.values(this.operationTimes).flat()
+    const averageOperationTime = allTimes.length > 0 ? 
+      allTimes.reduce((a, b) => a + b, 0) / allTimes.length : 0
+
+    // Get current memory usage if available
+    let currentMemory = 0
+    let averageMemory = 0
+    if ('memory' in performance) {
+      const memory = (performance as any).memory
+      currentMemory = memory.usedJSHeapSize
+      averageMemory = Math.min(currentMemory, this.memoryPeak / 2) // Simple estimation
+    }
+
+    return {
+      totalOperations,
+      averageOperationTime,
+      operationCounts: { ...this.operationCounts },
+      operationTimes: { ...this.operationTimes },
+      memoryUsage: {
+        current: currentMemory,
+        peak: this.memoryPeak,
+        average: averageMemory
+      },
+      storageSize: {
+        total: 0, // Will be filled by getStorageInfo
+        byTable: {}
+      },
+      lastReset: this.startTime,
+      uptime: Date.now() - this.startTime
+    }
+  }
+}
+
+const perfTracker = new BackgroundPerformanceTracker()
 
 export class IndexedDBStorage implements StorageOperations {
   private db: IDBDatabase | null = null
@@ -80,13 +152,21 @@ export class IndexedDBStorage implements StorageOperations {
 
   // API Calls
   async insertApiCall(data: Omit<ApiCall, 'id'>): Promise<number> {
-    const result = await this.performTransaction('apiCalls', 'readwrite', 
-      (store) => store.add(data)
-    )
-    return result as number
+    const startTime = performance.now()
+    try {
+      const result = await this.performTransaction('apiCalls', 'readwrite', 
+        (store) => store.add(data)
+      )
+      perfTracker.trackOperation('insertApiCall', performance.now() - startTime)
+      return result as number
+    } catch (error) {
+      perfTracker.trackOperation('insertApiCall_error', performance.now() - startTime)
+      throw error
+    }
   }
 
   async getApiCalls(limit = 100, offset = 0): Promise<ApiCall[]> {
+    const startTime = performance.now()
     if (!this.db) throw new Error('Database not initialized')
     
     return new Promise((resolve, reject) => {
@@ -102,10 +182,14 @@ export class IndexedDBStorage implements StorageOperations {
         request.onsuccess = () => {
           // Results come in ascending order, reverse for latest first
           const results = request.result.reverse()
+          perfTracker.trackOperation('getApiCalls_fast', performance.now() - startTime)
           resolve(results)
         }
         
-        request.onerror = () => reject(new Error('Failed to get API calls'))
+        request.onerror = () => {
+          perfTracker.trackOperation('getApiCalls_error', performance.now() - startTime)
+          reject(new Error('Failed to get API calls'))
+        }
         return
       }
       
@@ -435,5 +519,20 @@ export class IndexedDBStorage implements StorageOperations {
     }
     
     return { type: 'indexeddb', size: estimatedSize }
+  }
+
+  async getPerformanceStats(): Promise<PerformanceStats> {
+    const stats = perfTracker.getStats()
+    
+    // Add storage size information
+    const storageInfo = await this.getStorageInfo()
+    const tableCounts = await this.getTableCounts()
+    
+    stats.storageSize = {
+      total: storageInfo.size || 0,
+      byTable: tableCounts
+    }
+    
+    return stats
   }
 }

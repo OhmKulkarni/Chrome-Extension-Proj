@@ -1422,6 +1422,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       handleGetTokenEvents(message.limit || 50, sendResponse);
       return true; // Keep message channel open for async response
 
+    case 'getPerformanceStats':
+      // Get performance statistics
+      storageManager.getPerformanceStats()
+        .then(performanceStats => {
+          sendResponse({ success: true, data: performanceStats });
+        })
+        .catch(error => {
+          console.error('Failed to get performance stats:', error);
+          sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+        });
+      return true; // Keep message channel open for async response
+
     default:
       // Let other messages pass through
       break;

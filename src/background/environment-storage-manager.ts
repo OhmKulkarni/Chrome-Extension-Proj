@@ -1,5 +1,5 @@
 // Environment-aware storage manager using IndexedDB only (SQLite removed for optimization)
-import type { StorageOperations, StorageConfig, ApiCall, ConsoleError, TokenEvent, MinifiedLibrary } from './storage-types'
+import type { StorageOperations, StorageConfig, ApiCall, ConsoleError, TokenEvent, MinifiedLibrary, PerformanceStats } from './storage-types'
 import { IndexedDBStorage } from './indexeddb-storage'
 
 export type StorageType = 'indexeddb'
@@ -201,5 +201,9 @@ export class EnvironmentStorageManager implements StorageOperations {
 
   async getTableCounts(): Promise<Record<string, number>> {
     return this.ensureInitialized().getTableCounts()
+  }
+
+  async getPerformanceStats(): Promise<PerformanceStats> {
+    return this.ensureInitialized().getPerformanceStats()
   }
 }

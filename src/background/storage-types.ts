@@ -54,6 +54,25 @@ export interface MinifiedLibrary {
   timestamp: number
 }
 
+// Performance monitoring interfaces
+export interface PerformanceStats {
+  totalOperations: number
+  averageOperationTime: number
+  operationCounts: Record<string, number>
+  operationTimes: Record<string, number[]>
+  memoryUsage: {
+    current: number
+    peak: number
+    average: number
+  }
+  storageSize: {
+    total: number
+    byTable: Record<string, number>
+  }
+  lastReset: number
+  uptime: number
+}
+
 export interface StorageConfig {
   maxRecordsPerTable: number
   maxAgeInDays: number
@@ -99,4 +118,7 @@ export interface StorageOperations {
   
   // Storage info  
   getStorageInfo(): Promise<{type: 'indexeddb', size?: number}>
+  
+  // Performance monitoring
+  getPerformanceStats(): Promise<PerformanceStats>
 }
