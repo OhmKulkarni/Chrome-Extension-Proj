@@ -67,7 +67,8 @@ export default defineConfig({
     target: 'es2020',
     outDir: 'dist',
     emptyOutDir: true,
-    sourcemap: true,
+    sourcemap: process.env.NODE_ENV === 'development',
+    minify: 'esbuild',
     rollupOptions: {
       input: {
         popup: resolve(__dirname, 'src/popup/popup.html'),
@@ -75,6 +76,13 @@ export default defineConfig({
         settings: resolve(__dirname, 'src/settings/settings.html'),
         offscreen: resolve(__dirname, 'src/offscreen/offscreen.html'),
       },
+      output: {
+        manualChunks: {
+          // Separate chart libraries to potentially lazy load
+          charts: ['recharts'],
+          react: ['react', 'react-dom'],
+        }
+      }
     }
   },
   esbuild: {
