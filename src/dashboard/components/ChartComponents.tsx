@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   PieChart,
   Pie,
@@ -1161,6 +1161,15 @@ export const LatencyOverTimeChart: React.FC<ChartProps> = ({ networkRequests }) 
 export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }) => {
   console.log('TrafficByEndpointChart - networkRequests:', networkRequests?.length || 0);
 
+  // 🛠️ DEBUGGING CHECKLIST
+  console.log('=== TRAFFIC CHART DEBUG START ===');
+  console.log('1. Data Check - networkRequests:', {
+    exists: !!networkRequests,
+    isArray: Array.isArray(networkRequests),
+    length: networkRequests?.length || 0,
+    sample: networkRequests?.slice(0, 2)
+  });
+
   if (!networkRequests || networkRequests.length === 0) {
     return (
       <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
@@ -1211,6 +1220,14 @@ export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }
 
   console.log('TrafficByEndpointChart - filteredRequests:', filteredRequests.length, 'method:', selectedMethod);
 
+  // 2. Empty Data Check
+  console.log('2. After Method Filter:', {
+    originalLength: networkRequests.length,
+    filteredLength: filteredRequests.length,
+    selectedMethod: selectedMethod,
+    sampleFiltered: filteredRequests.slice(0, 2)
+  });
+
   // Group by normalized endpoint
   const endpointCounts = filteredRequests.reduce((acc, req) => {
     const url = req.url || req.request?.url || 'Unknown Endpoint';
@@ -1244,9 +1261,32 @@ export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }
   console.log('TrafficByEndpointChart - endpointCounts:', Object.keys(endpointCounts).length, 'unique endpoints');
   console.log('TrafficByEndpointChart - sample endpointCounts:', Object.entries(endpointCounts).slice(0, 3));
 
-  // Convert to array and sort by count
-  const sortedEndpoints = Object.values(endpointCounts)
-    .sort((a, b) => (b as any).count - (a as any).count);
+  // 3. Endpoint Processing Check
+  console.log('3. Endpoint Processing:', {
+    uniqueEndpoints: Object.keys(endpointCounts).length,
+    endpointCountsKeys: Object.keys(endpointCounts),
+    endpointCountsValues: Object.values(endpointCounts),
+    totalProcessedRequests: Object.values(endpointCounts).reduce((sum, ep: any) => sum + ep.count, 0),
+    endpointCountsType: typeof endpointCounts,
+    isValidObject: endpointCounts && typeof endpointCounts === 'object' && !Array.isArray(endpointCounts)
+  });
+
+  // Safety check - ensure endpointCounts is valid
+  if (!endpointCounts || typeof endpointCounts !== 'object' || Array.isArray(endpointCounts)) {
+    console.error('Invalid endpointCounts object:', endpointCounts);
+    return (
+      <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
+        <div className="text-center text-gray-400">
+          <p>Error processing endpoint data</p>
+          <p className="text-xs mt-2">Invalid data structure detected</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Convert to array and sort by count - FIX: Use Object.entries() to get [key, data] pairs
+  const sortedEndpoints = Object.entries(endpointCounts)
+    .sort(([, a], [, b]) => (b as any).count - (a as any).count);
 
   // Get available methods for filter
   const availableMethods = ['ALL', ...new Set(networkRequests.map(req => (req.method || 'GET').toUpperCase()))];
@@ -1255,6 +1295,15 @@ export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }
   const endpointsToShow = showAll ? sortedEndpoints : sortedEndpoints.slice(0, topN);
 
   console.log('TrafficByEndpointChart - endpointsToShow:', endpointsToShow.length, 'total:', sortedEndpoints.length);
+
+  // 4. Sorting and Slicing Check
+  console.log('4. Sorting & Slicing:', {
+    beforeSort: sortedEndpoints.length,
+    afterSort: endpointsToShow.length,
+    topN: topN,
+    showAll: showAll,
+    sortedSample: sortedEndpoints.slice(0, 3).map(([key, data]: any) => ({ key, count: data.count }))
+  });
 
   if (sortedEndpoints.length === 0) {
     return (
@@ -1267,21 +1316,75 @@ export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }
     );
   }
 
-  // Prepare chart data
-  const chartData = endpointsToShow.map((item: any) => ({
-    endpoint: item.endpoint.length > 30 ? `${item.endpoint.substring(0, 30)}...` : item.endpoint,
-    fullEndpoint: item.endpoint,
-    method: item.method,
-    count: item.count,
-    fullKey: item.fullKey,
-    originalCount: item.originalUrls.size
-  }));
+  // Prepare chart data - FIX: endpointsToShow is array of [key, data] pairs
+  let chartData: Array<{
+    name: string;
+    fullName: string;
+    count: number;
+    method: string;
+    examples: string[];
+  }> = [];
+  
+  try {
+    chartData = endpointsToShow.map(([key, data]: any) => {
+      const displayName = selectedMethod === 'ALL' 
+        ? key // Show method + endpoint
+        : data.endpoint; // Show just endpoint when filtering by method
+      
+      return {
+        name: displayName && displayName.length > 50 ? displayName.substring(0, 47) + '...' : displayName || 'Unknown',
+        fullName: key,
+        count: data.count || 0,
+        method: data.method || 'UNKNOWN',
+        examples: data.urls || []
+      };
+    });
+    
+    console.log('5. Chart Data Preparation SUCCESS:', {
+      inputLength: endpointsToShow.length,
+      outputLength: chartData.length,
+      sampleData: chartData.slice(0, 2),
+      allHaveNames: chartData.every(item => item.name && item.name.length > 0),
+      allHaveCounts: chartData.every(item => typeof item.count === 'number')
+    });
+    
+  } catch (error) {
+    console.error('5. Chart Data Preparation FAILED:', error, {
+      endpointsToShowSample: endpointsToShow.slice(0, 2),
+      endpointsToShowType: typeof endpointsToShow,
+      isArray: Array.isArray(endpointsToShow)
+    });
+    chartData = [];
+  }
 
   console.log('TrafficByEndpointChart - chartData sample:', chartData.slice(0, 3));
   console.log('TrafficByEndpointChart - chartData structure check:', {
     hasData: chartData.length > 0,
     firstItem: chartData[0],
     dataKeys: chartData[0] ? Object.keys(chartData[0]) : []
+  });
+
+  // 5. Final Chart Data Check - THE CRITICAL ONE!
+  console.log('5. FINAL CHART DATA CHECK:', {
+    chartDataLength: chartData.length,
+    chartDataExists: !!chartData,
+    chartDataIsArray: Array.isArray(chartData),
+    sampleChartData: chartData.slice(0, 3),
+    dataKeys: chartData.length > 0 ? Object.keys(chartData[0]) : [],
+    allCountValues: chartData.map(d => d.count),
+    hasZeroValues: chartData.some(d => d.count === 0),
+    maxCount: Math.max(...chartData.map(d => d.count || 0)),
+    minCount: Math.min(...chartData.map(d => d.count || 0))
+  });
+  console.log('=== TRAFFIC CHART DEBUG END ===');
+
+  // 6. Axis Configuration Check
+  console.log('6. AXIS CONFIG CHECK:', {
+    xAxisType: 'number', // Should be number for horizontal bars
+    yAxisType: 'category', // Should be category for horizontal bars  
+    yAxisDataKey: 'name', // Should match chart data field
+    chartDataHasNameField: chartData.length > 0 && 'name' in chartData[0],
+    chartDataHasCountField: chartData.length > 0 && 'count' in chartData[0]
   });
 
   // Method colors
@@ -1346,50 +1449,86 @@ export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }
       </div>
 
       {/* Chart */}
-      <ResponsiveContainer width="100%" height={Math.max(400, endpointsToShow.length * 25 + 100)}>
-        <BarChart
-          data={chartData}
-          layout="horizontal"
-          margin={{ top: 20, right: 30, left: 120, bottom: 5 }}
-        >
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis type="number" />
-          <YAxis 
-            type="category" 
-            dataKey="endpoint" 
-            width={120}
-            fontSize={11}
-            interval={0}
-          />
-          <Tooltip 
-            formatter={(value, _name) => [`${value} requests`, 'Traffic']}
-            labelFormatter={(label) => {
-              const item = chartData.find(d => d.endpoint === label);
-              return `${item?.method} ${item?.fullEndpoint}`;
-            }}
-            content={({ active, payload }) => {
-              if (active && payload && payload.length) {
-                const data = payload[0].payload;
-                return (
-                  <div className="bg-white p-3 border border-gray-200 rounded shadow-lg">
-                    <p className="font-medium">{data.method} {data.fullEndpoint}</p>
-                    <p className="text-blue-600">{data.count} requests</p>
-                    <p className="text-xs text-gray-500">{data.originalCount} unique URLs</p>
-                  </div>
-                );
-              }
-              return null;
-            }}
-          />
-          <Bar 
-            dataKey="count"
+      <div className="bg-white p-4 rounded border">
+        {/* 7. Container Height Check */}
+        <div className="text-xs text-gray-400 mb-2">
+          Chart Height: {Math.max(400, endpointsToShow.length * 30 + 100)}px | Data Points: {chartData.length}
+        </div>
+        {(() => {
+          console.log('7. CONTAINER & FINAL RENDER CHECK:', {
+            containerHeight: Math.max(400, endpointsToShow.length * 30 + 100),
+            dataPoints: chartData.length,
+            chartDataSample: chartData.slice(0, 2),
+            rechartPropsCheck: {
+              hasData: chartData && chartData.length > 0,
+              layoutHorizontal: true,
+              xAxisType: 'number',
+              yAxisType: 'category',
+              yAxisDataKey: 'name',
+              barDataKey: 'count'
+            }
+          });
+          return null;
+        })()}
+        <ResponsiveContainer width="100%" height={Math.max(400, endpointsToShow.length * 30 + 100)}>
+          <BarChart
+            data={chartData}
+            layout="horizontal" 
+            margin={{ top: 20, right: 30, left: 150, bottom: 20 }}
           >
-            {chartData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={methodColors[entry.method as keyof typeof methodColors] || methodColors.ALL} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis 
+              type="number" 
+              domain={[0, 'dataMax']}
+              tickFormatter={(value) => `${value}`}
+            />
+            <YAxis 
+              type="category" 
+              dataKey="name" 
+              width={140}
+              fontSize={10}
+              interval={0}
+              tick={{ textAnchor: 'end' }}
+            />
+            <Tooltip 
+              content={({ active, payload }) => {
+                if (active && payload && payload.length > 0) {
+                  const data = payload[0].payload;
+                  return (
+                    <div className="bg-white p-3 border border-gray-200 rounded shadow-lg text-sm">
+                      <p className="font-medium text-gray-900">{data.fullName}</p>
+                      <p className="text-blue-600 font-semibold">{data.count} requests</p>
+                      <p className="text-xs text-gray-500">{data.examples?.length || 0} URL examples</p>
+                    </div>
+                  );
+                }
+                return null;
+              }}
+            />
+            <Bar 
+              dataKey="count" 
+              fill="#3B82F6" 
+              radius={[0, 4, 4, 0]}
+              onAnimationEnd={() => console.log('8. BAR ANIMATION COMPLETE - Bars should now be visible')}
+            />
+            {(() => {
+              console.log('8. BAR COMPONENT PROPS:', {
+                dataKey: 'count',
+                fill: '#3B82F6',
+                dataValidation: {
+                  allCountsValid: chartData.every(d => typeof d.count === 'number' && d.count > 0),
+                  countRange: {
+                    min: Math.min(...chartData.map(d => d.count)),
+                    max: Math.max(...chartData.map(d => d.count))
+                  },
+                  sampleCounts: chartData.slice(0, 3).map(d => ({ name: d.name, count: d.count }))
+                }
+              });
+              return null;
+            })()}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
 
       {/* Legend */}
       <div className="flex flex-wrap gap-4 justify-center text-sm">
@@ -1405,6 +1544,206 @@ export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }
       </div>
     </div>
   );
+};
+
+// Traffic by Endpoint (Vertical Bar Chart)
+export const TrafficByEndpointChartTreemap: React.FC<ChartProps> = ({ networkRequests }) => {
+  try {
+    const [selectedMethod, setSelectedMethod] = useState('ALL');
+    const [topN, setTopN] = useState(10);
+    
+    console.log('TrafficByEndpointChart - networkRequests:', networkRequests?.length || 0);
+
+    if (!networkRequests || networkRequests.length === 0) {
+      return (
+        <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
+          <div className="text-center text-gray-400">
+            <p>No network requests data available</p>
+            <p className="text-xs mt-2">No endpoint traffic data to display</p>
+          </div>
+        </div>
+      );
+    }
+
+  // Filter by method if not 'ALL'
+  const filteredRequests = selectedMethod === 'ALL' 
+    ? networkRequests 
+    : networkRequests.filter(req => (req.method || 'GET').toUpperCase() === selectedMethod);
+
+  // Process endpoints - group by endpoint and count requests
+  const endpointCounts = filteredRequests.reduce((acc: any, req: any) => {
+    if (!req.url) return acc;
+    
+    try {
+      const url = new URL(req.url);
+      const endpoint = url.pathname;
+      const method = (req.method || 'GET').toUpperCase();
+      const key = `${method} ${endpoint}`;
+      
+      if (!acc[key]) {
+        acc[key] = {
+          name: endpoint,
+          fullName: key,
+          method: method,
+          value: 0,
+          urls: []
+        };
+      }
+      
+      acc[key].value++;
+      acc[key].urls.push(req.url);
+      
+      return acc;
+    } catch (error) {
+      return acc;
+    }
+  }, {});
+
+  // Convert to vertical bar chart data format and sort by count
+  const chartData = Object.values(endpointCounts)
+    .filter((item: any) => item && item.value > 0) // Filter out invalid items
+    .sort((a: any, b: any) => b.value - a.value)
+    .slice(0, topN) // Use topN instead of fixed 25
+    .map((item: any, index) => ({
+      name: item.name.length > 40 ? `${item.name.substring(0, 37)}...` : item.name,
+      fullName: item.name,
+      count: item.value,
+      method: item.method,
+      rank: index + 1
+    }));
+
+  console.log('Vertical bar chart data prepared:', {
+    totalEndpoints: Object.keys(endpointCounts).length,
+    displayingTop: chartData.length,
+    sampleData: chartData.slice(0, 3),
+    topN: topN
+  });
+
+  // Safety check for chart data
+  if (!chartData || chartData.length === 0) {
+    return (
+      <div className="h-96 bg-yellow-50 rounded flex items-center justify-center">
+        <div className="text-center text-yellow-600">
+          <p>No valid endpoint data</p>
+          <p className="text-xs mt-2">Try changing the method filter or check data</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Get available methods for filter
+  const availableMethods = ['ALL', ...new Set(networkRequests.map(req => (req.method || 'GET').toUpperCase()))];
+
+  // Top N options
+  const topNOptions = [5, 10, 25, 50, 100];
+
+  return (
+    <div className="space-y-4">
+      {/* Controls */}
+      <div className="flex flex-wrap gap-4 items-center justify-between">
+        <div className="flex gap-4 items-center">
+          {/* Method Filter */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">Method:</label>
+            <select 
+              value={selectedMethod} 
+              onChange={(e) => setSelectedMethod(e.target.value)}
+              className="px-2 py-1 border border-gray-300 rounded text-sm"
+            >
+              {availableMethods.map(method => (
+                <option key={method} value={method}>{method}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Top N Selector */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">Show Top:</label>
+            <select 
+              value={topN} 
+              onChange={(e) => setTopN(Number(e.target.value))}
+              className="px-2 py-1 border border-gray-300 rounded text-sm"
+            >
+              {topNOptions.map(option => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="text-sm text-gray-600">
+          <span className="font-medium">Showing:</span> Top {chartData.length} of {Object.keys(endpointCounts).length} endpoints
+        </div>
+      </div>
+
+      {/* Vertical Bar Chart */}
+      <div className="bg-white p-4 rounded border">
+        <div className="text-xs text-gray-400 mb-2">
+          Displaying {chartData.length} endpoints as vertical bars
+        </div>
+        <ResponsiveContainer width="100%" height={400}>
+          <BarChart
+            data={chartData}
+            margin={{ top: 20, right: 30, left: 40, bottom: 100 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis 
+              dataKey="name" 
+              angle={-45}
+              textAnchor="end"
+              height={100}
+              fontSize={10}
+              interval={0}
+            />
+            <YAxis 
+              label={{ value: 'Number of Requests', angle: -90, position: 'insideLeft' }}
+            />
+            <Tooltip 
+              content={({ active, payload }) => {
+                if (active && payload && payload.length > 0) {
+                  const data = payload[0].payload;
+                  return (
+                    <div className="bg-white p-3 border border-gray-200 rounded shadow-lg text-sm">
+                      <p className="font-medium text-gray-900">#{data.rank} {data.fullName}</p>
+                      <p className="text-blue-600 font-semibold">{data.count} requests</p>
+                      <p className="text-xs text-gray-500">Method: {data.method}</p>
+                    </div>
+                  );
+                }
+                return null;
+              }}
+            />
+            <Bar 
+              dataKey="count" 
+              fill="#3B82F6"
+              radius={[4, 4, 0, 0]}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Available Methods Info */}
+      <div className="text-center text-sm text-gray-600">
+        <span className="font-medium">Available methods:</span> {availableMethods.filter(m => m !== 'ALL').join(', ')}
+      </div>
+
+      {/* Info */}
+      <div className="text-xs text-gray-500 text-center">
+        � Bar height represents request count. Use controls to filter by method and adjust number shown.
+      </div>
+    </div>
+  );
+  } catch (error) {
+    console.error('TrafficByEndpointChart ERROR:', error);
+    return (
+      <div className="h-96 bg-red-50 rounded flex items-center justify-center">
+        <div className="text-center text-red-600">
+          <p>Error rendering traffic chart</p>
+          <p className="text-xs mt-2">Check console for details</p>
+        </div>
+      </div>
+    );
+  }
 };
 
 // Method Usage Daily (Stacked Bar Chart)
@@ -1647,163 +1986,119 @@ export const MethodUsageDailyChart: React.FC<ChartProps> = ({ networkRequests })
 
 // Status Code Breakdown (Enhanced)
 export const StatusCodeBreakdownChartNew: React.FC<ChartProps> = ({ networkRequests }) => {
-  console.log('StatusCodeBreakdownChartNew - networkRequests:', networkRequests?.length || 0);
-
+  console.log('StatusCodeBreakdownChartNew - received:', networkRequests?.length || 0, 'requests');
+  
   if (!networkRequests || networkRequests.length === 0) {
     return (
       <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
         <div className="text-center text-gray-400">
           <p>No network requests data available</p>
-          <p className="text-xs mt-2">No status code data to display</p>
-        </div>
-      </div>
-    );
-  }
-
-  // State for grouping toggle
-  const [groupByClass, setGroupByClass] = React.useState(true);
-
-  // Filter requests with valid status codes (including 0 for failed requests)
-  const requestsWithStatus = networkRequests.filter(req => {
-    const status = req.status || req.response?.status || req.statusCode;
-    return status !== undefined && status !== null && typeof status === 'number' && status >= 0 && status < 600;
-  });
-
-  console.log('StatusCodeBreakdownChartNew - requestsWithStatus:', requestsWithStatus.length);
-
-  if (requestsWithStatus.length === 0) {
-    return (
-      <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
-        <div className="text-center text-gray-400">
-          <p>No status code data available</p>
           <p className="text-xs mt-2">Status codes not captured or missing</p>
         </div>
       </div>
     );
   }
 
-  // Group by status codes
-  const statusCounts = requestsWithStatus.reduce((acc, req) => {
-    const status = req.status || req.response?.status || req.statusCode;
-    const statusStr = String(status);
-    
-    if (!acc[statusStr]) {
-      acc[statusStr] = {
-        code: statusStr,
-        count: 0,
-        class: status === 0 ? '0xx' : Math.floor(status / 100) + 'xx'
-      };
-    }
-    
-    acc[statusStr].count += 1;
-    
-    return acc;
-  }, {} as { [key: string]: { code: string; count: number; class: string; } });
+  // State for grouping preference
+  const [groupByClass, setGroupByClass] = React.useState(false);
 
-  // Prepare data based on grouping preference
+  // Simple direct approach - count status codes
+  const statusCounts: { [key: string]: number } = {};
+  
+  networkRequests.forEach(req => {
+    // Try all possible status fields
+    const status = req.status ?? req.response_status ?? req.response?.status ?? req.statusCode ?? 'Unknown';
+    const statusKey = String(status);
+    statusCounts[statusKey] = (statusCounts[statusKey] || 0) + 1;
+  });
+
+  console.log('StatusCodeBreakdownChartNew - statusCounts:', statusCounts);
+
+  // Convert to chart data with class information
+  const statusEntries = Object.entries(statusCounts).map(([status, count]) => {
+    const statusNum = parseInt(status) || 0;
+    return {
+      code: status,
+      count,
+      class: statusNum === 0 ? '0xx' : Math.floor(statusNum / 100) + 'xx'
+    };
+  });
+
+  // Group by class if needed
   const chartData = groupByClass 
-    ? // Group by class (2xx, 3xx, 4xx, 5xx)
-      Object.values(statusCounts).reduce((acc: any, item: any) => {
-        const className = item.class;
-        if (!acc[className]) {
-          acc[className] = {
-            name: className,
-            value: 0,
-            percentage: 0
-          };
+    ? statusEntries.reduce((acc, item) => {
+        const existing = acc.find(entry => entry.name === item.class);
+        if (existing) {
+          existing.value += item.count;
+        } else {
+          acc.push({
+            name: item.class,
+            value: item.count
+          });
         }
-        acc[className].value += item.count;
         return acc;
-      }, {} as { [key: string]: { name: string; value: number; percentage: number; } })
-    : // Individual status codes
-      Object.values(statusCounts).reduce((acc: any, item: any) => {
-        acc[item.code] = {
-          name: item.code,
-          value: item.count,
-          percentage: 0
-        };
-        return acc;
-      }, {} as { [key: string]: { name: string; value: number; percentage: number; } });
+      }, [] as { name: string; value: number; }[])
+    : statusEntries.map(item => ({
+        name: item.code,
+        value: item.count
+      }));
 
-  // Convert to array and calculate percentages
-  const finalData = Object.values(chartData as any)
-    .map((item: any) => ({
-      ...item,
-      percentage: ((item.value / requestsWithStatus.length) * 100)
-    }))
-    .sort((a, b) => b.value - a.value);
+  console.log('StatusCodeBreakdownChartNew - chartData:', chartData);
 
-  console.log('StatusCodeBreakdownChartNew - finalData:', finalData);
-
-  // Status class colors
-  const statusColors = {
-    '0xx': '#374151',  // Gray-700 - Network/Connection Errors
-    '1xx': '#6B7280',  // Gray - Informational
-    '2xx': '#10B981',  // Green - Success
-    '3xx': '#3B82F6',  // Blue - Redirection  
-    '4xx': '#F59E0B',  // Amber - Client Error
-    '5xx': '#EF4444',  // Red - Server Error
-    // Individual status code colors
-    '0': '#374151',    // Network failure
-    '200': '#10B981',
-    '201': '#059669',
-    '204': '#047857',
-    '301': '#3B82F6',
-    '302': '#2563EB',
-    '304': '#1D4ED8',
-    '400': '#F59E0B',
-    '401': '#D97706',
-    '403': '#B45309',
-    '404': '#92400E',
-    '500': '#EF4444',
-    '502': '#DC2626',
-    '503': '#B91C1C'
-  };
-
-  // Get color for status
-  const getColor = (name: string): string => {
+  // Color function with better color scheme
+  const getStatusColor = (name: string) => {
     if (groupByClass) {
-      return statusColors[name as keyof typeof statusColors] || '#6B7280';
+      switch (name) {
+        case '0xx': return '#6B7280'; // Gray for network failures  
+        case '2xx': return '#059669'; // Emerald for success
+        case '3xx': return '#0891B2'; // Cyan for redirects
+        case '4xx': return '#DC2626'; // Red for client errors
+        case '5xx': return '#7C2D12'; // Dark red for server errors
+        default: return '#9CA3AF';
+      }
     } else {
-      // For individual codes, try exact match first, then class
-      const exactColor = statusColors[name as keyof typeof statusColors];
-      if (exactColor) return exactColor;
-      
-      const status = parseInt(name);
-      const statusClass = status === 0 ? '0xx' : Math.floor(status / 100) + 'xx';
-      return statusColors[statusClass as keyof typeof statusColors] || '#6B7280';
+      const code = parseInt(name) || 0;
+      if (code === 0) return '#6B7280'; // Gray for network failures
+      if (code >= 200 && code < 300) return '#059669'; // Emerald for success
+      if (code >= 300 && code < 400) return '#0891B2'; // Cyan for redirects  
+      if (code >= 400 && code < 500) return '#DC2626'; // Red for client errors
+      if (code >= 500) return '#7C2D12'; // Dark red for server errors
+      return '#9CA3AF'; // Default gray
     }
   };
 
   return (
     <div className="space-y-4">
       {/* Controls */}
-      <div className="flex justify-between items-center">
-        <div className="flex gap-2">
-          <button
-            onClick={() => setGroupByClass(true)}
-            className={`px-3 py-1 text-sm rounded ${
-              groupByClass 
-                ? 'bg-blue-500 text-white' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            By Class (2xx, 4xx, 5xx)
-          </button>
-          <button
-            onClick={() => setGroupByClass(false)}
-            className={`px-3 py-1 text-sm rounded ${
-              !groupByClass 
-                ? 'bg-blue-500 text-white' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Exact Codes (200, 404, 500)
-          </button>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-gray-700">View:</label>
+          <div className="flex rounded-md border border-gray-300 overflow-hidden">
+            <button
+              onClick={() => setGroupByClass(true)}
+              className={`px-3 py-1 text-sm transition-colors ${
+                groupByClass 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              By Class
+            </button>
+            <button
+              onClick={() => setGroupByClass(false)}
+              className={`px-3 py-1 text-sm transition-colors border-l border-gray-300 ${
+                !groupByClass 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              Individual
+            </button>
+          </div>
         </div>
         
         <div className="text-sm text-gray-600">
-          <span className="font-medium">Requests with Status:</span> {requestsWithStatus.length}
+          <span className="font-medium">Total Requests:</span> {networkRequests.length}
         </div>
       </div>
 
@@ -1814,7 +2109,7 @@ export const StatusCodeBreakdownChartNew: React.FC<ChartProps> = ({ networkReque
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
-                data={finalData}
+                data={chartData}
                 dataKey="value"
                 nameKey="name"
                 cx="50%"
@@ -1823,12 +2118,12 @@ export const StatusCodeBreakdownChartNew: React.FC<ChartProps> = ({ networkReque
                 outerRadius={120}
                 paddingAngle={2}
               >
-                {finalData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={getColor(entry.name)} />
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={getStatusColor(entry.name)} />
                 ))}
               </Pie>
               <Tooltip 
-                formatter={(value, name) => [`${value} requests (${((value as number / requestsWithStatus.length) * 100).toFixed(1)}%)`, `Status ${name}`]}
+                formatter={(value, name) => [`${value} requests (${((value as number / networkRequests.length) * 100).toFixed(1)}%)`, `Status ${name}`]}
               />
               <Legend />
             </PieChart>
@@ -1839,7 +2134,7 @@ export const StatusCodeBreakdownChartNew: React.FC<ChartProps> = ({ networkReque
         <div>
           <h4 className="text-sm font-medium text-gray-700 mb-2">Status Counts</h4>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={finalData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
@@ -1847,32 +2142,14 @@ export const StatusCodeBreakdownChartNew: React.FC<ChartProps> = ({ networkReque
                 formatter={(value, _name) => [`${value} requests`, 'Count']}
                 labelFormatter={(label) => `Status: ${label}`}
               />
-              <Bar dataKey="value">
-                {finalData.map((entry, index) => (
-                  <Bar key={`bar-${index}`} fill={getColor(entry.name)} />
+              <Bar dataKey="value" fill="#3B82F6">
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={getStatusColor(entry.name)} />
                 ))}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
-      </div>
-
-      {/* Status Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-        {finalData.slice(0, 4).map(item => (
-          <div key={item.name} className="bg-gray-50 p-3 rounded">
-            <div className="flex items-center gap-2 mb-1">
-              <div 
-                className="w-3 h-3 rounded" 
-                style={{ backgroundColor: getColor(item.name) }}
-              />
-              <span className="font-medium">{groupByClass ? `${item.name} Status` : `HTTP ${item.name}`}</span>
-            </div>
-            <div className="text-gray-600">
-              {item.value} requests ({item.percentage.toFixed(1)}%)
-            </div>
-          </div>
-        ))}
       </div>
     </div>
   );
