@@ -1398,6 +1398,40 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ success: true });
       break;
 
+    case 'toggleTabLogging':
+      // Relay toggle message from dashboard to content script
+      if (message.tabId) {
+        chrome.tabs.sendMessage(message.tabId, {
+          action: 'toggleLogging',
+          enabled: message.enabled
+        }).then(() => {
+          sendResponse({ success: true });
+        }).catch(error => {
+          console.log('Could not send message to tab (may not have content script):', error);
+          sendResponse({ success: false, error: error.message });
+        });
+      } else {
+        sendResponse({ success: false, error: 'No tab ID provided' });
+      }
+      return true; // Keep message channel open for async response
+
+    case 'toggleTabErrorLogging':
+      // Relay error logging toggle message from dashboard to content script
+      if (message.tabId) {
+        chrome.tabs.sendMessage(message.tabId, {
+          action: 'toggleErrorLogging',
+          enabled: message.enabled
+        }).then(() => {
+          sendResponse({ success: true });
+        }).catch(error => {
+          console.log('Could not send message to tab (may not have content script):', error);
+          sendResponse({ success: false, error: error.message });
+        });
+      } else {
+        sendResponse({ success: false, error: 'No tab ID provided' });
+      }
+      return true; // Keep message channel open for async response
+
     case 'storeNetworkRequest':
     case 'STORE_NETWORK_REQUEST':
     case 'NETWORK_REQUEST':

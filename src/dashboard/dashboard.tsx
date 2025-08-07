@@ -1696,14 +1696,19 @@ const Dashboard: React.FC = () => {
       
       await chrome.storage.local.set({ [`tabLogging_${tabId}`]: tabState });
       
-      // Send message to content script
+      // Send message through background script to content script
       try {
-        await chrome.tabs.sendMessage(tabId, {
-          action: 'toggleLogging',
+        const response = await chrome.runtime.sendMessage({
+          action: 'toggleTabLogging',
+          tabId: tabId,
           enabled: newState
         });
+        
+        if (!response?.success) {
+          console.warn('Failed to toggle logging through background script:', response?.error);
+        }
       } catch (error) {
-        console.log('Could not send message to tab (may not have content script):', error);
+        console.error('Error sending message through background script:', error);
       }
       
       // Update local state
@@ -1738,14 +1743,19 @@ const Dashboard: React.FC = () => {
       
       await chrome.storage.local.set({ [`tabErrorLogging_${tabId}`]: tabState });
       
-      // Send message to content script
+      // Send message through background script to content script
       try {
-        await chrome.tabs.sendMessage(tabId, {
-          action: 'toggleErrorLogging',
+        const response = await chrome.runtime.sendMessage({
+          action: 'toggleTabErrorLogging',
+          tabId: tabId,
           enabled: newState
         });
+        
+        if (!response?.success) {
+          console.warn('Failed to toggle error logging through background script:', response?.error);
+        }
       } catch (error) {
-        console.log('Could not send message to tab (may not have content script):', error);
+        console.error('Error sending message through background script:', error);
       }
       
       // Update local state

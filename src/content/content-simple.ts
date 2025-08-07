@@ -471,6 +471,12 @@ window.addEventListener('consoleErrorIntercepted', eventHandlers.consoleIntercep
 
 // MEMORY LEAK FIX: Runtime message listener with cleanup
 eventHandlers.runtimeMessage = (message, _sender, sendResponse) => {
+  if (message.action === 'ping') {
+    console.log('📱 CONTENT: Ping received');
+    sendResponse({ success: true, message: 'Content script is active' });
+    return true;
+  }
+  
   if (message.action === 'toggleLogging') {
     console.log('📱 CONTENT: Toggle network logging:', message.enabled);
     

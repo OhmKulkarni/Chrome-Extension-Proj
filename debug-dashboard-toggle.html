@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Toggle Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Dashboard Toggle Debug Tool</h1>
+        <p>Debug tool to investigate why the dashboard sidebar toggle is not working.</p>
+
+        <div class="test-section">
+            <h3>1. Extension Context Check</h3>
+            <button onclick="checkExtensionContext()">Check Extension Context</button>
+            <div id="extensionResult"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. Active Tabs Check</h3>
+            <button onclick="checkActiveTabs()">Get Active Tabs</button>
+            <div id="tabsResult"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. Test Dashboard Message Send</h3>
+            <input type="number" id="tabIdInput" placeholder="Enter Tab ID" value="">
+            <button onclick="testDashboardToggle()">Send Toggle Message</button>
+            <div id="messageResult"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>4. Content Script Listener Check</h3>
+            <button onclick="checkContentScriptStatus()">Check Content Script</button>
+            <div id="contentScriptResult"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>5. Storage State Check</h3>
+            <button onclick="checkStorageState()">Check Tab Logging Storage</button>
+            <div id="storageResult"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>6. Manual Content Script Injection</h3>
+            <button onclick="injectContentScript()">Force Inject Content Script</button>
+            <div id="injectionResult"></div>
+        </div>
+    </div>
+
+    <script>
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = `<strong>[${new Date().toLocaleTimeString()}]</strong> ${message}`;
+            element.appendChild(div);
+        }
+
+        function logPre(elementId, data, type = 'info') {
+            const element = document.getElementById(elementId);
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = `<strong>[${new Date().toLocaleTimeString()}]</strong><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            element.appendChild(div);
+        }
+
+        async function checkExtensionContext() {
+            const resultEl = document.getElementById('extensionResult');
+            resultEl.innerHTML = '';
+
+            try {
+                if (typeof chrome === 'undefined') {
+                    log('extensionResult', 'Chrome API not available', 'error');
+                    return;
+                }
+
+                log('extensionResult', 'Chrome API available', 'success');
+
+                if (chrome.runtime && chrome.runtime.id) {
+                    log('extensionResult', `Extension ID: ${chrome.runtime.id}`, 'success');
+                } else {
+                    log('extensionResult', 'No extension runtime context', 'error');
+                }
+
+                if (chrome.tabs) {
+                    log('extensionResult', 'Tabs API available', 'success');
+                } else {
+                    log('extensionResult', 'Tabs API not available', 'error');
+                }
+
+                if (chrome.storage) {
+                    log('extensionResult', 'Storage API available', 'success');
+                } else {
+                    log('extensionResult', 'Storage API not available', 'error');
+                }
+
+            } catch (error) {
+                log('extensionResult', `Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkActiveTabs() {
+            const resultEl = document.getElementById('tabsResult');
+            resultEl.innerHTML = '';
+
+            try {
+                const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+                log('tabsResult', `Found ${tabs.length} active tabs`, 'success');
+                
+                tabs.forEach((tab, index) => {
+                    logPre('tabsResult', {
+                        id: tab.id,
+                        url: tab.url,
+                        title: tab.title,
+                        status: tab.status
+                    }, 'info');
+                    
+                    // Auto-fill the tab ID input
+                    if (index === 0) {
+                        document.getElementById('tabIdInput').value = tab.id;
+                    }
+                });
+
+            } catch (error) {
+                log('tabsResult', `Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testDashboardToggle() {
+            const resultEl = document.getElementById('messageResult');
+            resultEl.innerHTML = '';
+
+            const tabId = parseInt(document.getElementById('tabIdInput').value);
+            if (!tabId) {
+                log('messageResult', 'Please enter a valid tab ID', 'error');
+                return;
+            }
+
+            try {
+                log('messageResult', `Sending toggle message to tab ${tabId}...`, 'info');
+
+                // First check if tab exists
+                const tab = await chrome.tabs.get(tabId);
+                log('messageResult', `Tab found: ${tab.title}`, 'success');
+
+                // Send the toggle message
+                const response = await chrome.tabs.sendMessage(tabId, {
+                    action: 'toggleLogging',
+                    enabled: true
+                });
+
+                log('messageResult', 'Message sent successfully', 'success');
+                logPre('messageResult', response, 'success');
+
+            } catch (error) {
+                log('messageResult', `Error sending message: ${error.message}`, 'error');
+                
+                // Check if it's a content script injection issue
+                if (error.message.includes('Could not establish connection')) {
+                    log('messageResult', 'This suggests the content script is not injected', 'error');
+                }
+            }
+        }
+
+        async function checkContentScriptStatus() {
+            const resultEl = document.getElementById('contentScriptResult');
+            resultEl.innerHTML = '';
+
+            const tabId = parseInt(document.getElementById('tabIdInput').value);
+            if (!tabId) {
+                log('contentScriptResult', 'Please enter a valid tab ID', 'error');
+                return;
+            }
+
+            try {
+                // Try to send a simple ping message
+                const response = await chrome.tabs.sendMessage(tabId, {
+                    action: 'ping'
+                });
+
+                log('contentScriptResult', 'Content script is responding', 'success');
+                logPre('contentScriptResult', response, 'info');
+
+            } catch (error) {
+                log('contentScriptResult', `Content script not responding: ${error.message}`, 'error');
+                
+                if (error.message.includes('Could not establish connection')) {
+                    log('contentScriptResult', 'Content script is likely not injected on this tab', 'error');
+                }
+            }
+        }
+
+        async function checkStorageState() {
+            const resultEl = document.getElementById('storageResult');
+            resultEl.innerHTML = '';
+
+            try {
+                // Get all storage data related to tab logging
+                const allData = await chrome.storage.local.get();
+                const tabLoggingData = {};
+                
+                for (const [key, value] of Object.entries(allData)) {
+                    if (key.startsWith('tabLogging_')) {
+                        tabLoggingData[key] = value;
+                    }
+                }
+
+                log('storageResult', `Found ${Object.keys(tabLoggingData).length} tab logging entries`, 'info');
+                logPre('storageResult', tabLoggingData, 'info');
+
+                // Check general extension settings
+                const settings = await chrome.storage.sync.get(['networkInterception', 'errorLogging', 'tokenLogging']);
+                log('storageResult', 'Extension settings:', 'info');
+                logPre('storageResult', settings, 'info');
+
+            } catch (error) {
+                log('storageResult', `Error reading storage: ${error.message}`, 'error');
+            }
+        }
+
+        async function injectContentScript() {
+            const resultEl = document.getElementById('injectionResult');
+            resultEl.innerHTML = '';
+
+            const tabId = parseInt(document.getElementById('tabIdInput').value);
+            if (!tabId) {
+                log('injectionResult', 'Please enter a valid tab ID', 'error');
+                return;
+            }
+
+            try {
+                log('injectionResult', `Attempting to inject content script into tab ${tabId}...`, 'info');
+
+                await chrome.scripting.executeScript({
+                    target: { tabId: tabId },
+                    files: ['content/content-simple.js']
+                });
+
+                log('injectionResult', 'Content script injection attempted', 'success');
+
+                // Wait a moment then test
+                setTimeout(async () => {
+                    try {
+                        const response = await chrome.tabs.sendMessage(tabId, {
+                            action: 'ping'
+                        });
+                        log('injectionResult', 'Content script is now responding!', 'success');
+                        logPre('injectionResult', response, 'success');
+                    } catch (error) {
+                        log('injectionResult', `Still not responding: ${error.message}`, 'error');
+                    }
+                }, 1000);
+
+            } catch (error) {
+                log('injectionResult', `Injection failed: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
