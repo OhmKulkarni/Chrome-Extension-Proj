@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Data Fix Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        .step { margin: 10px 0; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>Clear Data Fix Test</h1>
+    
+    <div class="test-section">
+        <h2>Issue Description</h2>
+        <p>The clear data button was clearing the UI but not actually deleting records from IndexedDB, causing storage usage to increase instead of decrease.</p>
+    </div>
+    
+    <div class="test-section">
+        <h2>Root Cause Identified</h2>
+        <p class="error">The <code>clearStore()</code> method was missing proper transaction completion handling.</p>
+        <p>The original implementation only listened for request success/error but not transaction completion.</p>
+    </div>
+    
+    <div class="test-section">
+        <h2>Fix Applied</h2>
+        <p class="success">✅ Replaced manual transaction handling with robust <code>performTransaction()</code> method</p>
+        <p class="success">✅ Added comprehensive logging to track clear operations</p>
+        <p class="success">✅ Enhanced error handling and transaction validation</p>
+    </div>
+    
+    <div class="test-section">
+        <h2>Testing Steps</h2>
+        <div class="step">1. Reload the extension in Chrome (chrome://extensions/)</div>
+        <div class="step">2. Generate some test data by browsing websites</div>
+        <div class="step">3. Open Developer Tools → Application → Storage → IndexedDB</div>
+        <div class="step">4. Note the current storage size for DevToolsExtension database</div>
+        <div class="step">5. Open extension dashboard and click "Clear Data"</div>
+        <div class="step">6. Check console for clear operation logs (should show initial/final counts)</div>
+        <div class="step">7. Verify IndexedDB storage size decreases in DevTools</div>
+        <div class="step">8. Confirm dashboard shows empty state</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Expected Results</h2>
+        <p class="success">✅ Console logs show: "Starting clearAllData operation"</p>
+        <p class="success">✅ Initial store counts > 0 (if data existed)</p>
+        <p class="success">✅ Final store counts = 0</p>
+        <p class="success">✅ IndexedDB storage size decreases significantly</p>
+        <p class="success">✅ Dashboard shows "No data available" state</p>
+        <p class="success">✅ No error messages in console</p>
+    </div>
+    
+    <div class="test-section">
+        <h2>Key Changes Made</h2>
+        <pre style="background: #f5f5f5; padding: 10px;">
+// Before: Manual transaction handling
+private async clearStore(storeName: string): Promise&lt;void&gt; {
+  const transaction = this.db!.transaction([storeName], 'readwrite')
+  const store = transaction.objectStore(storeName)
+  const clearRequest = store.clear()
+  clearRequest.onsuccess = () =&gt; resolve()
+  // Missing transaction completion handling!
+}
+
+// After: Using performTransaction with proper error handling
+private async clearStore(storeName: string): Promise&lt;void&gt; {
+  return this.performTransaction(storeName, 'readwrite', (store) =&gt; {
+    return store.clear()
+  })
+}
+        </pre>
+    </div>
+</body>
+</html>

@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Storage Analysis Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .debug-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        .success { background-color: #d4edda; }
+        .error { background-color: #f8d7da; }
+        .info { background-color: #d1ecf1; }
+        .warning { background-color: #fff3cd; }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+        }
+        .metric-card {
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+        .metric-card h4 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #666;
+        }
+        .metric-card .value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Storage Analysis Debug Tool</h1>
+    
+    <div class="debug-section info">
+        <h3>📋 Debug Purpose</h3>
+        <p>This tool specifically debugs the "Storage Usage N/A" and "Browser Quota N/A" issues in the Performance Monitoring dashboard.</p>
+        <p>Use the buttons below to test each component individually and identify the root cause.</p>
+    </div>
+
+    <div class="debug-section">
+        <h3>🎯 Quick Diagnostics</h3>
+        <button onclick="runFullDiagnostic()">Run Full Diagnostic</button>
+        <button onclick="testBackgroundConnection()">Test Background Connection</button>
+        <button onclick="testStorageQuota()">Test Storage Quota API</button>
+        <button onclick="testTableCounts()">Test Table Counts</button>
+        <div id="diagnosticResult"></div>
+    </div>
+
+    <div class="debug-section">
+        <h3>📊 Live Performance Dashboard Test</h3>
+        <button onclick="simulateDashboardLoad()">Simulate Dashboard Load</button>
+        <button onclick="generateSampleData()">Generate Sample Data First</button>
+        <div id="dashboardResult"></div>
+    </div>
+
+    <script>
+        // Run comprehensive diagnostic
+        async function runFullDiagnostic() {
+            const resultDiv = document.getElementById('diagnosticResult');
+            resultDiv.innerHTML = '<p>🔍 Running full diagnostic...</p>';
+            
+            const results = {
+                chromeApi: false,
+                backgroundConnection: false,
+                storageAPI: false,
+                performanceStats: false,
+                tableCounts: false,
+                storageQuota: false,
+                errors: []
+            };
+
+            try {
+                // Test 1: Chrome Extension API
+                if (typeof chrome !== 'undefined' && chrome.runtime) {
+                    results.chromeApi = true;
+                    console.log('✅ Chrome Extension API available');
+                } else {
+                    results.errors.push('Chrome Extension API not available');
+                }
+
+                // Test 2: Background Script Connection
+                try {
+                    const pingResponse = await new Promise((resolve) => {
+                        chrome.runtime.sendMessage({ action: 'getPerformanceStats' }, resolve);
+                    });
+                    if (pingResponse) {
+                        results.backgroundConnection = true;
+                        console.log('✅ Background script connected');
+                    }
+                } catch (error) {
+                    results.errors.push(`Background connection failed: ${error.message}`);
+                }
+
+                // Test 3: Storage API
+                if ('storage' in navigator && 'estimate' in navigator.storage) {
+                    try {
+                        const estimate = await navigator.storage.estimate();
+                        results.storageAPI = true;
+                        results.storageQuota = estimate;
+                        console.log('✅ Storage API available:', estimate);
+                    } catch (error) {
+                        results.errors.push(`Storage API failed: ${error.message}`);
+                    }
+                } else {
+                    results.errors.push('Storage API not supported');
+                }
+
+                // Test 4: Performance Stats
+                try {
+                    const statsResponse = await new Promise((resolve) => {
+                        chrome.runtime.sendMessage({ action: 'getPerformanceStats' }, resolve);
+                    });
+                    if (statsResponse && statsResponse.success) {
+                        results.performanceStats = statsResponse.data;
+                        console.log('✅ Performance stats retrieved');
+                    } else {
+                        results.errors.push(`Performance stats failed: ${statsResponse?.error || 'Unknown error'}`);
+                    }
+                } catch (error) {
+                    results.errors.push(`Performance stats error: ${error.message}`);
+                }
+
+                // Test 5: Table Counts
+                try {
+                    const countsResponse = await new Promise((resolve) => {
+                        chrome.runtime.sendMessage({ action: 'getTableCounts' }, resolve);
+                    });
+                    if (countsResponse && countsResponse.success) {
+                        results.tableCounts = countsResponse.data;
+                        console.log('✅ Table counts retrieved');
+                    } else {
+                        results.errors.push(`Table counts failed: ${countsResponse?.error || 'Unknown error'}`);
+                    }
+                } catch (error) {
+                    results.errors.push(`Table counts error: ${error.message}`);
+                }
+
+                // Display results
+                displayDiagnosticResults(results);
+
+            } catch (error) {
+                console.error('❌ Diagnostic failed:', error);
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Diagnostic Failed</h4>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function displayDiagnosticResults(results) {
+            const resultDiv = document.getElementById('diagnosticResult');
+            
+            const errorCount = results.errors.length;
+            const successCount = Object.values(results).filter(v => v === true).length;
+            
+            resultDiv.innerHTML = `
+                <div class="${errorCount === 0 ? 'success' : 'warning'}">
+                    <h4>${errorCount === 0 ? '✅' : '⚠️'} Diagnostic Results</h4>
+                    <p><strong>Successful Tests:</strong> ${successCount}/5</p>
+                    <p><strong>Errors:</strong> ${errorCount}</p>
+                    
+                    <div class="metrics">
+                        <div class="metric-card" style="background: ${results.chromeApi ? '#d4edda' : '#f8d7da'}">
+                            <h4>Chrome API</h4>
+                            <div class="value">${results.chromeApi ? '✅ OK' : '❌ FAIL'}</div>
+                        </div>
+                        <div class="metric-card" style="background: ${results.backgroundConnection ? '#d4edda' : '#f8d7da'}">
+                            <h4>Background Script</h4>
+                            <div class="value">${results.backgroundConnection ? '✅ CONNECTED' : '❌ DISCONNECTED'}</div>
+                        </div>
+                        <div class="metric-card" style="background: ${results.storageAPI ? '#d4edda' : '#f8d7da'}">
+                            <h4>Storage API</h4>
+                            <div class="value">${results.storageAPI ? '✅ AVAILABLE' : '❌ UNAVAILABLE'}</div>
+                        </div>
+                        <div class="metric-card" style="background: ${results.performanceStats ? '#d4edda' : '#f8d7da'}">
+                            <h4>Performance Stats</h4>
+                            <div class="value">${results.performanceStats ? '✅ WORKING' : '❌ FAILED'}</div>
+                        </div>
+                        <div class="metric-card" style="background: ${results.tableCounts ? '#d4edda' : '#f8d7da'}">
+                            <h4>Table Counts</h4>
+                            <div class="value">${results.tableCounts ? '✅ WORKING' : '❌ FAILED'}</div>
+                        </div>
+                    </div>
+
+                    ${results.storageQuota ? `
+                        <h5>📊 Storage Quota Details:</h5>
+                        <pre>${JSON.stringify(results.storageQuota, null, 2)}</pre>
+                    ` : ''}
+
+                    ${results.performanceStats ? `
+                        <h5>🚀 Performance Stats Sample:</h5>
+                        <pre>${JSON.stringify(results.performanceStats, null, 2)}</pre>
+                    ` : ''}
+
+                    ${results.tableCounts ? `
+                        <h5>📋 Table Counts:</h5>
+                        <pre>${JSON.stringify(results.tableCounts, null, 2)}</pre>
+                    ` : ''}
+
+                    ${errorCount > 0 ? `
+                        <h5>❌ Errors:</h5>
+                        <ul>
+                            ${results.errors.map(error => `<li>${error}</li>`).join('')}
+                        </ul>
+                    ` : ''}
+                    
+                    <div class="info" style="margin-top: 15px;">
+                        <h5>💡 Next Steps:</h5>
+                        ${getNextSteps(results)}
+                    </div>
+                </div>
+            `;
+        }
+
+        function getNextSteps(results) {
+            if (!results.chromeApi) {
+                return '<p>❌ <strong>Critical:</strong> Extension context required. Load this page from the extension dashboard.</p>';
+            }
+            
+            if (!results.backgroundConnection) {
+                return '<p>❌ <strong>Critical:</strong> Background script not responding. Reload the extension.</p>';
+            }
+            
+            if (!results.storageAPI) {
+                return '<p>⚠️ <strong>Storage API unavailable:</strong> Browser quota will show N/A, but table counts should still work.</p>';
+            }
+            
+            if (!results.performanceStats) {
+                return '<p>❌ <strong>Performance tracking not working:</strong> Check background script implementation.</p>';
+            }
+            
+            if (!results.tableCounts) {
+                return '<p>❌ <strong>Table counts not working:</strong> Storage usage will show N/A.</p>';
+            }
+            
+            return '<p>✅ <strong>All systems operational!</strong> If dashboard still shows N/A, check console logs for additional errors.</p>';
+        }
+
+        // Test storage quota API specifically
+        async function testStorageQuota() {
+            const resultDiv = document.getElementById('diagnosticResult');
+            resultDiv.innerHTML = '<p>🔍 Testing Extension Storage Quota (120MB Limit)...</p>';
+            
+            try {
+                if ('storage' in navigator && 'estimate' in navigator.storage) {
+                    console.log('📊 Storage API available, requesting estimate...');
+                    const estimate = await navigator.storage.estimate();
+                    
+                    // Chrome Extension IndexedDB quota limit is 120MB
+                    const EXTENSION_STORAGE_LIMIT = 120 * 1024 * 1024; // 120MB in bytes
+                    
+                    // For extensions, use the 120MB limit instead of the browser's full quota
+                    const actualQuota = Math.min(estimate.quota || EXTENSION_STORAGE_LIMIT, EXTENSION_STORAGE_LIMIT);
+                    const usage = estimate.usage || 0;
+                    const extensionUsagePercent = actualQuota > 0 ? (usage / actualQuota) * 100 : 0;
+                    
+                    const quotaResult = {
+                        usage,
+                        quota: actualQuota,
+                        usagePercentage: extensionUsagePercent,
+                        available: actualQuota - usage,
+                        isExtensionLimit: actualQuota === EXTENSION_STORAGE_LIMIT,
+                        extensionLimit: EXTENSION_STORAGE_LIMIT
+                    };
+                    
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Extension Storage Quota API Working</h4>
+                            
+                            <div class="metrics">
+                                <div class="metric-card" style="background: #e3f2fd">
+                                    <h4>Extension Used</h4>
+                                    <div class="value">${formatBytes(usage)}</div>
+                                </div>
+                                <div class="metric-card" style="background: #f3e5f5">
+                                    <h4>Extension Limit</h4>
+                                    <div class="value">${formatBytes(EXTENSION_STORAGE_LIMIT)}</div>
+                                    <small>120MB Max</small>
+                                </div>
+                                <div class="metric-card" style="background: ${extensionUsagePercent > 80 ? '#ffcdd2' : extensionUsagePercent > 60 ? '#fff3e0' : '#c8e6c8'}">
+                                    <h4>Extension Usage</h4>
+                                    <div class="value">${extensionUsagePercent.toFixed(1)}%</div>
+                                    <small>${extensionUsagePercent > 80 ? '🚨 Critical' : extensionUsagePercent > 60 ? '⚠️ Warning' : '✅ Safe'}</small>
+                                </div>
+                                <div class="metric-card" style="background: #e8f5e8">
+                                    <h4>Available</h4>
+                                    <div class="value">${formatBytes(actualQuota - usage)}</div>
+                                </div>
+                            </div>
+
+                            ${extensionUsagePercent > 80 ? `
+                                <div class="error">
+                                    <h5>🚨 Critical Warning: Near Extension Limit!</h5>
+                                    <p>You are using ${extensionUsagePercent.toFixed(1)}% of the 120MB Chrome extension storage limit.</p>
+                                    <p><strong>Risk:</strong> Extension may stop working if limit exceeded!</p>
+                                    <p><strong>Action:</strong> Clear old data immediately.</p>
+                                </div>
+                            ` : extensionUsagePercent > 60 ? `
+                                <div class="warning">
+                                    <h5>⚠️ Storage Usage Warning</h5>
+                                    <p>You are using ${extensionUsagePercent.toFixed(1)}% of the 120MB Chrome extension storage limit.</p>
+                                    <p><strong>Recommendation:</strong> Monitor usage and consider periodic cleanup.</p>
+                                </div>
+                            ` : `
+                                <div class="success">
+                                    <h5>✅ Storage Usage Healthy</h5>
+                                    <p>Extension storage usage is at ${extensionUsagePercent.toFixed(1)}% of the 120MB limit.</p>
+                                </div>
+                            `}
+
+                            <h5>📊 Browser vs Extension Quota Comparison:</h5>
+                            <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                                <thead>
+                                    <tr style="background: #f0f0f0;">
+                                        <th style="border: 1px solid #ccc; padding: 8px; text-align: left;">Scope</th>
+                                        <th style="border: 1px solid #ccc; padding: 8px; text-align: right;">Quota</th>
+                                        <th style="border: 1px solid #ccc; padding: 8px; text-align: right;">Used</th>
+                                        <th style="border: 1px solid #ccc; padding: 8px; text-align: right;">Usage %</th>
+                                        <th style="border: 1px solid #ccc; padding: 8px; text-align: center;">Limit Type</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td style="border: 1px solid #ccc; padding: 8px; font-weight: bold;">Extension</td>
+                                        <td style="border: 1px solid #ccc; padding: 8px; text-align: right;">${formatBytes(EXTENSION_STORAGE_LIMIT)}</td>
+                                        <td style="border: 1px solid #ccc; padding: 8px; text-align: right;">${formatBytes(usage)}</td>
+                                        <td style="border: 1px solid #ccc; padding: 8px; text-align: right; color: ${extensionUsagePercent > 80 ? 'red' : extensionUsagePercent > 60 ? 'orange' : 'green'};">
+                                            ${extensionUsagePercent.toFixed(1)}%
+                                        </td>
+                                        <td style="border: 1px solid #ccc; padding: 8px; text-align: center;">
+                                            <span style="background: #ff5722; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">HARD LIMIT</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border: 1px solid #ccc; padding: 8px;">Browser Total</td>
+                                        <td style="border: 1px solid #ccc; padding: 8px; text-align: right;">${formatBytes(estimate.quota || 0)}</td>
+                                        <td style="border: 1px solid #ccc; padding: 8px; text-align: right;">${formatBytes(usage)}</td>
+                                        <td style="border: 1px solid #ccc; padding: 8px; text-align: right;">${((usage / (estimate.quota || 1)) * 100).toFixed(1)}%</td>
+                                        <td style="border: 1px solid #ccc; padding: 8px; text-align: center;">
+                                            <span style="background: #4caf50; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">INFORMATIONAL</span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            
+                            <h5>📊 Raw Data:</h5>
+                            <pre>${JSON.stringify({
+                                ...quotaResult,
+                                browserEstimate: estimate
+                            }, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="warning">
+                            <h4>⚠️ Storage API Not Supported</h4>
+                            <p>This browser doesn't support the Storage Quota API (navigator.storage.estimate).</p>
+                            <p>Extension quota information will show as "N/A" but this is expected.</p>
+                            <div class="info">
+                                <h5>💡 What This Means:</h5>
+                                <p>Chrome extensions still have a 120MB IndexedDB limit, but we can't measure current usage.</p>
+                                <p>The extension will use fallback logic to estimate usage based on record counts.</p>
+                            </div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('❌ Storage quota test failed:', error);
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Extension Storage Quota Test Failed</h4>
+                        <p>Error: ${error.message}</p>
+                        <div class="warning">
+                            <h5>⚠️ Important:</h5>
+                            <p>Even if quota detection fails, Chrome extensions are still limited to 120MB of IndexedDB storage.</p>
+                            <p>Monitor your record counts to avoid hitting this limit.</p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Test table counts specifically
+        async function testTableCounts() {
+            const resultDiv = document.getElementById('diagnosticResult');
+            resultDiv.innerHTML = '<p>🔍 Testing Table Counts...</p>';
+            
+            try {
+                console.log('📊 Requesting table counts from background...');
+                const response = await new Promise((resolve) => {
+                    chrome.runtime.sendMessage({ action: 'getTableCounts' }, resolve);
+                });
+                
+                console.log('📊 Table counts response:', response);
+                
+                if (response && response.success && response.data) {
+                    const counts = response.data;
+                    const totalRecords = Object.values(counts).reduce((sum, count) => sum + (Number(count) || 0), 0);
+                    const estimatedSize = totalRecords * 1024; // 1KB per record estimate
+                    
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Table Counts Working</h4>
+                            <div class="metrics">
+                                <div class="metric-card" style="background: #d4edda">
+                                    <h4>Total Records</h4>
+                                    <div class="value">${totalRecords}</div>
+                                </div>
+                                <div class="metric-card" style="background: #d4edda">
+                                    <h4>Estimated Size</h4>
+                                    <div class="value">${formatBytes(estimatedSize)}</div>
+                                </div>
+                            </div>
+                            
+                            <h5>📋 Per-Table Breakdown:</h5>
+                            <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                                <thead>
+                                    <tr style="background: #f0f0f0;">
+                                        <th style="border: 1px solid #ccc; padding: 8px; text-align: left;">Table</th>
+                                        <th style="border: 1px solid #ccc; padding: 8px; text-align: right;">Records</th>
+                                        <th style="border: 1px solid #ccc; padding: 8px; text-align: right;">Est. Size</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${Object.entries(counts).map(([table, count]) => `
+                                        <tr>
+                                            <td style="border: 1px solid #ccc; padding: 8px;">${table}</td>
+                                            <td style="border: 1px solid #ccc; padding: 8px; text-align: right;">${count}</td>
+                                            <td style="border: 1px solid #ccc; padding: 8px; text-align: right;">${formatBytes(Number(count) * 1024)}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                            
+                            <h5>📊 Raw Response:</h5>
+                            <pre>${JSON.stringify(response, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h4>❌ Table Counts Failed</h4>
+                            <p><strong>Response:</strong> ${JSON.stringify(response, null, 2)}</p>
+                            <p><strong>Error:</strong> ${response?.error || 'Unknown error'}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('❌ Table counts test failed:', error);
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Table Counts Test Failed</h4>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Test background connection
+        async function testBackgroundConnection() {
+            const resultDiv = document.getElementById('diagnosticResult');
+            resultDiv.innerHTML = '<p>🔍 Testing Background Connection...</p>';
+            
+            try {
+                const startTime = performance.now();
+                const response = await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => reject(new Error('Connection timeout')), 5000);
+                    chrome.runtime.sendMessage({ action: 'getPerformanceStats' }, (response) => {
+                        clearTimeout(timeout);
+                        resolve(response);
+                    });
+                });
+                const duration = performance.now() - startTime;
+                
+                if (response) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Background Connection Working</h4>
+                            <p><strong>Response Time:</strong> ${duration.toFixed(2)}ms</p>
+                            <p><strong>Success:</strong> ${response.success ? 'Yes' : 'No'}</p>
+                            ${response.error ? `<p><strong>Error:</strong> ${response.error}</p>` : ''}
+                            <h5>📊 Response Sample:</h5>
+                            <pre>${JSON.stringify(response, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h4>❌ Background Connection Failed</h4>
+                            <p>No response received from background script.</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('❌ Background connection test failed:', error);
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Background Connection Test Failed</h4>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Simulate dashboard load process
+        async function simulateDashboardLoad() {
+            const resultDiv = document.getElementById('dashboardResult');
+            resultDiv.innerHTML = '<p>🔄 Simulating improved dashboard load process...</p>';
+            
+            try {
+                const startTime = performance.now();
+                console.log('🔄 Starting dashboard simulation with improved logic...');
+                
+                // Step 1: Load performance stats (like the dashboard does)
+                console.log('📊 Step 1: Loading performance stats...');
+                const statsResponse = await new Promise((resolve) => {
+                    chrome.runtime.sendMessage({ action: 'getPerformanceStats' }, resolve);
+                });
+                
+                // Step 2: Get storage quota (improved logic)
+                console.log('💾 Step 2: Getting storage quota with improved logic...');
+                let quotaResult = null;
+                try {
+                    if ('storage' in navigator && 'estimate' in navigator.storage) {
+                        const estimate = await navigator.storage.estimate();
+                        quotaResult = {
+                            usage: estimate.usage || 0,
+                            quota: estimate.quota || 0,
+                            usagePercentage: estimate.quota ? ((estimate.usage || 0) / estimate.quota) * 100 : 0,
+                            available: (estimate.quota || 0) - (estimate.usage || 0)
+                        };
+                        console.log('✅ Storage quota retrieved:', quotaResult);
+                    } else {
+                        console.warn('⚠️ Storage API not available in this browser');
+                    }
+                } catch (error) {
+                    console.error('❌ Failed to get storage quota:', error);
+                }
+                
+                // Step 3: Get table counts (like the fixed analyzeStorage does)
+                console.log('📋 Step 3: Getting table counts...');
+                let tableCountsResponse = null;
+                try {
+                    tableCountsResponse = await chrome.runtime.sendMessage({ action: 'getTableCounts' });
+                    console.log('📋 Table counts response:', tableCountsResponse);
+                } catch (error) {
+                    console.error('❌ Failed to get table counts:', error);
+                }
+                
+                const endTime = performance.now();
+                const duration = endTime - startTime;
+                
+                // Process results like the improved dashboard logic
+                const stats = statsResponse?.success ? statsResponse.data : null;
+                
+                let storageBreakdown = null;
+                if (tableCountsResponse && tableCountsResponse.success && tableCountsResponse.data) {
+                    const tableCounts = tableCountsResponse.data;
+                    const totalRecords = Object.values(tableCounts).reduce((sum, count) => sum + (Number(count) || 0), 0);
+                    const estimatedSize = totalRecords * 1024;
+                    
+                    storageBreakdown = {
+                        totalSize: estimatedSize,
+                        totalRecords,
+                        tables: tableCounts,
+                        baseline: {
+                            preExistingData: totalRecords > 0,
+                            dataAge: totalRecords > 0 ? 24 : 0
+                        }
+                    };
+                } else {
+                    storageBreakdown = {
+                        totalSize: 0,
+                        totalRecords: 0,
+                        tables: {},
+                        baseline: { preExistingData: false, dataAge: 0 }
+                    };
+                }
+                
+                // Calculate display values
+                const storageUsage = storageBreakdown ? formatBytes(storageBreakdown.totalSize) : 'N/A';
+                const browserQuota = quotaResult ? `${quotaResult.usagePercentage.toFixed(1)}%` : 'N/A';
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <h4>✅ Improved Dashboard Simulation Complete</h4>
+                        <p><strong>Total Time:</strong> ${duration.toFixed(2)}ms</p>
+                        
+                        <div class="metrics">
+                            <div class="metric-card" style="background: #e3f2fd">
+                                <h4>Total Operations</h4>
+                                <div class="value">${stats?.totalOperations || 0}</div>
+                            </div>
+                            <div class="metric-card" style="background: #e8f5e8">
+                                <h4>Memory Usage</h4>
+                                <div class="value">${stats ? formatBytes(stats.memoryUsage.current) : 'N/A'}</div>
+                            </div>
+                            <div class="metric-card" style="background: ${storageUsage === 'N/A' ? '#ffebee' : '#f3e5f5'}">
+                                <h4>Storage Size</h4>
+                                <div class="value">${storageUsage}</div>
+                            </div>
+                            <div class="metric-card" style="background: ${browserQuota === 'N/A' ? '#ffebee' : '#fff3e0'}">
+                                <h4>Browser Quota</h4>
+                                <div class="value">${browserQuota}</div>
+                            </div>
+                        </div>
+                        
+                        <h5>🔍 Detailed Analysis:</h5>
+                        <ul>
+                            <li><strong>Performance Stats:</strong> ${statsResponse?.success ? '✅ Working' : '❌ Failed'}</li>
+                            <li><strong>Table Counts:</strong> ${tableCountsResponse?.success ? '✅ Working' : '❌ Failed'}</li>
+                            <li><strong>Storage Quota API:</strong> ${quotaResult ? '✅ Available' : '❌ Not Available'}</li>
+                            <li><strong>Total Records:</strong> ${storageBreakdown.totalRecords}</li>
+                            <li><strong>Storage Breakdown Created:</strong> ${storageBreakdown ? '✅ Yes' : '❌ No'}</li>
+                        </ul>
+                        
+                        <h5>📊 Expected Dashboard Display:</h5>
+                        <div class="metrics">
+                            <div class="metric-card" style="background: ${storageUsage === 'N/A' ? '#ffcdd2' : '#c8e6c8'}">
+                                <h4>Storage Usage Display</h4>
+                                <div class="value">${storageUsage}</div>
+                                <small>${storageUsage === 'N/A' ? '❌ Will show N/A' : '✅ Will show value'}</small>
+                            </div>
+                            <div class="metric-card" style="background: ${browserQuota === 'N/A' ? '#ffcdd2' : '#c8e6c8'}">
+                                <h4>Browser Quota Display</h4>
+                                <div class="value">${browserQuota}</div>
+                                <small>${browserQuota === 'N/A' ? '❌ Will show N/A' : '✅ Will show percentage'}</small>
+                            </div>
+                        </div>
+                        
+                        ${storageUsage === 'N/A' ? `
+                            <div class="error">
+                                <h5>❌ Storage Usage Issue:</h5>
+                                <p><strong>Problem:</strong> Table counts not working or no data available</p>
+                                <p><strong>Table Counts Response:</strong> ${JSON.stringify(tableCountsResponse)}</p>
+                                <p><strong>Background Script Connected:</strong> ${typeof chrome !== 'undefined' && chrome.runtime ? 'Yes' : 'No'}</p>
+                            </div>
+                        ` : `
+                            <div class="success">
+                                <h5>✅ Storage Usage Fixed!</h5>
+                                <p>Storage size calculation working correctly with ${storageBreakdown.totalRecords} records.</p>
+                            </div>
+                        `}
+                        
+                        ${browserQuota === 'N/A' ? `
+                            <div class="warning">
+                                <h5>⚠️ Browser Quota Info:</h5>
+                                <p><strong>Status:</strong> Storage API not available in this browser/context</p>
+                                <p><strong>Impact:</strong> Browser quota will show "N/A" but this is expected</p>
+                                <p><strong>Storage API Support:</strong> ${'storage' in navigator && 'estimate' in navigator.storage ? 'Available' : 'Not Supported'}</p>
+                            </div>
+                        ` : `
+                            <div class="success">
+                                <h5>✅ Browser Quota Working!</h5>
+                                <p>Storage quota API working: ${quotaResult.usage} / ${quotaResult.quota} bytes (${quotaResult.usagePercentage.toFixed(1)}%)</p>
+                            </div>
+                        `}
+                        
+                        <h5>📋 Raw Data:</h5>
+                        <details>
+                            <summary>Click to expand raw data</summary>
+                            <pre>${JSON.stringify({
+                                statsResponse,
+                                tableCountsResponse,
+                                quotaResult,
+                                storageBreakdown
+                            }, null, 2)}</pre>
+                        </details>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('❌ Dashboard simulation failed:', error);
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Dashboard Simulation Failed</h4>
+                        <p>Error: ${error.message}</p>
+                        <pre>${error.stack}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        // Generate sample data to test with
+        async function generateSampleData() {
+            const resultDiv = document.getElementById('dashboardResult');
+            resultDiv.innerHTML = '<p>🎲 Generating sample data...</p>';
+            
+            try {
+                const sampleData = [
+                    // Network requests
+                    ...Array.from({ length: 10 }, (_, i) => ({
+                        action: 'storeNetworkRequest',
+                        data: {
+                            url: `https://debug-sample.com/api/${i}`,
+                            method: 'GET',
+                            headers: JSON.stringify({ 'Content-Type': 'application/json' }),
+                            payload_size: Math.floor(Math.random() * 2000),
+                            status: 200,
+                            response_body: JSON.stringify({ debug: true, id: i }),
+                            timestamp: Date.now() + i,
+                            response_time: Math.floor(Math.random() * 300)
+                        }
+                    })),
+                    // Console errors
+                    ...Array.from({ length: 3 }, (_, i) => ({
+                        action: 'CONSOLE_ERROR',
+                        data: {
+                            message: `Debug sample error ${i}`,
+                            stack_trace: `Error: Debug error ${i}\\n    at sample:${i}:1`,
+                            timestamp: Date.now() + i,
+                            severity: 'error',
+                            url: `https://debug-sample.com/page${i}`
+                        }
+                    }))
+                ];
+
+                let successCount = 0;
+                for (const item of sampleData) {
+                    try {
+                        const response = await new Promise((resolve) => {
+                            chrome.runtime.sendMessage(item, resolve);
+                        });
+                        if (response && response.success !== false) {
+                            successCount++;
+                        }
+                    } catch (error) {
+                        console.warn('Sample data item failed:', error);
+                    }
+                }
+
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <h4>✅ Sample Data Generated</h4>
+                        <p><strong>Items Created:</strong> ${successCount}/${sampleData.length}</p>
+                        <p class="info">Now run "Simulate Dashboard Load" to see the updated storage metrics.</p>
+                    </div>
+                `;
+
+            } catch (error) {
+                console.error('❌ Sample data generation failed:', error);
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Sample Data Generation Failed</h4>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Utility function
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Initial setup
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🔍 Storage Analysis Debug Tool Loaded');
+            
+            if (typeof chrome === 'undefined' || !chrome.runtime) {
+                document.body.insertAdjacentHTML('beforeend', `
+                    <div class="debug-section error">
+                        <h3>⚠️ Extension Context Required</h3>
+                        <p>This debug tool needs to be run in the context of a Chrome extension.</p>
+                        <p>Make sure to load this page from within your extension environment.</p>
+                    </div>
+                `);
+            }
+        });
+    </script>
+</body>
+</html>

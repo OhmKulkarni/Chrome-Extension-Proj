@@ -13,22 +13,28 @@ let originalXhrSend = XMLHttpRequest.prototype.send;
 let originalXhrSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader;
 let isIntercepting = false;
 
-// Get current tab ID and check if logging is enabled for this tab
-const getCurrentTabId = () => {
-  return new Promise((resolve) => {
-    if (typeof chrome !== 'undefined' && chrome.runtime) {
-      chrome.runtime.sendMessage({ action: 'getCurrentTabId' }, (response) => {
-        if (chrome.runtime.lastError) {
-          console.warn('🌍 MAIN_WORLD: Error getting tab ID:', chrome.runtime.lastError);
-          resolve(null);
-        } else {
-          resolve(response?.tabId || null);
-        }
-      });
-    } else {
-      resolve(null);
+// MEMORY LEAK FIX: Helper function to avoid Promise constructor pattern
+const sendMessage = async (message) => {
+  if (typeof chrome !== 'undefined' && chrome.runtime) {
+    try {
+      return await chrome.runtime.sendMessage(message);
+    } catch (error) {
+      console.warn('Chrome message failed:', error);
+      return null;
     }
-  });
+  }
+  return null;
+};
+
+// Get current tab ID and check if logging is enabled for this tab
+const getCurrentTabId = async () => {
+  try {
+    const response = await sendMessage({ action: 'getCurrentTabId' });
+    return response?.tabId || null;
+  } catch (error) {
+    console.warn('🌍 MAIN_WORLD: Error getting tab ID:', error);
+    return null;
+  }
 };
 
 // Check if logging is enabled for current tab
@@ -37,25 +43,24 @@ const isLoggingEnabled = async () => {
     const tabId = await getCurrentTabId();
     if (!tabId) return false;
     
-    return new Promise((resolve) => {
-      if (typeof chrome !== 'undefined' && chrome.storage) {
-        chrome.storage.local.get([`tabLogging_${tabId}`, 'extensionEnabled'], (result) => {
-          if (chrome.runtime.lastError) {
-            console.warn('🌍 MAIN_WORLD: Error checking logging state:', chrome.runtime.lastError);
-            resolve(false);
-          } else {
-            const globalEnabled = result.extensionEnabled !== false; // default true
-            const tabLogging = result[`tabLogging_${tabId}`];
-            const tabEnabled = !tabLogging || 
-                              tabLogging.status === 'active' || 
-                              (tabLogging.status === undefined && tabLogging.active !== false); // default true
-            resolve(globalEnabled && tabEnabled);
-          }
-        });
-      } else {
-        resolve(false);
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      try {
+        // MEMORY LEAK FIX: Use async chrome.storage API directly instead of Promise constructor
+        const result = await chrome.storage.local.get([`tabLogging_${tabId}`, 'extensionEnabled']);
+        
+        const globalEnabled = result.extensionEnabled !== false; // default true
+        const tabLogging = result[`tabLogging_${tabId}`];
+        const tabEnabled = !tabLogging || 
+                          tabLogging.status === 'active' || 
+                          (tabLogging.status === undefined && tabLogging.active !== false); // default true
+        return globalEnabled && tabEnabled;
+      } catch (error) {
+        console.warn('🌍 MAIN_WORLD: Error checking logging state:', error);
+        return false;
       }
-    });
+    } else {
+      return false;
+    }
   } catch (error) {
     console.warn('🌍 MAIN_WORLD: Error in isLoggingEnabled:', error);
     return false;
@@ -235,13 +240,7 @@ try {
   // Request settings from the content script via custom event
   window.dispatchEvent(new CustomEvent('extensionRequestSettings'));
   
-  // Listen for settings response
-  window.addEventListener('extensionSettingsResponse', (event) => {
-    if (event.detail && event.detail.networkInterception && event.detail.networkInterception.bodyCapture) {
-      extensionSettings.maxBodySize = event.detail.networkInterception.bodyCapture.maxBodySize || 2000;
-      console.log('🌍 MAIN_WORLD: Updated settings - maxBodySize:', extensionSettings.maxBodySize);
-    }
-  });
+  // Settings response handler is managed below for proper cleanup
   
   // Start interception
   const startInterception = () => {
@@ -331,37 +330,35 @@ const isErrorLoggingEnabled = async () => {
     const tabId = await getCurrentTabId();
     if (!tabId) return false;
     
-    return new Promise((resolve) => {
-      if (typeof chrome !== 'undefined' && chrome.storage) {
-        chrome.storage.local.get([`tabErrorLogging_${tabId}`, 'settings'], (result) => {
-          if (chrome.runtime.lastError) {
-            console.warn('🌍 MAIN_WORLD: Error checking error logging state:', chrome.runtime.lastError);
-            resolve(false);
-          } else {
-            // Check global error logging setting
-            const settings = result.settings || {};
-            const errorLoggingConfig = settings.errorLogging || {};
-            
-            if (!errorLoggingConfig.enabled) {
-              resolve(false);
-              return;
-            }
-            
-            // Check tab-specific setting if enabled
-            if (errorLoggingConfig.tabSpecific?.enabled) {
-              const tabErrorLogging = result[`tabErrorLogging_${tabId}`];
-              const tabEnabled = tabErrorLogging?.active === true;
-              resolve(tabEnabled);
-            } else {
-              // Global error logging for all tabs
-              resolve(true);
-            }
-          }
-        });
-      } else {
-        resolve(false);
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      try {
+        // MEMORY LEAK FIX: Use chrome.storage directly instead of Promise constructor
+        const result = await chrome.storage.local.get([`tabErrorLogging_${tabId}`, 'settings']);
+        
+        // Check global error logging setting
+        const settings = result.settings || {};
+        const errorLoggingConfig = settings.errorLogging || {};
+        
+        if (!errorLoggingConfig.enabled) {
+          return false;
+        }
+        
+        // Check tab-specific setting if enabled
+        if (errorLoggingConfig.tabSpecific?.enabled) {
+          const tabErrorLogging = result[`tabErrorLogging_${tabId}`];
+          const tabEnabled = tabErrorLogging?.active === true;
+          return tabEnabled;
+        } else {
+          // Global error logging for all tabs
+          return true;
+        }
+      } catch (error) {
+        console.warn('🌍 MAIN_WORLD: Error checking error logging state:', error);
+        return false;
       }
-    });
+    } else {
+      return false;
+    }
   } catch (error) {
     console.warn('🌍 MAIN_WORLD: Error in isErrorLoggingEnabled:', error);
     return false;
@@ -532,3 +529,53 @@ if (typeof chrome !== 'undefined' && chrome.storage) {
 }
 
 console.log('🌍 MAIN-WORLD: Console error interception script loaded and ready');
+
+// MEMORY LEAK FIX: Event listener management for cleanup
+const eventHandlers = {
+  settingsResponse: null,
+  beforeUnload: null
+};
+
+// MEMORY LEAK FIX: Settings response handler with proper cleanup reference
+eventHandlers.settingsResponse = (event) => {
+  if (event.detail && event.detail.networkInterception && event.detail.networkInterception.bodyCapture) {
+    extensionSettings.maxBodySize = event.detail.networkInterception.bodyCapture.maxBodySize || 2000;
+    console.log('🌍 MAIN_WORLD: Updated settings - maxBodySize:', extensionSettings.maxBodySize);
+  }
+};
+
+// MEMORY LEAK FIX: Update the existing settings listener to use managed handler
+window.removeEventListener('extensionSettingsResponse', eventHandlers.settingsResponse);
+window.addEventListener('extensionSettingsResponse', eventHandlers.settingsResponse);
+
+// MEMORY LEAK FIX: Comprehensive cleanup on page unload
+eventHandlers.beforeUnload = () => {
+  // Stop all interceptions
+  if (isIntercepting) {
+    isIntercepting = false;
+    window.fetch = originalFetch;
+    XMLHttpRequest.prototype.open = originalXhrOpen;
+    XMLHttpRequest.prototype.send = originalXhrSend;
+    XMLHttpRequest.prototype.setRequestHeader = originalXhrSetRequestHeader;
+  }
+  
+  // Stop error interception
+  stopErrorInterception();
+  
+  // Clean up event listeners
+  if (eventHandlers.settingsResponse) {
+    window.removeEventListener('extensionSettingsResponse', eventHandlers.settingsResponse);
+  }
+  if (eventHandlers.beforeUnload) {
+    window.removeEventListener('beforeunload', eventHandlers.beforeUnload);
+  }
+  
+  // Clear references
+  eventHandlers.settingsResponse = null;
+  eventHandlers.beforeUnload = null;
+  
+  console.log('🧹 MAIN_WORLD: Cleanup completed');
+};
+
+// Register cleanup handler
+window.addEventListener('beforeunload', eventHandlers.beforeUnload);

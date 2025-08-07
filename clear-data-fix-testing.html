@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear Data Fix - Testing Guide</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        .fix { background: #e8f5e8; border: 1px solid #4caf50; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .test { background: #e3f2fd; border: 1px solid #2196f3; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .problem { background: #fee; border: 1px solid #f88; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .steps { counter-reset: step; }
+        .steps li { counter-increment: step; margin: 10px 0; }
+        .steps li::marker { content: "Step " counter(step) ": "; font-weight: bold; }
+        code { background: #f4f4f4; padding: 2px 4px; border-radius: 3px; }
+        pre { background: #f8f8f8; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Clear Data Fix - Testing Guide</h1>
+    
+    <div class="problem">
+        <h2>❌ Previous Problem</h2>
+        <p><strong>Issue:</strong> Clear Data buttons were only clearing the dashboard UI, not actually removing records from IndexedDB</p>
+        <p><strong>Result:</strong> Data would reappear when refreshing the page or reloading the extension</p>
+        <p><strong>DevTools Impact:</strong> IndexedDB size would remain the same or even increase after "clearing"</p>
+    </div>
+
+    <div class="fix">
+        <h2>✅ What Was Fixed</h2>
+        
+        <h3>1. Dashboard Clear Data Function</h3>
+        <ul>
+            <li><strong>Before:</strong> Only reset local state arrays to empty</li>
+            <li><strong>After:</strong> Calls <code>loadDashboardData()</code> after clearing to reload from (now empty) database</li>
+            <li><strong>Added:</strong> Custom event to notify all components that data was cleared</li>
+        </ul>
+        
+        <h3>2. Usage Card Refresh</h3>
+        <ul>
+            <li><strong>Before:</strong> Only refreshed every 10 seconds</li>
+            <li><strong>After:</strong> Listens for 'dataCleared' event and immediately refreshes usage statistics</li>
+        </ul>
+        
+        <h3>3. Performance Dashboard</h3>
+        <ul>
+            <li><strong>Already working:</strong> Correctly calls <code>loadStats()</code> after clearing</li>
+        </ul>
+    </div>
+
+    <div class="test">
+        <h2>🧪 How to Test the Fix</h2>
+        
+        <h3>Pre-Test Setup</h3>
+        <ol class="steps">
+            <li><strong>Load the updated extension</strong> in Chrome</li>
+            <li><strong>Browse some websites</strong> to generate network requests, console errors</li>
+            <li><strong>Open DevTools</strong> → Application → Storage → IndexedDB and note the size</li>
+            <li><strong>Open the extension dashboard</strong> and note the data counts</li>
+        </ol>
+        
+        <h3>Test Scenario 1: Main Dashboard Clear</h3>
+        <ol class="steps">
+            <li><strong>Click "Clear Data"</strong> button on main dashboard</li>
+            <li><strong>Confirm</strong> the warning dialog</li>
+            <li><strong>Expected Results:</strong>
+                <ul>
+                    <li>All network requests, console errors, token events disappear</li>
+                    <li>Usage Card shows reduced IndexedDB usage</li>
+                    <li>Success alert appears</li>
+                </ul>
+            </li>
+            <li><strong>Verify persistence:</strong> Refresh the page - data should remain cleared</li>
+        </ol>
+        
+        <h3>Test Scenario 2: Performance Dashboard Clear</h3>
+        <ol class="steps">
+            <li><strong>Go to Performance Monitoring</strong> tab</li>
+            <li><strong>Click "Clear Test Data"</strong> button</li>
+            <li><strong>Expected Results:</strong>
+                <ul>
+                    <li>Performance stats reset</li>
+                    <li>Stress test results cleared</li>
+                    <li>Usage Card reflects changes</li>
+                </ul>
+            </li>
+        </ol>
+        
+        <h3>Test Scenario 3: DevTools Verification</h3>
+        <ol class="steps">
+            <li><strong>Before clearing:</strong> Note IndexedDB size in DevTools</li>
+            <li><strong>Clear data</strong> using either button</li>
+            <li><strong>Refresh DevTools</strong> Application → Storage</li>
+            <li><strong>Expected:</strong> IndexedDB should show significantly reduced size</li>
+            <li><strong>Note:</strong> Some overhead may remain due to IndexedDB metadata</li>
+        </ol>
+    </div>
+
+    <div class="test">
+        <h2>🔍 What to Look For</h2>
+        
+        <h3>Console Logs</h3>
+        <p>Open Console (F12) and look for these messages after clearing:</p>
+        <pre>📊 Data cleared event received, refreshing usage...
+✅ Usage analysis complete: { ... }
+📊 Extension-specific storage analysis: { ... }</pre>
+        
+        <h3>Immediate UI Updates</h3>
+        <ul>
+            <li><strong>Network Requests:</strong> Count goes to 0</li>
+            <li><strong>Console Errors:</strong> Count goes to 0</li>
+            <li><strong>Token Events:</strong> Count goes to 0</li>
+            <li><strong>Usage Card:</strong> IndexedDB usage drops significantly</li>
+        </ul>
+        
+        <h3>Persistence Test</h3>
+        <ul>
+            <li><strong>Refresh page:</strong> Data stays cleared</li>
+            <li><strong>Close/reopen extension:</strong> Data stays cleared</li>
+            <li><strong>Restart browser:</strong> Data stays cleared</li>
+        </ul>
+    </div>
+
+    <div class="fix">
+        <h2>💡 Technical Details</h2>
+        
+        <h3>The Fix Chain</h3>
+        <ol>
+            <li><strong>User clicks Clear Data</strong> → Confirmation dialog</li>
+            <li><strong>Dashboard sends:</strong> <code>chrome.runtime.sendMessage({ action: 'clearAllData' })</code></li>
+            <li><strong>Background script:</strong> Calls <code>storageManager.clearAllData()</code></li>
+            <li><strong>IndexedDB:</strong> Executes <code>store.clear()</code> on all tables</li>
+            <li><strong>Dashboard:</strong> Calls <code>loadDashboardData()</code> to refresh from empty DB</li>
+            <li><strong>Event dispatch:</strong> Notifies all components with <code>'dataCleared'</code> event</li>
+            <li><strong>Usage Card:</strong> Immediately refreshes storage analysis</li>
+        </ol>
+        
+        <h3>Database Tables Cleared</h3>
+        <ul>
+            <li><code>apiCalls</code> - Network requests</li>
+            <li><code>consoleErrors</code> - Console error logs</li>
+            <li><code>tokenEvents</code> - Authentication events</li>
+            <li><code>minifiedLibraries</code> - Detected libraries</li>
+        </ul>
+        
+        <h3>Why DevTools May Still Show Some Usage</h3>
+        <ul>
+            <li><strong>IndexedDB metadata:</strong> Database structure, indexes</li>
+            <li><strong>Transaction logs:</strong> Recent operation history</li>
+            <li><strong>Tombstones:</strong> Deleted record placeholders</li>
+            <li><strong>Browser overhead:</strong> IndexedDB implementation details</li>
+        </ul>
+    </div>
+
+    <p><strong>🎯 Expected Outcome:</strong> After clearing data, your extension should show near-zero usage in both the dashboard and significantly reduced size in DevTools!</p>
+</body>
+</html>

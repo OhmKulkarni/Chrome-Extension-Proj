@@ -259,14 +259,14 @@
             resultDiv.innerHTML = '<p>🧪 Testing storage operations...</p>';
             
             try {
-                const tests = [
-                    { action: 'getNetworkRequests', description: 'Get Network Requests' },
-                    { action: 'getConsoleErrors', description: 'Get Console Errors' },
-                    { action: 'getTokenEvents', description: 'Get Token Events' },
-                    { action: 'getPerformanceStats', description: 'Get Performance Stats' }
-                ];
-
-                const results = [];
+            // Test storage operations directly
+            const tests = [
+                { action: 'getNetworkRequests', description: 'Get Network Requests' },
+                { action: 'getConsoleErrors', description: 'Get Console Errors' },
+                { action: 'getTokenEvents', description: 'Get Token Events' },
+                { action: 'getPerformanceStats', description: 'Get Performance Stats' },
+                { action: 'getTableCounts', description: 'Get Table Counts' }
+            ];                const results = [];
 
                 for (const test of tests) {
                     try {

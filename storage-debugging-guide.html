@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Storage Debugging Guide</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        .problem { background: #fee; border: 1px solid #f88; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .solution { background: #efe; border: 1px solid #8f8; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .debug { background: #fef; border: 1px solid #88f; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        code { background: #f4f4f4; padding: 2px 4px; border-radius: 3px; }
+        pre { background: #f8f8f8; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        .steps { counter-reset: step; }
+        .steps li { counter-increment: step; margin: 10px 0; }
+        .steps li::marker { content: "Step " counter(step) ": "; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Storage Debugging: Why DevTools vs. Extension Mismatch</h1>
+    
+    <div class="problem">
+        <h2>❌ The Problem You Discovered</h2>
+        <p><strong>DevTools shows:</strong> 273KB IndexedDB + 40KB Service Worker = <strong>313KB total</strong></p>
+        <p><strong>Extension shows:</strong> 31KB IndexedDB + 1KB Chrome Storage = <strong>32KB total</strong></p>
+        <p><strong>Worse:</strong> Clearing data <strong>increased</strong> DevTools usage to 531KB!</p>
+    </div>
+
+    <div class="debug">
+        <h2>🧐 Root Causes Identified</h2>
+        <ol>
+            <li><strong>navigator.storage.estimate() measures ENTIRE browser</strong>
+                <ul>
+                    <li>Includes all extensions, all websites, all cached data</li>
+                    <li>Not extension-specific at all</li>
+                    <li>Misleading for extension monitoring</li>
+                </ul>
+            </li>
+            <li><strong>IndexedDB fragmentation after deletion</strong>
+                <ul>
+                    <li>Deleting records creates "tombstones" (placeholders)</li>
+                    <li>IndexedDB doesn't immediately reclaim space</li>
+                    <li>Metadata and transaction logs grow</li>
+                </ul>
+            </li>
+            <li><strong>1KB per record estimate was wrong</strong>
+                <ul>
+                    <li>Your actual data: 273KB ÷ 31 entries = ~8.8KB per entry</li>
+                    <li>Network request data is much larger than expected</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+
+    <div class="solution">
+        <h2>✅ New Solution Implemented</h2>
+        <h3>Extension-Specific Measurement</h3>
+        <p>Instead of browser-wide estimates, we now:</p>
+        <ol class="steps">
+            <li><strong>Get actual data from IndexedDB</strong>
+                <ul>
+                    <li>Fetch all API calls, console errors, token events</li>
+                    <li>Calculate JSON.stringify() size of actual data</li>
+                    <li>No more browser-wide storage confusion</li>
+                </ul>
+            </li>
+            <li><strong>Measure real record sizes</strong>
+                <ul>
+                    <li>Each table analyzed separately</li>
+                    <li>Actual byte count per record type</li>
+                    <li>Detailed breakdown by data type</li>
+                </ul>
+            </li>
+            <li><strong>Chrome.storage.local remains accurate</strong>
+                <ul>
+                    <li>chrome.storage.local.getBytesInUse() is extension-specific</li>
+                    <li>This measurement was already correct</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+
+    <div class="debug">
+        <h2>🔧 How to Test the Fix</h2>
+        <ol class="steps">
+            <li><strong>Load the updated extension</strong> in Chrome</li>
+            <li><strong>Open the dashboard</strong> and check Usage Card</li>
+            <li><strong>Open Console</strong> (F12 → Console tab)</li>
+            <li><strong>Look for debug logs:</strong>
+                <pre>📊 Extension-specific storage analysis: {
+  indexedDBBytes: "XXX KB",
+  totalEntries: XX,
+  tableBreakdown: {
+    api_calls: { entries: XX, bytes: XXX },
+    console_errors: { entries: XX, bytes: XXX },
+    token_events: { entries: XX, bytes: XXX }
+  }
+}</pre>
+            </li>
+            <li><strong>Compare with DevTools:</strong>
+                <ul>
+                    <li>Our extension measurement = actual extension data</li>
+                    <li>DevTools Application > Storage = browser-wide + overhead</li>
+                    <li>They should now be much closer for extension data</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+
+    <div class="solution">
+        <h2>📊 Expected Results</h2>
+        <p>With the new implementation:</p>
+        <ul>
+            <li><strong>Extension IndexedDB:</strong> Should match JSON size of your actual data</li>
+            <li><strong>DevTools IndexedDB:</strong> Will still be larger due to:
+                <ul>
+                    <li>IndexedDB metadata and indexes</li>
+                    <li>Transaction logs</li>
+                    <li>Deleted record tombstones</li>
+                    <li>Storage overhead (typically 2-3x actual data)</li>
+                </ul>
+            </li>
+            <li><strong>Chrome Storage Local:</strong> Remains accurate at ~1KB</li>
+            <li><strong>Total Extension Usage:</strong> Now reflects actual extension data size</li>
+        </ul>
+    </div>
+
+    <div class="debug">
+        <h2>💡 Understanding the Discrepancy</h2>
+        <p><strong>This is normal!</strong> Here's why DevTools and extension measurements differ:</p>
+        
+        <table border="1" style="border-collapse: collapse; width: 100%; margin: 10px 0;">
+            <tr style="background: #f0f0f0;">
+                <th style="padding: 8px;">Measurement</th>
+                <th style="padding: 8px;">What It Shows</th>
+                <th style="padding: 8px;">Why Different</th>
+            </tr>
+            <tr>
+                <td style="padding: 8px;"><strong>Extension Card</strong></td>
+                <td style="padding: 8px;">Actual JSON data size</td>
+                <td style="padding: 8px;">Pure data, no overhead</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px;"><strong>DevTools</strong></td>
+                <td style="padding: 8px;">IndexedDB storage footprint</td>
+                <td style="padding: 8px;">Includes indexes, metadata, tombstones</td>
+            </tr>
+        </table>
+        
+        <p><strong>Typical ratio:</strong> DevTools = 2-4x Extension measurement (due to database overhead)</p>
+    </div>
+
+    <p><em>Load the updated extension and check the console logs to see the new extension-specific measurements!</em></p>
+</body>
+</html>

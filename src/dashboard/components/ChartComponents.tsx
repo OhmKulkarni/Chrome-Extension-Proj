@@ -1999,119 +1999,217 @@ export const TrafficByEndpointChartTreemap: React.FC<ChartProps> = ({ networkReq
 
 // Method Usage Daily (Stacked Bar Chart)
 export const MethodUsageDailyChart: React.FC<ChartProps> = ({ networkRequests }) => {
-  console.log('MethodUsageDailyChart - networkRequests:', networkRequests?.length || 0);
+  try {
+    console.log('MethodUsageDailyChart - networkRequests:', networkRequests?.length || 0);
 
-  if (!networkRequests || networkRequests.length === 0) {
-    return (
-      <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
-        <div className="text-center text-gray-400">
-          <p>No network requests data available</p>
-          <p className="text-xs mt-2">No daily method usage data to display</p>
+    if (!networkRequests || networkRequests.length === 0) {
+      console.log('MethodUsageDailyChart - No data available');
+      return (
+        <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
+          <div className="text-center text-gray-400">
+            <p>No network requests data available</p>
+            <p className="text-xs mt-2">No daily method usage data to display</p>
+          </div>
         </div>
-      </div>
-    );
-  }
-
-  // State for chart type toggle
-  const [chartType, setChartType] = React.useState<'stacked' | 'line'>('stacked');
-
-  // Group requests by day and method
-  const dailyMethodData = networkRequests.reduce((acc, req) => {
-    const timestamp = req.timestamp ? new Date(req.timestamp) : new Date();
-    const method = (req.method || 'GET').toUpperCase();
-    
-    // Create day key (YYYY-MM-DD)
-    const dayKey = timestamp.toISOString().split('T')[0];
-    
-    if (!acc[dayKey]) {
-      acc[dayKey] = {
-        date: dayKey,
-        timestamp: timestamp.getTime(),
-        GET: 0,
-        POST: 0,
-        PUT: 0,
-        DELETE: 0,
-        PATCH: 0,
-        OPTIONS: 0,
-        HEAD: 0,
-        OTHER: 0,
-        total: 0
-      };
+      );
     }
-    
-    if (['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'].includes(method)) {
-      acc[dayKey][method as keyof typeof acc[typeof dayKey]] += 1;
-    } else {
-      acc[dayKey].OTHER += 1;
-    }
-    
-    acc[dayKey].total += 1;
-    
-    return acc;
-  }, {} as { [key: string]: { 
-    date: string; 
-    timestamp: number;
-    GET: number; 
-    POST: number; 
-    PUT: number; 
-    DELETE: number; 
-    PATCH: number; 
-    OPTIONS: number; 
-    HEAD: number; 
-    OTHER: number; 
-    total: number; 
-  } });
 
-  // Convert to chart data and sort by date
-  const chartData = Object.values(dailyMethodData)
-    .sort((a, b) => (a as any).timestamp - (b as any).timestamp)
-    .map((day: any) => ({
-      date: new Date(day.timestamp).toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric' 
-      }),
-      fullDate: day.date,
-      GET: day.GET,
-      POST: day.POST,
-      PUT: day.PUT,
-      DELETE: day.DELETE,
-      PATCH: day.PATCH,
-      OPTIONS: day.OPTIONS,
-      HEAD: day.HEAD,
-      OTHER: day.OTHER,
-      total: day.total
-    }));
-
-  console.log('MethodUsageDailyChart - chartData:', chartData.length, 'days');
-
-  // Determine which methods are actually used
-  const activeMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD', 'OTHER']
-    .filter(method => chartData.some(day => (day as any)[method] > 0));
-
-  // Method colors (consistent with other charts)
-  const methodColors = {
-    GET: '#10B981',     // Green
-    POST: '#3B82F6',    // Blue
-    PUT: '#F59E0B',     // Amber
-    DELETE: '#EF4444',  // Red
-    PATCH: '#8B5CF6',   // Purple
-    OPTIONS: '#6B7280', // Gray
-    HEAD: '#EC4899',    // Pink
-    OTHER: '#1F2937'    // Dark Gray
-  };
-
-  if (chartData.length === 0) {
-    return (
-      <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
-        <div className="text-center text-gray-400">
-          <p>No daily method data available</p>
-          <p className="text-xs mt-2">Request timestamps may be missing</p>
+    // Additional safety check for array structure
+    if (!Array.isArray(networkRequests)) {
+      console.error('MethodUsageDailyChart - networkRequests is not an array:', typeof networkRequests);
+      return (
+        <div className="h-96 bg-red-50 border border-red-200 rounded flex items-center justify-center">
+          <div className="text-center text-red-600">
+            <p className="font-medium">Data Type Error</p>
+            <p className="text-sm mt-2">Expected array but got {typeof networkRequests}</p>
+          </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  return (
+    // State for chart type toggle
+    const [chartType, setChartType] = React.useState<'stacked' | 'line'>('stacked');
+
+    // Group requests by day and method with enhanced error handling
+    let dailyMethodData;
+    try {
+      dailyMethodData = networkRequests.reduce((acc, req, index) => {
+        try {
+          // Additional safety checks
+          if (!req) {
+            console.warn(`Request ${index} is null/undefined`);
+            return acc;
+          }
+
+          const timestamp = req.timestamp ? new Date(req.timestamp) : new Date();
+          const method = (req.method || 'GET').toUpperCase();
+          
+          // Validate timestamp
+          if (isNaN(timestamp.getTime())) {
+            console.warn(`Invalid timestamp for request ${index}:`, req.timestamp);
+            return acc;
+          }
+          
+          // Create day key (YYYY-MM-DD)
+          const dayKey = timestamp.toISOString().split('T')[0];
+          
+          if (!acc[dayKey]) {
+            acc[dayKey] = {
+              date: dayKey,
+              timestamp: timestamp.getTime(),
+              GET: 0,
+              POST: 0,
+              PUT: 0,
+              DELETE: 0,
+              PATCH: 0,
+              OPTIONS: 0,
+              HEAD: 0,
+              OTHER: 0,
+              total: 0
+            };
+          }
+          
+          if (['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'].includes(method)) {
+            acc[dayKey][method as keyof typeof acc[typeof dayKey]] += 1;
+          } else {
+            acc[dayKey].OTHER += 1;
+          }
+          
+          acc[dayKey].total += 1;
+          
+          return acc;
+        } catch (error) {
+          console.warn(`Error processing request ${index}:`, error, req);
+          return acc;
+        }
+      }, {} as { [key: string]: { 
+        date: string; 
+        timestamp: number;
+        GET: number; 
+        POST: number; 
+        PUT: number; 
+        DELETE: number; 
+        PATCH: number; 
+        OPTIONS: number; 
+        HEAD: number; 
+        OTHER: number; 
+        total: number; 
+      } });
+    } catch (error) {
+      console.error('Error in reduce operation:', error);
+      return (
+        <div className="h-96 bg-red-50 border border-red-200 rounded flex items-center justify-center">
+          <div className="text-center text-red-600">
+            <p className="font-medium">Data Processing Error</p>
+            <p className="text-sm mt-2">Failed to process network requests data</p>
+            <p className="text-xs mt-1">{error instanceof Error ? error.message : 'Unknown error'}</p>
+          </div>
+        </div>
+      );
+    }
+
+    console.log('MethodUsageDailyChart - Processed daily data:', Object.keys(dailyMethodData).length, 'days');
+
+    // Convert to chart data and sort by date with error handling
+    let chartData;
+    try {
+      chartData = Object.values(dailyMethodData)
+        .sort((a, b) => (a as any).timestamp - (b as any).timestamp)
+        .map((day: any) => {
+          try {
+            // Ensure all required properties exist with default values
+            const processedDay = {
+              date: new Date(day.timestamp).toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric' 
+              }),
+              fullDate: day.date || '',
+              GET: Number(day.GET) || 0,
+              POST: Number(day.POST) || 0,
+              PUT: Number(day.PUT) || 0,
+              DELETE: Number(day.DELETE) || 0,
+              PATCH: Number(day.PATCH) || 0,
+              OPTIONS: Number(day.OPTIONS) || 0,
+              HEAD: Number(day.HEAD) || 0,
+              OTHER: Number(day.OTHER) || 0,
+              total: Number(day.total) || 0
+            };
+            
+            // Validate that the processed day has valid data
+            if (processedDay.total === 0) {
+              console.warn('Day with zero total requests:', processedDay);
+            }
+            
+            return processedDay;
+          } catch (error) {
+            console.warn('Error formatting day data:', error, day);
+            return null;
+          }
+        })
+        .filter(day => day !== null && day !== undefined);
+
+      console.log('MethodUsageDailyChart - chartData:', chartData.length, 'days');
+      console.log('MethodUsageDailyChart - first chart item:', chartData[0]);
+    } catch (error) {
+      console.error('Error converting daily data to chart format:', error);
+      return (
+        <div className="h-96 bg-red-50 border border-red-200 rounded flex items-center justify-center">
+          <div className="text-center text-red-600">
+            <p className="font-medium">Chart Data Processing Error</p>
+            <p className="text-sm mt-2">Failed to process daily method data</p>
+            <p className="text-xs mt-1">{error instanceof Error ? error.message : 'Unknown error'}</p>
+          </div>
+        </div>
+      );
+    }
+
+    // Determine which methods are actually used
+    let activeMethods: string[];
+    try {
+      activeMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD', 'OTHER']
+        .filter(method => {
+          try {
+            return chartData && Array.isArray(chartData) && chartData.some(day => {
+              return day && typeof day === 'object' && (day as any)[method] > 0;
+            });
+          } catch (error) {
+            console.warn(`Error checking method ${method}:`, error);
+            return false;
+          }
+        });
+    } catch (error) {
+      console.error('Error determining active methods:', error);
+      activeMethods = [];
+    }
+
+    console.log('MethodUsageDailyChart - activeMethods:', activeMethods);
+    console.log('MethodUsageDailyChart - chartData sample:', chartData.slice(0, 2));
+
+    // Method colors (consistent with other charts)
+    const methodColors = {
+      GET: '#10B981',     // Green
+      POST: '#3B82F6',    // Blue
+      PUT: '#F59E0B',     // Amber
+      DELETE: '#EF4444',  // Red
+      PATCH: '#8B5CF6',   // Purple
+      OPTIONS: '#6B7280', // Gray
+      HEAD: '#EC4899',    // Pink
+      OTHER: '#1F2937'    // Dark Gray
+    };
+
+    // Additional safety check for chart data and active methods
+    if (chartData.length === 0 || activeMethods.length === 0) {
+      return (
+        <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
+          <div className="text-center text-gray-400">
+            <p>No valid chart data available</p>
+            <p className="text-xs mt-2">
+              {chartData.length === 0 ? 'No processed daily data' : 'No HTTP methods found in data'}
+            </p>
+          </div>
+        </div>
+      );
+    }  return (
     <div className="space-y-4">
       {/* Controls */}
       <div className="flex justify-between items-center">
@@ -2145,82 +2243,110 @@ export const MethodUsageDailyChart: React.FC<ChartProps> = ({ networkRequests })
 
       {/* Stacked Bar Chart */}
       {chartType === 'stacked' && (
-        <ResponsiveContainer width="100%" height={400}>
-          <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis 
-              dataKey="date" 
-              angle={-45}
-              textAnchor="end"
-              height={80}
-              fontSize={12}
-            />
-            <YAxis />
-            <Tooltip 
-              formatter={(value, name) => [`${value} requests`, String(name)]}
-              labelFormatter={(label) => `Date: ${label}`}
-            />
-            <Legend />
-            
-            {activeMethods.map(method => (
-              <Bar 
-                key={method}
-                dataKey={method} 
-                stackId="methods"
-                fill={methodColors[method as keyof typeof methodColors]}
-                name={method}
-              />
-            ))}
-          </BarChart>
-        </ResponsiveContainer>
+        <div>
+          <div className="text-xs text-gray-500 mb-2">
+            Debug: chartData length: {chartData.length}, activeMethods: {activeMethods.join(', ')}
+          </div>
+          {chartData.length > 0 && activeMethods.length > 0 ? (
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="date" 
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                  fontSize={12}
+                />
+                <YAxis />
+                <Tooltip 
+                  formatter={(value, name) => [`${value} requests`, String(name)]}
+                  labelFormatter={(label) => `Date: ${label}`}
+                />
+                <Legend />
+                
+                {activeMethods.map(method => (
+                  <Bar 
+                    key={method}
+                    dataKey={method} 
+                    stackId="methods"
+                    fill={methodColors[method as keyof typeof methodColors] || '#6B7280'}
+                    name={method}
+                  />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-96 bg-yellow-50 border border-yellow-200 rounded flex items-center justify-center">
+              <div className="text-center text-yellow-600">
+                <p className="font-medium">Chart Data Issue</p>
+                <p className="text-sm mt-2">chartData: {chartData.length}, activeMethods: {activeMethods.length}</p>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Line Chart */}
       {chartType === 'line' && (
-        <ResponsiveContainer width="100%" height={400}>
-          <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis 
-              dataKey="date" 
-              angle={-45}
-              textAnchor="end"
-              height={80}
-              fontSize={12}
-            />
-            <YAxis />
-            <Tooltip 
-              formatter={(value, name) => [`${value} requests`, String(name)]}
-              labelFormatter={(label) => `Date: ${label}`}
-            />
-            <Legend />
-            
-            {activeMethods.map(method => (
-              <Line 
-                key={method}
-                type="monotone" 
-                dataKey={method} 
-                stroke={methodColors[method as keyof typeof methodColors]}
-                strokeWidth={2}
-                name={method}
-                dot={{ fill: methodColors[method as keyof typeof methodColors], strokeWidth: 2, r: 3 }}
-              />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
+        <div>
+          <div className="text-xs text-gray-500 mb-2">
+            Debug: Line chart data length: {chartData.length}, activeMethods: {activeMethods.join(', ')}
+          </div>
+          {chartData.length > 0 && activeMethods.length > 0 ? (
+            <ResponsiveContainer width="100%" height={400}>
+              <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="date" 
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                  fontSize={12}
+                />
+                <YAxis />
+                <Tooltip 
+                  formatter={(value, name) => [`${value} requests`, String(name)]}
+                  labelFormatter={(label) => `Date: ${label}`}
+                />
+                <Legend />
+                
+                {activeMethods.map(method => (
+                  <Line 
+                    key={method}
+                    type="monotone" 
+                    dataKey={method} 
+                    stroke={methodColors[method as keyof typeof methodColors] || '#6B7280'}
+                    strokeWidth={2}
+                    name={method}
+                    dot={{ fill: methodColors[method as keyof typeof methodColors] || '#6B7280', strokeWidth: 2, r: 3 }}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-96 bg-yellow-50 border border-yellow-200 rounded flex items-center justify-center">
+              <div className="text-center text-yellow-600">
+                <p className="font-medium">Line Chart Data Issue</p>
+                <p className="text-sm mt-2">chartData: {chartData.length}, activeMethods: {activeMethods.length}</p>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Summary Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-        {activeMethods.slice(0, 4).map(method => {
-          const total = chartData.reduce((sum, day) => sum + (day as any)[method], 0);
-          const percentage = ((total / networkRequests.length) * 100).toFixed(1);
+        {activeMethods && activeMethods.length > 0 ? activeMethods.slice(0, 4).map(method => {
+          const total = chartData.reduce((sum, day) => sum + ((day as any)[method] || 0), 0);
+          const percentage = networkRequests.length > 0 ? ((total / networkRequests.length) * 100).toFixed(1) : '0.0';
           
           return (
             <div key={method} className="bg-gray-50 p-3 rounded">
               <div className="flex items-center gap-2 mb-1">
                 <div 
                   className="w-3 h-3 rounded" 
-                  style={{ backgroundColor: methodColors[method as keyof typeof methodColors] }}
+                  style={{ backgroundColor: methodColors[method as keyof typeof methodColors] || '#6B7280' }}
                 />
                 <span className="font-medium">{method}</span>
               </div>
@@ -2229,10 +2355,26 @@ export const MethodUsageDailyChart: React.FC<ChartProps> = ({ networkRequests })
               </div>
             </div>
           );
-        })}
+        }) : (
+          <div className="col-span-4 text-center text-gray-400">
+            <p>No method statistics available</p>
+          </div>
+        )}
       </div>
     </div>
   );
+  } catch (error) {
+    console.error('MethodUsageDailyChart - Unexpected error:', error);
+    return (
+      <div className="h-96 bg-red-50 border border-red-200 rounded flex items-center justify-center">
+        <div className="text-center text-red-600">
+          <p className="font-medium">Chart Error</p>
+          <p className="text-sm mt-2">Method Usage Daily Chart failed to render</p>
+          <p className="text-xs mt-1">{error instanceof Error ? error.message : 'Unknown error'}</p>
+        </div>
+      </div>
+    );
+  }
 };
 
 // Status Code Breakdown (Enhanced)

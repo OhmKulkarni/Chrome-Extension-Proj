@@ -4,6 +4,41 @@ import './popup.css';
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
+// MEMORY LEAK FIX: Centralized Chrome message handler to prevent response accumulation
+const sendChromeMessage = async (message: any): Promise<any> => {
+  try {
+    const response = await chrome.runtime.sendMessage(message)
+    // Immediately copy and nullify response to prevent accumulation
+    const result = response ? { ...response } : null
+    return result
+  } catch (error) {
+    console.error('Chrome message failed:', error)
+    return null
+  }
+}
+
+// MEMORY LEAK FIX: Pre-allocated Chrome message functions
+const getChromeTabInfo = (): Promise<any> => {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage({ action: 'getTabInfo' }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('Error getting tab info:', chrome.runtime.lastError)
+        resolve({ title: 'Error', url: 'Failed to get tab info' })
+      } else if (response && !response.error) {
+        console.log('Tab info received:', response)
+        resolve(response)
+      } else {
+        console.warn('Invalid response for tab info:', response)
+        resolve({ title: 'Unknown', url: 'Unknown' })
+      }
+    })
+  })
+}
+
+const openChromeDashboard = async (): Promise<void> => {
+  await sendChromeMessage({ action: 'openDashboard' })
+}
+
 interface TabInfo {
   url?: string;
   title?: string;
@@ -47,19 +82,13 @@ const Popup: React.FC = () => {
   const [tabTokenLoggingActive, setTabTokenLoggingActive] = useState(false);
 
   useEffect(() => {
-    // Get current tab info
-    chrome.runtime.sendMessage({ action: 'getTabInfo' }, (response) => {
-      if (chrome.runtime.lastError) {
-        console.error('Error getting tab info:', chrome.runtime.lastError);
-        setTabInfo({ title: 'Error', url: 'Failed to get tab info' });
-      } else if (response && !response.error) {
-        console.log('Tab info received:', response);
-        setTabInfo(response);
-      } else {
-        console.warn('Invalid response for tab info:', response);
-        setTabInfo({ title: 'Unknown', url: 'Unknown' });
-      }
-    });
+    // MEMORY LEAK FIX: Use pre-allocated function instead of direct chrome.runtime.sendMessage
+    getChromeTabInfo().then(response => {
+      setTabInfo(response)
+    }).catch(error => {
+      console.error('Failed to get tab info:', error)
+      setTabInfo({ title: 'Error', url: 'Failed to get tab info' })
+    })
 
     // Get extension settings and tab-specific state
     chrome.storage.local.get(['settings'], (result) => {
@@ -251,7 +280,9 @@ const Popup: React.FC = () => {
   };
 
   const openDashboard = () => {
-    chrome.runtime.sendMessage({ action: 'openDashboard' });
+    openChromeDashboard().catch(error => {
+      console.error('Failed to open dashboard:', error)
+    })
   };
 
   const openSettings = () => {

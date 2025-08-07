@@ -14,8 +14,68 @@ export interface PerformanceMetrics {
 export class PerformanceMonitor {
   private metrics: PerformanceMetrics[] = []
   private startTimes: Map<string, number> = new Map()
+  private static readonly MAX_METRICS = 1000 // Limit metrics array size
+  private static readonly MAX_START_TIMES = 100 // Limit startTimes Map size
+  private static readonly CLEANUP_INTERVAL = 5 * 60 * 1000 // 5 minutes
+  private cleanupTimer: number | null = null
 
-  constructor(private enableLogging: boolean = true) {}
+  constructor(private enableLogging: boolean = true) {
+    // Start automatic cleanup
+    this.startAutoCleanup()
+  }
+
+  // MEMORY LEAK FIX: Automatic cleanup to prevent unbounded growth
+  private startAutoCleanup(): void {
+    this.cleanupTimer = window.setInterval(() => {
+      this.performCleanup()
+    }, PerformanceMonitor.CLEANUP_INTERVAL)
+  }
+
+  // MEMORY LEAK FIX: Comprehensive cleanup method
+  private performCleanup(): void {
+    // Limit metrics array size
+    if (this.metrics.length > PerformanceMonitor.MAX_METRICS) {
+      this.metrics = this.metrics.slice(-PerformanceMonitor.MAX_METRICS / 2) // Keep newest half
+    }
+
+    // Clean up orphaned start times (operations that never ended)
+    const now = performance.now()
+    const orphanThreshold = 10 * 60 * 1000 // 10 minutes
+    const toDelete: string[] = []
+    
+    this.startTimes.forEach((startTime, operation) => {
+      if (now - startTime > orphanThreshold) {
+        toDelete.push(operation)
+      }
+    })
+    
+    toDelete.forEach(operation => {
+      this.startTimes.delete(operation)
+      if (this.enableLogging) {
+        console.warn(`[PerfMonitor] 🧹 Cleaned up orphaned operation: ${operation}`)
+      }
+    })
+
+    // Limit startTimes Map size
+    if (this.startTimes.size > PerformanceMonitor.MAX_START_TIMES) {
+      const operations = Array.from(this.startTimes.keys())
+      operations.slice(0, this.startTimes.size - PerformanceMonitor.MAX_START_TIMES / 2)
+        .forEach(op => this.startTimes.delete(op))
+    }
+
+    // Auto-prune old metrics
+    this.pruneMetrics()
+  }
+
+  // MEMORY LEAK FIX: Cleanup method for component unmount
+  destroy(): void {
+    if (this.cleanupTimer !== null) {
+      window.clearInterval(this.cleanupTimer)
+      this.cleanupTimer = null
+    }
+    this.metrics = []
+    this.startTimes.clear()
+  }
 
   // Start timing an operation
   startOperation(operation: string): void {
@@ -71,7 +131,11 @@ export class PerformanceMonitor {
       ...additionalData
     }
 
+    // MEMORY LEAK FIX: Prevent unbounded growth
     this.metrics.push(metric)
+    if (this.metrics.length > PerformanceMonitor.MAX_METRICS) {
+      this.metrics = this.metrics.slice(-PerformanceMonitor.MAX_METRICS / 2) // Keep newest half
+    }
 
     if (this.enableLogging) {
       console.log(`[PerfMonitor] ✅ ${operation}: ${duration.toFixed(2)}ms`, {
@@ -195,3 +259,10 @@ export class PerformanceMonitor {
 
 // Global performance monitor instance
 export const performanceMonitor = new PerformanceMonitor()
+
+// MEMORY LEAK FIX: Cleanup global instance on window unload
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    performanceMonitor.destroy()
+  })
+}

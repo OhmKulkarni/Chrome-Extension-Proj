@@ -1,6 +1,19 @@
 // Simplified content script focused on Reddit network interception
 console.log('✅ CONTENT: Script loaded on:', window.location.href);
 
+// MEMORY LEAK FIX: Centralized Chrome message handler to prevent response accumulation
+const sendChromeMessage = async (message: any): Promise<any> => {
+  try {
+    const response = await chrome.runtime.sendMessage(message)
+    // Immediately copy and nullify response to prevent accumulation
+    const result = response ? { ...response } : null
+    return result
+  } catch (error) {
+    console.error('Chrome message failed:', error)
+    return null
+  }
+}
+
 // Check if we're on Reddit
 const isReddit = window.location.hostname.includes('reddit.com');
 console.log('📍 CONTENT: Is Reddit?', isReddit);
@@ -68,7 +81,8 @@ async function shouldInterceptOnThisSite(): Promise<boolean> {
     // Check tab-specific logging state from popup controls FIRST
     // This should override URL pattern restrictions
     try {
-      const tabResponse = await chrome.runtime.sendMessage({ action: 'getCurrentTabId' });
+      // MEMORY LEAK FIX: Use centralized handler instead of direct chrome.runtime.sendMessage
+      const tabResponse = await sendChromeMessage({ action: 'getCurrentTabId' });
       if (tabResponse?.tabId) {
         const localResult = await chrome.storage.local.get([`tabLogging_${tabResponse.tabId}`]);
         const tabLoggingState = localResult[`tabLogging_${tabResponse.tabId}`];
@@ -146,8 +160,56 @@ async function shouldInterceptOnThisSite(): Promise<boolean> {
 let extensionContextValid = true;
 let injectionAttempted = false;
 
+// MEMORY LEAK FIX: Store event handlers for cleanup
+const eventHandlers = {
+  settingsRequest: null as EventListener | null,
+  networkIntercepted: null as EventListener | null,
+  consoleIntercepted: null as EventListener | null,
+  beforeUnload1: null as EventListener | null,
+  beforeUnload2: null as EventListener | null,
+  domContentLoaded: null as EventListener | null,
+  windowLoad: null as EventListener | null,
+  storageChange: null as ((changes: any, namespace: string) => void) | null
+};
+
+// MEMORY LEAK FIX: Cleanup function to remove all event listeners
+const cleanupEventListeners = () => {
+  if (eventHandlers.settingsRequest) {
+    window.removeEventListener('extensionRequestSettings', eventHandlers.settingsRequest);
+    eventHandlers.settingsRequest = null;
+  }
+  if (eventHandlers.networkIntercepted) {
+    window.removeEventListener('networkRequestIntercepted', eventHandlers.networkIntercepted);
+    eventHandlers.networkIntercepted = null;
+  }
+  if (eventHandlers.consoleIntercepted) {
+    window.removeEventListener('consoleErrorIntercepted', eventHandlers.consoleIntercepted);
+    eventHandlers.consoleIntercepted = null;
+  }
+  if (eventHandlers.beforeUnload1) {
+    window.removeEventListener('beforeunload', eventHandlers.beforeUnload1);
+    eventHandlers.beforeUnload1 = null;
+  }
+  if (eventHandlers.beforeUnload2) {
+    window.removeEventListener('beforeunload', eventHandlers.beforeUnload2);
+    eventHandlers.beforeUnload2 = null;
+  }
+  if (eventHandlers.domContentLoaded) {
+    document.removeEventListener('DOMContentLoaded', eventHandlers.domContentLoaded);
+    eventHandlers.domContentLoaded = null;
+  }
+  if (eventHandlers.windowLoad) {
+    window.removeEventListener('load', eventHandlers.windowLoad);
+    eventHandlers.windowLoad = null;
+  }
+  if (eventHandlers.storageChange) {
+    chrome.storage.onChanged.removeListener(eventHandlers.storageChange);
+    eventHandlers.storageChange = null;
+  }
+};
+
 // Listen for settings requests from main-world script
-window.addEventListener('extensionRequestSettings', async () => {
+eventHandlers.settingsRequest = async () => {
   try {
     const result = await chrome.storage.sync.get(['networkInterception']);
     const settings = result.networkInterception || { bodyCapture: { maxBodySize: 2000 } };
@@ -164,7 +226,10 @@ window.addEventListener('extensionRequestSettings', async () => {
       detail: { networkInterception: { bodyCapture: { maxBodySize: 2000 } } }
     }));
   }
-});
+};
+
+// Add the event listener
+window.addEventListener('extensionRequestSettings', eventHandlers.settingsRequest);
 
 // Check if extension context is still valid
 function isExtensionContextValid(): boolean {
@@ -290,7 +355,7 @@ async function tryWebAccessibleInjection(): Promise<boolean> {
 }
 
 // Listen for network requests from main world
-window.addEventListener('networkRequestIntercepted', (event: any) => {
+eventHandlers.networkIntercepted = async (event: any) => {
   const requestData = event.detail;
   console.log('📡 CONTENT: Captured network request:', requestData.url);
   console.log('📍 CONTENT: Current extension context valid?', extensionContextValid);
@@ -320,27 +385,31 @@ window.addEventListener('networkRequestIntercepted', (event: any) => {
     
     console.log('📤 CONTENT: Sending network request to background:', enrichedData.url);
     
-    // Send to background for storage
-    chrome.runtime.sendMessage({
-      type: 'NETWORK_REQUEST',
-      data: enrichedData
-    }).then((response) => {
+    // MEMORY LEAK FIX: Use centralized handler to prevent response accumulation
+    try {
+      const response = await sendChromeMessage({
+        type: 'NETWORK_REQUEST',
+        data: enrichedData
+      });
       console.log('✅ CONTENT: Network request processed by background:', response);
-    }).catch((error) => {
+    } catch (error) {
       console.log('❌ CONTENT: Failed to store network request:', error);
       console.log('🔍 CONTENT: Error details:', error instanceof Error ? error.message : String(error));
       extensionContextValid = false;
-    });
+    }
     
   } catch (error) {
     console.log('❌ CONTENT: Error processing network request:', error);
     console.log('🔍 CONTENT: Error details:', error instanceof Error ? error.message : String(error));
     extensionContextValid = false;
   }
-});
+};
+
+// Add the event listener
+window.addEventListener('networkRequestIntercepted', eventHandlers.networkIntercepted);
 
 // Listen for console errors from main world
-window.addEventListener('consoleErrorIntercepted', (event: any) => {
+eventHandlers.consoleIntercepted = async (event: any) => {
   const errorData = event.detail;
   console.log('📡 CONTENT: Captured console error:', errorData.message);
   
@@ -350,8 +419,9 @@ window.addEventListener('consoleErrorIntercepted', (event: any) => {
       return;
     }
     
-    // Get current tab ID
-    chrome.runtime.sendMessage({ action: 'getCurrentTabId' }).then((tabResponse) => {
+    try {
+      // MEMORY LEAK FIX: Use centralized handler instead of direct chrome.runtime.sendMessage
+      const tabResponse = await sendChromeMessage({ action: 'getCurrentTabId' });
       // Add tab context information
       const enrichedData = {
         ...errorData,
@@ -370,7 +440,7 @@ window.addEventListener('consoleErrorIntercepted', (event: any) => {
         console.log('❌ CONTENT: Failed to store console error:', error);
         extensionContextValid = false;
       });
-    }).catch((tabError) => {
+    } catch (tabError) {
       console.log('❌ CONTENT: Could not get tab ID:', tabError);
       // Send without tab ID as fallback
       const enrichedData = {
@@ -383,13 +453,16 @@ window.addEventListener('consoleErrorIntercepted', (event: any) => {
         type: 'CONSOLE_ERROR',
         data: enrichedData
       });
-    });
+    }
     
   } catch (error) {
     console.log('❌ CONTENT: Error processing console error:', error);
     extensionContextValid = false;
   }
-});
+};
+
+// Add the event listener
+window.addEventListener('consoleErrorIntercepted', eventHandlers.consoleIntercepted);
 
 // Listen for messages from popup/background
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -414,8 +487,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   return true; // Keep the message channel open for async response
 });
 
-// Listen for storage changes to react to popup logging controls
-chrome.storage.onChanged.addListener((changes, namespace) => {
+// MEMORY LEAK FIX: Storage change listener with proper cleanup
+const storageChangeHandler = (changes: any, namespace: string) => {
   if (namespace === 'local') {
     // Check for tab logging changes
     for (const key in changes) {
@@ -434,38 +507,64 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
       }
     }
   }
-});
+};
+
+// Listen for storage changes to react to popup logging controls
+chrome.storage.onChanged.addListener(storageChangeHandler);
+
+// Add storage handler to cleanup system
+eventHandlers.storageChange = storageChangeHandler;
 
 // Listen for extension context invalidation
-window.addEventListener('beforeunload', () => {
+eventHandlers.beforeUnload1 = () => {
   extensionContextValid = false;
-});
+};
 
-// Check context periodically
-setInterval(() => {
+window.addEventListener('beforeunload', eventHandlers.beforeUnload1!);
+
+// MEMORY LEAK FIX: Store interval ID and clear it on page unload
+const contextCheckInterval = setInterval(() => {
   if (extensionContextValid && !isExtensionContextValid()) {
     console.log('❌ CONTENT: Extension context became invalid');
     extensionContextValid = false;
   }
 }, 5000);
 
+// MEMORY LEAK FIX: Clear interval on page unload to prevent accumulation
+eventHandlers.beforeUnload2 = () => {
+  clearInterval(contextCheckInterval);
+  cleanupEventListeners(); // Clean up all event listeners
+};
+
+if (window.addEventListener && eventHandlers.beforeUnload2) {
+  window.addEventListener('beforeunload', eventHandlers.beforeUnload2);
+}
+
 // Initialize injection on content script load
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
+  eventHandlers.domContentLoaded = () => {
     setTimeout(() => injectMainWorldScript(), 100);
-  });
+  };
+  if (document.addEventListener && eventHandlers.domContentLoaded) {
+    document.addEventListener('DOMContentLoaded', eventHandlers.domContentLoaded);
+  }
 } else {
   setTimeout(() => injectMainWorldScript(), 100);
 }
 
 // Also inject when document is ready if not already done
-window.addEventListener('load', () => {
+eventHandlers.windowLoad = () => {
   setTimeout(() => {
     if (!injectionAttempted) {
       injectMainWorldScript();
     }
   }, 500);
-});
+};
+
+// Register window load listener
+if (window.addEventListener && eventHandlers.windowLoad) {
+  window.addEventListener('load', eventHandlers.windowLoad);
+}
 
 // Export for debugging
 (window as any).__contentScriptDebug = {

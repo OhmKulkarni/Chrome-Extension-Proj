@@ -16,12 +16,12 @@ import {
   ErrorFrequencyOverTimeChart,
   LatencyOverTimeChart,
   TrafficByEndpointChart,
-  MethodUsageDailyChart,
   StatusCodeBreakdownChartNew,
   PayloadSizeDistributionChart,
   RequestsByTimeOfDayChart,
   RequestsByDomainChart
 } from './ChartComponents';
+import { SimpleTestChart } from './SimpleTestChart';
 
 interface StatisticsCardProps {
   networkRequests: any[];
@@ -235,65 +235,115 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     );
   }, [chartDefinitions, chartSearch]);
 
-  // Chart renderer function
+  // Chart renderer function with error boundary
   const renderChart = (chartKey: string) => {
-    const chartData = {
-      data: globalStats,
-      networkRequests: debugNetworkRequests,
-      consoleErrors: debugConsoleErrors,
-      tokenEvents: debugTokenEvents
-    };
+    try {
+      const chartData = {
+        data: globalStats,
+        networkRequests: debugNetworkRequests,
+        consoleErrors: debugConsoleErrors,
+        tokenEvents: debugTokenEvents
+      };
 
-    console.log('Rendering chart:', chartKey, 'with data:', {
-      networkRequests: debugNetworkRequests?.length || 0,
-      consoleErrors: debugConsoleErrors?.length || 0,
-      tokenEvents: debugTokenEvents?.length || 0
-    });
+      console.log('Rendering chart:', chartKey, 'with data:', {
+        networkRequests: debugNetworkRequests?.length || 0,
+        consoleErrors: debugConsoleErrors?.length || 0,
+        tokenEvents: debugTokenEvents?.length || 0
+      });
 
-    switch (chartKey) {
-      case 'requests-over-time':
-        return <RequestsOverTimeChart {...chartData} />;
-      case 'http-method-distribution':
-        return <HttpMethodDistributionChart {...chartData} />;
-      case 'status-code-breakdown':
-        return <StatusCodeBreakdownChartNew {...chartData} />;
-      case 'top-endpoints-by-volume':
-        return <TopEndpointsByVolumeChart {...chartData} />;
-      case 'avg-response-time-per-route':
-        return <AvgResponseTimePerRouteChart {...chartData} />;
-      case 'auth-failures-vs-success':
-        return <AuthFailuresVsSuccessChart {...chartData} />;
-      case 'top-frequent-errors':
-        return <TopFrequentErrorsChart {...chartData} />;
-      case 'error-frequency-over-time':
-        return <ErrorFrequencyOverTimeChart {...chartData} />;
-      case 'latency-over-time':
-        return <LatencyOverTimeChart {...chartData} />;
-      case 'traffic-by-endpoint':
-        return <TrafficByEndpointChart {...chartData} />;
-      case 'method-usage-daily':
-        return <MethodUsageDailyChart {...chartData} />;
-      case 'payload-size-distribution':
-        return <PayloadSizeDistributionChart {...chartData} />;
-      case 'requests-by-time-of-day':
-        return <RequestsByTimeOfDayChart {...chartData} />;
-      case 'requests-by-domain':
-        return <RequestsByDomainChart {...chartData} />;
-      default:
+      // MEMORY LEAK FIX: Add detailed logging for method-usage-daily chart
+      if (chartKey === 'method-usage-daily') {
+        console.log('MethodUsageDailyChart - Detailed data inspection:');
+        console.log('- debugNetworkRequests type:', typeof debugNetworkRequests);
+        console.log('- debugNetworkRequests isArray:', Array.isArray(debugNetworkRequests));
+        console.log('- Sample request data:', debugNetworkRequests?.[0]);
+        console.log('- Sample timestamp:', debugNetworkRequests?.[0]?.timestamp);
+        console.log('- Sample method:', debugNetworkRequests?.[0]?.method);
+      }
+
+      // MEMORY LEAK FIX: Add null checks for chart data
+      if (!chartData.networkRequests) {
+        console.warn('Chart rendering skipped - no network requests data');
         return (
           <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
             <div className="text-center text-gray-400">
-              <BarChart3 className="h-16 w-16 mx-auto mb-4" />
-              <p className="text-lg font-medium">Chart Implementation Pending</p>
-              <p className="text-sm">
-                {chartDefinitions[chartKey]?.name} ({chartDefinitions[chartKey]?.type})
-              </p>
-              <p className="text-xs mt-2 max-w-md mx-auto">
-                {chartDefinitions[chartKey]?.tooltip}
-              </p>
+              <p>No data available for chart</p>
+              <p className="text-xs mt-2">Network requests data is missing</p>
             </div>
           </div>
         );
+      }
+
+      switch (chartKey) {
+        case 'requests-over-time':
+          return <RequestsOverTimeChart {...chartData} />;
+        case 'http-method-distribution':
+          return <HttpMethodDistributionChart {...chartData} />;
+        case 'status-code-breakdown':
+          return <StatusCodeBreakdownChartNew {...chartData} />;
+        case 'top-endpoints-by-volume':
+          return <TopEndpointsByVolumeChart {...chartData} />;
+        case 'avg-response-time-per-route':
+          return <AvgResponseTimePerRouteChart {...chartData} />;
+        case 'auth-failures-vs-success':
+          return <AuthFailuresVsSuccessChart {...chartData} />;
+        case 'top-frequent-errors':
+          return <TopFrequentErrorsChart {...chartData} />;
+        case 'error-frequency-over-time':
+          return <ErrorFrequencyOverTimeChart {...chartData} />;
+        case 'latency-over-time':
+          return <LatencyOverTimeChart {...chartData} />;
+        case 'traffic-by-endpoint':
+          return <TrafficByEndpointChart {...chartData} />;
+        case 'method-usage-daily':
+          try {
+            console.log('About to render SimpleTestChart instead of MethodUsageDailyChart');
+            return <SimpleTestChart networkRequests={chartData.networkRequests} />;
+          } catch (chartError) {
+            console.error('SimpleTestChart specific error:', chartError);
+            return (
+              <div className="h-96 bg-red-50 border border-red-200 rounded flex items-center justify-center">
+                <div className="text-center text-red-600">
+                  <p className="font-medium">Simple Test Chart Error</p>
+                  <p className="text-sm mt-2">Even the simple chart failed to render</p>
+                  <p className="text-xs mt-1">{chartError instanceof Error ? chartError.message : 'Unknown error'}</p>
+                </div>
+              </div>
+            );
+          }
+        case 'payload-size-distribution':
+          return <PayloadSizeDistributionChart {...chartData} />;
+        case 'requests-by-time-of-day':
+          return <RequestsByTimeOfDayChart {...chartData} />;
+        case 'requests-by-domain':
+          return <RequestsByDomainChart {...chartData} />;
+        default:
+          return (
+            <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
+              <div className="text-center text-gray-400">
+                <BarChart3 className="h-16 w-16 mx-auto mb-4" />
+                <p className="text-lg font-medium">Chart Implementation Pending</p>
+                <p className="text-sm">
+                  {chartDefinitions[chartKey]?.name} ({chartDefinitions[chartKey]?.type})
+                </p>
+                <p className="text-xs mt-2 max-w-md mx-auto">
+                  {chartDefinitions[chartKey]?.tooltip}
+                </p>
+              </div>
+            </div>
+          );
+      }
+    } catch (error) {
+      console.error('Chart rendering error:', error);
+      return (
+        <div className="h-96 bg-red-50 border border-red-200 rounded flex items-center justify-center">
+          <div className="text-center text-red-600">
+            <p className="font-medium">Chart Error</p>
+            <p className="text-sm mt-2">Failed to render {chartDefinitions[chartKey]?.name}</p>
+            <p className="text-xs mt-1">{error instanceof Error ? error.message : 'Unknown error'}</p>
+          </div>
+        </div>
+      );
     }
   };
 

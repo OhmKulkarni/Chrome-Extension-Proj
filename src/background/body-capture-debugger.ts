@@ -25,6 +25,13 @@ class BodyCaptureDebugger {
   private settings: any = null;
   private initialized = false;
   private apiAvailable = false;
+  
+  // MEMORY LEAK FIX: Event listener cleanup tracking
+  private eventListeners: {
+    storageHandler?: (changes: any) => void;
+    debuggerEventHandler?: (source: any, method: string, params?: any) => void;
+    debuggerDetachHandler?: (source: any, reason: string) => void;
+  } = {};
 
   async initialize() {
     // Wait a bit to ensure Chrome APIs are fully loaded
@@ -65,16 +72,20 @@ class BodyCaptureDebugger {
     await this.loadSettings();
     
     // Listen for settings changes
-    chrome.storage.onChanged.addListener((changes) => {
+    this.eventListeners.storageHandler = (changes) => {
       if (changes.settings) {
         this.loadSettings();
       }
-    });
+    };
+    chrome.storage.onChanged.addListener(this.eventListeners.storageHandler);
 
     try {
-      // Listen for debugger events
-      chrome.debugger.onEvent.addListener(this.onDebuggerEvent.bind(this));
-      chrome.debugger.onDetach.addListener(this.onDebuggerDetach.bind(this));
+      // Listen for debugger events - MEMORY LEAK FIX: Store handlers for cleanup
+      this.eventListeners.debuggerEventHandler = this.onDebuggerEvent.bind(this);
+      this.eventListeners.debuggerDetachHandler = this.onDebuggerDetach.bind(this);
+      
+      chrome.debugger.onEvent.addListener(this.eventListeners.debuggerEventHandler);
+      chrome.debugger.onDetach.addListener(this.eventListeners.debuggerDetachHandler);
       this.initialized = true;
       console.log('[BodyCaptureDebugger] Initialized successfully');
     } catch (error) {
@@ -440,6 +451,44 @@ class BodyCaptureDebugger {
     }
 
     return requestIds;
+  }
+  
+  // MEMORY LEAK FIX: Cleanup method to remove all event listeners
+  destroy(): void {
+    console.log('[BodyCaptureDebugger] Destroying and cleaning up event listeners');
+    
+    // Remove storage change listener
+    if (this.eventListeners.storageHandler) {
+      chrome.storage.onChanged.removeListener(this.eventListeners.storageHandler);
+      this.eventListeners.storageHandler = undefined;
+    }
+    
+    // Remove debugger event listeners
+    if (this.eventListeners.debuggerEventHandler) {
+      chrome.debugger.onEvent.removeListener(this.eventListeners.debuggerEventHandler);
+      this.eventListeners.debuggerEventHandler = undefined;
+    }
+    
+    if (this.eventListeners.debuggerDetachHandler) {
+      chrome.debugger.onDetach.removeListener(this.eventListeners.debuggerDetachHandler);
+      this.eventListeners.debuggerDetachHandler = undefined;
+    }
+    
+    // Clean up sessions
+    for (const [tabId, session] of this.sessions.entries()) {
+      if (session.attached) {
+        try {
+          chrome.debugger.detach({ tabId });
+        } catch (error) {
+          console.warn(`[BodyCaptureDebugger] Failed to detach from tab ${tabId}:`, error);
+        }
+      }
+      session.requestData.clear();
+    }
+    this.sessions.clear();
+    
+    this.initialized = false;
+    this.apiAvailable = false;
   }
 }
 

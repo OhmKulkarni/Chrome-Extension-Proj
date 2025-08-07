@@ -74,11 +74,7 @@ export default defineConfig({
         settings: resolve(__dirname, 'src/settings/settings.html'),
       },
       output: {
-        manualChunks: {
-          // Separate chart libraries to potentially lazy load
-          charts: ['recharts'],
-          react: ['react', 'react-dom'],
-        }
+        // Let Vite handle chunking automatically
       }
     }
   },

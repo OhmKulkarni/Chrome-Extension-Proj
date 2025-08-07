@@ -27,6 +27,8 @@ export interface IndexedDBQuota {
   quota: number;
   usagePercentage: number;
   available: number;
+  isExtensionLimit?: boolean;
+  extensionLimit?: number;
 }
 
 export class StorageAnalyzer {
@@ -39,130 +41,131 @@ export class StorageAnalyzer {
     this.performanceTrackingStartTime = Date.now();
   }
 
+  // MEMORY LEAK FIX: Helper method to avoid Promise constructor pattern
+  private async openDatabase(): Promise<IDBDatabase> {
+    return new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, this.dbVersion);
+      request.onerror = () => reject(new Error('Failed to open IndexedDB'));
+      request.onsuccess = (event) => resolve((event.target as IDBOpenDBRequest).result);
+    });
+  }
+
+  // MEMORY LEAK FIX: Helper method for IDBRequest Promise handling
+  private async promiseFromRequest<T>(request: IDBRequest<T>): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      request.onerror = () => reject(new Error('IDB request failed'));
+      request.onsuccess = () => resolve(request.result);
+    });
+  }
+
   /**
    * Get detailed storage breakdown including pre-existing data analysis
    */
   async getDetailedStorageBreakdown(): Promise<StorageBreakdown> {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, this.dbVersion);
-      
-      request.onerror = () => reject(new Error('Failed to open IndexedDB'));
-      
-      request.onsuccess = async (event) => {
-        const db = (event.target as IDBOpenDBRequest).result;
-        
-        try {
-          const breakdown: StorageBreakdown = {
-            totalSize: 0,
-            totalRecords: 0,
-            tables: {},
-            baseline: {
-              preExistingData: false,
-              oldestTimestamp: Date.now(),
-              performanceTrackingStart: this.performanceTrackingStartTime,
-              dataAge: 0
-            }
-          };
+    // MEMORY LEAK FIX: Use helper method instead of Promise constructor
+    try {
+      const db = await this.openDatabase();
 
-          const storeNames = ['apiCalls', 'consoleErrors', 'tokenEvents', 'minifiedLibraries'];
-          
-          for (const storeName of storeNames) {
-            const storeData = await this.analyzeStore(db, storeName);
-            breakdown.tables[storeName] = storeData;
-            breakdown.totalRecords += storeData.recordCount;
-            breakdown.totalSize += storeData.estimatedSize;
-            
-            // Check if this store has pre-existing data
-            if (storeData.oldestRecord < this.performanceTrackingStartTime) {
-              breakdown.baseline.preExistingData = true;
-              if (storeData.oldestRecord < breakdown.baseline.oldestTimestamp) {
-                breakdown.baseline.oldestTimestamp = storeData.oldestRecord;
-              }
-            }
-          }
-
-          // Calculate data age
-          if (breakdown.baseline.preExistingData) {
-            breakdown.baseline.dataAge = 
-              (this.performanceTrackingStartTime - breakdown.baseline.oldestTimestamp) / (1000 * 60 * 60);
-          }
-
-          db.close();
-          resolve(breakdown);
-        } catch (error) {
-          db.close();
-          reject(error);
+      const breakdown: StorageBreakdown = {
+        totalSize: 0,
+        totalRecords: 0,
+        tables: {},
+        baseline: {
+          preExistingData: false,
+          oldestTimestamp: Date.now(),
+          performanceTrackingStart: this.performanceTrackingStartTime,
+          dataAge: 0
         }
       };
-    });
+
+      const storeNames = ['apiCalls', 'consoleErrors', 'tokenEvents', 'minifiedLibraries'];
+      
+      for (const storeName of storeNames) {
+        const storeData = await this.analyzeStore(db, storeName);
+        breakdown.tables[storeName] = storeData;
+        breakdown.totalRecords += storeData.recordCount;
+        breakdown.totalSize += storeData.estimatedSize;
+        
+        // Check if this store has pre-existing data
+        if (storeData.oldestRecord < this.performanceTrackingStartTime) {
+          breakdown.baseline.preExistingData = true;
+          if (storeData.oldestRecord < breakdown.baseline.oldestTimestamp) {
+            breakdown.baseline.oldestTimestamp = storeData.oldestRecord;
+          }
+        }
+      }
+
+      // Calculate data age
+      if (breakdown.baseline.preExistingData) {
+        breakdown.baseline.dataAge = 
+          (this.performanceTrackingStartTime - breakdown.baseline.oldestTimestamp) / (1000 * 60 * 60);
+      }
+
+      db.close();
+      return breakdown;
+    } catch (error) {
+      throw error;
+    }
   }
 
   /**
    * Analyze a specific IndexedDB store
    */
   private async analyzeStore(db: IDBDatabase, storeName: string): Promise<any> {
-    return new Promise((resolve, reject) => {
+    // MEMORY LEAK FIX: Use helper method instead of Promise constructor
+    try {
       const transaction = db.transaction([storeName], 'readonly');
       const store = transaction.objectStore(storeName);
       
-      // Get count
+      // Get count using helper method
       const countRequest = store.count();
+      const recordCount = await this.promiseFromRequest<number>(countRequest);
       
-      countRequest.onsuccess = () => {
-        const recordCount = countRequest.result;
-        
-        if (recordCount === 0) {
-          resolve({
-            recordCount: 0,
-            estimatedSize: 0,
-            oldestRecord: Date.now(),
-            newestRecord: Date.now(),
-            averageRecordSize: 0,
-            sampleRecords: []
-          });
-          return;
-        }
-
-        // Get sample records for size estimation
-        const sampleSize = Math.min(10, recordCount);
-        const getAllRequest = store.getAll();
-        
-        getAllRequest.onsuccess = () => {
-          const allRecords = getAllRequest.result;
-          
-          // Get sample records
-          const sampleRecords = allRecords.slice(0, sampleSize);
-          
-          // Calculate estimated size
-          const sampleSizeBytes = this.estimateObjectSize(sampleRecords);
-          const averageRecordSize = sampleSizeBytes / sampleRecords.length;
-          const estimatedTotalSize = averageRecordSize * recordCount;
-          
-          // Find oldest and newest records
-          const timestamps = allRecords
-            .map(record => record.timestamp || Date.now())
-            .sort((a, b) => a - b);
-          
-          resolve({
-            recordCount,
-            estimatedSize: estimatedTotalSize,
-            oldestRecord: timestamps[0] || Date.now(),
-            newestRecord: timestamps[timestamps.length - 1] || Date.now(),
-            averageRecordSize,
-            sampleRecords: sampleRecords.map(record => ({
-              id: record.id,
-              timestamp: record.timestamp,
-              type: this.identifyRecordType(record, storeName),
-              size: this.estimateObjectSize(record)
-            }))
-          });
+      if (recordCount === 0) {
+        return {
+          recordCount: 0,
+          estimatedSize: 0,
+          oldestRecord: Date.now(),
+          newestRecord: Date.now(),
+          averageRecordSize: 0,
+          sampleRecords: []
         };
-        
-        getAllRequest.onerror = () => reject(new Error(`Failed to analyze ${storeName}`));
-      };
+      }
+
+      // Get sample records for size estimation using helper method
+      const getAllRequest = store.getAll();
+      const allRecords = await this.promiseFromRequest<any[]>(getAllRequest);
       
-      countRequest.onerror = () => reject(new Error(`Failed to count ${storeName}`));
-    });
+      // Get sample records
+      const sampleSize = Math.min(10, recordCount);
+      const sampleRecords = allRecords.slice(0, sampleSize);
+      
+      // Calculate estimated size
+      const sampleSizeBytes = this.estimateObjectSize(sampleRecords);
+      const averageRecordSize = sampleSizeBytes / sampleRecords.length;
+      const estimatedTotalSize = averageRecordSize * recordCount;
+      
+      // Find oldest and newest records
+      const timestamps = allRecords
+        .map(record => record.timestamp || Date.now())
+        .sort((a, b) => a - b);
+      
+      return {
+        recordCount,
+        estimatedSize: estimatedTotalSize,
+        oldestRecord: timestamps[0] || Date.now(),
+        newestRecord: timestamps[timestamps.length - 1] || Date.now(),
+        averageRecordSize,
+        sampleRecords: sampleRecords.map(record => ({
+          id: record.id,
+          timestamp: record.timestamp,
+          type: this.identifyRecordType(record, storeName),
+          size: this.estimateObjectSize(record)
+        }))
+      };
+    } catch (error) {
+      throw error;
+    }
   }
 
   /**
@@ -192,134 +195,110 @@ export class StorageAnalyzer {
    * Clear all data and reset performance tracking baseline
    */
   async clearAllDataAndResetBaseline(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, this.dbVersion);
+    // MEMORY LEAK FIX: Use helper method instead of Promise constructor
+    try {
+      const db = await this.openDatabase();
+
+      const storeNames = ['apiCalls', 'consoleErrors', 'tokenEvents', 'minifiedLibraries'];
+      const transaction = db.transaction(storeNames, 'readwrite');
       
-      request.onsuccess = async (event) => {
-        const db = (event.target as IDBOpenDBRequest).result;
-        
-        try {
-          const storeNames = ['apiCalls', 'consoleErrors', 'tokenEvents', 'minifiedLibraries'];
-          const transaction = db.transaction(storeNames, 'readwrite');
-          
-          // Clear all stores
-          for (const storeName of storeNames) {
-            const store = transaction.objectStore(storeName);
-            await new Promise<void>((resolveStore, rejectStore) => {
-              const clearRequest = store.clear();
-              clearRequest.onsuccess = () => resolveStore();
-              clearRequest.onerror = () => rejectStore(new Error(`Failed to clear ${storeName}`));
-            });
-          }
-          
-          // Reset performance tracking start time
-          this.performanceTrackingStartTime = Date.now();
-          
-          db.close();
-          resolve();
-        } catch (error) {
-          db.close();
-          reject(error);
-        }
-      };
+      // Clear all stores using helper method
+      for (const storeName of storeNames) {
+        const store = transaction.objectStore(storeName);
+        const clearRequest = store.clear();
+        await this.promiseFromRequest<undefined>(clearRequest);
+      }
       
-      request.onerror = () => reject(new Error('Failed to open IndexedDB for clearing'));
-    });
+      // Reset performance tracking start time
+      this.performanceTrackingStartTime = Date.now();
+      
+      db.close();
+    } catch (error) {
+      throw error;
+    }
   }
 
   /**
    * Get only data created after performance tracking started
    */
   async getNewDataSince(timestamp: number): Promise<StorageBreakdown> {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, this.dbVersion);
-      
-      request.onsuccess = async (event) => {
-        const db = (event.target as IDBOpenDBRequest).result;
-        
-        try {
-          const breakdown: StorageBreakdown = {
-            totalSize: 0,
-            totalRecords: 0,
-            tables: {},
-            baseline: {
-              preExistingData: false,
-              oldestTimestamp: timestamp,
-              performanceTrackingStart: timestamp,
-              dataAge: 0
-            }
-          };
-
-          const storeNames = ['apiCalls', 'consoleErrors', 'tokenEvents', 'minifiedLibraries'];
-          
-          for (const storeName of storeNames) {
-            const storeData = await this.analyzeStoreFromTimestamp(db, storeName, timestamp);
-            breakdown.tables[storeName] = storeData;
-            breakdown.totalRecords += storeData.recordCount;
-            breakdown.totalSize += storeData.estimatedSize;
-          }
-
-          db.close();
-          resolve(breakdown);
-        } catch (error) {
-          db.close();
-          reject(error);
+    // MEMORY LEAK FIX: Use helper method instead of Promise constructor
+    const db = await this.openDatabase();
+    
+    try {
+      const breakdown: StorageBreakdown = {
+        totalSize: 0,
+        totalRecords: 0,
+        tables: {},
+        baseline: {
+          preExistingData: false,
+          oldestTimestamp: timestamp,
+          performanceTrackingStart: timestamp,
+          dataAge: 0
         }
       };
-    });
+
+      const storeNames = ['apiCalls', 'consoleErrors', 'tokenEvents', 'minifiedLibraries'];
+      
+      for (const storeName of storeNames) {
+        const storeData = await this.analyzeStoreFromTimestamp(db, storeName, timestamp);
+        breakdown.tables[storeName] = storeData;
+        breakdown.totalRecords += storeData.recordCount;
+        breakdown.totalSize += storeData.estimatedSize;
+      }
+
+      return breakdown;
+    } finally {
+      db.close();
+    }
   }
 
   /**
    * Analyze store data from a specific timestamp onwards
    */
   private async analyzeStoreFromTimestamp(db: IDBDatabase, storeName: string, fromTimestamp: number): Promise<any> {
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction([storeName], 'readonly');
-      const store = transaction.objectStore(storeName);
-      const index = store.index('timestamp');
-      
-      const range = IDBKeyRange.lowerBound(fromTimestamp);
-      const request = index.getAll(range);
-      
-      request.onsuccess = () => {
-        const records = request.result;
-        const recordCount = records.length;
-        
-        if (recordCount === 0) {
-          resolve({
-            recordCount: 0,
-            estimatedSize: 0,
-            oldestRecord: fromTimestamp,
-            newestRecord: fromTimestamp,
-            averageRecordSize: 0,
-            sampleRecords: []
-          });
-          return;
-        }
-
-        // Calculate size for new records only
-        const totalSize = this.estimateObjectSize(records);
-        const averageRecordSize = totalSize / recordCount;
-        
-        const timestamps = records.map(record => record.timestamp).sort((a, b) => a - b);
-        
-        resolve({
-          recordCount,
-          estimatedSize: totalSize,
-          oldestRecord: timestamps[0],
-          newestRecord: timestamps[timestamps.length - 1],
-          averageRecordSize,
-          sampleRecords: records.slice(0, 5).map(record => ({
-            id: record.id,
-            timestamp: record.timestamp,
-            type: this.identifyRecordType(record, storeName),
-            size: this.estimateObjectSize(record)
-          }))
-        });
+    // MEMORY LEAK FIX: Use helper method instead of Promise constructor
+    const transaction = db.transaction([storeName], 'readonly');
+    const store = transaction.objectStore(storeName);
+    const index = store.index('timestamp');
+    
+    const range = IDBKeyRange.lowerBound(fromTimestamp);
+    const request = index.getAll(range);
+    
+    const records = await this.promiseFromRequest<any[]>(request);
+    
+    const recordCount = records.length;
+    
+    if (recordCount === 0) {
+      return {
+        recordCount: 0,
+        estimatedSize: 0,
+        oldestRecord: fromTimestamp,
+        newestRecord: fromTimestamp,
+        averageRecordSize: 0,
+        sampleRecords: []
       };
-      
-      request.onerror = () => reject(new Error(`Failed to analyze ${storeName} from timestamp`));
-    });
+    }
+
+    // Calculate size for new records only
+    const totalSize = this.estimateObjectSize(records);
+    const averageRecordSize = totalSize / recordCount;
+    
+    const timestamps = records.map(record => record.timestamp).sort((a, b) => a - b);
+    
+    return {
+      recordCount,
+      estimatedSize: totalSize,
+      oldestRecord: timestamps[0],
+      newestRecord: timestamps[timestamps.length - 1],
+      averageRecordSize,
+      sampleRecords: records.slice(0, 5).map(record => ({
+        id: record.id,
+        timestamp: record.timestamp,
+        type: this.identifyRecordType(record, storeName),
+        size: this.estimateObjectSize(record)
+      }))
+    };
   }
 
   /**

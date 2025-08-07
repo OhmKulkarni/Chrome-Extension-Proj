@@ -556,29 +556,37 @@ const initializeChromeStorageSettings = () => {
 (self as any).runPerformanceTest = async (iterations = 10) => {
   console.log('🚀 Running Real-Time Performance Test (' + iterations + ' iterations)...');
   
-  const insertTimes = [];
-  const queryTimes = [];
+  // MEMORY LEAK FIX: Pre-allocate arrays with fixed size to prevent unbounded growth
+  const MAX_ITERATIONS = Math.min(iterations, 100); // Cap at 100 to prevent memory issues
+  const insertTimes: number[] = new Array(MAX_ITERATIONS);
+  const queryTimes: number[] = new Array(MAX_ITERATIONS);
+  let insertCount = 0;
+  let queryCount = 0;
   
   try {
-    for (let i = 0; i < iterations; i++) {
+    for (let i = 0; i < MAX_ITERATIONS; i++) {
       // Test insert
       const insertResult = await (self as any).insertTestApiCall();
       if (insertResult?.duration) {
-        insertTimes.push(insertResult.duration);
+        insertTimes[insertCount++] = insertResult.duration;
       }
       
       // Test query
       const queryResult = await (self as any).queryApiCalls();
       if (queryResult?.duration) {
-        queryTimes.push(queryResult.duration);
+        queryTimes[queryCount++] = queryResult.duration;
       }
       
       // Small delay between tests
       await new Promise(resolve => setTimeout(resolve, 10));
     }
     
-    const avgInsertTime = insertTimes.reduce((a, b) => a + b, 0) / insertTimes.length;
-    const avgQueryTime = queryTimes.reduce((a, b) => a + b, 0) / queryTimes.length;
+    // MEMORY LEAK FIX: Use actual populated length for calculations
+    const actualInsertTimes = insertTimes.slice(0, insertCount);
+    const actualQueryTimes = queryTimes.slice(0, queryCount);
+    
+    const avgInsertTime = actualInsertTimes.reduce((a, b) => a + b, 0) / actualInsertTimes.length;
+    const avgQueryTime = actualQueryTimes.reduce((a, b) => a + b, 0) / actualQueryTimes.length;
     
     const insertRate = Math.round(1000 / avgInsertTime);
     const queryRate = Math.round(1000 / avgQueryTime);
@@ -1432,6 +1440,93 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           console.error('Failed to get performance stats:', error);
           sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
         });
+      return true; // Keep message channel open for async response
+
+    case 'getTableCounts':
+      // Get table counts for storage analysis
+      storageManager.getTableCounts()
+        .then(tableCounts => {
+          sendResponse({ success: true, data: tableCounts });
+        })
+        .catch(error => {
+          console.error('Failed to get table counts:', error);
+          sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+        });
+      return true; // Keep message channel open for async response
+
+    case 'getStorageAnalysis':
+      // Get detailed storage usage analysis with actual byte sizes
+      (async () => {
+        try {
+          await storageManager.init();
+          
+          // Get all data and calculate actual sizes
+          const analysis = {
+            totalBytes: 0,
+            totalEntries: 0,
+            tableBreakdown: {} as Record<string, { entries: number, bytes: number }>
+          };
+          
+          // Analyze API calls
+          const apiCalls = await storageManager.getApiCalls(10000); // Get many records
+          if (apiCalls && apiCalls.length > 0) {
+            const apiCallsSize = JSON.stringify(apiCalls).length;
+            analysis.tableBreakdown.api_calls = {
+              entries: apiCalls.length,
+              bytes: apiCallsSize
+            };
+            analysis.totalBytes += apiCallsSize;
+            analysis.totalEntries += apiCalls.length;
+          }
+          
+          // Analyze console errors
+          const consoleErrors = await storageManager.getConsoleErrors(10000);
+          if (consoleErrors && consoleErrors.length > 0) {
+            const errorsSize = JSON.stringify(consoleErrors).length;
+            analysis.tableBreakdown.console_errors = {
+              entries: consoleErrors.length,
+              bytes: errorsSize
+            };
+            analysis.totalBytes += errorsSize;
+            analysis.totalEntries += consoleErrors.length;
+          }
+          
+          // Analyze token events
+          const tokenEvents = await storageManager.getTokenEvents(10000);
+          if (tokenEvents && tokenEvents.length > 0) {
+            const eventsSize = JSON.stringify(tokenEvents).length;
+            analysis.tableBreakdown.token_events = {
+              entries: tokenEvents.length,
+              bytes: eventsSize
+            };
+            analysis.totalBytes += eventsSize;
+            analysis.totalEntries += tokenEvents.length;
+          }
+          
+          console.log('📊 Storage analysis complete:', analysis);
+          sendResponse({ success: true, data: analysis });
+          
+        } catch (error) {
+          console.error('Failed to analyze storage:', error);
+          sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+        }
+      })();
+      return true; // Keep message channel open for async response
+
+    case 'getMemoryInfo':
+      // Get background script memory information
+      try {
+        const memoryInfo = {
+          memory: (performance as any).memory?.usedJSHeapSize || 0,
+          heapTotal: (performance as any).memory?.totalJSHeapSize || 0,
+          heapLimit: (performance as any).memory?.jsHeapSizeLimit || 0,
+          timestamp: Date.now()
+        };
+        sendResponse({ success: true, data: memoryInfo });
+      } catch (error) {
+        console.error('Failed to get memory info:', error);
+        sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+      }
       return true; // Keep message channel open for async response
 
     default:
