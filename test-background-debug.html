@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Background Script Debug Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { color: #28a745; font-weight: bold; }
+        .error { color: #dc3545; font-weight: bold; }
+        .warning { color: #ffc107; font-weight: bold; }
+        .info { color: #007bff; font-weight: bold; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .log {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+            border: 1px solid #dee2e6;
+        }
+        .test-section {
+            margin: 15px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Background Script Debug Test</h1>
+        
+        <div class="test-section">
+            <h3>🎯 Specific Tests for Database Error</h3>
+            <p>Testing the exact operations that are failing...</p>
+            
+            <button onclick="testPing()">1. Test Background Ping</button>
+            <button onclick="testStorageInit()">2. Test Storage Status</button>
+            <button onclick="testTableCounts()">3. Test Table Counts (Failing Operation)</button>
+            <button onclick="testDirectTabMessage()">4. Test Direct Tab Message</button>
+            <button onclick="clearLog()">Clear Log</button>
+            
+            <div id="testLog" class="log">Ready to run tests...</div>
+        </div>
+        
+        <div class="test-section">
+            <h3>📊 Analysis</h3>
+            <div id="analysis" class="log">Run tests to see analysis...</div>
+        </div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const container = document.getElementById('testLog');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : type === 'info' ? 'info' : '';
+            container.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function clearLog() {
+            document.getElementById('testLog').innerHTML = 'Log cleared...';
+        }
+        
+        function updateAnalysis(message) {
+            const analysis = document.getElementById('analysis');
+            analysis.innerHTML += `<div>${message}</div>`;
+        }
+
+        async function testPing() {
+            log('🔍 Testing background script ping...');
+            try {
+                const response = await chrome.runtime.sendMessage({ action: 'ping' });
+                if (response && response.success) {
+                    log('✅ Background script is responding to ping', 'success');
+                    updateAnalysis('✅ Background script communication: WORKING');
+                } else {
+                    log('❌ Background script ping failed - unexpected response', 'error');
+                    log(`📦 Response: ${JSON.stringify(response)}`, 'warning');
+                    updateAnalysis('❌ Background script communication: FAILED');
+                }
+            } catch (error) {
+                log(`❌ Background script ping error: ${error.message}`, 'error');
+                updateAnalysis('❌ Background script communication: FAILED');
+            }
+        }
+
+        async function testStorageInit() {
+            log('🔍 Testing storage manager status...');
+            try {
+                const response = await chrome.runtime.sendMessage({ action: 'getMemoryInfo' });
+                if (response && response.success) {
+                    log('✅ Background script can access storage operations', 'success');
+                    log(`📊 Memory: ${JSON.stringify(response.data)}`, 'info');
+                    updateAnalysis('✅ Storage operations: ACCESSIBLE');
+                } else {
+                    log('❌ Storage operations failed', 'error');
+                    log(`📦 Response: ${JSON.stringify(response)}`, 'warning');
+                    updateAnalysis('❌ Storage operations: FAILED');
+                }
+            } catch (error) {
+                log(`❌ Storage test error: ${error.message}`, 'error');
+                updateAnalysis('❌ Storage operations: FAILED');
+            }
+        }
+
+        async function testTableCounts() {
+            log('🎯 Testing getTableCounts (the failing operation)...');
+            try {
+                const response = await chrome.runtime.sendMessage({ action: 'getTableCounts' });
+                if (response && response.success) {
+                    log('✅ getTableCounts SUCCESS! Database is working!', 'success');
+                    log(`📊 Table counts: ${JSON.stringify(response.data)}`, 'success');
+                    updateAnalysis('✅ Database initialization: FIXED');
+                } else {
+                    log('❌ getTableCounts failed', 'error');
+                    log(`📦 Response: ${JSON.stringify(response)}`, 'error');
+                    if (response && response.error && response.error.includes('Database not initialized')) {
+                        log('🚨 STILL GETTING "Database not initialized" ERROR!', 'error');
+                        updateAnalysis('❌ Database initialization: STILL BROKEN');
+                    } else {
+                        updateAnalysis('❌ Database initialization: UNKNOWN ERROR');
+                    }
+                }
+            } catch (error) {
+                log(`❌ getTableCounts error: ${error.message}`, 'error');
+                if (error.message.includes('Database not initialized')) {
+                    log('🚨 STILL GETTING "Database not initialized" ERROR!', 'error');
+                    updateAnalysis('❌ Database initialization: STILL BROKEN');
+                } else {
+                    updateAnalysis('❌ getTableCounts: UNKNOWN ERROR');
+                }
+            }
+        }
+
+        async function testDirectTabMessage() {
+            log('🔍 Testing direct tab messaging (toggle approach)...');
+            try {
+                // First get available tabs
+                const tabsResponse = await chrome.runtime.sendMessage({ action: 'getTabs' });
+                if (!tabsResponse || !tabsResponse.success || !tabsResponse.tabs || tabsResponse.tabs.length === 0) {
+                    log('⚠️ No suitable tabs available for testing', 'warning');
+                    return;
+                }
+                
+                const testTab = tabsResponse.tabs[0];
+                log(`📄 Testing with tab: ${testTab.title}`, 'info');
+                
+                // Now try direct tab message (the fixed approach)
+                await chrome.tabs.sendMessage(testTab.id, {
+                    action: 'toggleLogging',
+                    enabled: true
+                });
+                
+                log('✅ Direct tab message sent successfully!', 'success');
+                updateAnalysis('✅ Toggle communication: WORKING (direct approach)');
+                
+            } catch (error) {
+                if (error.message.includes('Could not establish connection')) {
+                    log('⚠️ Content script not loaded in tab (expected for some tabs)', 'warning');
+                    updateAnalysis('⚠️ Toggle communication: Content script not available in test tab');
+                } else {
+                    log(`❌ Direct tab message error: ${error.message}`, 'error');
+                    updateAnalysis('❌ Toggle communication: FAILED');
+                }
+            }
+        }
+
+        // Auto-run basic tests
+        window.addEventListener('load', () => {
+            setTimeout(async () => {
+                await testPing();
+                await testStorageInit();
+                await testTableCounts();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

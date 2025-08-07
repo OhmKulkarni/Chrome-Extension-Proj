@@ -12,8 +12,21 @@ const sendChromeMessage = async (message: any): Promise<any> => {
     const result = response ? { ...response } : null
     return result
   } catch (error) {
-    console.error('Chrome message failed:', error)
-    return null
+    if (error instanceof Error && error.message.includes('Could not establish connection')) {
+      console.warn('Background script not ready yet, retrying...', error.message)
+      // Retry once after a short delay
+      await new Promise(resolve => setTimeout(resolve, 100))
+      try {
+        const response = await chrome.runtime.sendMessage(message)
+        return response ? { ...response } : null
+      } catch (retryError) {
+        console.error('Chrome message failed after retry:', retryError)
+        return null
+      }
+    } else {
+      console.error('Chrome message failed:', error)
+      return null
+    }
   }
 }
 
@@ -22,8 +35,8 @@ const getChromeTabInfo = (): Promise<any> => {
   return new Promise((resolve) => {
     chrome.runtime.sendMessage({ action: 'getTabInfo' }, (response) => {
       if (chrome.runtime.lastError) {
-        console.error('Error getting tab info:', chrome.runtime.lastError)
-        resolve({ title: 'Error', url: 'Failed to get tab info' })
+        console.warn('Error getting tab info (background script may not be ready):', chrome.runtime.lastError.message)
+        resolve({ title: 'Loading...', url: 'Extension starting up...' })
       } else if (response && !response.error) {
         console.log('Tab info received:', response)
         resolve(response)
@@ -198,8 +211,50 @@ const Popup: React.FC = () => {
       }
     });
 
+    // Add storage change listeners to stay synchronized with dashboard
+    const handleStorageChanges = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
+      if (areaName === 'local') {
+        // Get current tab ID to check for relevant changes
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs[0]?.id) {
+            const tabId = tabs[0].id;
+            
+            // Check for network logging changes
+            const networkLoggingKey = `tabLogging_${tabId}`;
+            if (changes[networkLoggingKey]) {
+              const newValue = changes[networkLoggingKey].newValue;
+              if (newValue && typeof newValue === 'object' && 'active' in newValue) {
+                setTabLoggingActive(newValue.active);
+              }
+            }
+            
+            // Check for error logging changes
+            const errorLoggingKey = `tabErrorLogging_${tabId}`;
+            if (changes[errorLoggingKey]) {
+              const newValue = changes[errorLoggingKey].newValue;
+              if (newValue && typeof newValue === 'object' && 'active' in newValue) {
+                setTabErrorLoggingActive(newValue.active);
+              }
+            }
+            
+            // Check for token logging changes
+            const tokenLoggingKey = `tabTokenLogging_${tabId}`;
+            if (changes[tokenLoggingKey]) {
+              const newValue = changes[tokenLoggingKey].newValue;
+              if (newValue && typeof newValue === 'object' && 'active' in newValue) {
+                setTabTokenLoggingActive(newValue.active);
+              }
+            }
+          }
+        });
+      }
+    };
+
+    chrome.storage.onChanged.addListener(handleStorageChanges);
+
     // Cleanup listener on unmount
     return () => {
+      chrome.storage.onChanged.removeListener(handleStorageChanges);
     };
   }, []);
 

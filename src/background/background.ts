@@ -7,6 +7,25 @@ import { tabDomainTracker } from '../dashboard/components/domainUtils';
 
 // Initialize environment-aware storage system
 const storageManager = new EnvironmentStorageManager();
+let isStorageInitialized = false;
+
+// Safe storage initialization that can be called multiple times
+async function ensureStorageInitialized(): Promise<void> {
+  if (isStorageInitialized) {
+    return;
+  }
+  
+  try {
+    console.log('🔧 Initializing storage manager...');
+    await storageManager.init();
+    isStorageInitialized = true;
+    console.log('✅ Storage manager initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize storage manager:', error);
+    isStorageInitialized = false;
+    throw error;
+  }
+}
 
 // Utility function to extract main domain from any URL
 function extractMainDomain(url: string): string {
@@ -1339,156 +1358,169 @@ async function handleGetTokenEvents(limit: number, sendResponse: (response: any)
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  switch (message.action || message.type) {
-    case 'INJECT_MAIN_WORLD_SCRIPT':
-      // Handle main world script injection from content script
-      if (sender.tab && sender.tab.id) {
-        chrome.scripting.executeScript({
-          target: { tabId: sender.tab.id },
-          world: 'MAIN',
-          files: ['assets/main-world-network-interceptor-BFD3WDcJ.js'] // Use the built file name
-        }).then(() => {
-          sendResponse({ success: true });
-        }).catch((error) => {
-          console.log('[Background] Main world injection failed:', error);
-          sendResponse({ success: false, error: error.message });
-        });
-        return true; // Keep message channel open for async response
-      } else {
-        sendResponse({ success: false, error: 'No tab ID available' });
-      }
-      break;
-      
-    case 'getCurrentTabId':
-    case 'GET_CURRENT_TAB_ID':
-      // Get current tab ID for content script
-      if (sender.tab && sender.tab.id) {
-        sendResponse({ tabId: sender.tab.id });
-      } else {
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-          sendResponse({ tabId: tabs[0]?.id || 0 });
-        });
-        return true; // Keep message channel open for async response
-      }
-      break;
-      
-    case 'getTabInfo':
-      // Get current active tab information
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs.length > 0) {
-          const tab = tabs[0];
-          sendResponse({
-            title: tab.title || 'Unknown',
-            url: tab.url || 'Unknown'
-          });
-        } else {
-          sendResponse({
-            title: 'Unknown',
-            url: 'Unknown'
-          });
-        }
-      });
-      return true; // Keep message channel open for async response
+  // Wrap everything in async IIFE to properly handle service worker async operations
+  (async () => {
+    try {
+      switch (message.action || message.type) {
+        case 'INJECT_MAIN_WORLD_SCRIPT':
+          // Handle main world script injection from content script
+          if (sender.tab && sender.tab.id) {
+            try {
+              await chrome.scripting.executeScript({
+                target: { tabId: sender.tab.id },
+                world: 'MAIN',
+                files: ['assets/main-world-network-interceptor-BFD3WDcJ.js'] // Use the built file name
+              });
+              sendResponse({ success: true });
+            } catch (error) {
+              console.log('[Background] Main world injection failed:', error);
+              sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+            }
+          } else {
+            sendResponse({ success: false, error: 'No tab ID available' });
+          }
+          break;
 
-    case 'openDashboard':
-      // Open dashboard in a new tab
-      chrome.tabs.create({
-        url: chrome.runtime.getURL('src/dashboard/dashboard.html')
-      });
-      sendResponse({ success: true });
-      break;
+        case 'getCurrentTabId':
+        case 'GET_CURRENT_TAB_ID':
+          // Get current tab ID for content script
+          if (sender.tab && sender.tab.id) {
+            sendResponse({ tabId: sender.tab.id });
+          } else {
+            try {
+              const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+              sendResponse({ tabId: tabs[0]?.id || 0 });
+            } catch (error) {
+              sendResponse({ tabId: 0 });
+            }
+          }
+          break;
+          
+        case 'getTabInfo':
+          // Get current active tab information
+          try {
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tabs.length > 0) {
+              const tab = tabs[0];
+              sendResponse({
+                title: tab.title || 'Unknown',
+                url: tab.url || 'Unknown'
+              });
+            } else {
+              sendResponse({
+                title: 'Unknown',
+                url: 'Unknown'
+              });
+            }
+          } catch (error) {
+            sendResponse({
+              title: 'Unknown',
+              url: 'Unknown'
+            });
+          }
+          break;
+
+        case 'openDashboard':
+          // Open dashboard in a new tab
+          try {
+            await chrome.tabs.create({
+              url: chrome.runtime.getURL('src/dashboard/dashboard.html')
+            });
+            sendResponse({ success: true });
+          } catch (error) {
+            sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+          }
+          break;
 
     case 'toggleTabLogging':
       // Relay toggle message from dashboard to content script
       if (message.tabId) {
-        chrome.tabs.sendMessage(message.tabId, {
-          action: 'toggleLogging',
-          enabled: message.enabled
-        }).then(() => {
+        try {
+          await chrome.tabs.sendMessage(message.tabId, {
+            action: 'toggleLogging',
+            enabled: message.enabled
+          });
           sendResponse({ success: true });
-        }).catch(error => {
+        } catch (error) {
           console.log('Could not send message to tab (may not have content script):', error);
-          sendResponse({ success: false, error: error.message });
-        });
+          sendResponse({ success: false, error: error instanceof Error ? error.message : 'Tab communication failed' });
+        }
       } else {
         sendResponse({ success: false, error: 'No tab ID provided' });
       }
-      return true; // Keep message channel open for async response
+      break;
 
     case 'toggleTabErrorLogging':
       // Relay error logging toggle message from dashboard to content script
       if (message.tabId) {
-        chrome.tabs.sendMessage(message.tabId, {
-          action: 'toggleErrorLogging',
-          enabled: message.enabled
-        }).then(() => {
+        try {
+          await chrome.tabs.sendMessage(message.tabId, {
+            action: 'toggleErrorLogging',
+            enabled: message.enabled
+          });
           sendResponse({ success: true });
-        }).catch(error => {
+        } catch (error) {
           console.log('Could not send message to tab (may not have content script):', error);
-          sendResponse({ success: false, error: error.message });
-        });
+          sendResponse({ success: false, error: error instanceof Error ? error.message : 'Tab communication failed' });
+        }
       } else {
         sendResponse({ success: false, error: 'No tab ID provided' });
       }
-      return true; // Keep message channel open for async response
+      break;
 
-    case 'storeNetworkRequest':
-    case 'STORE_NETWORK_REQUEST':
-    case 'NETWORK_REQUEST':
-      // Store network request data from content script
-      handleNetworkRequest(message.data, sendResponse, sender);
-      return true; // Keep message channel open for async response
+        case 'storeNetworkRequest':
+        case 'STORE_NETWORK_REQUEST':
+        case 'NETWORK_REQUEST':
+          // Store network request data from content script
+          await handleNetworkRequest(message.data, sendResponse, sender);
+          break;
 
-    case 'CONSOLE_ERROR':
-      // Store console error data from content script
-      handleConsoleError(message.data, sendResponse, sender);
-      return true; // Keep message channel open for async response
+        case 'CONSOLE_ERROR':
+          // Store console error data from content script
+          await handleConsoleError(message.data, sendResponse, sender);
+          break;
 
-    case 'getNetworkRequests':
-      // Get stored network requests
-      handleGetNetworkRequests(message.limit || 50, sendResponse);
-      return true; // Keep message channel open for async response
+        case 'getNetworkRequests':
+          // Get stored network requests
+          await handleGetNetworkRequests(message.limit || 50, sendResponse);
+          break;
 
-    case 'clearAllData':
-      // Clear all stored network requests
-      handleClearAllData(sendResponse);
-      return true; // Keep message channel open for async response
+        case 'clearAllData':
+          // Clear all stored network requests
+          await handleClearAllData(sendResponse);
+          break;
 
-    case 'getConsoleErrors':
-      // Get stored console errors
-      handleGetConsoleErrors(message.limit || 50, sendResponse);
-      return true; // Keep message channel open for async response
+        case 'getConsoleErrors':
+          // Get stored console errors
+          await handleGetConsoleErrors(message.limit || 50, sendResponse);
+          break;
 
-    case 'getTokenEvents':
-      // Get stored token events
-      handleGetTokenEvents(message.limit || 50, sendResponse);
-      return true; // Keep message channel open for async response
+        case 'getTokenEvents':
+          // Get stored token events
+          await handleGetTokenEvents(message.limit || 50, sendResponse);
+          break;        case 'getPerformanceStats':
+          // Get performance statistics
+          try {
+            await storageManager.init();
+            const performanceStats = await storageManager.getPerformanceStats();
+            sendResponse({ success: true, data: performanceStats });
+          } catch (error) {
+            console.error('Failed to get performance stats:', error);
+            sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+          }
+          break;
 
-    case 'getPerformanceStats':
-      // Get performance statistics
-      storageManager.getPerformanceStats()
-        .then(performanceStats => {
-          sendResponse({ success: true, data: performanceStats });
-        })
-        .catch(error => {
-          console.error('Failed to get performance stats:', error);
-          sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
-        });
-      return true; // Keep message channel open for async response
-
-    case 'getTableCounts':
-      // Get table counts for storage analysis
-      storageManager.getTableCounts()
-        .then(tableCounts => {
-          sendResponse({ success: true, data: tableCounts });
-        })
-        .catch(error => {
-          console.error('Failed to get table counts:', error);
-          sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
-        });
-      return true; // Keep message channel open for async response
-
-    case 'getStorageAnalysis':
+        case 'getTableCounts':
+          // Get table counts for storage analysis
+          try {
+            await ensureStorageInitialized();
+            const tableCounts = await storageManager.getTableCounts();
+            sendResponse({ success: true, data: tableCounts });
+          } catch (error) {
+            console.error('Failed to get table counts:', error);
+            sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+          }
+          break;    case 'getStorageAnalysis':
       // Get detailed storage usage analysis with actual byte sizes
       (async () => {
         try {
@@ -1563,10 +1595,94 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       return true; // Keep message channel open for async response
 
+    case 'ping':
+      // Respond to ping for debugging
+      sendResponse({ success: true, message: 'Background script is active' });
+      break;
+
+    case 'getTabs':
+      // Get all tabs for debugging
+      chrome.tabs.query({}).then(tabs => {
+        const filteredTabs = tabs.filter(tab => 
+          tab.id && tab.url && 
+          !tab.url.startsWith('chrome://') && 
+          !tab.url.startsWith('chrome-extension://')
+        );
+        sendResponse({ success: true, tabs: filteredTabs });
+      }).catch(error => {
+        sendResponse({ success: false, error: error.message });
+      });
+      return true; // Keep message channel open for async response
+
+    case 'pingTab':
+      // Ping a specific tab's content script
+      if (message.tabId) {
+        chrome.tabs.sendMessage(message.tabId, {
+          action: 'ping'
+        }).then(response => {
+          sendResponse({ success: true, tabResponse: response });
+        }).catch(error => {
+          sendResponse({ success: false, error: error.message });
+        });
+      } else {
+        sendResponse({ success: false, error: 'No tab ID provided' });
+      }
+      return true; // Keep message channel open for async response
+
+    case 'getVersion':
+      // Get extension version and background script status
+      const manifest = chrome.runtime.getManifest();
+      sendResponse({ 
+        success: true, 
+        version: manifest.version,
+        name: manifest.name,
+        backgroundScriptActive: true,
+        toggleHandlersAvailable: true
+      });
+      break;
+
     default:
-      // Let other messages pass through
+      // Unknown action - respond to avoid hanging
+      sendResponse({ success: false, error: 'Unknown action: ' + (message.action || message.type) });
       break;
   }
+    } catch (error) {
+      console.error('Background script message handler error:', error);
+      sendResponse({ success: false, error: error instanceof Error ? error.message : 'Background script error' });
+    }
+  })();
+
+  // Return true to indicate we'll respond asynchronously
+  return true;
 });
 
 // No additional message interception needed - storage manager handles operations internally
+
+// Background script startup log
+console.log('🚀 Background script loaded and ready for messages');
+
+// Initialize storage manager at startup to prevent "Database not initialized" errors
+(async () => {
+  try {
+    await ensureStorageInitialized();
+  } catch (error) {
+    console.error('❌ Storage initialization failed at startup:', error);
+  }
+})();
+
+// Add a startup ping to keep service worker active
+chrome.runtime.onStartup.addListener(() => {
+  console.log('🔄 Extension startup detected');
+  // Re-initialize storage on startup
+  ensureStorageInitialized().catch(error => {
+    console.error('❌ Failed to initialize storage on startup:', error);
+  });
+});
+
+chrome.runtime.onInstalled.addListener(() => {
+  console.log('🎉 Extension installed/updated');
+  // Re-initialize storage on install/update
+  ensureStorageInitialized().catch(error => {
+    console.error('❌ Failed to initialize storage on install:', error);
+  });
+});

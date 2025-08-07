@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toggle State Detection Fix - CRITICAL</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255,255,255,0.95);
+            color: #333;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        .success { color: #28a745; font-weight: bold; }
+        .error { color: #dc3545; font-weight: bold; }
+        .warning { color: #ffc107; font-weight: bold; }
+        .info { color: #007bff; font-weight: bold; }
+        .critical { color: #e74c3c; font-weight: bold; font-size: 18px; }
+        button {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 8px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        button:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(231,76,60,0.3);
+        }
+        .log {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+            border: 2px solid #dee2e6;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            background: rgba(248,249,250,0.8);
+        }
+        .status-header {
+            font-size: 24px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .bug-found {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .storage-demo {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="status-header">
+            🐛 CRITICAL BUG FOUND & FIXED
+        </div>
+        
+        <div class="bug-found">
+            <h3>🎯 The Real Problem Discovered:</h3>
+            <div class="critical">❌ BROKEN: Dashboard was reading `networkState?.enabled`</div>
+            <div class="critical">✅ FIXED: Now reads `networkState.active` (like working version)</div>
+            <br>
+            <p><strong>Why sidebar could turn ON but not OFF:</strong></p>
+            <ul>
+                <li>Toggle storage saves: <code>{ active: true/false }</code></li>
+                <li>Broken dashboard read: <code>networkState?.enabled</code> (always undefined)</li>
+                <li>Fixed dashboard reads: <code>networkState.active</code> (correct property)</li>
+            </ul>
+        </div>
+        
+        <div class="test-section">
+            <h3>📦 Storage Structure Demo</h3>
+            <div class="storage-demo">
+                <strong>What gets stored when toggle is pressed:</strong><br>
+                tabLogging_123: {<br>
+                &nbsp;&nbsp;active: true,<br>
+                &nbsp;&nbsp;startTime: 1691123456789,<br>
+                &nbsp;&nbsp;requestCount: 0<br>
+                }<br><br>
+                
+                <strong>What dashboard was reading (BROKEN):</strong><br>
+                <span class="error">networkState?.enabled</span> → undefined → always false<br><br>
+                
+                <strong>What dashboard now reads (FIXED):</strong><br>
+                <span class="success">networkState.active</span> → true/false → correct state
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>🧪 Toggle State Detection Test</h3>
+            <p>Testing the exact storage property reading that was broken...</p>
+            
+            <button onclick="testStorageReading()">📖 Test Storage Reading Logic</button>
+            <button onclick="simulateToggleOn()">🟢 Simulate Toggle ON</button>
+            <button onclick="simulateToggleOff()">🔴 Simulate Toggle OFF</button>
+            <button onclick="clearLog()">🧹 Clear Log</button>
+            
+            <div id="testLog" class="log">Ready to test the critical fix...</div>
+        </div>
+        
+        <div class="test-section">
+            <h3>🎯 Expected Results After Fix</h3>
+            <div>✅ Sidebar shows correct toggle states (ON/OFF)</div>
+            <div>✅ Can turn toggles ON from sidebar</div>
+            <div>✅ Can turn toggles OFF from sidebar</div>
+            <div>✅ Toggle states sync between popup and dashboard</div>
+            <div>✅ No more "stuck ON" toggles</div>
+        </div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const container = document.getElementById('testLog');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : type === 'info' ? 'info' : '';
+            container.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function clearLog() {
+            document.getElementById('testLog').innerHTML = 'Log cleared...';
+        }
+
+        async function testStorageReading() {
+            log('📖 Testing storage property reading logic...', 'info');
+            
+            // Get current tab
+            const tabs = await new Promise(resolve => {
+                chrome.tabs.query({ active: true, currentWindow: true }, resolve);
+            });
+            
+            if (!tabs[0]?.id) {
+                log('⚠️ No active tab found', 'warning');
+                return;
+            }
+            
+            const tabId = tabs[0].id;
+            log(`📄 Testing with tab ID: ${tabId}`, 'info');
+            
+            // Read current storage
+            const result = await new Promise(resolve => {
+                chrome.storage.local.get([`tabLogging_${tabId}`], resolve);
+            });
+            
+            const networkState = result[`tabLogging_${tabId}`];
+            
+            if (!networkState) {
+                log('📦 No storage found for this tab', 'info');
+                return;
+            }
+            
+            log(`📦 Storage content: ${JSON.stringify(networkState)}`, 'info');
+            
+            // Test the BROKEN way (old implementation)
+            const brokenReading = networkState?.enabled ?? false;
+            log(`❌ BROKEN reading (enabled): ${brokenReading}`, 'error');
+            
+            // Test the FIXED way (new implementation)
+            let fixedReading = false;
+            if (networkState.status !== undefined) {
+                fixedReading = networkState.status === 'active';
+            } else {
+                fixedReading = typeof networkState === 'boolean' ? networkState : networkState.active;
+            }
+            log(`✅ FIXED reading (active): ${fixedReading}`, 'success');
+            
+            if (brokenReading !== fixedReading) {
+                log('🎉 FIX CONFIRMED: Different results prove the bug was real!', 'success');
+            } else {
+                log('🔍 Both methods return same result for this tab', 'info');
+            }
+        }
+
+        async function simulateToggleOn() {
+            log('🟢 Simulating toggle ON...', 'info');
+            
+            const tabs = await new Promise(resolve => {
+                chrome.tabs.query({ active: true, currentWindow: true }, resolve);
+            });
+            
+            if (!tabs[0]?.id) {
+                log('⚠️ No active tab found', 'warning');
+                return;
+            }
+            
+            const tabId = tabs[0].id;
+            const tabState = {
+                active: true,
+                startTime: Date.now(),
+                requestCount: 0
+            };
+            
+            await new Promise(resolve => {
+                chrome.storage.local.set({ [`tabLogging_${tabId}`]: tabState }, resolve);
+            });
+            
+            log('✅ Storage set to ON (active: true)', 'success');
+            log('🎯 Dashboard should now show this toggle as ON', 'success');
+        }
+
+        async function simulateToggleOff() {
+            log('🔴 Simulating toggle OFF...', 'info');
+            
+            const tabs = await new Promise(resolve => {
+                chrome.tabs.query({ active: true, currentWindow: true }, resolve);
+            });
+            
+            if (!tabs[0]?.id) {
+                log('⚠️ No active tab found', 'warning');
+                return;
+            }
+            
+            const tabId = tabs[0].id;
+            const tabState = {
+                active: false,
+                startTime: undefined,
+                requestCount: 0
+            };
+            
+            await new Promise(resolve => {
+                chrome.storage.local.set({ [`tabLogging_${tabId}`]: tabState }, resolve);
+            });
+            
+            log('✅ Storage set to OFF (active: false)', 'success');
+            log('🎯 Dashboard should now show this toggle as OFF', 'success');
+        }
+
+        // Auto-run storage reading test
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                testStorageReading();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

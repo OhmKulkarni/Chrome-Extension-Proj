@@ -105,6 +105,7 @@ export class IndexedDBStorage implements StorageOperations {
 
     // MEMORY LEAK FIX: Convert Promise constructor to async/await pattern
     this.initPromise = this.initializeDatabase();
+    return this.initPromise;
   }
 
   private async initializeDatabase(): Promise<void> {

@@ -1250,14 +1250,36 @@ const Dashboard: React.FC = () => {
             domain = 'unknown';
           }
 
+          // Determine logging status using the same logic as the working version
+          let networkLogging = false;
+          let errorLogging = false;
+          let tokenLogging = false;
+
+          if (networkState) {
+            // Check both 'status' and 'active' properties for compatibility
+            if (networkState.status !== undefined) {
+              networkLogging = networkState.status === 'active';
+            } else {
+              networkLogging = typeof networkState === 'boolean' ? networkState : networkState.active;
+            }
+          }
+
+          if (errorState) {
+            errorLogging = typeof errorState === 'boolean' ? errorState : errorState.active;
+          }
+
+          if (tokenState) {
+            tokenLogging = typeof tokenState === 'boolean' ? tokenState : tokenState.active;
+          }
+
           tabStatuses.push({
             tabId: tab.id,
             url: tab.url,
             title: tab.title || 'Untitled',
             domain: domain,
-            networkLogging: networkState?.enabled ?? false,
-            errorLogging: errorState?.enabled ?? false,
-            tokenLogging: tokenState?.enabled ?? false,
+            networkLogging,
+            errorLogging,
+            tokenLogging,
             favicon: tab.favIconUrl
           });
         }
@@ -1696,19 +1718,14 @@ const Dashboard: React.FC = () => {
       
       await chrome.storage.local.set({ [`tabLogging_${tabId}`]: tabState });
       
-      // Send message through background script to content script
+      // Send message to content script
       try {
-        const response = await chrome.runtime.sendMessage({
-          action: 'toggleTabLogging',
-          tabId: tabId,
+        await chrome.tabs.sendMessage(tabId, {
+          action: 'toggleLogging',
           enabled: newState
         });
-        
-        if (!response?.success) {
-          console.warn('Failed to toggle logging through background script:', response?.error);
-        }
       } catch (error) {
-        console.error('Error sending message through background script:', error);
+        console.log('Could not send message to tab (may not have content script):', error);
       }
       
       // Update local state
@@ -1743,19 +1760,14 @@ const Dashboard: React.FC = () => {
       
       await chrome.storage.local.set({ [`tabErrorLogging_${tabId}`]: tabState });
       
-      // Send message through background script to content script
+      // Send message to content script
       try {
-        const response = await chrome.runtime.sendMessage({
-          action: 'toggleTabErrorLogging',
-          tabId: tabId,
+        await chrome.tabs.sendMessage(tabId, {
+          action: 'toggleErrorLogging',
           enabled: newState
         });
-        
-        if (!response?.success) {
-          console.warn('Failed to toggle error logging through background script:', response?.error);
-        }
       } catch (error) {
-        console.error('Error sending message through background script:', error);
+        console.log('Could not send message to tab (may not have content script):', error);
       }
       
       // Update local state

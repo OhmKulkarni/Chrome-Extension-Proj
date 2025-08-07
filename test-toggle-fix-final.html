@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toggle Fix Test - Final</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .info {
+            color: #007bff;
+            font-weight: bold;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            background: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Toggle Fix Test - Final Version</h1>
+        
+        <div class="status">
+            <h3>✅ Fix Applied:</h3>
+            <p>Reverted dashboard toggle functions to use direct <code>chrome.tabs.sendMessage</code> calls instead of background script relay</p>
+        </div>
+        
+        <div class="status">
+            <h3>🔍 What Changed:</h3>
+            <ul>
+                <li><strong>Before Fix:</strong> Dashboard → Background Script → Content Script (causing "Could not establish connection")</li>
+                <li><strong>After Fix:</strong> Dashboard → Content Script (direct communication, like the working version)</li>
+            </ul>
+        </div>
+        
+        <div class="status">
+            <h3>🎯 Test Instructions:</h3>
+            <ol>
+                <li>Load the rebuilt extension in Chrome</li>
+                <li>Open the extension dashboard</li>
+                <li>Navigate to a website in another tab</li>
+                <li>Try toggling the logging buttons in the dashboard sidebar</li>
+                <li>Verify that:
+                    <ul>
+                        <li>No "Could not establish connection" errors appear</li>
+                        <li>Toggle states actually change (not just visual feedback)</li>
+                        <li>Network requests start/stop being captured</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+        
+        <div class="status">
+            <h3>🧠 Technical Explanation:</h3>
+            <p>The issue was caused by the memory leak optimization phase, where the toggle communication was changed from direct tab messaging to a background script relay pattern. The background script relay had async timing issues with the message channel staying open. The original direct approach was simpler and more reliable.</p>
+        </div>
+        
+        <button onclick="window.close()">Close Test</button>
+    </div>
+</body>
+</html>
