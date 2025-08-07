@@ -169,7 +169,8 @@ const eventHandlers = {
   beforeUnload2: null as EventListener | null,
   domContentLoaded: null as EventListener | null,
   windowLoad: null as EventListener | null,
-  storageChange: null as ((changes: any, namespace: string) => void) | null
+  storageChange: null as ((changes: any, namespace: string) => void) | null,
+  runtimeMessage: null as ((message: any, sender: any, sendResponse: any) => boolean) | null
 };
 
 // MEMORY LEAK FIX: Cleanup function to remove all event listeners
@@ -205,6 +206,10 @@ const cleanupEventListeners = () => {
   if (eventHandlers.storageChange) {
     chrome.storage.onChanged.removeListener(eventHandlers.storageChange);
     eventHandlers.storageChange = null;
+  }
+  if (eventHandlers.runtimeMessage) {
+    chrome.runtime.onMessage.removeListener(eventHandlers.runtimeMessage);
+    eventHandlers.runtimeMessage = null;
   }
 };
 
@@ -464,8 +469,8 @@ eventHandlers.consoleIntercepted = async (event: any) => {
 // Add the event listener
 window.addEventListener('consoleErrorIntercepted', eventHandlers.consoleIntercepted);
 
-// Listen for messages from popup/background
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+// MEMORY LEAK FIX: Runtime message listener with cleanup
+eventHandlers.runtimeMessage = (message, _sender, sendResponse) => {
   if (message.action === 'toggleLogging') {
     console.log('📱 CONTENT: Toggle network logging:', message.enabled);
     
@@ -485,7 +490,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     sendResponse({ success: true });
   }
   return true; // Keep the message channel open for async response
-});
+};
+
+// Listen for messages from popup/background
+chrome.runtime.onMessage.addListener(eventHandlers.runtimeMessage);
 
 // MEMORY LEAK FIX: Storage change listener with proper cleanup
 const storageChangeHandler = (changes: any, namespace: string) => {

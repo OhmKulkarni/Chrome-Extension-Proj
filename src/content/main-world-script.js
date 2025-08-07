@@ -299,7 +299,8 @@ try {
   
   // Listen for storage changes to start/stop interception
   if (typeof chrome !== 'undefined' && chrome.storage) {
-    chrome.storage.onChanged.addListener(async (changes, namespace) => {
+    // MEMORY LEAK FIX: Store handler for cleanup
+    eventHandlers.storageChangeHandler1 = async (changes, namespace) => {
       if (namespace === 'local' || namespace === 'sync') {
         const enabled = await isLoggingEnabled();
         if (enabled && !isIntercepting) {
@@ -308,7 +309,8 @@ try {
           stopInterception();
         }
       }
-    });
+    };
+    chrome.storage.onChanged.addListener(eventHandlers.storageChangeHandler1);
   }
   
 } catch (error) {
@@ -516,7 +518,8 @@ const stopErrorInterception = () => {
 
 // Listen for storage changes to start/stop error interception
 if (typeof chrome !== 'undefined' && chrome.storage) {
-  chrome.storage.onChanged.addListener(async (changes, namespace) => {
+  // MEMORY LEAK FIX: Store handler for cleanup
+  eventHandlers.storageChangeHandler2 = async (changes, namespace) => {
     if (namespace === 'local' || namespace === 'sync') {
       const errorLoggingEnabled = await isErrorLoggingEnabled();
       if (errorLoggingEnabled && !isErrorIntercepting) {
@@ -525,7 +528,8 @@ if (typeof chrome !== 'undefined' && chrome.storage) {
         stopErrorInterception();
       }
     }
-  });
+  };
+  chrome.storage.onChanged.addListener(eventHandlers.storageChangeHandler2);
 }
 
 console.log('🌍 MAIN-WORLD: Console error interception script loaded and ready');
@@ -570,9 +574,21 @@ eventHandlers.beforeUnload = () => {
     window.removeEventListener('beforeunload', eventHandlers.beforeUnload);
   }
   
+  // MEMORY LEAK FIX: Clean up Chrome storage listeners
+  if (typeof chrome !== 'undefined' && chrome.storage) {
+    if (eventHandlers.storageChangeHandler1) {
+      chrome.storage.onChanged.removeListener(eventHandlers.storageChangeHandler1);
+    }
+    if (eventHandlers.storageChangeHandler2) {
+      chrome.storage.onChanged.removeListener(eventHandlers.storageChangeHandler2);
+    }
+  }
+  
   // Clear references
   eventHandlers.settingsResponse = null;
   eventHandlers.beforeUnload = null;
+  eventHandlers.storageChangeHandler1 = null;
+  eventHandlers.storageChangeHandler2 = null;
   
   console.log('🧹 MAIN_WORLD: Cleanup completed');
 };
