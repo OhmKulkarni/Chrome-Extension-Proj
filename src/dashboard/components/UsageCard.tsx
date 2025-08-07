@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
+import { getChromeStorageBytes } from '../lib/chrome-api-utils'
 
 // MEMORY LEAK FIX: Centralized message handler to prevent response accumulation
 const sendChromeMessage = async (message: any): Promise<any> => {
@@ -13,22 +14,7 @@ const sendChromeMessage = async (message: any): Promise<any> => {
   }
 }
 
-// MEMORY LEAK FIX: Convert Promise constructor to async/await pattern
-const getChromeStorageBytes = async (): Promise<number> => {
-  try {
-    if (chrome?.storage?.local?.getBytesInUse) {
-      return await new Promise<number>((resolve) => {
-        chrome.storage.local.getBytesInUse(null, (bytes) => {
-          resolve(bytes || 0)
-        })
-      })
-    } else {
-      return 0
-    }
-  } catch (e) {
-    return 0
-  }
-}
+// MEMORY LEAK FIX: Removed Promise constructor from component scope - now using isolated utility
 
 // Global memory management with call throttling
 const GLOBAL_MEMORY_STATE = {

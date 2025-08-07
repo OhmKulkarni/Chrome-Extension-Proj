@@ -4,6 +4,14 @@ import './popup.css';
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
+// MEMORY LEAK FIX: External delay function to prevent closure capture
+function createDelayPromise(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+// Use the external function  
+const delay = createDelayPromise
+
 // MEMORY LEAK FIX: Centralized Chrome message handler to prevent response accumulation
 const sendChromeMessage = async (message: any): Promise<any> => {
   try {
@@ -15,7 +23,7 @@ const sendChromeMessage = async (message: any): Promise<any> => {
     if (error instanceof Error && error.message.includes('Could not establish connection')) {
       console.warn('Background script not ready yet, retrying...', error.message)
       // Retry once after a short delay
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await delay(100)
       try {
         const response = await chrome.runtime.sendMessage(message)
         return response ? { ...response } : null
@@ -30,22 +38,22 @@ const sendChromeMessage = async (message: any): Promise<any> => {
   }
 }
 
-// MEMORY LEAK FIX: Pre-allocated Chrome message functions
-const getChromeTabInfo = (): Promise<any> => {
-  return new Promise((resolve) => {
-    chrome.runtime.sendMessage({ action: 'getTabInfo' }, (response) => {
-      if (chrome.runtime.lastError) {
-        console.warn('Error getting tab info (background script may not be ready):', chrome.runtime.lastError.message)
-        resolve({ title: 'Loading...', url: 'Extension starting up...' })
-      } else if (response && !response.error) {
-        console.log('Tab info received:', response)
-        resolve(response)
-      } else {
-        console.warn('Invalid response for tab info:', response)
-        resolve({ title: 'Unknown', url: 'Unknown' })
-      }
-    })
-  })
+// MEMORY LEAK FIX: Pre-allocated Chrome message functions with Promise constructor elimination
+const getChromeTabInfo = async (): Promise<any> => {
+  try {
+    const response = await chrome.runtime.sendMessage({ action: 'getTabInfo' })
+    if (response && !response.error) {
+      console.log('Tab info received:', response)
+      return response
+    } else {
+      console.warn('Invalid response for tab info:', response)
+      return { title: 'Unknown', url: 'Unknown' }
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.warn('Error getting tab info (background script may not be ready):', errorMessage)
+    return { title: 'Loading...', url: 'Extension starting up...' }
+  }
 }
 
 const openChromeDashboard = async (): Promise<void> => {

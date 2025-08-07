@@ -1,6 +1,68 @@
 // Simplified content script focused on Reddit network interception
 console.log('✅ CONTENT: Script loaded on:', window.location.href);
 
+// MEMORY LEAK FIX: Helper function to check main world script activity without Promise constructor leaks
+const checkMainWorldActive = async (): Promise<boolean> => {
+  const checkId = Math.random().toString(36);
+  let resolved = false;
+  
+  return new Promise<boolean>((resolve) => {
+    const responseHandler = (event: any) => {
+      if (event.detail?.checkId === checkId && !resolved) {
+        resolved = true;
+        window.removeEventListener('mainWorldActiveResponse', responseHandler);
+        resolve(event.detail.isActive === true);
+      }
+    };
+    
+    window.addEventListener('mainWorldActiveResponse', responseHandler);
+    window.dispatchEvent(new CustomEvent('checkMainWorldActive', { detail: { checkId } }));
+    
+    // Cleanup timeout to prevent memory leaks
+    setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        window.removeEventListener('mainWorldActiveResponse', responseHandler);
+        resolve(false);
+      }
+    }, 100);
+  });
+};
+
+// MEMORY LEAK FIX: Helper function for script loading without Promise constructor leaks
+const loadScriptPromise = async (script: HTMLScriptElement): Promise<boolean> => {
+  let resolved = false;
+  
+  return new Promise<boolean>((resolve) => {
+    const onLoad = () => {
+      if (!resolved) {
+        resolved = true;
+        cleanup();
+        console.log('✅ CONTENT: Web-accessible script loaded successfully');
+        resolve(true);
+      }
+    };
+    
+    const onError = (error: any) => {
+      if (!resolved) {
+        resolved = true;
+        cleanup();
+        console.log('❌ CONTENT: Web-accessible script failed to load:', error);
+        resolve(false);
+      }
+    };
+    
+    const cleanup = () => {
+      script.removeEventListener('load', onLoad);
+      script.removeEventListener('error', onError);
+      script.remove(); // Clean up script element
+    };
+    
+    script.addEventListener('load', onLoad);
+    script.addEventListener('error', onError);
+  });
+};
+
 // MEMORY LEAK FIX: Centralized Chrome message handler to prevent response accumulation
 const sendChromeMessage = async (message: any): Promise<any> => {
   try {
@@ -170,7 +232,8 @@ const eventHandlers = {
   domContentLoaded: null as EventListener | null,
   windowLoad: null as EventListener | null,
   storageChange: null as ((changes: any, namespace: string) => void) | null,
-  runtimeMessage: null as ((message: any, sender: any, sendResponse: any) => boolean) | null
+  runtimeMessage: null as ((message: any, sender: any, sendResponse: any) => boolean) | null,
+  windowMessage: null as ((event: MessageEvent) => void) | null
 };
 
 // MEMORY LEAK FIX: Cleanup function to remove all event listeners
@@ -211,6 +274,10 @@ const cleanupEventListeners = () => {
     chrome.runtime.onMessage.removeListener(eventHandlers.runtimeMessage);
     eventHandlers.runtimeMessage = null;
   }
+  if (eventHandlers.windowMessage) {
+    window.removeEventListener('message', eventHandlers.windowMessage);
+    eventHandlers.windowMessage = null;
+  }
 };
 
 // Listen for settings requests from main-world script
@@ -235,6 +302,31 @@ eventHandlers.settingsRequest = async () => {
 
 // Add the event listener
 window.addEventListener('extensionRequestSettings', eventHandlers.settingsRequest);
+
+// CRITICAL FIX: Add missing network request message listener
+// This was causing network requests to not be forwarded to background script!
+const networkMessageHandler = async (event: MessageEvent) => {
+  // Only handle messages from the main-world-script
+  if (event.data?.source === 'main-world-network-interceptor') {
+    try {
+      console.log('📡 CONTENT: Received network request from main-world:', event.data.data);
+      
+      // Forward the network request data to background script
+      await sendChromeMessage({
+        action: 'STORE_NETWORK_REQUEST',
+        data: event.data.data
+      });
+      
+      console.log('✅ CONTENT: Network request forwarded to background');
+    } catch (error) {
+      console.error('❌ CONTENT: Failed to forward network request:', error);
+    }
+  }
+};
+
+// Add the critical missing message listener
+window.addEventListener('message', networkMessageHandler);
+eventHandlers.windowMessage = networkMessageHandler;
 
 // Check if extension context is still valid
 function isExtensionContextValid(): boolean {
@@ -266,26 +358,8 @@ async function injectMainWorldScript() {
   if (injectionAttempted) {
     console.log('🌍 CONTENT: Injection already attempted, checking if script is active...');
     
-    // Check if main-world script is actually active by testing for our marker
-    const isActive = await new Promise<boolean>((resolve) => {
-      const checkId = Math.random().toString(36);
-      
-      const responseHandler = (event: any) => {
-        if (event.detail?.checkId === checkId) {
-          window.removeEventListener('mainWorldActiveResponse', responseHandler);
-          resolve(event.detail.isActive === true);
-        }
-      };
-      
-      window.addEventListener('mainWorldActiveResponse', responseHandler);
-      window.dispatchEvent(new CustomEvent('checkMainWorldActive', { detail: { checkId } }));
-      
-      // Timeout after 100ms if no response
-      setTimeout(() => {
-        window.removeEventListener('mainWorldActiveResponse', responseHandler);
-        resolve(false);
-      }, 100);
-    });
+    // MEMORY LEAK FIX: Use helper function instead of Promise constructor
+    const isActive = await checkMainWorldActive();
     
     if (isActive) {
       console.log('✅ CONTENT: Main-world script already active, skipping injection');
@@ -331,25 +405,11 @@ async function tryWebAccessibleInjection(): Promise<boolean> {
     script.src = chrome.runtime.getURL('main-world-script.js');
     script.async = false;
     
-    // Wait for script to load
-    const loadPromise = new Promise<boolean>((resolve) => {
-      script.onload = () => {
-        console.log('✅ CONTENT: Web-accessible script loaded successfully');
-        script.remove(); // Clean up script element
-        resolve(true);
-      };
-      
-      script.onerror = (error) => {
-        console.log('❌ CONTENT: Web-accessible script failed to load:', error);
-        script.remove(); // Clean up script element
-        resolve(false);
-      };
-    });
-    
     // Inject the script
     (document.head || document.documentElement).appendChild(script);
     
-    const success = await loadPromise;
+    // MEMORY LEAK FIX: Use helper function instead of Promise constructor
+    const success = await loadScriptPromise(script);
     console.log(success ? '✅ CONTENT: Direct script injection successful' : '❌ CONTENT: Direct script injection failed');
     return success;
     
@@ -536,17 +596,62 @@ eventHandlers.beforeUnload1 = () => {
 
 window.addEventListener('beforeunload', eventHandlers.beforeUnload1!);
 
-// MEMORY LEAK FIX: Store interval ID and clear it on page unload
-const contextCheckInterval = setInterval(() => {
-  if (extensionContextValid && !isExtensionContextValid()) {
-    console.log('❌ CONTENT: Extension context became invalid');
-    extensionContextValid = false;
+// MEMORY LEAK FIX: Store interval ID and clear it on page unload  
+let contextCheckIntervalId: number | null = null
+
+// MEMORY LEAK FIX: Memory-aware context checking with exponential backoff
+const startContextChecking = () => {
+  if (contextCheckIntervalId) {
+    clearInterval(contextCheckIntervalId)
   }
-}, 5000);
+  
+  let checkInterval = 5000 // Start with 5 seconds
+  const maxInterval = 30000 // Cap at 30 seconds
+  
+  const scheduleNextCheck = () => {
+    contextCheckIntervalId = window.setTimeout(() => {
+      try {
+        // Check memory pressure before context check
+        const performanceMemory = (performance as any).memory
+        if (performanceMemory?.usedJSHeapSize) {
+          const heapUsed = performanceMemory.usedJSHeapSize
+          const heapLimit = performanceMemory.jsHeapSizeLimit
+          const heapPercentage = (heapUsed / heapLimit) * 100
+          
+          if (heapPercentage > 85) {
+            // Skip check under high memory pressure
+            checkInterval = Math.min(checkInterval * 1.5, maxInterval)
+            scheduleNextCheck()
+            return
+          } else {
+            // Reset to normal interval
+            checkInterval = 5000
+          }
+        }
+        
+        if (extensionContextValid && !isExtensionContextValid()) {
+          console.log('❌ CONTENT: Extension context became invalid')
+          extensionContextValid = false
+        }
+      } catch (error) {
+        console.error('Context check error:', error)
+      }
+      
+      scheduleNextCheck()
+    }, checkInterval)
+  }
+  
+  scheduleNextCheck()
+}
+
+startContextChecking()
 
 // MEMORY LEAK FIX: Clear interval on page unload to prevent accumulation
 eventHandlers.beforeUnload2 = () => {
-  clearInterval(contextCheckInterval);
+  if (contextCheckIntervalId) {
+    clearTimeout(contextCheckIntervalId);
+    contextCheckIntervalId = null;
+  }
   cleanupEventListeners(); // Clean up all event listeners
 };
 

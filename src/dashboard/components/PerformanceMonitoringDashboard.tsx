@@ -3,6 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
 import { UsageCard } from './UsageCard'
 
+// MEMORY LEAK FIX: External delay function to prevent closure capture
+function createDelayPromise(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+// Use the external function
+const delay = createDelayPromise
+
 interface PerformanceStats {
   totalOperations: number
   memoryUsage: { current: number, peak: number, average: number }
@@ -106,7 +114,7 @@ export const PerformanceMonitoringDashboard: React.FC = () => {
         })
 
         // Wait a bit between tests
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        await delay(1000)
       }
 
       setStressTestResults(results)
@@ -129,9 +137,55 @@ export const PerformanceMonitoringDashboard: React.FC = () => {
   }
 
   useEffect(() => {
+    let isActive = true
+    let intervalId: number | null = null
+    
+    // MEMORY LEAK FIX: Memory-aware loading with exponential backoff
+    const scheduleLoad = (delay: number = 10000) => {
+      if (!isActive) return
+      
+      if (intervalId) {
+        clearTimeout(intervalId)
+      }
+      
+      intervalId = window.setTimeout(() => {
+        if (!isActive) return
+        
+        try {
+          // Check memory pressure before loading
+          const performanceMemory = (performance as any).memory
+          if (performanceMemory?.usedJSHeapSize) {
+            const heapUsed = performanceMemory.usedJSHeapSize
+            const heapLimit = performanceMemory.jsHeapSizeLimit
+            const heapPercentage = (heapUsed / heapLimit) * 100
+            
+            if (heapPercentage > 85) {
+              // Skip load under high memory pressure
+              console.log('🚨 Skipping performance stats load - high memory pressure')
+              scheduleLoad(Math.min(delay * 1.5, 60000)) // Exponential backoff
+              return
+            }
+          }
+          
+          loadStats()
+          scheduleLoad(10000) // Regular 10 second interval
+        } catch (error) {
+          console.error('Performance stats load error:', error)
+          scheduleLoad(Math.min(delay * 1.2, 30000))
+        }
+      }, delay)
+    }
+    
     loadStats()
-    const interval = setInterval(loadStats, 5000) // Refresh every 5 seconds
-    return () => clearInterval(interval)
+    scheduleLoad()
+    
+    return () => {
+      isActive = false
+      if (intervalId) {
+        clearTimeout(intervalId)
+        intervalId = null
+      }
+    }
   }, [])
 
   const formatBytes = (bytes: number) => {

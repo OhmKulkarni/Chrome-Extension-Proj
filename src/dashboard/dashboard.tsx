@@ -19,32 +19,7 @@ const sendChromeMessage = async (message: any): Promise<any> => {
 }
 
 // MEMORY LEAK FIX: Pre-allocated Chrome message functions to avoid Promise constructor closures
-const getChromeNetworkRequests = async (limit: number = 1000): Promise<any> => {
-  const response = await sendChromeMessage({ action: 'getNetworkRequests', limit })
-  if (chrome.runtime.lastError) {
-    console.error('Dashboard: Error getting network requests:', chrome.runtime.lastError)
-    return { requests: [], total: 0 }
-  }
-  return response || { requests: [], total: 0 }
-}
 
-const getChromeConsoleErrors = async (limit: number = 1000): Promise<any> => {
-  const response = await sendChromeMessage({ action: 'getConsoleErrors', limit })
-  if (chrome.runtime.lastError) {
-    console.error('Dashboard: Error getting console errors:', chrome.runtime.lastError)
-    return { errors: [], total: 0 }
-  }
-  return response || { errors: [], total: 0 }
-}
-
-const getChromeTokenEvents = async (limit: number = 1000): Promise<any> => {
-  const response = await sendChromeMessage({ action: 'getTokenEvents', limit })
-  if (chrome.runtime.lastError) {
-    console.error('Dashboard: Error getting token events:', chrome.runtime.lastError)
-    return { events: [], total: 0 }
-  }
-  return response || { events: [], total: 0 }
-}
 
 const clearChromeData = async (): Promise<void> => {
   const response = await sendChromeMessage({ action: 'clearAllData' })
@@ -1188,6 +1163,91 @@ const Dashboard: React.FC = () => {
   };
 
   // MEMORY LEAK FIX: Wrap loadDashboardData in useCallback to stabilize reference
+  // MEMORY LEAK FIX: On-demand page loading functions
+  const loadNetworkRequestsPage = useCallback(async (page: number, limit: number = 10) => {
+    try {
+      console.log(`🔄 Loading network requests page ${page} with limit ${limit}`)
+      const offset = (page - 1) * limit
+      const response = await sendChromeMessage({ 
+        action: 'getNetworkRequests', 
+        limit, 
+        offset 
+      })
+      
+      console.log('📊 Network requests response:', response)
+      
+      if (response?.success && response?.requests) {
+        // Update only the data for the current page, discard previous page data
+        setData(prevData => ({
+          ...prevData,
+          networkRequests: response.requests,
+          totalRequests: response.total || 0
+        }))
+        console.log(`✅ Loaded ${response.requests.length} network requests, total: ${response.total}`)
+      } else {
+        console.warn('⚠️ Network requests response missing success/requests:', response)
+      }
+    } catch (error) {
+      console.error('❌ Error loading network requests page:', error)
+    }
+  }, [])
+
+  const loadConsoleErrorsPage = useCallback(async (page: number, limit: number = 10) => {
+    try {
+      console.log(`🔄 Loading console errors page ${page} with limit ${limit}`)
+      const offset = (page - 1) * limit
+      const response = await sendChromeMessage({ 
+        action: 'getConsoleErrors', 
+        limit, 
+        offset 
+      })
+      
+      console.log('📊 Console errors response:', response)
+      
+      if (response?.success && response?.errors) {
+        // Update only the data for the current page, discard previous page data
+        setData(prevData => ({
+          ...prevData,
+          consoleErrors: response.errors,
+          totalErrors: response.total || 0
+        }))
+        console.log(`✅ Loaded ${response.errors.length} console errors, total: ${response.total}`)
+      } else {
+        console.warn('⚠️ Console errors response missing success/errors:', response)
+      }
+    } catch (error) {
+      console.error('❌ Error loading console errors page:', error)
+    }
+  }, [])
+
+  const loadTokenEventsPage = useCallback(async (page: number, limit: number = 10) => {
+    try {
+      console.log(`🔄 Loading token events page ${page} with limit ${limit}`)
+      const offset = (page - 1) * limit
+      const response = await sendChromeMessage({ 
+        action: 'getTokenEvents', 
+        limit, 
+        offset 
+      })
+      
+      console.log('📊 Token events response:', response)
+      
+      if (response?.success && response?.events) {
+        // Update only the data for the current page, discard previous page data
+        setData(prevData => ({
+          ...prevData,
+          tokenEvents: response.events,
+          totalTokenEvents: response.total || 0
+        }))
+        console.log(`✅ Loaded ${response.events.length} token events, total: ${response.total}`)
+      } else {
+        console.warn('⚠️ Token events response missing success/events:', response)
+      }
+    } catch (error) {
+      console.error('❌ Error loading token events page:', error)
+    }
+  }, [])
+
   const loadDashboardData = useCallback(async () => {
     try {
       // Get tabs count and current active tab
@@ -1196,29 +1256,35 @@ const Dashboard: React.FC = () => {
       // Get storage data
       const storageData = await chrome.storage.sync.get(['extensionEnabled', 'lastActivity']);
       
-      // MEMORY LEAK FIX: Use pre-allocated functions instead of Promise constructors
-      const networkData = await getChromeNetworkRequests(1000)
-      const errorData = await getChromeConsoleErrors(1000)
-      const tokenData = await getChromeTokenEvents(1000)
+      console.log('🔄 Dashboard: Loading initial data...')
       
-      // Calculate pagination
-      const totalRequests = networkData.total || 0;
-      const totalErrors = errorData.total || 0;
-      const totalTokenEvents = tokenData.total || 0;
-
-      // Update states  
-      setData({
+      // MEMORY LEAK FIX: Only get counts, don't load page data to avoid overwriting current page
+      // Get total counts without loading actual data
+      const countsResponse = await sendChromeMessage({ 
+        action: 'getTableCounts'
+      })
+      
+      console.log('📊 Dashboard counts response:', countsResponse)
+      
+      // MEMORY LEAK FIX: Update only metadata and totals, preserve current page data
+      setData(prevData => ({
+        ...prevData, // Preserve current page data (networkRequests, consoleErrors, tokenEvents)
         totalTabs: tabs.length,
         extensionEnabled: storageData.extensionEnabled ?? true,
         lastActivity: storageData.lastActivity 
           ? new Date(storageData.lastActivity).toLocaleString()
           : 'Never',
-        networkRequests: networkData.requests || [],
-        totalRequests: totalRequests,
-        consoleErrors: errorData.errors || [],
-        totalErrors: totalErrors,
-        tokenEvents: tokenData.events || [],
-        totalTokenEvents: totalTokenEvents
+        // Update only the totals from counts response
+        totalRequests: countsResponse?.data?.apiCalls || 0,
+        totalErrors: countsResponse?.data?.consoleErrors || 0,
+        totalTokenEvents: countsResponse?.data?.tokenEvents || 0
+      }))
+      
+      console.log('✅ Dashboard: Metadata loaded successfully', {
+        totalTabs: tabs.length,
+        totalRequests: countsResponse?.data?.apiCalls || 0,
+        totalErrors: countsResponse?.data?.consoleErrors || 0,
+        totalTokenEvents: countsResponse?.data?.tokenEvents || 0
       });
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -1296,6 +1362,22 @@ const Dashboard: React.FC = () => {
     loadTabsLoggingStatus();
   }, [loadDashboardData, loadTabsLoggingStatus]); // MEMORY LEAK FIX: Include all dependencies
 
+  // MEMORY LEAK FIX: Load page data on-demand when page changes
+  // Always load first page, then check totals for subsequent pages
+  useEffect(() => {
+    loadNetworkRequestsPage(currentPage, requestsPerPage);
+  }, [currentPage, requestsPerPage, loadNetworkRequestsPage]);
+
+  useEffect(() => {
+    loadConsoleErrorsPage(currentErrorPage, errorsPerPage);
+  }, [currentErrorPage, errorsPerPage, loadConsoleErrorsPage]);
+
+  useEffect(() => {
+    if (data.totalTokenEvents > 0) {
+      loadTokenEventsPage(currentTokenPage, tokenEventsPerPage);
+    }
+  }, [currentTokenPage, tokenEventsPerPage, loadTokenEventsPage, data.totalTokenEvents]);
+
   // Listen for storage changes to update tab statuses in real-time
   useEffect(() => {
     const handleStorageChanges = (changes: any, namespace: string) => {
@@ -1323,27 +1405,102 @@ const Dashboard: React.FC = () => {
 
   // Add real-time data refresh for network requests, errors, and tokens
   useEffect(() => {
-    // Set up periodic refresh every 5 seconds when dashboard is active
-    const refreshInterval = setInterval(() => {
-      console.log('🔄 DASHBOARD: Periodic data refresh...');
-      loadDashboardData();
-    }, 5000);
+    let refreshInterval: number | null = null
+    let isActive = true
+    
+    // MEMORY LEAK FIX: Memory-aware interval with exponential backoff
+    const startPeriodicRefresh = () => {
+      if (!isActive) return
+      
+      // Clear any existing interval
+      if (refreshInterval) {
+        clearTimeout(refreshInterval)
+      }
+      
+      // Start with 10 second intervals (slower than before)
+      let currentInterval = 10000
+      const maxInterval = 60000 // Cap at 60 seconds
+      
+      const scheduleNextRefresh = () => {
+        if (!isActive) return
+        
+        refreshInterval = window.setTimeout(() => {
+          if (!isActive) return
+          
+          try {
+            // Check memory pressure before refreshing
+            const performanceMemory = (performance as any).memory
+            if (performanceMemory?.usedJSHeapSize) {
+              const heapUsed = performanceMemory.usedJSHeapSize
+              const heapLimit = performanceMemory.jsHeapSizeLimit
+              const heapPercentage = (heapUsed / heapLimit) * 100
+              
+              if (heapPercentage > 85) {
+                // Skip refresh under high memory pressure
+                console.log('🚨 Skipping dashboard refresh - high memory pressure')
+                currentInterval = Math.min(currentInterval * 1.5, maxInterval)
+                scheduleNextRefresh()
+                return
+              } else if (heapPercentage > 70) {
+                // Slow down refresh rate
+                currentInterval = Math.min(currentInterval * 1.2, maxInterval)
+              } else {
+                // Reset to normal interval
+                currentInterval = 10000
+              }
+            }
+            
+            console.log('🔄 DASHBOARD: Periodic data refresh...')
+            loadDashboardData()
+          } catch (error) {
+            console.error('Dashboard refresh error:', error)
+          }
+          
+          // Schedule next refresh
+          scheduleNextRefresh()
+        }, currentInterval)
+      }
+      
+      scheduleNextRefresh()
+    }
 
     // Listen for background script notifications about new data
     const handleBackgroundMessages = (message: any, _sender: any, _sendResponse: any) => {
+      if (!isActive) return
+      
       if (message.type === 'DATA_UPDATED') {
         console.log('📡 DASHBOARD: Received data update notification:', message.dataType);
+        
+        // Update counts AND refresh current page data
         loadDashboardData();
+        
+        // Also refresh the current page data to show new entries immediately
+        const currentTableName = tableNames[currentTableIndex];
+        if (message.dataType === 'network_request' && currentTableName === 'Network Requests') {
+          console.log('🔄 DASHBOARD: Refreshing network requests page');
+          loadNetworkRequestsPage(currentPage, requestsPerPage);
+        } else if (message.dataType === 'console_error' && currentTableName === 'Console Errors') {
+          console.log('🔄 DASHBOARD: Refreshing console errors page');
+          loadConsoleErrorsPage(currentErrorPage, errorsPerPage);
+        } else if (message.dataType === 'token_event' && currentTableName === 'Token Events') {
+          console.log('🔄 DASHBOARD: Refreshing token events page');
+          loadTokenEventsPage(currentTokenPage, tokenEventsPerPage);
+        }
       }
     };
 
     chrome.runtime.onMessage.addListener(handleBackgroundMessages);
+    startPeriodicRefresh()
 
     return () => {
-      clearInterval(refreshInterval);
+      isActive = false
+      if (refreshInterval) {
+        clearTimeout(refreshInterval)
+        refreshInterval = null
+      }
       chrome.runtime.onMessage.removeListener(handleBackgroundMessages);
     };
-  }, [loadDashboardData]); // MEMORY LEAK FIX: Include loadDashboardData dependency
+  }, [loadDashboardData, tableNames, currentTableIndex, currentPage, requestsPerPage, loadNetworkRequestsPage, currentErrorPage, errorsPerPage, loadConsoleErrorsPage, currentTokenPage, tokenEventsPerPage, loadTokenEventsPage]); // Include all dependencies
 
   const refreshData = () => {
     setLoading(true);
@@ -1461,13 +1618,16 @@ const Dashboard: React.FC = () => {
   };
 
   const filteredAndSortedRequests = getFilteredAndSortedRequests();
-  const totalFilteredRequests = filteredAndSortedRequests.length;
+  // Use database total for pagination, not filtered client-side count
+  const totalFilteredRequests = data.totalRequests || 0; // Server-side pagination total
   const totalFilteredPages = Math.ceil(totalFilteredRequests / requestsPerPage);
   
-  // Calculate current page data
+  // Calculate display indices for pagination info
   const indexOfLastRequest = currentPage * requestsPerPage;
   const indexOfFirstRequest = indexOfLastRequest - requestsPerPage;
-  const currentRequests = filteredAndSortedRequests.slice(indexOfFirstRequest, indexOfLastRequest);
+  
+  // For display purposes, use the current page data directly (no client-side slicing needed)
+  const currentRequests = filteredAndSortedRequests; // Data is already paginated from server
 
   // Handle sorting
   const handleSort = (key: string) => {
@@ -1481,7 +1641,7 @@ const Dashboard: React.FC = () => {
   // Reset pagination when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterMethod, totalFilteredPages]);
+  }, [searchTerm, filterMethod]);
 
   // Generate page numbers for pagination (Google-style)
   const getPageNumbers = () => {
@@ -1568,13 +1728,16 @@ const Dashboard: React.FC = () => {
   };
 
   const filteredAndSortedErrors = getFilteredAndSortedErrors();
-  const totalFilteredErrors = filteredAndSortedErrors.length;
+  // Use database total for pagination, not filtered client-side count
+  const totalFilteredErrors = data.totalErrors || 0; // Server-side pagination total
   const totalFilteredErrorPages = Math.ceil(totalFilteredErrors / errorsPerPage);
   
-  // Calculate current page data for errors
+  // Calculate display indices for pagination info
   const indexOfLastError = currentErrorPage * errorsPerPage;
   const indexOfFirstError = indexOfLastError - errorsPerPage;
-  const currentErrors = filteredAndSortedErrors.slice(indexOfFirstError, indexOfLastError);
+  
+  // For display purposes, use the current page data directly (no client-side slicing needed)
+  const currentErrors = filteredAndSortedErrors; // Data is already paginated from server
 
   // Handle error sorting
   const handleErrorSort = (key: string) => {
@@ -1607,7 +1770,7 @@ const Dashboard: React.FC = () => {
   // Reset error pagination when filters change
   useEffect(() => {
     setCurrentErrorPage(1);
-  }, [errorSearchTerm, filterSeverity, totalFilteredErrorPages]);
+  }, [errorSearchTerm, filterSeverity]);
 
   // Token Events filtering and sorting
   const getFilteredAndSortedTokenEvents = () => {
@@ -1695,7 +1858,7 @@ const Dashboard: React.FC = () => {
   // Reset token pagination when filters change
   useEffect(() => {
     setCurrentTokenPage(1);
-  }, [tokenSearchTerm, filterTokenType, totalFilteredTokenPages]);
+  }, [tokenSearchTerm, filterTokenType]);
 
   // Toggle network logging for a specific tab
   const toggleTabNetworkLogging = async (tabId: number) => {
@@ -2227,9 +2390,9 @@ const Dashboard: React.FC = () => {
                             ? 'bg-blue-100 text-blue-600'
                             : 'bg-gray-200 text-gray-600'
                         }`}>
-                          {index === 0 ? (data.networkRequests?.length || 0) : 
-                           index === 1 ? (data.consoleErrors?.length || 0) : 
-                           index === 2 ? (data.tokenEvents?.length || 0) :
+                          {index === 0 ? (data.totalRequests || 0) : 
+                           index === 1 ? (data.totalErrors || 0) : 
+                           index === 2 ? (data.totalTokenEvents || 0) :
                            'LIVE'}
                         </span>
                       </span>
@@ -3250,6 +3413,9 @@ const Dashboard: React.FC = () => {
           networkRequests={data.networkRequests}
           consoleErrors={data.consoleErrors}
           tokenEvents={data.tokenEvents}
+          totalRequests={data.totalRequests}
+          totalErrors={data.totalErrors}
+          totalTokenEvents={data.totalTokenEvents}
         />
       </main>
       </div>

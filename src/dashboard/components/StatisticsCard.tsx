@@ -27,6 +27,9 @@ interface StatisticsCardProps {
   networkRequests: any[];
   consoleErrors: any[];
   tokenEvents: any[];
+  totalRequests?: number;
+  totalErrors?: number;
+  totalTokenEvents?: number;
 }
 
 interface GlobalStats {
@@ -57,7 +60,10 @@ type ChartDefinitions = {
 const StatisticsCard: React.FC<StatisticsCardProps> = ({
   networkRequests,
   consoleErrors,
-  tokenEvents
+  tokenEvents,
+  totalRequests,
+  totalErrors,
+  totalTokenEvents
 }) => {
   // Debug mode: Add mock data for testing charts
   const DEBUG_MODE = false; // Set to false to disable debug data
@@ -360,9 +366,14 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       tokenEvents: effectiveTokenEvents?.length || 0
     });
 
-    const totalRequests = effectiveNetworkRequests.length;
-    const totalErrors = effectiveConsoleErrors.length;
-    const totalTokenEvents = effectiveTokenEvents.length;
+    const calculatedTotalRequests = effectiveNetworkRequests.length;
+    const calculatedTotalErrors = effectiveConsoleErrors.length;
+    const calculatedTotalTokenEvents = effectiveTokenEvents.length;
+
+    // Use provided totals if available, otherwise use calculated totals from current data
+    const finalTotalRequests = totalRequests ?? calculatedTotalRequests;
+    const finalTotalErrors = totalErrors ?? calculatedTotalErrors;
+    const finalTotalTokenEvents = totalTokenEvents ?? calculatedTotalTokenEvents;
 
     // Calculate unique domains
     const allData = [...effectiveNetworkRequests, ...effectiveConsoleErrors, ...effectiveTokenEvents];
@@ -433,12 +444,12 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       const status = req.status || req.response_status;
       return status >= 200 && status < 400;
     }).length;
-    const successRate = totalRequests > 0 ? Math.round((successfulRequests / totalRequests) * 100) : 0;
+    const successRate = finalTotalRequests > 0 ? Math.round((successfulRequests / finalTotalRequests) * 100) : 0;
 
     return {
-      totalRequests,
-      totalErrors,
-      totalTokenEvents,
+      totalRequests: finalTotalRequests,
+      totalErrors: finalTotalErrors,
+      totalTokenEvents: finalTotalTokenEvents,
       uniqueDomains,
       maxResponseTime,
       requestsByMethod,

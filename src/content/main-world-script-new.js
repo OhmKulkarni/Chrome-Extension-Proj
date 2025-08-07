@@ -13,47 +13,41 @@ let originalXhrSend = XMLHttpRequest.prototype.send;
 let originalXhrSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader;
 let isIntercepting = false;
 
-// Get current tab ID and check if logging is enabled for this tab
-const getCurrentTabId = () => {
-  return new Promise((resolve) => {
-    if (typeof chrome !== 'undefined' && chrome.runtime) {
-      chrome.runtime.sendMessage({ action: 'getCurrentTabId' }, (response) => {
-        if (chrome.runtime.lastError) {
-          console.warn('🌍 MAIN_WORLD: Error getting tab ID:', chrome.runtime.lastError);
-          resolve(null);
-        } else {
-          resolve(response?.tabId || null);
-        }
-      });
-    } else {
-      resolve(null);
+// MEMORY LEAK FIX: Convert Promise constructor to async/await pattern
+const getCurrentTabId = async () => {
+  if (typeof chrome !== 'undefined' && chrome.runtime) {
+    try {
+      const response = await chrome.runtime.sendMessage({ action: 'getCurrentTabId' })
+      return response?.tabId || null
+    } catch (error) {
+      console.warn('🌍 MAIN_WORLD: Error getting tab ID:', error)
+      return null
     }
-  });
+  } else {
+    return null
+  }
 };
 
-// Check if logging is enabled for current tab
+// Check if logging is enabled for current tab - MEMORY LEAK FIX: Convert Promise constructor
 const isLoggingEnabled = async () => {
   try {
     const tabId = await getCurrentTabId();
     if (!tabId) return false;
     
-    return new Promise((resolve) => {
-      if (typeof chrome !== 'undefined' && chrome.storage) {
-        chrome.storage.local.get([`tabLogging_${tabId}`, 'extensionEnabled'], (result) => {
-          if (chrome.runtime.lastError) {
-            console.warn('🌍 MAIN_WORLD: Error checking logging state:', chrome.runtime.lastError);
-            resolve(false);
-          } else {
-            const globalEnabled = result.extensionEnabled !== false; // default true
-            const tabLogging = result[`tabLogging_${tabId}`];
-            const tabEnabled = !tabLogging || tabLogging.status === 'active'; // default true
-            resolve(globalEnabled && tabEnabled);
-          }
-        });
-      } else {
-        resolve(false);
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      try {
+        const result = await chrome.storage.local.get([`tabLogging_${tabId}`, 'extensionEnabled'])
+        const globalEnabled = result.extensionEnabled !== false; // default true
+        const tabLogging = result[`tabLogging_${tabId}`];
+        const tabEnabled = !tabLogging || tabLogging.status === 'active'; // default true
+        return globalEnabled && tabEnabled;
+      } catch (error) {
+        console.warn('🌍 MAIN_WORLD: Error checking logging state:', error);
+        return false;
       }
-    });
+    } else {
+      return false;
+    }
   } catch (error) {
     console.warn('🌍 MAIN_WORLD: Error in isLoggingEnabled:', error);
     return false;

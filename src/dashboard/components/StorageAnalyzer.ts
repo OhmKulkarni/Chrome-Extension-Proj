@@ -1,6 +1,69 @@
 // Storage analysis utilities for accurate performance monitoring
 // Handles existing IndexedDB data and provides baseline measurements
 
+// MEMORY LEAK FIX: Extract Promise constructor functions outside class to prevent context capture
+function createOpenDatabasePromise(dbName: string, dbVersion: number): Promise<IDBDatabase> {
+  const request = indexedDB.open(dbName, dbVersion)
+  
+  return new Promise<IDBDatabase>((resolve, reject) => {
+    let resolved = false
+    
+    function handleError() {
+      if (!resolved) {
+        resolved = true
+        cleanup()
+        reject(new Error('Failed to open IndexedDB'))
+      }
+    }
+    
+    function handleSuccess() {
+      if (!resolved) {
+        resolved = true
+        cleanup()
+        resolve(request.result)
+      }
+    }
+    
+    function cleanup() {
+      request.removeEventListener('error', handleError)
+      request.removeEventListener('success', handleSuccess)
+    }
+    
+    request.addEventListener('error', handleError)
+    request.addEventListener('success', handleSuccess)
+  })
+}
+
+function createRequestPromise<T>(request: IDBRequest<T>): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    let resolved = false
+    
+    function handleError() {
+      if (!resolved) {
+        resolved = true
+        cleanup()
+        reject(new Error('IDB request failed'))
+      }
+    }
+    
+    function handleSuccess() {
+      if (!resolved) {
+        resolved = true
+        cleanup()
+        resolve(request.result)
+      }
+    }
+    
+    function cleanup() {
+      request.removeEventListener('error', handleError)
+      request.removeEventListener('success', handleSuccess)
+    }
+    
+    request.addEventListener('error', handleError)
+    request.addEventListener('success', handleSuccess)
+  })
+}
+
 export interface StorageBreakdown {
   totalSize: number;
   totalRecords: number;
@@ -41,21 +104,14 @@ export class StorageAnalyzer {
     this.performanceTrackingStartTime = Date.now();
   }
 
-  // MEMORY LEAK FIX: Helper method to avoid Promise constructor pattern
+  // MEMORY LEAK FIX: Use external helper function instead of class method Promise constructor
   private async openDatabase(): Promise<IDBDatabase> {
-    return new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, this.dbVersion);
-      request.onerror = () => reject(new Error('Failed to open IndexedDB'));
-      request.onsuccess = (event) => resolve((event.target as IDBOpenDBRequest).result);
-    });
+    return createOpenDatabasePromise(this.dbName, this.dbVersion)
   }
 
-  // MEMORY LEAK FIX: Helper method for IDBRequest Promise handling
+  // MEMORY LEAK FIX: Use external helper function instead of class method Promise constructor
   private async promiseFromRequest<T>(request: IDBRequest<T>): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-      request.onerror = () => reject(new Error('IDB request failed'));
-      request.onsuccess = () => resolve(request.result);
-    });
+    return createRequestPromise<T>(request)
   }
 
   /**

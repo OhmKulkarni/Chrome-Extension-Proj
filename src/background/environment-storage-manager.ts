@@ -206,4 +206,21 @@ export class EnvironmentStorageManager implements StorageOperations {
   async getPerformanceStats(): Promise<PerformanceStats> {
     return this.ensureInitialized().getPerformanceStats()
   }
+
+  // MEMORY LEAK FIX: Add cleanup method to properly close storage connections
+  async cleanup(): Promise<void> {
+    if (this.storage && 'cleanup' in this.storage) {
+      await (this.storage as any).cleanup()
+    }
+    this.storage = null
+    this.storageType = null
+  }
+
+  // MEMORY LEAK FIX: Check if underlying storage is connected
+  isConnected(): boolean {
+    if (this.storage && 'isConnected' in this.storage) {
+      return (this.storage as any).isConnected()
+    }
+    return this.storage !== null
+  }
 }
