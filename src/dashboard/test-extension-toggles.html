@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Extension Toggle Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f0f8ff; }
+        .container { max-width: 700px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .test-section { margin: 15px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .status-good { background: #d4edda; border-color: #c3e6cb; }
+        .status-error { background: #f8d7da; border-color: #f5c6cb; }
+        .status-warning { background: #fff3cd; border-color: #ffeaa7; }
+        button { margin: 5px; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; background: #007bff; color: white; }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        .log { background: #f8f9fa; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto; margin-top: 10px; border: 1px solid #dee2e6; }
+        .success { color: #28a745; font-weight: bold; }
+        .error { color: #dc3545; font-weight: bold; }
+        .warning { color: #ffc107; font-weight: bold; }
+        .info { color: #17a2b8; }
+        select { padding: 5px; margin: 5px; border: 1px solid #ccc; border-radius: 4px; min-width: 300px; }
+        .result-summary { background: #f8f9fa; padding: 15px; border-radius: 5px; margin-top: 10px; border-left: 4px solid #007bff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Extension Dashboard Toggle Test</h1>
+        <p><strong>Purpose:</strong> Test dashboard toggle functionality after async fixes.</p>
+
+        <!-- Instructions -->
+        <div class="test-section status-warning">
+            <h3>📋 Instructions</h3>
+            <p>This test page should be opened as an extension page to have proper Chrome API access:</p>
+            <ol>
+                <li><strong>Reload the extension</strong> at <code>chrome://extensions/</code></li>
+                <li>Copy this file to your extension's src/ directory</li>
+                <li>Add it to manifest.json web_accessible_resources or open it via extension://</li>
+                <li>Or use your extension's dashboard to test directly</li>
+            </ol>
+        </div>
+
+        <!-- Test Results Summary -->
+        <div id="testSummary" class="test-section">
+            <h3>📊 Test Results</h3>
+            <div id="summaryContent" class="result-summary">
+                Click "Run All Tests" to begin testing...
+            </div>
+            <button onclick="runAllTests()" id="runAllBtn">Run All Tests</button>
+        </div>
+
+        <!-- Background Script Test -->
+        <div id="backgroundTest" class="test-section">
+            <h3>1. 🔍 Background Script Communication</h3>
+            <p>Testing if the background script responds properly...</p>
+            <button onclick="testBackgroundScript()">Test Background Script</button>
+            <div id="backgroundLog" class="log"></div>
+        </div>
+
+        <!-- Tab Discovery -->
+        <div id="tabTest" class="test-section">
+            <h3>2. 📄 Tab Discovery</h3>
+            <p>Finding tabs available for toggle testing...</p>
+            <button onclick="discoverTabs()">Discover Tabs</button>
+            <select id="tabSelect">
+                <option value="">No tabs discovered yet...</option>
+            </select>
+            <div id="tabLog" class="log"></div>
+        </div>
+
+        <!-- Toggle Tests -->
+        <div id="toggleTest" class="test-section">
+            <h3>3. 🎯 Toggle Functionality Tests</h3>
+            <p>Testing the specific toggle operations that were failing...</p>
+            <button onclick="testNetworkToggle()" id="networkBtn" disabled>Test Network Toggle</button>
+            <button onclick="testErrorToggle()" id="errorBtn" disabled>Test Error Toggle</button>
+            <button onclick="testBothToggles()" id="bothBtn" disabled>Test Both Toggles</button>
+            <div id="toggleLog" class="log"></div>
+        </div>
+
+        <!-- Live Dashboard Test -->
+        <div id="dashboardTest" class="test-section">
+            <h3>4. 🚀 Live Dashboard Test</h3>
+            <p>Test the actual dashboard toggle functions...</p>
+            <button onclick="openDashboard()">Open Dashboard</button>
+            <button onclick="testDashboardDirectly()">Test Dashboard Functions</button>
+            <div id="dashboardLog" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        let discoveredTabs = [];
+        let selectedTabId = null;
+        let testResults = {
+            backgroundScript: null,
+            tabDiscovery: null,
+            networkToggle: null,
+            errorToggle: null,
+            dashboard: null
+        };
+
+        function log(containerId, message, type = 'info') {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info';
+            container.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function updateSummary() {
+            const summary = document.getElementById('summaryContent');
+            let html = '<h4>Test Status:</h4>';
+            
+            const tests = [
+                { name: 'Background Script', key: 'backgroundScript' },
+                { name: 'Tab Discovery', key: 'tabDiscovery' },
+                { name: 'Network Toggle', key: 'networkToggle' },
+                { name: 'Error Toggle', key: 'errorToggle' },
+                { name: 'Dashboard', key: 'dashboard' }
+            ];
+
+            let passed = 0;
+            let failed = 0;
+
+            tests.forEach(test => {
+                const result = testResults[test.key];
+                if (result === true) {
+                    html += `<div class="success">✅ ${test.name}: PASSED</div>`;
+                    passed++;
+                } else if (result === false) {
+                    html += `<div class="error">❌ ${test.name}: FAILED</div>`;
+                    failed++;
+                } else {
+                    html += `<div>⏳ ${test.name}: Pending</div>`;
+                }
+            });
+
+            if (passed > 0 && failed === 0) {
+                html += '<div class="success"><h4>🎉 All tests passed! Dashboard toggles should work!</h4></div>';
+            } else if (failed > 0) {
+                html += `<div class="error"><h4>⚠️ ${failed} test(s) failed. Check logs above.</h4></div>`;
+            }
+
+            summary.innerHTML = html;
+        }
+
+        async function testBackgroundScript() {
+            document.getElementById('backgroundLog').innerHTML = '';
+            log('backgroundLog', '🔍 Testing background script communication...');
+
+            // Check if chrome.runtime is available
+            if (!chrome || !chrome.runtime || !chrome.runtime.sendMessage) {
+                log('backgroundLog', '❌ Chrome runtime API not available - this page needs to run in extension context', 'error');
+                testResults.backgroundScript = false;
+                updateSummary();
+                return;
+            }
+
+            try {
+                // Test ping
+                log('backgroundLog', '📡 Sending ping to background script...');
+                const response = await chrome.runtime.sendMessage({ action: 'ping' });
+
+                if (response && response.success) {
+                    log('backgroundLog', '✅ Background script responded successfully!', 'success');
+                    log('backgroundLog', `📦 Response: ${JSON.stringify(response)}`, 'info');
+                    testResults.backgroundScript = true;
+                } else {
+                    log('backgroundLog', '⚠️ Background script responded but format unexpected', 'warning');
+                    log('backgroundLog', `📦 Response: ${JSON.stringify(response)}`, 'warning');
+                    testResults.backgroundScript = false;
+                }
+            } catch (error) {
+                log('backgroundLog', `❌ Background script communication failed: ${error.message}`, 'error');
+                if (error.message.includes('Could not establish connection')) {
+                    log('backgroundLog', '🚨 "Could not establish connection" - This is the error we fixed!', 'error');
+                    log('backgroundLog', '🔄 Extension needs to be reloaded with the new async fixes', 'warning');
+                }
+                testResults.backgroundScript = false;
+            }
+
+            updateSummary();
+        }
+
+        async function discoverTabs() {
+            document.getElementById('tabLog').innerHTML = '';
+            log('tabLog', '🔍 Discovering available tabs...');
+
+            if (!chrome || !chrome.runtime) {
+                log('tabLog', '❌ Chrome runtime API not available', 'error');
+                return;
+            }
+
+            try {
+                const response = await chrome.runtime.sendMessage({ action: 'getTabs' });
+
+                if (response && response.success && response.tabs) {
+                    discoveredTabs = response.tabs;
+                    log('tabLog', `✅ Found ${response.tabs.length} suitable tabs`, 'success');
+
+                    const tabSelect = document.getElementById('tabSelect');
+                    tabSelect.innerHTML = '<option value="">Select a tab to test...</option>';
+
+                    response.tabs.forEach(tab => {
+                        const option = document.createElement('option');
+                        option.value = tab.id;
+                        option.textContent = `Tab ${tab.id}: ${tab.title ? tab.title.substring(0, 60) + '...' : tab.url}`;
+                        tabSelect.appendChild(option);
+                        log('tabLog', `📄 Tab ${tab.id}: ${tab.title || tab.url}`, 'info');
+                    });
+
+                    // Enable toggle buttons
+                    document.getElementById('networkBtn').disabled = false;
+                    document.getElementById('errorBtn').disabled = false;
+                    document.getElementById('bothBtn').disabled = false;
+
+                    testResults.tabDiscovery = true;
+                } else {
+                    log('tabLog', '❌ Failed to discover tabs', 'error');
+                    log('tabLog', `📦 Response: ${JSON.stringify(response)}`, 'warning');
+                    testResults.tabDiscovery = false;
+                }
+            } catch (error) {
+                log('tabLog', `❌ Tab discovery failed: ${error.message}`, 'error');
+                testResults.tabDiscovery = false;
+            }
+
+            updateSummary();
+        }
+
+        function getSelectedTabId() {
+            const tabSelect = document.getElementById('tabSelect');
+            return parseInt(tabSelect.value);
+        }
+
+        async function testNetworkToggle() {
+            const tabId = getSelectedTabId();
+            if (!tabId) {
+                log('toggleLog', '⚠️ Please select a tab first', 'warning');
+                return;
+            }
+
+            log('toggleLog', `🎯 Testing network toggle for Tab ${tabId}...`);
+
+            try {
+                const response = await chrome.runtime.sendMessage({
+                    action: 'toggleTabLogging',
+                    tabId: tabId,
+                    enabled: true
+                });
+
+                if (response && response.success) {
+                    log('toggleLog', '✅ Network toggle SUCCESS! No connection error.', 'success');
+                    log('toggleLog', `📦 Response: ${JSON.stringify(response)}`, 'success');
+                    testResults.networkToggle = true;
+                } else {
+                    log('toggleLog', '❌ Network toggle failed', 'error');
+                    log('toggleLog', `📦 Response: ${JSON.stringify(response)}`, 'error');
+                    testResults.networkToggle = false;
+                }
+            } catch (error) {
+                log('toggleLog', `❌ Network toggle error: ${error.message}`, 'error');
+                testResults.networkToggle = false;
+            }
+
+            updateSummary();
+        }
+
+        async function testErrorToggle() {
+            const tabId = getSelectedTabId();
+            if (!tabId) {
+                log('toggleLog', '⚠️ Please select a tab first', 'warning');
+                return;
+            }
+
+            log('toggleLog', `🎯 Testing error toggle for Tab ${tabId}...`);
+
+            try {
+                const response = await chrome.runtime.sendMessage({
+                    action: 'toggleTabErrorLogging',
+                    tabId: tabId,
+                    enabled: true
+                });
+
+                if (response && response.success) {
+                    log('toggleLog', '✅ Error toggle SUCCESS! No connection error.', 'success');
+                    log('toggleLog', `📦 Response: ${JSON.stringify(response)}`, 'success');
+                    testResults.errorToggle = true;
+                } else {
+                    log('toggleLog', '❌ Error toggle failed', 'error');
+                    log('toggleLog', `📦 Response: ${JSON.stringify(response)}`, 'error');
+                    testResults.errorToggle = false;
+                }
+            } catch (error) {
+                log('toggleLog', `❌ Error toggle error: ${error.message}`, 'error');
+                testResults.errorToggle = false;
+            }
+
+            updateSummary();
+        }
+
+        async function testBothToggles() {
+            document.getElementById('toggleLog').innerHTML = '';
+            log('toggleLog', '🎯 Testing both toggles sequentially...');
+            
+            await testNetworkToggle();
+            await new Promise(resolve => setTimeout(resolve, 500)); // Small delay
+            await testErrorToggle();
+        }
+
+        async function openDashboard() {
+            log('dashboardLog', '🚀 Opening dashboard...');
+            
+            try {
+                const response = await chrome.runtime.sendMessage({ action: 'openDashboard' });
+                if (response && response.success) {
+                    log('dashboardLog', '✅ Dashboard opened successfully', 'success');
+                } else {
+                    log('dashboardLog', '❌ Failed to open dashboard', 'error');
+                }
+            } catch (error) {
+                log('dashboardLog', `❌ Dashboard open error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testDashboardDirectly() {
+            log('dashboardLog', '🔍 Testing dashboard functions directly...');
+            
+            // This would test if we're in dashboard context
+            if (window.location.href.includes('dashboard.html')) {
+                log('dashboardLog', '✅ Running in dashboard context', 'success');
+                testResults.dashboard = true;
+            } else {
+                log('dashboardLog', '⚠️ Not in dashboard context - open dashboard to test fully', 'warning');
+                testResults.dashboard = null;
+            }
+            
+            updateSummary();
+        }
+
+        async function runAllTests() {
+            document.getElementById('runAllBtn').disabled = true;
+            document.getElementById('runAllBtn').textContent = 'Running Tests...';
+            
+            // Clear all logs
+            ['backgroundLog', 'tabLog', 'toggleLog', 'dashboardLog'].forEach(id => {
+                const elem = document.getElementById(id);
+                if (elem) elem.innerHTML = '';
+            });
+
+            log('backgroundLog', '🏁 Starting comprehensive test suite...');
+
+            try {
+                // Test 1: Background Script
+                await testBackgroundScript();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // Test 2: Tab Discovery
+                if (testResults.backgroundScript) {
+                    await discoverTabs();
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+
+                    // Test 3: Toggle Tests (if tabs found)
+                    if (testResults.tabDiscovery && discoveredTabs.length > 0) {
+                        // Select first tab automatically
+                        document.getElementById('tabSelect').value = discoveredTabs[0].id;
+                        await testBothToggles();
+                    }
+                }
+
+                // Test 4: Dashboard
+                await testDashboardDirectly();
+
+            } catch (error) {
+                log('backgroundLog', `❌ Test suite error: ${error.message}`, 'error');
+            } finally {
+                document.getElementById('runAllBtn').disabled = false;
+                document.getElementById('runAllBtn').textContent = 'Run All Tests';
+                updateSummary();
+            }
+        }
+
+        // Auto-run on page load if chrome APIs are available
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                if (chrome && chrome.runtime) {
+                    log('backgroundLog', '🔄 Chrome APIs detected - running auto-test in 2 seconds...');
+                    setTimeout(runAllTests, 2000);
+                } else {
+                    log('backgroundLog', '⚠️ Chrome APIs not available - manual testing only', 'warning');
+                    updateSummary();
+                }
+            }, 500);
+        });
+
+        // Tab selection handler
+        document.getElementById('tabSelect').addEventListener('change', function() {
+            selectedTabId = parseInt(this.value);
+            if (selectedTabId) {
+                log('toggleLog', `📌 Selected Tab ${selectedTabId} for testing`);
+            }
+        });
+
+        updateSummary();
+    </script>
+</body>
+</html>

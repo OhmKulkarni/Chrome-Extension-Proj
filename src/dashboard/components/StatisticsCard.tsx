@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
@@ -16,17 +16,21 @@ import {
   ErrorFrequencyOverTimeChart,
   LatencyOverTimeChart,
   TrafficByEndpointChart,
-  MethodUsageDailyChart,
   StatusCodeBreakdownChartNew,
   PayloadSizeDistributionChart,
   RequestsByTimeOfDayChart,
   RequestsByDomainChart
 } from './ChartComponents';
+import { SimpleTestChart } from './SimpleTestChart';
 
 interface StatisticsCardProps {
   networkRequests: any[];
   consoleErrors: any[];
   tokenEvents: any[];
+  totalRequests?: number;
+  totalErrors?: number;
+  totalTokenEvents?: number;
+  onRefreshAnalysisData?: () => Promise<void>;
 }
 
 interface GlobalStats {
@@ -57,7 +61,11 @@ type ChartDefinitions = {
 const StatisticsCard: React.FC<StatisticsCardProps> = ({
   networkRequests,
   consoleErrors,
-  tokenEvents
+  tokenEvents,
+  totalRequests,
+  totalErrors,
+  totalTokenEvents,
+  onRefreshAnalysisData
 }) => {
   // Debug mode: Add mock data for testing charts
   const DEBUG_MODE = false; // Set to false to disable debug data
@@ -114,6 +122,65 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   const [selectedChart, setSelectedChart] = useState<string | null>(null);
   const [showAllCharts, setShowAllCharts] = useState(false);
   const [chartSearch, setChartSearch] = useState('');
+
+  // Analysis data state - larger dataset for accurate statistics
+  const [analysisData, setAnalysisData] = useState<{
+    networkRequests: any[];
+    consoleErrors: any[];
+    tokenEvents: any[];
+    loaded: boolean;
+  }>({
+    networkRequests: [],
+    consoleErrors: [],
+    tokenEvents: [],
+    loaded: false
+  });
+  
+  // User-selected analysis sample size (number of records to consider for stats)
+  const [analysisLimit, setAnalysisLimit] = useState<number>(200);
+
+  // Load analysis data for statistics calculations (uses selectable limit)
+  const loadAnalysisData = useCallback(async (limitOverride?: number) => {
+    const limit = typeof limitOverride === 'number' ? limitOverride : analysisLimit;
+    try {
+      const response = await chrome.runtime.sendMessage({ 
+        action: 'getAnalysisData',
+        limit
+      });
+      
+      if (response?.success && response?.data) {
+        setAnalysisData({
+          networkRequests: response.data.networkRequests || [],
+          consoleErrors: response.data.consoleErrors || [],
+          tokenEvents: response.data.tokenEvents || [],
+          loaded: true
+        });
+        console.log('✅ Analysis data loaded:', {
+          limit,
+          networkRequests: response.data.networkRequests?.length || 0,
+          consoleErrors: response.data.consoleErrors?.length || 0,
+          tokenEvents: response.data.tokenEvents?.length || 0
+        });
+      } else {
+        console.warn('⚠️ Failed to load analysis data:', response);
+      }
+    } catch (error) {
+      console.error('❌ Error loading analysis data:', error);
+    }
+  }, [analysisLimit]);
+
+  // Load analysis data on component mount and when limit changes
+  useEffect(() => {
+    loadAnalysisData();
+  }, [loadAnalysisData]);
+
+  // Refresh analysis data when parent requests it
+  useEffect(() => {
+    if (onRefreshAnalysisData) {
+      // Refresh analysis data when requested
+      loadAnalysisData();
+    }
+  }, [onRefreshAnalysisData, loadAnalysisData]);
 
   // Chart definitions based on user requirements
   const chartDefinitions: ChartDefinitions = useMemo(() => ({
@@ -235,84 +302,168 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     );
   }, [chartDefinitions, chartSearch]);
 
-  // Chart renderer function
+  // Chart renderer function with error boundary
   const renderChart = (chartKey: string) => {
-    const chartData = {
-      data: globalStats,
-      networkRequests: debugNetworkRequests,
-      consoleErrors: debugConsoleErrors,
-      tokenEvents: debugTokenEvents
-    };
+    try {
+      // Use analysis data for charts when available for better accuracy
+      const useAnalysisData = analysisData.loaded && analysisData.networkRequests.length > 0;
+      
+      const effectiveNetworkRequests = useAnalysisData 
+        ? analysisData.networkRequests 
+        : (DEBUG_MODE && (!networkRequests || networkRequests.length === 0) ? mockNetworkRequests : networkRequests);
+      
+      const effectiveConsoleErrors = useAnalysisData 
+        ? analysisData.consoleErrors 
+        : (DEBUG_MODE && (!consoleErrors || consoleErrors.length === 0) ? mockConsoleErrors : consoleErrors);
+      
+      const effectiveTokenEvents = useAnalysisData 
+        ? analysisData.tokenEvents 
+        : (DEBUG_MODE && (!tokenEvents || tokenEvents.length === 0) ? mockTokenEvents : tokenEvents);
 
-    console.log('Rendering chart:', chartKey, 'with data:', {
-      networkRequests: debugNetworkRequests?.length || 0,
-      consoleErrors: debugConsoleErrors?.length || 0,
-      tokenEvents: debugTokenEvents?.length || 0
-    });
+      const chartData = {
+        data: globalStats,
+        networkRequests: effectiveNetworkRequests,
+        consoleErrors: effectiveConsoleErrors,
+        tokenEvents: effectiveTokenEvents
+      };
 
-    switch (chartKey) {
-      case 'requests-over-time':
-        return <RequestsOverTimeChart {...chartData} />;
-      case 'http-method-distribution':
-        return <HttpMethodDistributionChart {...chartData} />;
-      case 'status-code-breakdown':
-        return <StatusCodeBreakdownChartNew {...chartData} />;
-      case 'top-endpoints-by-volume':
-        return <TopEndpointsByVolumeChart {...chartData} />;
-      case 'avg-response-time-per-route':
-        return <AvgResponseTimePerRouteChart {...chartData} />;
-      case 'auth-failures-vs-success':
-        return <AuthFailuresVsSuccessChart {...chartData} />;
-      case 'top-frequent-errors':
-        return <TopFrequentErrorsChart {...chartData} />;
-      case 'error-frequency-over-time':
-        return <ErrorFrequencyOverTimeChart {...chartData} />;
-      case 'latency-over-time':
-        return <LatencyOverTimeChart {...chartData} />;
-      case 'traffic-by-endpoint':
-        return <TrafficByEndpointChart {...chartData} />;
-      case 'method-usage-daily':
-        return <MethodUsageDailyChart {...chartData} />;
-      case 'payload-size-distribution':
-        return <PayloadSizeDistributionChart {...chartData} />;
-      case 'requests-by-time-of-day':
-        return <RequestsByTimeOfDayChart {...chartData} />;
-      case 'requests-by-domain':
-        return <RequestsByDomainChart {...chartData} />;
-      default:
+      console.log('Rendering chart:', chartKey, 'with data:', {
+        useAnalysisData,
+        networkRequests: effectiveNetworkRequests?.length || 0,
+        consoleErrors: effectiveConsoleErrors?.length || 0,
+        tokenEvents: effectiveTokenEvents?.length || 0,
+        dataSource: useAnalysisData ? 'analysis (200 records)' : 'current page (10 records)'
+      });
+
+      // MEMORY LEAK FIX: Add detailed logging for method-usage-daily chart
+      if (chartKey === 'method-usage-daily') {
+        console.log('MethodUsageDailyChart - Detailed data inspection:');
+        console.log('- debugNetworkRequests type:', typeof debugNetworkRequests);
+        console.log('- debugNetworkRequests isArray:', Array.isArray(debugNetworkRequests));
+        console.log('- Sample request data:', debugNetworkRequests?.[0]);
+        console.log('- Sample timestamp:', debugNetworkRequests?.[0]?.timestamp);
+        console.log('- Sample method:', debugNetworkRequests?.[0]?.method);
+      }
+
+      // MEMORY LEAK FIX: Add null checks for chart data
+      if (!chartData.networkRequests) {
+        console.warn('Chart rendering skipped - no network requests data');
         return (
           <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
             <div className="text-center text-gray-400">
-              <BarChart3 className="h-16 w-16 mx-auto mb-4" />
-              <p className="text-lg font-medium">Chart Implementation Pending</p>
-              <p className="text-sm">
-                {chartDefinitions[chartKey]?.name} ({chartDefinitions[chartKey]?.type})
-              </p>
-              <p className="text-xs mt-2 max-w-md mx-auto">
-                {chartDefinitions[chartKey]?.tooltip}
-              </p>
+              <p>No data available for chart</p>
+              <p className="text-xs mt-2">Network requests data is missing</p>
             </div>
           </div>
         );
+      }
+
+      switch (chartKey) {
+        case 'requests-over-time':
+          return <RequestsOverTimeChart {...chartData} />;
+        case 'http-method-distribution':
+          return <HttpMethodDistributionChart {...chartData} />;
+        case 'status-code-breakdown':
+          return <StatusCodeBreakdownChartNew {...chartData} />;
+        case 'top-endpoints-by-volume':
+          return <TopEndpointsByVolumeChart {...chartData} />;
+        case 'avg-response-time-per-route':
+          return <AvgResponseTimePerRouteChart {...chartData} />;
+        case 'auth-failures-vs-success':
+          return <AuthFailuresVsSuccessChart {...chartData} />;
+        case 'top-frequent-errors':
+          return <TopFrequentErrorsChart {...chartData} />;
+        case 'error-frequency-over-time':
+          return <ErrorFrequencyOverTimeChart {...chartData} />;
+        case 'latency-over-time':
+          return <LatencyOverTimeChart {...chartData} />;
+        case 'traffic-by-endpoint':
+          return <TrafficByEndpointChart {...chartData} />;
+        case 'method-usage-daily':
+          try {
+            console.log('About to render SimpleTestChart instead of MethodUsageDailyChart');
+            return <SimpleTestChart networkRequests={chartData.networkRequests} />;
+          } catch (chartError) {
+            console.error('SimpleTestChart specific error:', chartError);
+            return (
+              <div className="h-96 bg-red-50 border border-red-200 rounded flex items-center justify-center">
+                <div className="text-center text-red-600">
+                  <p className="font-medium">Simple Test Chart Error</p>
+                  <p className="text-sm mt-2">Even the simple chart failed to render</p>
+                  <p className="text-xs mt-1">{chartError instanceof Error ? chartError.message : 'Unknown error'}</p>
+                </div>
+              </div>
+            );
+          }
+        case 'payload-size-distribution':
+          return <PayloadSizeDistributionChart {...chartData} />;
+        case 'requests-by-time-of-day':
+          return <RequestsByTimeOfDayChart {...chartData} />;
+        case 'requests-by-domain':
+          return <RequestsByDomainChart {...chartData} />;
+        default:
+          return (
+            <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
+              <div className="text-center text-gray-400">
+                <BarChart3 className="h-16 w-16 mx-auto mb-4" />
+                <p className="text-lg font-medium">Chart Implementation Pending</p>
+                <p className="text-sm">
+                  {chartDefinitions[chartKey]?.name} ({chartDefinitions[chartKey]?.type})
+                </p>
+                <p className="text-xs mt-2 max-w-md mx-auto">
+                  {chartDefinitions[chartKey]?.tooltip}
+                </p>
+              </div>
+            </div>
+          );
+      }
+    } catch (error) {
+      console.error('Chart rendering error:', error);
+      return (
+        <div className="h-96 bg-red-50 border border-red-200 rounded flex items-center justify-center">
+          <div className="text-center text-red-600">
+            <p className="font-medium">Chart Error</p>
+            <p className="text-sm mt-2">Failed to render {chartDefinitions[chartKey]?.name}</p>
+            <p className="text-xs mt-1">{error instanceof Error ? error.message : 'Unknown error'}</p>
+          </div>
+        </div>
+      );
     }
   };
 
   // Calculate global statistics
   const globalStats: GlobalStats = useMemo(() => {
-    // Use debug data if available
-    const effectiveNetworkRequests = debugNetworkRequests || networkRequests;
-    const effectiveConsoleErrors = debugConsoleErrors || consoleErrors;
-    const effectiveTokenEvents = debugTokenEvents || tokenEvents;
+    // Use analysis data for statistics calculations if available, otherwise fall back to current page data
+    const useAnalysisData = analysisData.loaded && analysisData.networkRequests.length > 0;
+    
+    const effectiveNetworkRequests = useAnalysisData 
+      ? analysisData.networkRequests 
+      : (DEBUG_MODE && (!networkRequests || networkRequests.length === 0) ? mockNetworkRequests : networkRequests);
+    
+    const effectiveConsoleErrors = useAnalysisData 
+      ? analysisData.consoleErrors 
+      : (DEBUG_MODE && (!consoleErrors || consoleErrors.length === 0) ? mockConsoleErrors : consoleErrors);
+    
+    const effectiveTokenEvents = useAnalysisData 
+      ? analysisData.tokenEvents 
+      : (DEBUG_MODE && (!tokenEvents || tokenEvents.length === 0) ? mockTokenEvents : tokenEvents);
 
     console.log('GlobalStats calculation with data:', {
+      useAnalysisData,
       networkRequests: effectiveNetworkRequests?.length || 0,
       consoleErrors: effectiveConsoleErrors?.length || 0, 
-      tokenEvents: effectiveTokenEvents?.length || 0
+      tokenEvents: effectiveTokenEvents?.length || 0,
+      dataSource: useAnalysisData ? 'analysis (last 200 records)' : 'current page (10 records)'
     });
 
-    const totalRequests = effectiveNetworkRequests.length;
-    const totalErrors = effectiveConsoleErrors.length;
-    const totalTokenEvents = effectiveTokenEvents.length;
+    const calculatedTotalRequests = effectiveNetworkRequests.length;
+    const calculatedTotalErrors = effectiveConsoleErrors.length;
+    const calculatedTotalTokenEvents = effectiveTokenEvents.length;
+
+    // Use provided totals if available, otherwise use calculated totals from current data
+    const finalTotalRequests = totalRequests ?? calculatedTotalRequests;
+    const finalTotalErrors = totalErrors ?? calculatedTotalErrors;
+    const finalTotalTokenEvents = totalTokenEvents ?? calculatedTotalTokenEvents;
 
     // Calculate unique domains
     const allData = [...effectiveNetworkRequests, ...effectiveConsoleErrors, ...effectiveTokenEvents];
@@ -383,12 +534,12 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       const status = req.status || req.response_status;
       return status >= 200 && status < 400;
     }).length;
-    const successRate = totalRequests > 0 ? Math.round((successfulRequests / totalRequests) * 100) : 0;
+    const successRate = finalTotalRequests > 0 ? Math.round((successfulRequests / finalTotalRequests) * 100) : 0;
 
     return {
-      totalRequests,
-      totalErrors,
-      totalTokenEvents,
+      totalRequests: finalTotalRequests,
+      totalErrors: finalTotalErrors,
+      totalTokenEvents: finalTotalTokenEvents,
       uniqueDomains,
       maxResponseTime,
       requestsByMethod,
@@ -397,13 +548,28 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       avgResponseTime,
       successRate
     };
-  }, [debugNetworkRequests, debugConsoleErrors, debugTokenEvents]);
+  }, [analysisData, networkRequests, consoleErrors, tokenEvents, totalRequests, totalErrors, totalTokenEvents]);
 
   // Calculate domain-specific statistics with enhanced grouping
   const domainStats: DomainStats[] = useMemo(() => {
-    const allData = [...debugNetworkRequests, ...debugConsoleErrors, ...debugTokenEvents];
+    // Use analysis data for more accurate domain statistics
+    const useAnalysisData = analysisData.loaded && analysisData.networkRequests.length > 0;
+    
+    const effectiveNetworkRequests = useAnalysisData 
+      ? analysisData.networkRequests 
+      : (DEBUG_MODE && (!networkRequests || networkRequests.length === 0) ? mockNetworkRequests : networkRequests);
+    
+    const effectiveConsoleErrors = useAnalysisData 
+      ? analysisData.consoleErrors 
+      : (DEBUG_MODE && (!consoleErrors || consoleErrors.length === 0) ? mockConsoleErrors : consoleErrors);
+    
+    const effectiveTokenEvents = useAnalysisData 
+      ? analysisData.tokenEvents 
+      : (DEBUG_MODE && (!tokenEvents || tokenEvents.length === 0) ? mockTokenEvents : tokenEvents);
+    
+    const allData = [...effectiveNetworkRequests, ...effectiveConsoleErrors, ...effectiveTokenEvents];
     return groupDataByDomain(allData);
-  }, [debugNetworkRequests, debugConsoleErrors, debugTokenEvents]);
+  }, [analysisData, networkRequests, consoleErrors, tokenEvents]);
 
   // Sorting functions
   const handleGlobalSort = (key: string) => {
@@ -650,16 +816,35 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                   transition={{ duration: 0.3 }}
                   className="space-y-4"
                 >
-                  {/* Chart Search */}
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Search charts..."
-                      value={chartSearch}
-                      onChange={(e) => setChartSearch(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
+                  {/* Chart Search + Analysis Limit */}
+                  <div className="flex flex-col md:flex-row md:items-center gap-3">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Search charts..."
+                        value={chartSearch}
+                        onChange={(e) => setChartSearch(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm text-gray-600">Records considered</label>
+                      <select
+                        value={analysisLimit}
+                        onChange={(e) => setAnalysisLimit(parseInt(e.target.value, 10) || 200)}
+                        className="border border-gray-300 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        title="Number of most recent records used to compute statistics and charts"
+                      >
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                        <option value={200}>200</option>
+                        <option value={500}>500</option>
+                        <option value={1000}>1000</option>
+                        <option value={2000}>2000</option>
+                      </select>
+                      <span className="hidden md:inline text-xs text-gray-500">Larger samples may increase memory usage</span>
+                    </div>
                   </div>
 
                   {showAllCharts ? (

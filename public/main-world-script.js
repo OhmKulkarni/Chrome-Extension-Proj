@@ -73,6 +73,41 @@ function truncateBody(text, maxSize = extensionSettings.maxBodySize) {
   return text.substring(0, maxSize);
 }
 
+// Helper function to safely get response body based on response type
+function getResponseBody(xhr) {
+  try {
+    // Check the response type and handle accordingly
+    if (xhr.responseType === '' || xhr.responseType === 'text') {
+      // Safe to access responseText
+      return xhr.responseText ? truncateBody(xhr.responseText) : null;
+    } else if (xhr.responseType === 'json') {
+      // For JSON responses, try to stringify the response
+      try {
+        return xhr.response ? truncateBody(JSON.stringify(xhr.response)) : null;
+      } catch {
+        return '[JSON Response - Cannot stringify]';
+      }
+    } else if (xhr.responseType === 'arraybuffer') {
+      // For array buffer, we can't read as text, just indicate the type
+      const byteLength = xhr.response ? xhr.response.byteLength : 0;
+      return `[ArrayBuffer Response - ${byteLength} bytes]`;
+    } else if (xhr.responseType === 'blob') {
+      // For blob, indicate the type and size
+      const size = xhr.response ? xhr.response.size : 0;
+      const type = xhr.response ? xhr.response.type : 'unknown';
+      return `[Blob Response - ${size} bytes, type: ${type}]`;
+    } else if (xhr.responseType === 'document') {
+      return '[Document Response]';
+    } else {
+      // Unknown response type
+      return `[${xhr.responseType || 'Unknown'} Response]`;
+    }
+  } catch (error) {
+    console.warn('Failed to read XMLHttpRequest response:', error);
+    return '[Response Read Error]';
+  }
+}
+
 // Store the original fetch before any page scripts can override it
 const originalFetch = window.fetch;
 console.log('🌍 MAIN-WORLD: Original fetch captured:', typeof originalFetch);
@@ -213,7 +248,7 @@ XMLHttpRequest.prototype.send = function(body) {
           response: responseHeaders
         },
         requestBody: body ? truncateBody(body.toString()) : null,
-        responseBody: this.responseText ? truncateBody(this.responseText) : null
+        responseBody: getResponseBody(this)
       };
       
       // Send to content script using custom event

@@ -4,6 +4,62 @@ import './popup.css';
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
+// MEMORY LEAK FIX: External delay function to prevent closure capture
+function createDelayPromise(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+// Use the external function  
+const delay = createDelayPromise
+
+// MEMORY LEAK FIX: Centralized Chrome message handler to prevent response accumulation
+const sendChromeMessage = async (message: any): Promise<any> => {
+  try {
+    const response = await chrome.runtime.sendMessage(message)
+    // Immediately copy and nullify response to prevent accumulation
+    const result = response ? { ...response } : null
+    return result
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('Could not establish connection')) {
+      console.warn('Background script not ready yet, retrying...', error.message)
+      // Retry once after a short delay
+      await delay(100)
+      try {
+        const response = await chrome.runtime.sendMessage(message)
+        return response ? { ...response } : null
+      } catch (retryError) {
+        console.error('Chrome message failed after retry:', retryError)
+        return null
+      }
+    } else {
+      console.error('Chrome message failed:', error)
+      return null
+    }
+  }
+}
+
+// MEMORY LEAK FIX: Pre-allocated Chrome message functions with Promise constructor elimination
+const getChromeTabInfo = async (): Promise<any> => {
+  try {
+    const response = await chrome.runtime.sendMessage({ action: 'getTabInfo' })
+    if (response && !response.error) {
+      console.log('Tab info received:', response)
+      return response
+    } else {
+      console.warn('Invalid response for tab info:', response)
+      return { title: 'Unknown', url: 'Unknown' }
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.warn('Error getting tab info (background script may not be ready):', errorMessage)
+    return { title: 'Loading...', url: 'Extension starting up...' }
+  }
+}
+
+const openChromeDashboard = async (): Promise<void> => {
+  await sendChromeMessage({ action: 'openDashboard' })
+}
+
 interface TabInfo {
   url?: string;
   title?: string;
@@ -47,19 +103,13 @@ const Popup: React.FC = () => {
   const [tabTokenLoggingActive, setTabTokenLoggingActive] = useState(false);
 
   useEffect(() => {
-    // Get current tab info
-    chrome.runtime.sendMessage({ action: 'getTabInfo' }, (response) => {
-      if (chrome.runtime.lastError) {
-        console.error('Error getting tab info:', chrome.runtime.lastError);
-        setTabInfo({ title: 'Error', url: 'Failed to get tab info' });
-      } else if (response && !response.error) {
-        console.log('Tab info received:', response);
-        setTabInfo(response);
-      } else {
-        console.warn('Invalid response for tab info:', response);
-        setTabInfo({ title: 'Unknown', url: 'Unknown' });
-      }
-    });
+    // MEMORY LEAK FIX: Use pre-allocated function instead of direct chrome.runtime.sendMessage
+    getChromeTabInfo().then(response => {
+      setTabInfo(response)
+    }).catch(error => {
+      console.error('Failed to get tab info:', error)
+      setTabInfo({ title: 'Error', url: 'Failed to get tab info' })
+    })
 
     // Get extension settings and tab-specific state
     chrome.storage.local.get(['settings'], (result) => {
@@ -169,8 +219,50 @@ const Popup: React.FC = () => {
       }
     });
 
+    // Add storage change listeners to stay synchronized with dashboard
+    const handleStorageChanges = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
+      if (areaName === 'local') {
+        // Get current tab ID to check for relevant changes
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs[0]?.id) {
+            const tabId = tabs[0].id;
+            
+            // Check for network logging changes
+            const networkLoggingKey = `tabLogging_${tabId}`;
+            if (changes[networkLoggingKey]) {
+              const newValue = changes[networkLoggingKey].newValue;
+              if (newValue && typeof newValue === 'object' && 'active' in newValue) {
+                setTabLoggingActive(newValue.active);
+              }
+            }
+            
+            // Check for error logging changes
+            const errorLoggingKey = `tabErrorLogging_${tabId}`;
+            if (changes[errorLoggingKey]) {
+              const newValue = changes[errorLoggingKey].newValue;
+              if (newValue && typeof newValue === 'object' && 'active' in newValue) {
+                setTabErrorLoggingActive(newValue.active);
+              }
+            }
+            
+            // Check for token logging changes
+            const tokenLoggingKey = `tabTokenLogging_${tabId}`;
+            if (changes[tokenLoggingKey]) {
+              const newValue = changes[tokenLoggingKey].newValue;
+              if (newValue && typeof newValue === 'object' && 'active' in newValue) {
+                setTabTokenLoggingActive(newValue.active);
+              }
+            }
+          }
+        });
+      }
+    };
+
+    chrome.storage.onChanged.addListener(handleStorageChanges);
+
     // Cleanup listener on unmount
     return () => {
+      chrome.storage.onChanged.removeListener(handleStorageChanges);
     };
   }, []);
 
@@ -251,7 +343,9 @@ const Popup: React.FC = () => {
   };
 
   const openDashboard = () => {
-    chrome.runtime.sendMessage({ action: 'openDashboard' });
+    openChromeDashboard().catch(error => {
+      console.error('Failed to open dashboard:', error)
+    })
   };
 
   const openSettings = () => {

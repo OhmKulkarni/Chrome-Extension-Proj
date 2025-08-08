@@ -35,9 +35,6 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "sql-wasm.wasm",
-        "offscreen.html",
-        "offscreen/offscreen.html",
         "main-world-script.js",
         "content/main-world-network-interceptor.js",
         "assets/*"

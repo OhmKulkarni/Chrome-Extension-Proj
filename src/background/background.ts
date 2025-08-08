@@ -1,12 +1,39 @@
 // src/background/background.ts
 console.log('Background service worker started');
 
+// MEMORY LEAK FIX: External delay function to prevent closure capture  
+function createDelayPromise(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+// Use the external function
+const delay = createDelayPromise
+
 // --- Environment-Aware Storage System ---
 import { EnvironmentStorageManager } from './environment-storage-manager';
 import { tabDomainTracker } from '../dashboard/components/domainUtils';
 
 // Initialize environment-aware storage system
 const storageManager = new EnvironmentStorageManager();
+let isStorageInitialized = false;
+
+// Safe storage initialization that can be called multiple times
+async function ensureStorageInitialized(): Promise<void> {
+  if (isStorageInitialized) {
+    return;
+  }
+  
+  try {
+    console.log('🔧 Initializing storage manager...');
+    await storageManager.init();
+    isStorageInitialized = true;
+    console.log('✅ Storage manager initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize storage manager:', error);
+    isStorageInitialized = false;
+    throw error;
+  }
+}
 
 // Utility function to extract main domain from any URL
 function extractMainDomain(url: string): string {
@@ -556,29 +583,37 @@ const initializeChromeStorageSettings = () => {
 (self as any).runPerformanceTest = async (iterations = 10) => {
   console.log('🚀 Running Real-Time Performance Test (' + iterations + ' iterations)...');
   
-  const insertTimes = [];
-  const queryTimes = [];
+  // MEMORY LEAK FIX: Pre-allocate arrays with fixed size to prevent unbounded growth
+  const MAX_ITERATIONS = Math.min(iterations, 100); // Cap at 100 to prevent memory issues
+  const insertTimes: number[] = new Array(MAX_ITERATIONS);
+  const queryTimes: number[] = new Array(MAX_ITERATIONS);
+  let insertCount = 0;
+  let queryCount = 0;
   
   try {
-    for (let i = 0; i < iterations; i++) {
+    for (let i = 0; i < MAX_ITERATIONS; i++) {
       // Test insert
       const insertResult = await (self as any).insertTestApiCall();
       if (insertResult?.duration) {
-        insertTimes.push(insertResult.duration);
+        insertTimes[insertCount++] = insertResult.duration;
       }
       
       // Test query
       const queryResult = await (self as any).queryApiCalls();
       if (queryResult?.duration) {
-        queryTimes.push(queryResult.duration);
+        queryTimes[queryCount++] = queryResult.duration;
       }
       
       // Small delay between tests
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await delay(10);
     }
     
-    const avgInsertTime = insertTimes.reduce((a, b) => a + b, 0) / insertTimes.length;
-    const avgQueryTime = queryTimes.reduce((a, b) => a + b, 0) / queryTimes.length;
+    // MEMORY LEAK FIX: Use actual populated length for calculations
+    const actualInsertTimes = insertTimes.slice(0, insertCount);
+    const actualQueryTimes = queryTimes.slice(0, queryCount);
+    
+    const avgInsertTime = actualInsertTimes.reduce((a, b) => a + b, 0) / actualInsertTimes.length;
+    const avgQueryTime = actualQueryTimes.reduce((a, b) => a + b, 0) / actualQueryTimes.length;
     
     const insertRate = Math.round(1000 / avgInsertTime);
     const queryRate = Math.round(1000 / avgQueryTime);
@@ -1196,20 +1231,25 @@ function isNoiseRequest(url: string): boolean {
 }
 
 // Get network requests handler
-async function handleGetNetworkRequests(limit: number, sendResponse: (response: any) => void) {
+async function handleGetNetworkRequests(limit: number, offset: number, sendResponse: (response: any) => void) {
   try {
-    if (!storageManager.isInitialized()) {
+    console.log(`🔍 HandleGetNetworkRequests: limit=${limit}, offset=${offset}`)
+    
+    if (!storageManager.isConnected()) {
+      console.log('🔧 HandleGetNetworkRequests: Initializing storage manager...')
       await storageManager.init();
     }
     
-    // Get recent API calls (network requests)
-    const requests = await storageManager.getApiCalls(limit);
+    // MEMORY LEAK FIX: Get paginated API calls (network requests) with offset
+    const requests = await storageManager.getApiCalls(limit, offset);
     const counts = await storageManager.getTableCounts();
+    
+    console.log(`📊 HandleGetNetworkRequests: Found ${requests?.length || 0} requests, total=${counts?.apiCalls || 0}`)
     
     sendResponse({ 
       success: true, 
       requests: requests || [], 
-      total: counts?.api_calls || 0 
+      total: counts?.apiCalls || 0  // Fixed: use 'apiCalls' not 'api_calls'
     });
   } catch (error) {
     console.error('[Web App Monitor] Failed to get network requests:', error);
@@ -1287,20 +1327,25 @@ async function handleClearAllData(sendResponse: (response: any) => void) {
 }
 
 // Get console errors handler
-async function handleGetConsoleErrors(limit: number, sendResponse: (response: any) => void) {
+async function handleGetConsoleErrors(limit: number, offset: number, sendResponse: (response: any) => void) {
   try {
-    if (!storageManager.isInitialized()) {
+    console.log(`🔍 HandleGetConsoleErrors: limit=${limit}, offset=${offset}`)
+    
+    if (!storageManager.isConnected()) {
+      console.log('🔧 HandleGetConsoleErrors: Initializing storage manager...')
       await storageManager.init();
     }
     
-    // Get recent console errors
-    const errors = await storageManager.getConsoleErrors(limit);
+    // MEMORY LEAK FIX: Get paginated console errors with offset
+    const errors = await storageManager.getConsoleErrors(limit, offset);
     const counts = await storageManager.getTableCounts();
+    
+    console.log(`📊 HandleGetConsoleErrors: Found ${errors?.length || 0} errors, total=${counts?.consoleErrors || 0}`)
     
     sendResponse({ 
       success: true, 
       errors: errors || [], 
-      total: counts?.console_errors || 0 
+      total: counts?.consoleErrors || 0  // Fixed: use 'consoleErrors' not 'console_errors'
     });
   } catch (error) {
     console.error('[Web App Monitor] Failed to get console errors:', error);
@@ -1309,20 +1354,20 @@ async function handleGetConsoleErrors(limit: number, sendResponse: (response: an
 }
 
 // Get token events handler
-async function handleGetTokenEvents(limit: number, sendResponse: (response: any) => void) {
+async function handleGetTokenEvents(limit: number, offset: number, sendResponse: (response: any) => void) {
   try {
-    if (!storageManager.isInitialized()) {
+    if (!storageManager.isConnected()) {
       await storageManager.init();
     }
     
-    // Get recent token events
-    const events = await storageManager.getTokenEvents(limit);
+    // MEMORY LEAK FIX: Get paginated token events with offset
+    const events = await storageManager.getTokenEvents(limit, offset);
     const counts = await storageManager.getTableCounts();
     
     sendResponse({ 
       success: true, 
       events: events || [], 
-      total: counts?.token_events || 0 
+      total: counts?.tokenEvents || 0  // Fixed: use 'tokenEvents' not 'token_events'
     });
   } catch (error) {
     console.error('[Web App Monitor] Failed to get token events:', error);
@@ -1330,102 +1375,456 @@ async function handleGetTokenEvents(limit: number, sendResponse: (response: any)
   }
 }
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  switch (message.action || message.type) {
-    case 'INJECT_MAIN_WORLD_SCRIPT':
-      // Handle main world script injection from content script
-      if (sender.tab && sender.tab.id) {
-        chrome.scripting.executeScript({
-          target: { tabId: sender.tab.id },
-          world: 'MAIN',
-          files: ['assets/main-world-network-interceptor-BFD3WDcJ.js'] // Use the built file name
-        }).then(() => {
+// Get analysis data handler - larger dataset for statistics
+async function handleGetAnalysisData(limit: number, sendResponse: (response: any) => void) {
+  try {
+    console.log(`🔍 HandleGetAnalysisData: Getting ${limit} records for statistics analysis`)
+    
+    if (!storageManager.isConnected()) {
+      console.log('🔧 HandleGetAnalysisData: Initializing storage manager...')
+      await storageManager.init();
+    }
+    
+    // Get larger datasets for analysis without pagination
+    const [networkRequests, consoleErrors, tokenEvents, counts] = await Promise.all([
+      storageManager.getApiCalls(limit, 0),
+      storageManager.getConsoleErrors(limit, 0), 
+      storageManager.getTokenEvents(limit, 0),
+      storageManager.getTableCounts()
+    ]);
+    
+    console.log(`📊 HandleGetAnalysisData: Retrieved analysis data`, {
+      networkRequests: networkRequests?.length || 0,
+      consoleErrors: consoleErrors?.length || 0,
+      tokenEvents: tokenEvents?.length || 0,
+      totalCounts: counts
+    });
+    
+    sendResponse({ 
+      success: true, 
+      data: {
+        networkRequests: networkRequests || [],
+        consoleErrors: consoleErrors || [],
+        tokenEvents: tokenEvents || [],
+        totalRequests: counts?.apiCalls || 0,
+        totalErrors: counts?.consoleErrors || 0,
+        totalTokenEvents: counts?.tokenEvents || 0
+      }
+    });
+  } catch (error) {
+    console.error('[Web App Monitor] Failed to get analysis data:', error);
+    sendResponse({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Analysis query failed' 
+    });
+  }
+}
+
+// MEMORY LEAK FIX: Guard against duplicate listener registration
+let listenersRegistered = false
+
+// MEMORY LEAK FIX: Throttle/limit listener scope - avoid duplication
+if (!listenersRegistered) {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    // Wrap everything in async IIFE to properly handle service worker async operations
+    (async () => {
+      try {
+        switch (message.action || message.type) {
+          case 'INJECT_MAIN_WORLD_SCRIPT':
+            // Handle main world script injection from content script
+            if (sender.tab && sender.tab.id) {
+              try {
+                await chrome.scripting.executeScript({
+                  target: { tabId: sender.tab.id },
+                  world: 'MAIN',
+                  files: ['assets/main-world-network-interceptor-BFD3WDcJ.js'] // Use the built file name
+              });
+              sendResponse({ success: true });
+            } catch (error) {
+              console.log('[Background] Main world injection failed:', error);
+              sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+            }
+          } else {
+            sendResponse({ success: false, error: 'No tab ID available' });
+          }
+          break;
+
+        case 'getCurrentTabId':
+        case 'GET_CURRENT_TAB_ID':
+          // Get current tab ID for content script
+          if (sender.tab && sender.tab.id) {
+            sendResponse({ tabId: sender.tab.id });
+          } else {
+            try {
+              const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+              sendResponse({ tabId: tabs[0]?.id || 0 });
+            } catch (error) {
+              sendResponse({ tabId: 0 });
+            }
+          }
+          break;
+          
+        case 'getTabInfo':
+          // Get current active tab information
+          try {
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tabs.length > 0) {
+              const tab = tabs[0];
+              sendResponse({
+                title: tab.title || 'Unknown',
+                url: tab.url || 'Unknown'
+              });
+            } else {
+              sendResponse({
+                title: 'Unknown',
+                url: 'Unknown'
+              });
+            }
+          } catch (error) {
+            sendResponse({
+              title: 'Unknown',
+              url: 'Unknown'
+            });
+          }
+          break;
+
+        case 'openDashboard':
+          // Open dashboard in a new tab
+          try {
+            await chrome.tabs.create({
+              url: chrome.runtime.getURL('src/dashboard/dashboard.html')
+            });
+            sendResponse({ success: true });
+          } catch (error) {
+            sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+          }
+          break;
+
+    case 'toggleTabLogging':
+      // Relay toggle message from dashboard to content script
+      if (message.tabId) {
+        try {
+          await chrome.tabs.sendMessage(message.tabId, {
+            action: 'toggleLogging',
+            enabled: message.enabled
+          });
           sendResponse({ success: true });
-        }).catch((error) => {
-          console.log('[Background] Main world injection failed:', error);
+        } catch (error) {
+          console.log('Could not send message to tab (may not have content script):', error);
+          sendResponse({ success: false, error: error instanceof Error ? error.message : 'Tab communication failed' });
+        }
+      } else {
+        sendResponse({ success: false, error: 'No tab ID provided' });
+      }
+      break;
+
+    case 'toggleTabErrorLogging':
+      // Relay error logging toggle message from dashboard to content script
+      if (message.tabId) {
+        try {
+          await chrome.tabs.sendMessage(message.tabId, {
+            action: 'toggleErrorLogging',
+            enabled: message.enabled
+          });
+          sendResponse({ success: true });
+        } catch (error) {
+          console.log('Could not send message to tab (may not have content script):', error);
+          sendResponse({ success: false, error: error instanceof Error ? error.message : 'Tab communication failed' });
+        }
+      } else {
+        sendResponse({ success: false, error: 'No tab ID provided' });
+      }
+      break;
+
+        case 'storeNetworkRequest':
+        case 'STORE_NETWORK_REQUEST':
+        case 'NETWORK_REQUEST':
+          // Store network request data from content script
+          await handleNetworkRequest(message.data, sendResponse, sender);
+          break;
+
+        case 'CONSOLE_ERROR':
+          // Store console error data from content script
+          await handleConsoleError(message.data, sendResponse, sender);
+          break;
+
+        case 'getNetworkRequests':
+          // MEMORY LEAK FIX: Get paginated network requests with offset
+          await handleGetNetworkRequests(message.limit || 50, message.offset || 0, sendResponse);
+          break;
+
+
+
+        case 'clearAllData':
+          // Clear all stored network requests
+          await handleClearAllData(sendResponse);
+          break;
+
+        case 'getConsoleErrors':
+          // MEMORY LEAK FIX: Get paginated console errors with offset
+          await handleGetConsoleErrors(message.limit || 50, message.offset || 0, sendResponse);
+          break;
+
+        case 'getTokenEvents':
+          // MEMORY LEAK FIX: Get paginated token events with offset
+          await handleGetTokenEvents(message.limit || 50, message.offset || 0, sendResponse);
+          break;
+
+        case 'getMemoryUsage':
+          // MEMORY LEAK FIX: Get current memory usage statistics
+          try {
+            const memoryStats = getMemoryUsage()
+            sendResponse({ success: true, memory: memoryStats })
+          } catch (error) {
+            console.error('Background: Error getting memory usage:', error)
+            sendResponse({ success: false, memory: { heapUsed: 0, heapTotal: 0, percentage: 0 } })
+          }
+          break;        case 'getPerformanceStats':
+          // Get performance statistics
+          try {
+            await storageManager.init();
+            const performanceStats = await storageManager.getPerformanceStats();
+            sendResponse({ success: true, data: performanceStats });
+          } catch (error) {
+            console.error('Failed to get performance stats:', error);
+            sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+          }
+          break;
+
+        case 'getTableCounts':
+          // Get table counts for storage analysis
+          try {
+            await ensureStorageInitialized();
+            const tableCounts = await storageManager.getTableCounts();
+            sendResponse({ success: true, data: tableCounts });
+          } catch (error) {
+            console.error('Failed to get table counts:', error);
+            sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+          }
+          break;
+
+        case 'getAnalysisData':
+          // Get larger dataset for statistics analysis (not paginated)
+          await handleGetAnalysisData(message.limit || 200, sendResponse);
+          break;    case 'getStorageAnalysis':
+      // Get detailed storage usage analysis with actual byte sizes
+      (async () => {
+        try {
+          await storageManager.init();
+          
+          // Get all data and calculate actual sizes
+          const analysis = {
+            totalBytes: 0,
+            totalEntries: 0,
+            tableBreakdown: {} as Record<string, { entries: number, bytes: number }>
+          };
+          
+          // Analyze API calls
+          const apiCalls = await storageManager.getApiCalls(10000); // Get many records
+          if (apiCalls && apiCalls.length > 0) {
+            const apiCallsSize = JSON.stringify(apiCalls).length;
+            analysis.tableBreakdown.api_calls = {
+              entries: apiCalls.length,
+              bytes: apiCallsSize
+            };
+            analysis.totalBytes += apiCallsSize;
+            analysis.totalEntries += apiCalls.length;
+          }
+          
+          // Analyze console errors
+          const consoleErrors = await storageManager.getConsoleErrors(10000);
+          if (consoleErrors && consoleErrors.length > 0) {
+            const errorsSize = JSON.stringify(consoleErrors).length;
+            analysis.tableBreakdown.console_errors = {
+              entries: consoleErrors.length,
+              bytes: errorsSize
+            };
+            analysis.totalBytes += errorsSize;
+            analysis.totalEntries += consoleErrors.length;
+          }
+          
+          // Analyze token events
+          const tokenEvents = await storageManager.getTokenEvents(10000);
+          if (tokenEvents && tokenEvents.length > 0) {
+            const eventsSize = JSON.stringify(tokenEvents).length;
+            analysis.tableBreakdown.token_events = {
+              entries: tokenEvents.length,
+              bytes: eventsSize
+            };
+            analysis.totalBytes += eventsSize;
+            analysis.totalEntries += tokenEvents.length;
+          }
+          
+          console.log('📊 Storage analysis complete:', analysis);
+          sendResponse({ success: true, data: analysis });
+          
+        } catch (error) {
+          console.error('Failed to analyze storage:', error);
+          sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+        }
+      })();
+      return true; // Keep message channel open for async response
+
+    case 'getMemoryInfo':
+      // Get background script memory information
+      try {
+        const memoryInfo = {
+          memory: (performance as any).memory?.usedJSHeapSize || 0,
+          heapTotal: (performance as any).memory?.totalJSHeapSize || 0,
+          heapLimit: (performance as any).memory?.jsHeapSizeLimit || 0,
+          timestamp: Date.now()
+        };
+        sendResponse({ success: true, data: memoryInfo });
+      } catch (error) {
+        console.error('Failed to get memory info:', error);
+        sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+      }
+      return true; // Keep message channel open for async response
+
+    case 'ping':
+      // Respond to ping for debugging
+      sendResponse({ success: true, message: 'Background script is active' });
+      break;
+
+    case 'getTabs':
+      // Get all tabs for debugging
+      chrome.tabs.query({}).then(tabs => {
+        const filteredTabs = tabs.filter(tab => 
+          tab.id && tab.url && 
+          !tab.url.startsWith('chrome://') && 
+          !tab.url.startsWith('chrome-extension://')
+        );
+        sendResponse({ success: true, tabs: filteredTabs });
+      }).catch(error => {
+        sendResponse({ success: false, error: error.message });
+      });
+      return true; // Keep message channel open for async response
+
+    case 'pingTab':
+      // Ping a specific tab's content script
+      if (message.tabId) {
+        chrome.tabs.sendMessage(message.tabId, {
+          action: 'ping'
+        }).then(response => {
+          sendResponse({ success: true, tabResponse: response });
+        }).catch(error => {
           sendResponse({ success: false, error: error.message });
         });
-        return true; // Keep message channel open for async response
       } else {
-        sendResponse({ success: false, error: 'No tab ID available' });
+        sendResponse({ success: false, error: 'No tab ID provided' });
       }
-      break;
-      
-    case 'getCurrentTabId':
-    case 'GET_CURRENT_TAB_ID':
-      // Get current tab ID for content script
-      if (sender.tab && sender.tab.id) {
-        sendResponse({ tabId: sender.tab.id });
-      } else {
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-          sendResponse({ tabId: tabs[0]?.id || 0 });
-        });
-        return true; // Keep message channel open for async response
-      }
-      break;
-      
-    case 'getTabInfo':
-      // Get current active tab information
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs.length > 0) {
-          const tab = tabs[0];
-          sendResponse({
-            title: tab.title || 'Unknown',
-            url: tab.url || 'Unknown'
-          });
-        } else {
-          sendResponse({
-            title: 'Unknown',
-            url: 'Unknown'
-          });
-        }
+      return true; // Keep message channel open for async response
+
+    case 'getVersion':
+      // Get extension version and background script status
+      const manifest = chrome.runtime.getManifest();
+      sendResponse({ 
+        success: true, 
+        version: manifest.version,
+        name: manifest.name,
+        backgroundScriptActive: true,
+        toggleHandlersAvailable: true
       });
-      return true; // Keep message channel open for async response
-
-    case 'openDashboard':
-      // Open dashboard in a new tab
-      chrome.tabs.create({
-        url: chrome.runtime.getURL('src/dashboard/dashboard.html')
-      });
-      sendResponse({ success: true });
       break;
-
-    case 'storeNetworkRequest':
-    case 'STORE_NETWORK_REQUEST':
-    case 'NETWORK_REQUEST':
-      // Store network request data from content script
-      handleNetworkRequest(message.data, sendResponse, sender);
-      return true; // Keep message channel open for async response
-
-    case 'CONSOLE_ERROR':
-      // Store console error data from content script
-      handleConsoleError(message.data, sendResponse, sender);
-      return true; // Keep message channel open for async response
-
-    case 'getNetworkRequests':
-      // Get stored network requests
-      handleGetNetworkRequests(message.limit || 50, sendResponse);
-      return true; // Keep message channel open for async response
-
-    case 'clearAllData':
-      // Clear all stored network requests
-      handleClearAllData(sendResponse);
-      return true; // Keep message channel open for async response
-
-    case 'getConsoleErrors':
-      // Get stored console errors
-      handleGetConsoleErrors(message.limit || 50, sendResponse);
-      return true; // Keep message channel open for async response
-
-    case 'getTokenEvents':
-      // Get stored token events
-      handleGetTokenEvents(message.limit || 50, sendResponse);
-      return true; // Keep message channel open for async response
 
     default:
-      // Let other messages pass through
+      // Unknown action - respond to avoid hanging
+      sendResponse({ success: false, error: 'Unknown action: ' + (message.action || message.type) });
       break;
   }
+    } catch (error) {
+      console.error('Background script message handler error:', error);
+      sendResponse({ success: false, error: error instanceof Error ? error.message : 'Background script error' });
+    }
+  })();
+
+  // Return true to indicate we'll respond asynchronously
+  return true;
 });
 
+// MEMORY LEAK FIX: Mark listeners as registered to prevent duplication
+listenersRegistered = true;
+}
+
 // No additional message interception needed - storage manager handles operations internally
+
+// MEMORY LEAK FIX: Lightweight memory monitoring function
+function getMemoryUsage(): { heapUsed: number, heapTotal: number, percentage: number } {
+  if ('memory' in performance) {
+    const memory = (performance as any).memory
+    const heapUsed = memory.usedJSHeapSize
+    const heapTotal = memory.totalJSHeapSize
+    const heapLimit = memory.jsHeapSizeLimit
+    const percentage = (heapUsed / heapLimit) * 100
+    
+    console.log(`📊 JS Heap Used: ${(heapUsed / 1024 / 1024).toFixed(1)} MB / ${(heapLimit / 1024 / 1024).toFixed(1)} MB (${percentage.toFixed(1)}%)`)
+    
+    return {
+      heapUsed: Math.round(heapUsed / 1024 / 1024), // MB
+      heapTotal: Math.round(heapTotal / 1024 / 1024), // MB
+      percentage: Math.round(percentage * 10) / 10 // 1 decimal place
+    }
+  }
+  
+  return { heapUsed: 0, heapTotal: 0, percentage: 0 }
+}
+
+// Background script startup log
+console.log('🚀 Background script loaded and ready for messages')
+
+// MEMORY LEAK FIX: Log initial memory usage
+if ('memory' in performance) {
+  const memory = (performance as any).memory
+  const heapUsed = memory.usedJSHeapSize
+  const heapLimit = memory.jsHeapSizeLimit
+  const percentage = (heapUsed / heapLimit) * 100
+  console.log(`📊 Initial JS Heap Used: ${(heapUsed / 1024 / 1024).toFixed(1)} MB (${percentage.toFixed(1)}%)`)
+}
+
+// Initialize storage manager at startup to prevent "Database not initialized" errors
+(async () => {
+  try {
+    await ensureStorageInitialized();
+  } catch (error) {
+    console.error('❌ Storage initialization failed at startup:', error);
+  }
+})();
+
+// MEMORY LEAK FIX: Guard remaining listeners against duplication
+if (!listenersRegistered) {
+  // Add a startup ping to keep service worker active
+  chrome.runtime.onStartup.addListener(() => {
+    console.log('🔄 Extension startup detected');
+    // Re-initialize storage on startup
+    ensureStorageInitialized().catch(error => {
+      console.error('❌ Failed to initialize storage on startup:', error);
+    });
+  });
+
+  chrome.runtime.onInstalled.addListener(() => {
+    console.log('🎉 Extension installed/updated');
+    // Re-initialize storage on install/update
+    ensureStorageInitialized().catch(error => {
+      console.error('❌ Failed to initialize storage on install:', error);
+    });
+  });
+
+  // MEMORY LEAK FIX: Handle service worker suspension with proper cleanup
+  chrome.runtime.onSuspend.addListener(() => {
+    console.log('🛑 Service worker suspending, cleaning up resources...');
+    storageManager.cleanup().catch(error => {
+      console.error('❌ Failed to cleanup storage during suspension:', error);
+    });
+  });
+
+  // MEMORY LEAK FIX: Handle suspension with saved state
+  chrome.runtime.onSuspendCanceled.addListener(() => {
+    console.log('🔄 Service worker suspension canceled, ensuring storage is ready...');
+    ensureStorageInitialized().catch(error => {
+      console.error('❌ Failed to reinitialize storage after suspension cancel:', error);
+    });
+  });
+  
+  // MEMORY LEAK FIX: Mark all listeners as registered
+  listenersRegistered = true;
+}

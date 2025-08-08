@@ -1,4 +1,4 @@
-// Comprehensive data storage system with SQLite WASM and IndexedDB fallback
+// IndexedDB-only data storage system (SQLite removed for optimization)
 // Schema definitions for all data types
 
 export interface ApiCall {
@@ -54,6 +54,25 @@ export interface MinifiedLibrary {
   timestamp: number
 }
 
+// Performance monitoring interfaces
+export interface PerformanceStats {
+  totalOperations: number
+  averageOperationTime: number
+  operationCounts: Record<string, number>
+  operationTimes: Record<string, number[]>
+  memoryUsage: {
+    current: number
+    peak: number
+    average: number
+  }
+  storageSize: {
+    total: number
+    byTable: Record<string, number>
+  }
+  lastReset: number
+  uptime: number
+}
+
 export interface StorageConfig {
   maxRecordsPerTable: number
   maxAgeInDays: number
@@ -97,6 +116,9 @@ export interface StorageOperations {
   clearAllData(): Promise<void>
   getTableCounts(): Promise<{[table: string]: number}>
   
-  // Storage info
-  getStorageInfo(): Promise<{type: 'sqlite' | 'indexeddb', size?: number}>
+  // Storage info  
+  getStorageInfo(): Promise<{type: 'indexeddb', size?: number}>
+  
+  // Performance monitoring
+  getPerformanceStats(): Promise<PerformanceStats>
 }

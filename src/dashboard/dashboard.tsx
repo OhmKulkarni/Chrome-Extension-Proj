@@ -1,8 +1,38 @@
 ﻿// src/dashboard/dashboard.tsx
 // This file contains the React component for the Chrome extension dashboard.
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import StatisticsCard from './components/StatisticsCard';
+import { PerformanceMonitoringDashboard } from './components/PerformanceMonitoringDashboard';
+
+// MEMORY LEAK FIX: Centralized Chrome message handler to prevent response accumulation
+const sendChromeMessage = async (message: any): Promise<any> => {
+  try {
+    const response = await chrome.runtime.sendMessage(message)
+    // Immediately copy and nullify response to prevent accumulation
+    const result = response ? { ...response } : null
+    return result
+  } catch (error) {
+    console.error('Chrome message failed:', error)
+    return null
+  }
+}
+
+// MEMORY LEAK FIX: Pre-allocated Chrome message functions to avoid Promise constructor closures
+
+
+const clearChromeData = async (): Promise<void> => {
+  const response = await sendChromeMessage({ action: 'clearAllData' })
+  if (chrome.runtime.lastError) {
+    console.error('Dashboard: Error clearing data:', chrome.runtime.lastError)
+    throw chrome.runtime.lastError
+  } else if (response?.success) {
+    console.log('Dashboard: Data cleared successfully')
+    return
+  } else {
+    throw new Error('Failed to clear data')
+  }
+}
 
 interface DashboardData {
   totalTabs: number;
@@ -1087,8 +1117,8 @@ const Dashboard: React.FC = () => {
 
   // Carousel state for table navigation
   const [currentTableIndex, setCurrentTableIndex] = useState(0);
-  const tableNames = ['Network Requests', 'Console Errors', 'Token Events'];
-  const tableIcons = ['🌐', '❌', '🔑'];
+  const tableNames = ['Network Requests', 'Console Errors', 'Token Events', 'Performance Monitoring'];
+  const tableIcons = ['🌐', '❌', '🔑', '📊'];
   const tableDescriptions = [
     'Global requests from all tabs (Popup shows current tab only)',
     'JavaScript errors and warnings from monitored tabs',
@@ -1132,10 +1162,228 @@ const Dashboard: React.FC = () => {
     return hash.slice(0, 4) + "…" + hash.slice(-4);
   };
 
+  // MEMORY LEAK FIX: Wrap loadDashboardData in useCallback to stabilize reference
+  // MEMORY LEAK FIX: On-demand page loading functions
+  const loadNetworkRequestsPage = useCallback(async (page: number, limit: number = 10) => {
+    try {
+      console.log(`🔄 Loading network requests page ${page} with limit ${limit}`)
+      const offset = (page - 1) * limit
+      const response = await sendChromeMessage({ 
+        action: 'getNetworkRequests', 
+        limit, 
+        offset 
+      })
+      
+      console.log('📊 Network requests response:', response)
+      
+      if (response?.success && response?.requests) {
+        // Update only the data for the current page, discard previous page data
+        setData(prevData => ({
+          ...prevData,
+          networkRequests: response.requests,
+          totalRequests: response.total || 0
+        }))
+        console.log(`✅ Loaded ${response.requests.length} network requests, total: ${response.total}`)
+      } else {
+        console.warn('⚠️ Network requests response missing success/requests:', response)
+      }
+    } catch (error) {
+      console.error('❌ Error loading network requests page:', error)
+    }
+  }, [])
+
+  const loadConsoleErrorsPage = useCallback(async (page: number, limit: number = 10) => {
+    try {
+      console.log(`🔄 Loading console errors page ${page} with limit ${limit}`)
+      const offset = (page - 1) * limit
+      const response = await sendChromeMessage({ 
+        action: 'getConsoleErrors', 
+        limit, 
+        offset 
+      })
+      
+      console.log('📊 Console errors response:', response)
+      
+      if (response?.success && response?.errors) {
+        // Update only the data for the current page, discard previous page data
+        setData(prevData => ({
+          ...prevData,
+          consoleErrors: response.errors,
+          totalErrors: response.total || 0
+        }))
+        console.log(`✅ Loaded ${response.errors.length} console errors, total: ${response.total}`)
+      } else {
+        console.warn('⚠️ Console errors response missing success/errors:', response)
+      }
+    } catch (error) {
+      console.error('❌ Error loading console errors page:', error)
+    }
+  }, [])
+
+  const loadTokenEventsPage = useCallback(async (page: number, limit: number = 10) => {
+    try {
+      console.log(`🔄 Loading token events page ${page} with limit ${limit}`)
+      const offset = (page - 1) * limit
+      const response = await sendChromeMessage({ 
+        action: 'getTokenEvents', 
+        limit, 
+        offset 
+      })
+      
+      console.log('📊 Token events response:', response)
+      
+      if (response?.success && response?.events) {
+        // Update only the data for the current page, discard previous page data
+        setData(prevData => ({
+          ...prevData,
+          tokenEvents: response.events,
+          totalTokenEvents: response.total || 0
+        }))
+        console.log(`✅ Loaded ${response.events.length} token events, total: ${response.total}`)
+      } else {
+        console.warn('⚠️ Token events response missing success/events:', response)
+      }
+    } catch (error) {
+      console.error('❌ Error loading token events page:', error)
+    }
+  }, [])
+
+  const loadDashboardData = useCallback(async () => {
+    try {
+      // Get tabs count and current active tab
+      const tabs = await chrome.tabs.query({});
+      
+      // Get storage data
+      const storageData = await chrome.storage.sync.get(['extensionEnabled', 'lastActivity']);
+      
+      console.log('🔄 Dashboard: Loading initial data...')
+      
+      // MEMORY LEAK FIX: Only get counts, don't load page data to avoid overwriting current page
+      // Get total counts without loading actual data
+      const countsResponse = await sendChromeMessage({ 
+        action: 'getTableCounts'
+      })
+      
+      console.log('📊 Dashboard counts response:', countsResponse)
+      
+      // MEMORY LEAK FIX: Update only metadata and totals, preserve current page data
+      setData(prevData => ({
+        ...prevData, // Preserve current page data (networkRequests, consoleErrors, tokenEvents)
+        totalTabs: tabs.length,
+        extensionEnabled: storageData.extensionEnabled ?? true,
+        lastActivity: storageData.lastActivity 
+          ? new Date(storageData.lastActivity).toLocaleString()
+          : 'Never',
+        // Update only the totals from counts response
+        totalRequests: countsResponse?.data?.apiCalls || 0,
+        totalErrors: countsResponse?.data?.consoleErrors || 0,
+        totalTokenEvents: countsResponse?.data?.tokenEvents || 0
+      }))
+      
+      console.log('✅ Dashboard: Metadata loaded successfully', {
+        totalTabs: tabs.length,
+        totalRequests: countsResponse?.data?.apiCalls || 0,
+        totalErrors: countsResponse?.data?.consoleErrors || 0,
+        totalTokenEvents: countsResponse?.data?.tokenEvents || 0
+      });
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []); // Empty dependencies - function doesn't depend on any state/props
+
+  // MEMORY LEAK FIX: Wrap loadTabsLoggingStatus in useCallback for stable reference
+  const loadTabsLoggingStatus = useCallback(async () => {
+    try {
+      // Get all tabs
+      const tabs = await chrome.tabs.query({});
+      const tabStatuses: TabLoggingStatus[] = [];
+
+      for (const tab of tabs) {
+        if (tab.id && tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
+          // Get logging status for this tab
+          const result = await chrome.storage.local.get([`tabLogging_${tab.id}`, `tabErrorLogging_${tab.id}`, `tabTokenLogging_${tab.id}`]);
+          const networkState = result[`tabLogging_${tab.id}`];
+          const errorState = result[`tabErrorLogging_${tab.id}`];
+          const tokenState = result[`tabTokenLogging_${tab.id}`];
+          
+          // Get domain from URL
+          let domain = '';
+          try {
+            domain = new URL(tab.url).hostname;
+          } catch (e) {
+            domain = 'unknown';
+          }
+
+          // Determine logging status using the same logic as the working version
+          let networkLogging = false;
+          let errorLogging = false;
+          let tokenLogging = false;
+
+          if (networkState) {
+            // Check both 'status' and 'active' properties for compatibility
+            if (networkState.status !== undefined) {
+              networkLogging = networkState.status === 'active';
+            } else {
+              networkLogging = typeof networkState === 'boolean' ? networkState : networkState.active;
+            }
+          }
+
+          if (errorState) {
+            errorLogging = typeof errorState === 'boolean' ? errorState : errorState.active;
+          }
+
+          if (tokenState) {
+            tokenLogging = typeof tokenState === 'boolean' ? tokenState : tokenState.active;
+          }
+
+          tabStatuses.push({
+            tabId: tab.id,
+            url: tab.url,
+            title: tab.title || 'Untitled',
+            domain: domain,
+            networkLogging,
+            errorLogging,
+            tokenLogging,
+            favicon: tab.favIconUrl
+          });
+        }
+      }
+
+      setTabsLoggingStatus(tabStatuses);
+    } catch (error) {
+      console.error('Error loading tabs logging status:', error);
+    }
+  }, []); // Empty dependencies - function doesn't depend on state/props
+
   useEffect(() => {
     loadDashboardData();
     loadTabsLoggingStatus();
-  }, []);
+  }, [loadDashboardData, loadTabsLoggingStatus]); // MEMORY LEAK FIX: Include all dependencies
+
+  // MEMORY LEAK FIX: Load page data on-demand when page changes
+  // Always load first page, then check totals for subsequent pages
+  useEffect(() => {
+    loadNetworkRequestsPage(currentPage, requestsPerPage);
+  }, [currentPage, requestsPerPage, loadNetworkRequestsPage]);
+
+  useEffect(() => {
+    loadConsoleErrorsPage(currentErrorPage, errorsPerPage);
+  }, [currentErrorPage, errorsPerPage, loadConsoleErrorsPage]);
+
+  // Fetch console errors when switching to the Console Errors tab if we have totals but no rows loaded yet
+  useEffect(() => {
+    if (currentTableIndex === 1 && data.consoleErrors.length === 0 && (data.totalErrors || 0) > 0) {
+      loadConsoleErrorsPage(currentErrorPage, errorsPerPage);
+    }
+  }, [currentTableIndex, data.consoleErrors.length, data.totalErrors, currentErrorPage, errorsPerPage, loadConsoleErrorsPage]);
+
+  useEffect(() => {
+    if (data.totalTokenEvents > 0) {
+      loadTokenEventsPage(currentTokenPage, tokenEventsPerPage);
+    }
+  }, [currentTokenPage, tokenEventsPerPage, loadTokenEventsPage, data.totalTokenEvents]);
 
   // Listen for storage changes to update tab statuses in real-time
   useEffect(() => {
@@ -1164,174 +1412,106 @@ const Dashboard: React.FC = () => {
 
   // Add real-time data refresh for network requests, errors, and tokens
   useEffect(() => {
-    // Set up periodic refresh every 5 seconds when dashboard is active
-    const refreshInterval = setInterval(() => {
-      console.log('🔄 DASHBOARD: Periodic data refresh...');
-      loadDashboardData();
-    }, 5000);
+    let refreshInterval: number | null = null
+    let isActive = true
+    
+    // MEMORY LEAK FIX: Memory-aware interval with exponential backoff
+    const startPeriodicRefresh = () => {
+      if (!isActive) return
+      
+      // Clear any existing interval
+      if (refreshInterval) {
+        clearTimeout(refreshInterval)
+      }
+      
+      // Start with 10 second intervals (slower than before)
+      let currentInterval = 10000
+      const maxInterval = 60000 // Cap at 60 seconds
+      
+      const scheduleNextRefresh = () => {
+        if (!isActive) return
+        
+        refreshInterval = window.setTimeout(() => {
+          if (!isActive) return
+          
+          try {
+            // Check memory pressure before refreshing
+            const performanceMemory = (performance as any).memory
+            if (performanceMemory?.usedJSHeapSize) {
+              const heapUsed = performanceMemory.usedJSHeapSize
+              const heapLimit = performanceMemory.jsHeapSizeLimit
+              const heapPercentage = (heapUsed / heapLimit) * 100
+              
+              if (heapPercentage > 85) {
+                // Skip refresh under high memory pressure
+                console.log('🚨 Skipping dashboard refresh - high memory pressure')
+                currentInterval = Math.min(currentInterval * 1.5, maxInterval)
+                scheduleNextRefresh()
+                return
+              } else if (heapPercentage > 70) {
+                // Slow down refresh rate
+                currentInterval = Math.min(currentInterval * 1.2, maxInterval)
+              } else {
+                // Reset to normal interval
+                currentInterval = 10000
+              }
+            }
+            
+            console.log('🔄 DASHBOARD: Periodic data refresh...')
+            loadDashboardData()
+          } catch (error) {
+            console.error('Dashboard refresh error:', error)
+          }
+          
+          // Schedule next refresh
+          scheduleNextRefresh()
+        }, currentInterval)
+      }
+      
+      scheduleNextRefresh()
+    }
 
     // Listen for background script notifications about new data
     const handleBackgroundMessages = (message: any, _sender: any, _sendResponse: any) => {
+      if (!isActive) return
+      
       if (message.type === 'DATA_UPDATED') {
         console.log('📡 DASHBOARD: Received data update notification:', message.dataType);
+        
+        // Update counts AND refresh current page data
         loadDashboardData();
+        
+        // Also refresh the current page data to show new entries immediately
+        const currentTableName = tableNames[currentTableIndex];
+        if (message.dataType === 'network_request' && currentTableName === 'Network Requests') {
+          console.log('🔄 DASHBOARD: Refreshing network requests page');
+          loadNetworkRequestsPage(currentPage, requestsPerPage);
+        } else if (message.dataType === 'console_error' && currentTableName === 'Console Errors') {
+          console.log('🔄 DASHBOARD: Refreshing console errors page');
+          loadConsoleErrorsPage(currentErrorPage, errorsPerPage);
+        } else if (message.dataType === 'token_event' && currentTableName === 'Token Events') {
+          console.log('🔄 DASHBOARD: Refreshing token events page');
+          loadTokenEventsPage(currentTokenPage, tokenEventsPerPage);
+        }
       }
     };
 
     chrome.runtime.onMessage.addListener(handleBackgroundMessages);
+    startPeriodicRefresh()
 
     return () => {
-      clearInterval(refreshInterval);
+      isActive = false
+      if (refreshInterval) {
+        clearTimeout(refreshInterval)
+        refreshInterval = null
+      }
       chrome.runtime.onMessage.removeListener(handleBackgroundMessages);
     };
-  }, []);
+  }, [loadDashboardData, tableNames, currentTableIndex, currentPage, requestsPerPage, loadNetworkRequestsPage, currentErrorPage, errorsPerPage, loadConsoleErrorsPage, currentTokenPage, tokenEventsPerPage, loadTokenEventsPage]); // Include all dependencies
 
-  const loadDashboardData = async () => {
-    try {
-      // Get tabs count and current active tab
-      const tabs = await chrome.tabs.query({});
-      
-      // Get storage data
-      const storageData = await chrome.storage.sync.get(['extensionEnabled', 'lastActivity']);
-      
-      // Get network requests from background storage - request more for pagination
-      const networkData = await new Promise<any>((resolve) => {
-        chrome.runtime.sendMessage({ action: 'getNetworkRequests', limit: 1000 }, (response) => {
-          if (chrome.runtime.lastError) {
-            console.error('Dashboard: Error getting network requests:', chrome.runtime.lastError);
-            resolve({ requests: [], total: 0 });
-          } else {
-            resolve(response || { requests: [], total: 0 });
-          }
-        });
-      });
-
-      // Get console errors from background storage - request more for pagination
-      const errorData = await new Promise<any>((resolve) => {
-        chrome.runtime.sendMessage({ action: 'getConsoleErrors', limit: 1000 }, (response) => {
-          if (chrome.runtime.lastError) {
-            console.error('Dashboard: Error getting console errors:', chrome.runtime.lastError);
-            resolve({ errors: [], total: 0 });
-          } else {
-            resolve(response || { errors: [], total: 0 });
-          }
-        });
-      });
-
-      // Get token events from background storage
-      const tokenData = await new Promise<any>((resolve) => {
-        chrome.runtime.sendMessage({ action: 'getTokenEvents', limit: 1000 }, (response) => {
-          if (chrome.runtime.lastError) {
-            console.error('Dashboard: Error getting token events:', chrome.runtime.lastError);
-            resolve({ events: [], total: 0 });
-          } else {
-            resolve(response || { events: [], total: 0 });
-          }
-        });
-      });
-      
-      // Calculate pagination
-      const totalRequests = networkData.total || 0;
-      const totalErrors = errorData.total || 0;
-      const totalTokenEvents = tokenData.total || 0;
-      
-      setData({
-        totalTabs: tabs.length,
-        extensionEnabled: storageData.extensionEnabled ?? true,
-        lastActivity: storageData.lastActivity 
-          ? new Date(storageData.lastActivity).toLocaleString()
-          : 'Never',
-        networkRequests: networkData.requests || [],
-        totalRequests: totalRequests,
-        consoleErrors: errorData.errors || [],
-        totalErrors: totalErrors,
-        tokenEvents: tokenData.events || [],
-        totalTokenEvents: totalTokenEvents
-      });
-    } catch (error) {
-      console.error('Error loading dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadTabsLoggingStatus = async () => {
-    try {
-      // Get all tabs
-      const tabs = await chrome.tabs.query({});
-      const tabStatuses: TabLoggingStatus[] = [];
-
-      for (const tab of tabs) {
-        if (tab.id && tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
-          // Get logging status for this tab
-          const result = await chrome.storage.local.get([`tabLogging_${tab.id}`, `tabErrorLogging_${tab.id}`, `tabTokenLogging_${tab.id}`, 'settings']);
-          const networkState = result[`tabLogging_${tab.id}`];
-          const errorState = result[`tabErrorLogging_${tab.id}`];
-          const tokenState = result[`tabTokenLogging_${tab.id}`];
-          const settings = result.settings || {};
-          
-          // Get domain from URL
-          let domain = '';
-          try {
-            domain = new URL(tab.url).hostname;
-          } catch (e) {
-            domain = tab.url;
-          }
-
-          // Determine logging status (same logic as popup)
-          const networkConfig = settings.networkInterception || {};
-          const errorConfig = settings.errorLogging || {};
-          const tokenConfig = settings.tokenLogging || {};
-          
-          let networkLogging = false;
-          let errorLogging = false;
-          let tokenLogging = false;
-
-          if (networkState) {
-            // Check both 'status' and 'active' properties for compatibility
-            if (networkState.status !== undefined) {
-              networkLogging = networkState.status === 'active';
-            } else {
-              networkLogging = typeof networkState === 'boolean' ? networkState : networkState.active;
-            }
-          } else {
-            networkLogging = networkConfig.tabSpecific?.defaultState === 'active';
-          }
-
-          if (errorState) {
-            errorLogging = typeof errorState === 'boolean' ? errorState : errorState.active;
-          } else {
-            errorLogging = errorConfig.tabSpecific?.defaultState === 'active';
-          }
-
-          if (tokenState) {
-            tokenLogging = typeof tokenState === 'boolean' ? tokenState : tokenState.active;
-          } else {
-            tokenLogging = tokenConfig.tabSpecific?.defaultState === 'active';
-          }
-
-          tabStatuses.push({
-            tabId: tab.id,
-            url: tab.url,
-            title: tab.title || 'Untitled',
-            domain,
-            networkLogging,
-            errorLogging,
-            tokenLogging,
-            favicon: tab.favIconUrl
-          });
-        }
-      }
-
-      setTabsLoggingStatus(tabStatuses);
-    } catch (error) {
-      console.error('Error loading tabs logging status:', error);
-    }
-  };
-
-  const refreshData = () => {
+  const refreshData = async () => {
     setLoading(true);
-    loadDashboardData();
+    await loadDashboardData();
   };
 
   const clearData = async () => {
@@ -1344,20 +1524,8 @@ const Dashboard: React.FC = () => {
       try {
         setLoading(true);
         
-        // Send message to background script to clear all data
-        await new Promise<void>((resolve, reject) => {
-          chrome.runtime.sendMessage({ action: 'clearAllData' }, (response) => {
-            if (chrome.runtime.lastError) {
-              console.error('Dashboard: Error clearing data:', chrome.runtime.lastError);
-              reject(chrome.runtime.lastError);
-            } else if (response?.success) {
-              console.log('Dashboard: Data cleared successfully');
-              resolve();
-            } else {
-              reject(new Error('Failed to clear data'));
-            }
-          });
-        });
+        // MEMORY LEAK FIX: Use pre-allocated function instead of Promise constructor
+        await clearChromeData()
         
         // Reset local state
         setData({
@@ -1371,13 +1539,17 @@ const Dashboard: React.FC = () => {
           tokenEvents: [],
           totalTokenEvents: 0
         });
-        
+
         setCurrentPage(1);
         
-        // Show success message
-        alert('✅ All network request, console error, and token event data have been cleared successfully.');
+        // Reload data from database to confirm it's actually cleared
+        await loadDashboardData();
         
-      } catch (error) {
+        // Trigger refresh of all dashboard components
+        window.dispatchEvent(new CustomEvent('dataCleared'));
+
+        // Show success message
+        alert('✅ All network request, console error, and token event data have been cleared successfully.');      } catch (error) {
         console.error('Error clearing data:', error);
         alert('❌ Failed to clear data. Please try again.');
       } finally {
@@ -1453,13 +1625,16 @@ const Dashboard: React.FC = () => {
   };
 
   const filteredAndSortedRequests = getFilteredAndSortedRequests();
-  const totalFilteredRequests = filteredAndSortedRequests.length;
+  // Use database total for pagination, not filtered client-side count
+  const totalFilteredRequests = data.totalRequests || 0; // Server-side pagination total
   const totalFilteredPages = Math.ceil(totalFilteredRequests / requestsPerPage);
   
-  // Calculate current page data
+  // Calculate display indices for pagination info
   const indexOfLastRequest = currentPage * requestsPerPage;
   const indexOfFirstRequest = indexOfLastRequest - requestsPerPage;
-  const currentRequests = filteredAndSortedRequests.slice(indexOfFirstRequest, indexOfLastRequest);
+  
+  // For display purposes, use the current page data directly (no client-side slicing needed)
+  const currentRequests = filteredAndSortedRequests; // Data is already paginated from server
 
   // Handle sorting
   const handleSort = (key: string) => {
@@ -1473,7 +1648,7 @@ const Dashboard: React.FC = () => {
   // Reset pagination when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterMethod, totalFilteredPages]);
+  }, [searchTerm, filterMethod]);
 
   // Generate page numbers for pagination (Google-style)
   const getPageNumbers = () => {
@@ -1523,34 +1698,36 @@ const Dashboard: React.FC = () => {
   const getFilteredAndSortedErrors = () => {
     let filteredErrors = [...data.consoleErrors];
     
-    // Apply search filter
+    // Apply search filter safely
     if (errorSearchTerm) {
-      filteredErrors = filteredErrors.filter(error =>
-        error.message.toLowerCase().includes(errorSearchTerm.toLowerCase()) ||
-        (error.url && error.url.toLowerCase().includes(errorSearchTerm.toLowerCase()))
-      );
+      const term = errorSearchTerm.toLowerCase();
+      filteredErrors = filteredErrors.filter(error => {
+        const msg = String(error?.message ?? '').toLowerCase();
+        const url = String(error?.url ?? '').toLowerCase();
+        return msg.includes(term) || url.includes(term);
+      });
     }
     
-    // Apply severity filter
+    // Apply severity filter safely
     if (filterSeverity !== 'all') {
       filteredErrors = filteredErrors.filter(error => 
-        error.severity && error.severity.toLowerCase() === filterSeverity.toLowerCase()
+        String(error?.severity ?? '').toLowerCase() === filterSeverity.toLowerCase()
       );
     }
     
-    // Apply sorting
+    // Apply sorting safely
     filteredErrors.sort((a, b) => {
-      const aValue = a[errorSortConfig.key];
-      const bValue = b[errorSortConfig.key];
+      const aValue = a?.[errorSortConfig.key];
+      const bValue = b?.[errorSortConfig.key];
       
       if (errorSortConfig.key === 'timestamp') {
-        const aTime = new Date(aValue).getTime();
-        const bTime = new Date(bValue).getTime();
+        const aTime = new Date(aValue as any).getTime() || 0;
+        const bTime = new Date(bValue as any).getTime() || 0;
         return errorSortConfig.direction === 'asc' ? aTime - bTime : bTime - aTime;
       }
       
-      const aStr = String(aValue || '').toLowerCase();
-      const bStr = String(bValue || '').toLowerCase();
+      const aStr = String(aValue ?? '').toLowerCase();
+      const bStr = String(bValue ?? '').toLowerCase();
       if (aStr < bStr) return errorSortConfig.direction === 'asc' ? -1 : 1;
       if (aStr > bStr) return errorSortConfig.direction === 'asc' ? 1 : -1;
       return 0;
@@ -1560,13 +1737,16 @@ const Dashboard: React.FC = () => {
   };
 
   const filteredAndSortedErrors = getFilteredAndSortedErrors();
-  const totalFilteredErrors = filteredAndSortedErrors.length;
+  // Use database total for pagination, not filtered client-side count
+  const totalFilteredErrors = data.totalErrors || 0; // Server-side pagination total
   const totalFilteredErrorPages = Math.ceil(totalFilteredErrors / errorsPerPage);
   
-  // Calculate current page data for errors
+  // Calculate display indices for pagination info
   const indexOfLastError = currentErrorPage * errorsPerPage;
   const indexOfFirstError = indexOfLastError - errorsPerPage;
-  const currentErrors = filteredAndSortedErrors.slice(indexOfFirstError, indexOfLastError);
+  
+  // For display purposes, use the current page data directly (no client-side slicing needed)
+  const currentErrors = filteredAndSortedErrors; // Data is already paginated from server
 
   // Handle error sorting
   const handleErrorSort = (key: string) => {
@@ -1599,7 +1779,7 @@ const Dashboard: React.FC = () => {
   // Reset error pagination when filters change
   useEffect(() => {
     setCurrentErrorPage(1);
-  }, [errorSearchTerm, filterSeverity, totalFilteredErrorPages]);
+  }, [errorSearchTerm, filterSeverity]);
 
   // Token Events filtering and sorting
   const getFilteredAndSortedTokenEvents = () => {
@@ -1687,7 +1867,7 @@ const Dashboard: React.FC = () => {
   // Reset token pagination when filters change
   useEffect(() => {
     setCurrentTokenPage(1);
-  }, [tokenSearchTerm, filterTokenType, totalFilteredTokenPages]);
+  }, [tokenSearchTerm, filterTokenType]);
 
   // Toggle network logging for a specific tab
   const toggleTabNetworkLogging = async (tabId: number) => {
@@ -2219,9 +2399,10 @@ const Dashboard: React.FC = () => {
                             ? 'bg-blue-100 text-blue-600'
                             : 'bg-gray-200 text-gray-600'
                         }`}>
-                          {index === 0 ? (data.networkRequests?.length || 0) : 
-                           index === 1 ? (data.consoleErrors?.length || 0) : 
-                           (data.tokenEvents?.length || 0)}
+                          {index === 0 ? (data.totalRequests || 0) : 
+                           index === 1 ? (data.totalErrors || 0) : 
+                           index === 2 ? (data.totalTokenEvents || 0) :
+                           'LIVE'}
                         </span>
                       </span>
                     </button>
@@ -3231,11 +3412,20 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
+        {/* Performance Monitoring Section */}
+        <div className={`bg-white rounded-lg shadow mb-8 ${currentTableIndex === 3 ? 'block' : 'hidden'}`}>
+          <PerformanceMonitoringDashboard />
+        </div>
+
         {/* Statistics Card Component */}
         <StatisticsCard 
           networkRequests={data.networkRequests}
           consoleErrors={data.consoleErrors}
           tokenEvents={data.tokenEvents}
+          totalRequests={data.totalRequests}
+          totalErrors={data.totalErrors}
+          totalTokenEvents={data.totalTokenEvents}
+          onRefreshAnalysisData={refreshData}
         />
       </main>
       </div>

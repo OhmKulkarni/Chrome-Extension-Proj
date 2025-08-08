@@ -182,9 +182,18 @@ const Settings: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  
+  // MEMORY LEAK FIX: Track timeouts for cleanup
+  const timeoutsRef = React.useRef<Set<number>>(new Set());
 
   useEffect(() => {
     loadSettings();
+    
+    // MEMORY LEAK FIX: Cleanup timeouts on unmount
+    return () => {
+      timeoutsRef.current.forEach(timeoutId => clearTimeout(timeoutId));
+      timeoutsRef.current.clear();
+    };
   }, []);
 
   // Deep merge function to properly merge nested settings
@@ -220,11 +229,15 @@ const Settings: React.FC = () => {
     try {
       await chrome.storage.local.set({ settings: settings });
       setSaveMessage('Settings saved successfully!');
-      setTimeout(() => setSaveMessage(''), 3000);
+      // MEMORY LEAK FIX: Track timeout for cleanup
+      const timeoutId = setTimeout(() => setSaveMessage(''), 3000);
+      timeoutsRef.current.add(timeoutId);
     } catch (error) {
       console.error('Error saving settings:', error);
       setSaveMessage('Error saving settings');
-      setTimeout(() => setSaveMessage(''), 3000);
+      // MEMORY LEAK FIX: Track timeout for cleanup
+      const timeoutId = setTimeout(() => setSaveMessage(''), 3000);
+      timeoutsRef.current.add(timeoutId);
     } finally {
       setIsSaving(false);
     }

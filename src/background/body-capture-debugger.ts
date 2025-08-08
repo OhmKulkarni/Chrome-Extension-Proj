@@ -3,8 +3,22 @@
  * 
  * This module uses the Chrome DevTools Protocol via chrome.debugger API
  * to capture request and response bodies when full body capture mode is enabled.
- * It works alongside the existing main-world script network interception.
+ * It works alongside the existing main-world script network in        // MEMORY LEAK FIX: Truncate large request bodies to prevent memory bloat
+        requestInfo.requestBody = this.truncateBodyIfNeeded((response as any).postData);
+        session.requestData.set(requestId, requestInfo);
+        console.log('[BodyCaptureDebugger] Captured request body for:', requestId, 'Length:', requestInfo.requestBody.length);
+        
+        // MEMORY LEAK FIX: Immediate cleanup if session has too many requests
+        this.cleanupSessionIfNeeded(session);eption.
  */
+
+// MEMORY LEAK FIX: External delay function to prevent closure capture
+function createDelayPromise(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+// Use the external function
+const delay = createDelayPromise
 
 interface DebuggerSession {
   tabId: number;
@@ -17,6 +31,7 @@ interface DebuggerSession {
     responseBody?: any;
     contentType?: string;
   }>;
+  lastCleanup: number; // Track last cleanup time
 }
 
 class BodyCaptureDebugger {
@@ -25,10 +40,26 @@ class BodyCaptureDebugger {
   private settings: any = null;
   private initialized = false;
   private apiAvailable = false;
+  
+  // MEMORY LEAK FIX: Aggressive memory management constants
+  private static readonly MAX_REQUESTS_PER_SESSION = 10; // Max 10 requests stored per tab
+  private static readonly MAX_BODY_SIZE = 50000; // Max 50KB per body to prevent huge objects
+  private static readonly CLEANUP_INTERVAL = 30000; // Clean up every 30 seconds
+  private static readonly MAX_REQUEST_AGE = 60000; // Keep requests for max 1 minute
+  
+  // MEMORY LEAK FIX: Event listener cleanup tracking
+  private eventListeners: {
+    storageHandler?: (changes: any) => void;
+    debuggerEventHandler?: (source: any, method: string, params?: any) => void;
+    debuggerDetachHandler?: (source: any, reason: string) => void;
+  } = {};
+  
+  // MEMORY LEAK FIX: Cleanup interval tracking
+  private cleanupInterval: number | null = null;
 
   async initialize() {
     // Wait a bit to ensure Chrome APIs are fully loaded
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await delay(100);
     
     // More comprehensive check for chrome.debugger API
     if (!chrome || !chrome.debugger || typeof chrome.debugger.attach !== 'function') {
@@ -65,16 +96,24 @@ class BodyCaptureDebugger {
     await this.loadSettings();
     
     // Listen for settings changes
-    chrome.storage.onChanged.addListener((changes) => {
+    this.eventListeners.storageHandler = (changes) => {
       if (changes.settings) {
         this.loadSettings();
       }
-    });
+    };
+    chrome.storage.onChanged.addListener(this.eventListeners.storageHandler);
 
     try {
-      // Listen for debugger events
-      chrome.debugger.onEvent.addListener(this.onDebuggerEvent.bind(this));
-      chrome.debugger.onDetach.addListener(this.onDebuggerDetach.bind(this));
+      // Listen for debugger events - MEMORY LEAK FIX: Store handlers for cleanup
+      this.eventListeners.debuggerEventHandler = this.onDebuggerEvent.bind(this);
+      this.eventListeners.debuggerDetachHandler = this.onDebuggerDetach.bind(this);
+      
+      chrome.debugger.onEvent.addListener(this.eventListeners.debuggerEventHandler);
+      chrome.debugger.onDetach.addListener(this.eventListeners.debuggerDetachHandler);
+      
+      // MEMORY LEAK FIX: Start aggressive cleanup interval
+      this.startCleanupInterval();
+      
       this.initialized = true;
       console.log('[BodyCaptureDebugger] Initialized successfully');
     } catch (error) {
@@ -130,7 +169,8 @@ class BodyCaptureDebugger {
       const session: DebuggerSession = {
         tabId,
         attached: true,
-        requestData: new Map()
+        requestData: new Map(),
+        lastCleanup: Date.now()
       };
       
       this.sessions.set(tabId, session);
@@ -240,9 +280,10 @@ class BodyCaptureDebugger {
       if ((response as any).postData) {
         const requestInfo = session.requestData.get(requestId);
         if (requestInfo) {
-          requestInfo.requestBody = (response as any).postData;
+          // MEMORY LEAK FIX: Truncate large request bodies to prevent memory bloat
+          requestInfo.requestBody = this.truncateBodyIfNeeded((response as any).postData);
           session.requestData.set(requestId, requestInfo);
-          console.log('[BodyCaptureDebugger] Captured request body for:', requestId, 'Length:', (response as any).postData.length);
+          console.log('[BodyCaptureDebugger] Captured request body for:', requestId, 'Length:', requestInfo.requestBody.length);
         }
       }
     } catch (error) {
@@ -313,10 +354,16 @@ class BodyCaptureDebugger {
           body = atob(body);
         }
         
+        // MEMORY LEAK FIX: Truncate large response bodies to prevent memory bloat
+        const truncatedBody = this.truncateBodyIfNeeded(body);
+        
         // Store the response body
-        requestInfo.responseBody = body;
+        requestInfo.responseBody = truncatedBody;
         session.requestData.set(requestId, requestInfo);
-        console.log('[BodyCaptureDebugger] Captured response body for:', requestId, 'Length:', body.length);
+        console.log('[BodyCaptureDebugger] Captured response body for:', requestId, 'Length:', truncatedBody.length);
+        
+        // MEMORY LEAK FIX: Immediate cleanup if session has too many requests
+        this.cleanupSessionIfNeeded(session);
       } else {
         console.log('[BodyCaptureDebugger] No response body available for:', requestId);
       }
@@ -440,6 +487,127 @@ class BodyCaptureDebugger {
     }
 
     return requestIds;
+  }
+  
+  // MEMORY LEAK FIX: Cleanup method to remove all event listeners
+  destroy(): void {
+    console.log('[BodyCaptureDebugger] Destroying and cleaning up event listeners');
+    
+    // Remove storage change listener
+    if (this.eventListeners.storageHandler) {
+      chrome.storage.onChanged.removeListener(this.eventListeners.storageHandler);
+      this.eventListeners.storageHandler = undefined;
+    }
+    
+    // Remove debugger event listeners
+    if (this.eventListeners.debuggerEventHandler) {
+      chrome.debugger.onEvent.removeListener(this.eventListeners.debuggerEventHandler);
+      this.eventListeners.debuggerEventHandler = undefined;
+    }
+    
+    if (this.eventListeners.debuggerDetachHandler) {
+      chrome.debugger.onDetach.removeListener(this.eventListeners.debuggerDetachHandler);
+      this.eventListeners.debuggerDetachHandler = undefined;
+    }
+    
+    // MEMORY LEAK FIX: Stop cleanup interval
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+    
+    // Clean up sessions
+    for (const [tabId, session] of this.sessions.entries()) {
+      if (session.attached) {
+        try {
+          chrome.debugger.detach({ tabId });
+        } catch (error) {
+          console.warn(`[BodyCaptureDebugger] Failed to detach from tab ${tabId}:`, error);
+        }
+      }
+      session.requestData.clear();
+    }
+    this.sessions.clear();
+    
+    this.initialized = false;
+    this.apiAvailable = false;
+  }
+
+  // MEMORY LEAK FIX: Start aggressive cleanup interval
+  private startCleanupInterval(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+    }
+    
+    this.cleanupInterval = setInterval(() => {
+      this.performAggressiveCleanup();
+    }, BodyCaptureDebugger.CLEANUP_INTERVAL);
+  }
+
+  // MEMORY LEAK FIX: Aggressive memory cleanup method
+  private performAggressiveCleanup(): void {
+    const now = Date.now();
+    let totalCleaned = 0;
+    
+    for (const [, session] of this.sessions.entries()) {
+      const sizeBefore = session.requestData.size;
+      
+      // Remove old requests
+      for (const [requestId, requestInfo] of session.requestData.entries()) {
+        if (now - requestInfo.timestamp > BodyCaptureDebugger.MAX_REQUEST_AGE) {
+          session.requestData.delete(requestId);
+        }
+      }
+      
+      // If still too many requests, remove oldest ones
+      if (session.requestData.size > BodyCaptureDebugger.MAX_REQUESTS_PER_SESSION) {
+        const sortedRequests = Array.from(session.requestData.entries())
+          .sort((a, b) => a[1].timestamp - b[1].timestamp);
+        
+        const toRemove = sortedRequests.slice(0, session.requestData.size - BodyCaptureDebugger.MAX_REQUESTS_PER_SESSION);
+        for (const [requestId] of toRemove) {
+          session.requestData.delete(requestId);
+        }
+      }
+      
+      const cleaned = sizeBefore - session.requestData.size;
+      totalCleaned += cleaned;
+      session.lastCleanup = now;
+    }
+    
+    if (totalCleaned > 0) {
+      console.log(`[BodyCaptureDebugger] Aggressive cleanup removed ${totalCleaned} old requests`);
+    }
+  }
+
+  // MEMORY LEAK FIX: Truncate large bodies to prevent memory bloat
+  private truncateBodyIfNeeded(body: any): any {
+    if (typeof body !== 'string') {
+      return body;
+    }
+    
+    if (body.length > BodyCaptureDebugger.MAX_BODY_SIZE) {
+      const truncated = body.substring(0, BodyCaptureDebugger.MAX_BODY_SIZE);
+      console.log(`[BodyCaptureDebugger] Truncated body from ${body.length} to ${truncated.length} characters`);
+      return truncated + '... [TRUNCATED]';
+    }
+    
+    return body;
+  }
+
+  // MEMORY LEAK FIX: Immediate cleanup of individual session when it gets too large
+  private cleanupSessionIfNeeded(session: DebuggerSession): void {
+    if (session.requestData.size > BodyCaptureDebugger.MAX_REQUESTS_PER_SESSION) {
+      const sortedRequests = Array.from(session.requestData.entries())
+        .sort((a, b) => a[1].timestamp - b[1].timestamp);
+      
+      const toRemove = sortedRequests.slice(0, session.requestData.size - BodyCaptureDebugger.MAX_REQUESTS_PER_SESSION);
+      for (const [requestId] of toRemove) {
+        session.requestData.delete(requestId);
+      }
+      
+      console.log(`[BodyCaptureDebugger] Immediate cleanup removed ${toRemove.length} old requests from session`);
+    }
   }
 }
 
