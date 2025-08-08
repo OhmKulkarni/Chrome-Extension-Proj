@@ -22,13 +22,6 @@ import { Select } from './components/ui/select';
 import { Switch } from './components/ui/switch';
 
 interface SettingsData {
-  notifications: boolean;
-  autoSync: boolean;
-  theme: 'light' | 'dark' | 'system';
-  language: string;
-  updateFrequency: number;
-  privacyMode: boolean;
-  dataCollection: boolean;
   networkInterception: {
     enabled: boolean;
     bodyCapture: {
@@ -105,13 +98,6 @@ interface SettingsData {
 }
 
 const defaultSettings: SettingsData = {
-  notifications: true,
-  autoSync: true,
-  theme: 'system',
-  language: 'en',
-  updateFrequency: 5,
-  privacyMode: false,
-  dataCollection: true,
   networkInterception: {
     enabled: true,
     bodyCapture: {
@@ -196,12 +182,18 @@ const Settings: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const [storageUsage, setStorageUsage] = useState<{
+    bytes: number;
+    percentage: number;
+    isLoading: boolean;
+  }>({ bytes: 0, percentage: 0, isLoading: true });
   
   // MEMORY LEAK FIX: Track timeouts for cleanup
   const timeoutsRef = React.useRef<Set<number>>(new Set());
 
   useEffect(() => {
     loadSettings();
+    loadStorageUsage();
     
     // MEMORY LEAK FIX: Cleanup timeouts on unmount
     return () => {
@@ -209,6 +201,57 @@ const Settings: React.FC = () => {
       timeoutsRef.current.clear();
     };
   }, []);
+
+  // Load IndexedDB storage usage
+  const loadStorageUsage = async () => {
+    try {
+      // Get table counts for storage estimation
+      const response = await chrome.runtime.sendMessage({
+        action: 'getTableCounts'
+      });
+      
+      if (response && response.success && response.data) {
+        const tableCounts = response.data;
+        let estimatedBytes = 0;
+        
+        // Calculate estimated size based on table counts
+        // Using the same estimation logic as the dashboard
+        if (tableCounts.apiCalls) {
+          estimatedBytes += tableCounts.apiCalls * 9500; // ~9.5KB average
+        }
+        if (tableCounts.consoleErrors) {
+          estimatedBytes += tableCounts.consoleErrors * 3200; // ~3.2KB average
+        }
+        if (tableCounts.tokenEvents) {
+          estimatedBytes += tableCounts.tokenEvents * 1800; // ~1.8KB average
+        }
+        if (tableCounts.minifiedLibraries) {
+          estimatedBytes += tableCounts.minifiedLibraries * 15000; // ~15KB average
+        }
+        
+        const STORAGE_LIMIT = 100 * 1024 * 1024; // 100MB limit
+        const percentage = (estimatedBytes / STORAGE_LIMIT) * 100;
+        
+        setStorageUsage({
+          bytes: estimatedBytes,
+          percentage: Math.min(percentage, 100),
+          isLoading: false
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load storage usage:', error);
+      setStorageUsage({ bytes: 0, percentage: 0, isLoading: false });
+    }
+  };
+
+  // Format bytes to human readable format
+  const formatBytes = (bytes: number): string => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
 
   // Deep merge function to properly merge nested settings
   const deepMerge = (target: any, source: any): any => {
@@ -239,14 +282,19 @@ const Settings: React.FC = () => {
         // Map from background script format to UI format
         const backendSettings = localResult.settings;
         loadedSettings = {
-          ...defaultSettings,
           networkInterception: backendSettings.networkInterception || defaultSettings.networkInterception,
           errorLogging: backendSettings.errorLogging || defaultSettings.errorLogging,
           tokenLogging: backendSettings.tokenLogging || defaultSettings.tokenLogging,
         };
       } else if (syncResult.extensionSettings) {
         // Use deep merge to handle partial settings from sync storage
-        loadedSettings = deepMerge(defaultSettings, syncResult.extensionSettings);
+        // Extract only the properties we care about
+        const syncSettings = syncResult.extensionSettings;
+        loadedSettings = {
+          networkInterception: syncSettings.networkInterception || defaultSettings.networkInterception,
+          errorLogging: syncSettings.errorLogging || defaultSettings.errorLogging,
+          tokenLogging: syncSettings.tokenLogging || defaultSettings.tokenLogging,
+        };
       }
       
       setSettings(loadedSettings);
@@ -336,105 +384,6 @@ const Settings: React.FC = () => {
         )}
 
         <div className="grid gap-6">
-          {/* General Settings Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>General</CardTitle>
-              <CardDescription>
-                Basic extension settings and preferences
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid gap-4">
-                <Switch
-                  checked={settings.notifications}
-                  onChange={(e) => updateSetting('notifications', e.target.checked)}
-                  label="Enable notifications"
-                  description="Show desktop notifications from the extension"
-                />
-
-                <Switch
-                  checked={settings.autoSync}
-                  onChange={(e) => updateSetting('autoSync', e.target.checked)}
-                  label="Auto-sync data"
-                  description="Automatically sync data across devices"
-                />
-
-                <div className="grid gap-2">
-                  <label htmlFor="theme" className="setting-label">Theme</label>
-                  <Select
-                    id="theme"
-                    value={settings.theme}
-                    onChange={(e) => updateSetting('theme', e.target.value as any)}
-                    className="max-w-xs"
-                  >
-                    <option value="light">Light</option>
-                    <option value="dark">Dark</option>
-                    <option value="system">System</option>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2">
-                  <label htmlFor="language" className="setting-label">Language</label>
-                  <Select
-                    id="language"
-                    value={settings.language}
-                    onChange={(e) => updateSetting('language', e.target.value)}
-                    className="max-w-xs"
-                  >
-                    <option value="en">English</option>
-                    <option value="es">Spanish</option>
-                    <option value="fr">French</option>
-                    <option value="de">German</option>
-                    <option value="ja">Japanese</option>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2">
-                  <label htmlFor="updateFrequency" className="setting-label">
-                    Update frequency (minutes)
-                  </label>
-                  <Input
-                    type="number"
-                    id="updateFrequency"
-                    min="1"
-                    max="60"
-                    value={settings.updateFrequency}
-                    onChange={(e) => updateSetting('updateFrequency', parseInt(e.target.value))}
-                    className="max-w-xs"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Privacy & Security Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Privacy & Security</CardTitle>
-              <CardDescription>
-                Control your privacy settings and data collection
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid gap-4">
-                <Switch
-                  checked={settings.privacyMode}
-                  onChange={(e) => updateSetting('privacyMode', e.target.checked)}
-                  label="Privacy mode"
-                  description="Enhanced privacy protection"
-                />
-
-                <Switch
-                  checked={settings.dataCollection}
-                  onChange={(e) => updateSetting('dataCollection', e.target.checked)}
-                  label="Data collection"
-                  description="Allow anonymous usage data collection for improvement"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Network Interception Settings Card */}
           <Card>
             <CardHeader>
@@ -740,6 +689,78 @@ const Settings: React.FC = () => {
                       </div>
                     )}
                   </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Storage Usage Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Storage Usage</CardTitle>
+              <CardDescription>
+                IndexedDB storage usage and data management
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                {storageUsage.isLoading ? (
+                  <div className="flex items-center space-x-3">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                    <span className="text-sm text-muted-foreground">Calculating storage usage...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium">IndexedDB Usage</span>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm text-muted-foreground">
+                          {formatBytes(storageUsage.bytes)} / 100 MB
+                        </span>
+                        <div 
+                          className="relative group cursor-help"
+                          title="Once the 100MB limit is exceeded, automatic data pruning will begin to maintain performance"
+                        >
+                          <div className="w-4 h-4 rounded-full bg-muted text-xs flex items-center justify-center text-muted-foreground">
+                            ?
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Progress Bar */}
+                    <div className="w-full bg-muted rounded-full h-3">
+                      <div 
+                        className={`h-3 rounded-full transition-all duration-300 ${
+                          storageUsage.percentage < 50 ? 'bg-green-500' :
+                          storageUsage.percentage < 80 ? 'bg-yellow-500' : 'bg-red-500'
+                        }`}
+                        style={{ width: `${Math.min(storageUsage.percentage, 100)}%` }}
+                      ></div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Usage:</span>
+                        <span className="ml-2 font-medium">{storageUsage.percentage.toFixed(1)}%</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Available:</span>
+                        <span className="ml-2 font-medium">
+                          {formatBytes(100 * 1024 * 1024 - storageUsage.bytes)}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {storageUsage.percentage > 80 && (
+                      <div className="mt-3 p-3 bg-yellow-50 text-yellow-800 rounded-lg border border-yellow-200">
+                        <p className="text-sm font-medium">⚠️ High storage usage detected</p>
+                        <p className="text-xs mt-1">
+                          Storage is {storageUsage.percentage.toFixed(1)}% full. Automatic pruning will begin when the limit is exceeded.
+                        </p>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </CardContent>
