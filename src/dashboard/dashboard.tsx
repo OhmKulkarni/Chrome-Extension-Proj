@@ -1372,6 +1372,13 @@ const Dashboard: React.FC = () => {
     loadConsoleErrorsPage(currentErrorPage, errorsPerPage);
   }, [currentErrorPage, errorsPerPage, loadConsoleErrorsPage]);
 
+  // Fetch console errors when switching to the Console Errors tab if we have totals but no rows loaded yet
+  useEffect(() => {
+    if (currentTableIndex === 1 && data.consoleErrors.length === 0 && (data.totalErrors || 0) > 0) {
+      loadConsoleErrorsPage(currentErrorPage, errorsPerPage);
+    }
+  }, [currentTableIndex, data.consoleErrors.length, data.totalErrors, currentErrorPage, errorsPerPage, loadConsoleErrorsPage]);
+
   useEffect(() => {
     if (data.totalTokenEvents > 0) {
       loadTokenEventsPage(currentTokenPage, tokenEventsPerPage);
@@ -1691,34 +1698,36 @@ const Dashboard: React.FC = () => {
   const getFilteredAndSortedErrors = () => {
     let filteredErrors = [...data.consoleErrors];
     
-    // Apply search filter
+    // Apply search filter safely
     if (errorSearchTerm) {
-      filteredErrors = filteredErrors.filter(error =>
-        error.message.toLowerCase().includes(errorSearchTerm.toLowerCase()) ||
-        (error.url && error.url.toLowerCase().includes(errorSearchTerm.toLowerCase()))
-      );
+      const term = errorSearchTerm.toLowerCase();
+      filteredErrors = filteredErrors.filter(error => {
+        const msg = String(error?.message ?? '').toLowerCase();
+        const url = String(error?.url ?? '').toLowerCase();
+        return msg.includes(term) || url.includes(term);
+      });
     }
     
-    // Apply severity filter
+    // Apply severity filter safely
     if (filterSeverity !== 'all') {
       filteredErrors = filteredErrors.filter(error => 
-        error.severity && error.severity.toLowerCase() === filterSeverity.toLowerCase()
+        String(error?.severity ?? '').toLowerCase() === filterSeverity.toLowerCase()
       );
     }
     
-    // Apply sorting
+    // Apply sorting safely
     filteredErrors.sort((a, b) => {
-      const aValue = a[errorSortConfig.key];
-      const bValue = b[errorSortConfig.key];
+      const aValue = a?.[errorSortConfig.key];
+      const bValue = b?.[errorSortConfig.key];
       
       if (errorSortConfig.key === 'timestamp') {
-        const aTime = new Date(aValue).getTime();
-        const bTime = new Date(bValue).getTime();
+        const aTime = new Date(aValue as any).getTime() || 0;
+        const bTime = new Date(bValue as any).getTime() || 0;
         return errorSortConfig.direction === 'asc' ? aTime - bTime : bTime - aTime;
       }
       
-      const aStr = String(aValue || '').toLowerCase();
-      const bStr = String(bValue || '').toLowerCase();
+      const aStr = String(aValue ?? '').toLowerCase();
+      const bStr = String(bValue ?? '').toLowerCase();
       if (aStr < bStr) return errorSortConfig.direction === 'asc' ? -1 : 1;
       if (aStr > bStr) return errorSortConfig.direction === 'asc' ? 1 : -1;
       return 0;
