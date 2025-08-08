@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
@@ -30,6 +30,7 @@ interface StatisticsCardProps {
   totalRequests?: number;
   totalErrors?: number;
   totalTokenEvents?: number;
+  onRefreshAnalysisData?: () => Promise<void>;
 }
 
 interface GlobalStats {
@@ -63,7 +64,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   tokenEvents,
   totalRequests,
   totalErrors,
-  totalTokenEvents
+  totalTokenEvents,
+  onRefreshAnalysisData
 }) => {
   // Debug mode: Add mock data for testing charts
   const DEBUG_MODE = false; // Set to false to disable debug data
@@ -120,6 +122,65 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   const [selectedChart, setSelectedChart] = useState<string | null>(null);
   const [showAllCharts, setShowAllCharts] = useState(false);
   const [chartSearch, setChartSearch] = useState('');
+
+  // Analysis data state - larger dataset for accurate statistics
+  const [analysisData, setAnalysisData] = useState<{
+    networkRequests: any[];
+    consoleErrors: any[];
+    tokenEvents: any[];
+    loaded: boolean;
+  }>({
+    networkRequests: [],
+    consoleErrors: [],
+    tokenEvents: [],
+    loaded: false
+  });
+  
+  // User-selected analysis sample size (number of records to consider for stats)
+  const [analysisLimit, setAnalysisLimit] = useState<number>(200);
+
+  // Load analysis data for statistics calculations (uses selectable limit)
+  const loadAnalysisData = useCallback(async (limitOverride?: number) => {
+    const limit = typeof limitOverride === 'number' ? limitOverride : analysisLimit;
+    try {
+      const response = await chrome.runtime.sendMessage({ 
+        action: 'getAnalysisData',
+        limit
+      });
+      
+      if (response?.success && response?.data) {
+        setAnalysisData({
+          networkRequests: response.data.networkRequests || [],
+          consoleErrors: response.data.consoleErrors || [],
+          tokenEvents: response.data.tokenEvents || [],
+          loaded: true
+        });
+        console.log('✅ Analysis data loaded:', {
+          limit,
+          networkRequests: response.data.networkRequests?.length || 0,
+          consoleErrors: response.data.consoleErrors?.length || 0,
+          tokenEvents: response.data.tokenEvents?.length || 0
+        });
+      } else {
+        console.warn('⚠️ Failed to load analysis data:', response);
+      }
+    } catch (error) {
+      console.error('❌ Error loading analysis data:', error);
+    }
+  }, [analysisLimit]);
+
+  // Load analysis data on component mount and when limit changes
+  useEffect(() => {
+    loadAnalysisData();
+  }, [loadAnalysisData]);
+
+  // Refresh analysis data when parent requests it
+  useEffect(() => {
+    if (onRefreshAnalysisData) {
+      // Refresh analysis data when requested
+      loadAnalysisData();
+    }
+  }, [onRefreshAnalysisData, loadAnalysisData]);
 
   // Chart definitions based on user requirements
   const chartDefinitions: ChartDefinitions = useMemo(() => ({
@@ -244,17 +305,34 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   // Chart renderer function with error boundary
   const renderChart = (chartKey: string) => {
     try {
+      // Use analysis data for charts when available for better accuracy
+      const useAnalysisData = analysisData.loaded && analysisData.networkRequests.length > 0;
+      
+      const effectiveNetworkRequests = useAnalysisData 
+        ? analysisData.networkRequests 
+        : (DEBUG_MODE && (!networkRequests || networkRequests.length === 0) ? mockNetworkRequests : networkRequests);
+      
+      const effectiveConsoleErrors = useAnalysisData 
+        ? analysisData.consoleErrors 
+        : (DEBUG_MODE && (!consoleErrors || consoleErrors.length === 0) ? mockConsoleErrors : consoleErrors);
+      
+      const effectiveTokenEvents = useAnalysisData 
+        ? analysisData.tokenEvents 
+        : (DEBUG_MODE && (!tokenEvents || tokenEvents.length === 0) ? mockTokenEvents : tokenEvents);
+
       const chartData = {
         data: globalStats,
-        networkRequests: debugNetworkRequests,
-        consoleErrors: debugConsoleErrors,
-        tokenEvents: debugTokenEvents
+        networkRequests: effectiveNetworkRequests,
+        consoleErrors: effectiveConsoleErrors,
+        tokenEvents: effectiveTokenEvents
       };
 
       console.log('Rendering chart:', chartKey, 'with data:', {
-        networkRequests: debugNetworkRequests?.length || 0,
-        consoleErrors: debugConsoleErrors?.length || 0,
-        tokenEvents: debugTokenEvents?.length || 0
+        useAnalysisData,
+        networkRequests: effectiveNetworkRequests?.length || 0,
+        consoleErrors: effectiveConsoleErrors?.length || 0,
+        tokenEvents: effectiveTokenEvents?.length || 0,
+        dataSource: useAnalysisData ? 'analysis (200 records)' : 'current page (10 records)'
       });
 
       // MEMORY LEAK FIX: Add detailed logging for method-usage-daily chart
@@ -355,15 +433,27 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
 
   // Calculate global statistics
   const globalStats: GlobalStats = useMemo(() => {
-    // Use debug data if available
-    const effectiveNetworkRequests = debugNetworkRequests || networkRequests;
-    const effectiveConsoleErrors = debugConsoleErrors || consoleErrors;
-    const effectiveTokenEvents = debugTokenEvents || tokenEvents;
+    // Use analysis data for statistics calculations if available, otherwise fall back to current page data
+    const useAnalysisData = analysisData.loaded && analysisData.networkRequests.length > 0;
+    
+    const effectiveNetworkRequests = useAnalysisData 
+      ? analysisData.networkRequests 
+      : (DEBUG_MODE && (!networkRequests || networkRequests.length === 0) ? mockNetworkRequests : networkRequests);
+    
+    const effectiveConsoleErrors = useAnalysisData 
+      ? analysisData.consoleErrors 
+      : (DEBUG_MODE && (!consoleErrors || consoleErrors.length === 0) ? mockConsoleErrors : consoleErrors);
+    
+    const effectiveTokenEvents = useAnalysisData 
+      ? analysisData.tokenEvents 
+      : (DEBUG_MODE && (!tokenEvents || tokenEvents.length === 0) ? mockTokenEvents : tokenEvents);
 
     console.log('GlobalStats calculation with data:', {
+      useAnalysisData,
       networkRequests: effectiveNetworkRequests?.length || 0,
       consoleErrors: effectiveConsoleErrors?.length || 0, 
-      tokenEvents: effectiveTokenEvents?.length || 0
+      tokenEvents: effectiveTokenEvents?.length || 0,
+      dataSource: useAnalysisData ? 'analysis (last 200 records)' : 'current page (10 records)'
     });
 
     const calculatedTotalRequests = effectiveNetworkRequests.length;
@@ -458,13 +548,28 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       avgResponseTime,
       successRate
     };
-  }, [debugNetworkRequests, debugConsoleErrors, debugTokenEvents]);
+  }, [analysisData, networkRequests, consoleErrors, tokenEvents, totalRequests, totalErrors, totalTokenEvents]);
 
   // Calculate domain-specific statistics with enhanced grouping
   const domainStats: DomainStats[] = useMemo(() => {
-    const allData = [...debugNetworkRequests, ...debugConsoleErrors, ...debugTokenEvents];
+    // Use analysis data for more accurate domain statistics
+    const useAnalysisData = analysisData.loaded && analysisData.networkRequests.length > 0;
+    
+    const effectiveNetworkRequests = useAnalysisData 
+      ? analysisData.networkRequests 
+      : (DEBUG_MODE && (!networkRequests || networkRequests.length === 0) ? mockNetworkRequests : networkRequests);
+    
+    const effectiveConsoleErrors = useAnalysisData 
+      ? analysisData.consoleErrors 
+      : (DEBUG_MODE && (!consoleErrors || consoleErrors.length === 0) ? mockConsoleErrors : consoleErrors);
+    
+    const effectiveTokenEvents = useAnalysisData 
+      ? analysisData.tokenEvents 
+      : (DEBUG_MODE && (!tokenEvents || tokenEvents.length === 0) ? mockTokenEvents : tokenEvents);
+    
+    const allData = [...effectiveNetworkRequests, ...effectiveConsoleErrors, ...effectiveTokenEvents];
     return groupDataByDomain(allData);
-  }, [debugNetworkRequests, debugConsoleErrors, debugTokenEvents]);
+  }, [analysisData, networkRequests, consoleErrors, tokenEvents]);
 
   // Sorting functions
   const handleGlobalSort = (key: string) => {
@@ -711,16 +816,35 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                   transition={{ duration: 0.3 }}
                   className="space-y-4"
                 >
-                  {/* Chart Search */}
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Search charts..."
-                      value={chartSearch}
-                      onChange={(e) => setChartSearch(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
+                  {/* Chart Search + Analysis Limit */}
+                  <div className="flex flex-col md:flex-row md:items-center gap-3">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Search charts..."
+                        value={chartSearch}
+                        onChange={(e) => setChartSearch(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm text-gray-600">Records considered</label>
+                      <select
+                        value={analysisLimit}
+                        onChange={(e) => setAnalysisLimit(parseInt(e.target.value, 10) || 200)}
+                        className="border border-gray-300 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        title="Number of most recent records used to compute statistics and charts"
+                      >
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                        <option value={200}>200</option>
+                        <option value={500}>500</option>
+                        <option value={1000}>1000</option>
+                        <option value={2000}>2000</option>
+                      </select>
+                      <span className="hidden md:inline text-xs text-gray-500">Larger samples may increase memory usage</span>
+                    </div>
                   </div>
 
                   {showAllCharts ? (

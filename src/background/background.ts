@@ -1375,6 +1375,51 @@ async function handleGetTokenEvents(limit: number, offset: number, sendResponse:
   }
 }
 
+// Get analysis data handler - larger dataset for statistics
+async function handleGetAnalysisData(limit: number, sendResponse: (response: any) => void) {
+  try {
+    console.log(`🔍 HandleGetAnalysisData: Getting ${limit} records for statistics analysis`)
+    
+    if (!storageManager.isConnected()) {
+      console.log('🔧 HandleGetAnalysisData: Initializing storage manager...')
+      await storageManager.init();
+    }
+    
+    // Get larger datasets for analysis without pagination
+    const [networkRequests, consoleErrors, tokenEvents, counts] = await Promise.all([
+      storageManager.getApiCalls(limit, 0),
+      storageManager.getConsoleErrors(limit, 0), 
+      storageManager.getTokenEvents(limit, 0),
+      storageManager.getTableCounts()
+    ]);
+    
+    console.log(`📊 HandleGetAnalysisData: Retrieved analysis data`, {
+      networkRequests: networkRequests?.length || 0,
+      consoleErrors: consoleErrors?.length || 0,
+      tokenEvents: tokenEvents?.length || 0,
+      totalCounts: counts
+    });
+    
+    sendResponse({ 
+      success: true, 
+      data: {
+        networkRequests: networkRequests || [],
+        consoleErrors: consoleErrors || [],
+        tokenEvents: tokenEvents || [],
+        totalRequests: counts?.apiCalls || 0,
+        totalErrors: counts?.consoleErrors || 0,
+        totalTokenEvents: counts?.tokenEvents || 0
+      }
+    });
+  } catch (error) {
+    console.error('[Web App Monitor] Failed to get analysis data:', error);
+    sendResponse({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Analysis query failed' 
+    });
+  }
+}
+
 // MEMORY LEAK FIX: Guard against duplicate listener registration
 let listenersRegistered = false
 
@@ -1556,6 +1601,11 @@ if (!listenersRegistered) {
             console.error('Failed to get table counts:', error);
             sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
           }
+          break;
+
+        case 'getAnalysisData':
+          // Get larger dataset for statistics analysis (not paginated)
+          await handleGetAnalysisData(message.limit || 200, sendResponse);
           break;    case 'getStorageAnalysis':
       // Get detailed storage usage analysis with actual byte sizes
       (async () => {

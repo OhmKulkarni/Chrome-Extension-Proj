@@ -1502,9 +1502,9 @@ const Dashboard: React.FC = () => {
     };
   }, [loadDashboardData, tableNames, currentTableIndex, currentPage, requestsPerPage, loadNetworkRequestsPage, currentErrorPage, errorsPerPage, loadConsoleErrorsPage, currentTokenPage, tokenEventsPerPage, loadTokenEventsPage]); // Include all dependencies
 
-  const refreshData = () => {
+  const refreshData = async () => {
     setLoading(true);
-    loadDashboardData();
+    await loadDashboardData();
   };
 
   const clearData = async () => {
@@ -3416,6 +3416,7 @@ const Dashboard: React.FC = () => {
           totalRequests={data.totalRequests}
           totalErrors={data.totalErrors}
           totalTokenEvents={data.totalTokenEvents}
+          onRefreshAnalysisData={refreshData}
         />
       </main>
       </div>
