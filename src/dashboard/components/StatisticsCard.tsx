@@ -241,12 +241,12 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       description: 'Which error types are most common',
       tooltip: 'Identify the most problematic error types'
     },
-    'auth-failures-vs-success': {
-      name: 'Auth Failures vs Success',
-      type: 'pie' as const,
+    'payload-size-distribution': {
+      name: 'Payload Size Distribution',
+      type: 'histogram' as const,
       category: 'Distributions', 
-      description: 'Token expired vs invalid vs success',
-      tooltip: 'Authentication success/failure analysis'
+      description: 'Frequency of different response sizes',
+      tooltip: 'Understand typical response payload sizes'
     },
     
     // Performance & Experience Charts  
@@ -257,12 +257,12 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       description: 'Sorted by slowest endpoints',
       tooltip: 'Identify performance bottlenecks by endpoint'
     },
-    'payload-size-distribution': {
-      name: 'Payload Size Distribution',
-      type: 'histogram' as const,
+    'auth-failures-vs-success': {
+      name: 'Auth Failures vs Success',
+      type: 'pie' as const,
       category: 'Performance', 
-      description: 'Frequency of different response sizes',
-      tooltip: 'Understand typical response payload sizes'
+      description: 'Token expired vs invalid vs success',
+      tooltip: 'Authentication success/failure analysis'
     },
     'requests-by-time-of-day': {
       name: 'Requests by Time of Day',
