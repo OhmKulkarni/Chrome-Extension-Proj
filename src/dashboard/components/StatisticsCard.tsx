@@ -8,7 +8,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { groupDataByDomain, DomainStats } from './domainUtils';
 import { 
   HttpMethodDistributionChart,
-  TopEndpointsByVolumeChart,
   AvgResponseTimePerRouteChart,
   AuthFailuresVsSuccessChart,
   TopFrequentErrorsChart,
@@ -18,8 +17,7 @@ import {
   TrafficByEndpointChart,
   StatusCodeBreakdownChartNew,
   PayloadSizeDistributionChart,
-  RequestsByTimeOfDayChart,
-  RequestsByDomainChart
+  RequestsByTimeOfDayChart
 } from './ChartComponents';
 import { SimpleTestChart } from './SimpleTestChart';
 
@@ -243,19 +241,12 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       description: 'Which error types are most common',
       tooltip: 'Identify the most problematic error types'
     },
-    'auth-failures-vs-success': {
-      name: 'Auth Failures vs Success',
-      type: 'pie' as const,
+    'payload-size-distribution': {
+      name: 'Payload Size Distribution',
+      type: 'histogram' as const,
       category: 'Distributions', 
-      description: 'Token expired vs invalid vs success',
-      tooltip: 'Authentication success/failure analysis'
-    },
-    'top-endpoints-by-volume': {
-      name: 'Top Endpoints by Volume',
-      type: 'bar' as const,
-      category: 'Distributions',
-      description: 'Which routes get the most hits',
-      tooltip: 'Most frequently accessed endpoints'
+      description: 'Frequency of different response sizes',
+      tooltip: 'Understand typical response payload sizes'
     },
     
     // Performance & Experience Charts  
@@ -266,12 +257,12 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       description: 'Sorted by slowest endpoints',
       tooltip: 'Identify performance bottlenecks by endpoint'
     },
-    'payload-size-distribution': {
-      name: 'Payload Size Distribution',
-      type: 'histogram' as const,
+    'auth-failures-vs-success': {
+      name: 'Auth Failures vs Success',
+      type: 'pie' as const,
       category: 'Performance', 
-      description: 'Frequency of different response sizes',
-      tooltip: 'Understand typical response payload sizes'
+      description: 'Token expired vs invalid vs success',
+      tooltip: 'Authentication success/failure analysis'
     },
     'requests-by-time-of-day': {
       name: 'Requests by Time of Day',
@@ -279,13 +270,6 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       category: 'Performance',
       description: 'Peak traffic hours',
       tooltip: 'Identify peak usage times and traffic patterns'
-    },
-    'requests-by-domain': {
-      name: 'Requests by Domain',
-      type: 'pie' as const,
-      category: 'Performance',
-      description: 'Traffic distribution across domains',
-      tooltip: 'See which domains generate the most traffic'
     }
   }), []);
 
@@ -365,8 +349,6 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
           return <HttpMethodDistributionChart {...chartData} />;
         case 'status-code-breakdown':
           return <StatusCodeBreakdownChartNew {...chartData} />;
-        case 'top-endpoints-by-volume':
-          return <TopEndpointsByVolumeChart {...chartData} />;
         case 'avg-response-time-per-route':
           return <AvgResponseTimePerRouteChart {...chartData} />;
         case 'auth-failures-vs-success':
@@ -399,8 +381,6 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
           return <PayloadSizeDistributionChart {...chartData} />;
         case 'requests-by-time-of-day':
           return <RequestsByTimeOfDayChart {...chartData} />;
-        case 'requests-by-domain':
-          return <RequestsByDomainChart {...chartData} />;
         default:
           return (
             <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
