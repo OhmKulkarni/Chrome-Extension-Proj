@@ -1,5 +1,17 @@
 // src/settings/settings.tsx
 // This file serves as the settings UI for the Chrome extension.
+// 
+// STORAGE ARCHITECTURE:
+// - UI settings are saved to both chrome.storage.sync (key: 'extensionSettings') 
+//   and chrome.storage.local (key: 'settings')
+// - Background script reads from chrome.storage.local (key: 'settings')
+// - This dual storage ensures UI persistence and background script compatibility
+//
+// NOISE FILTERING LOGIC:
+// - The filterNoise toggle controls networkInterception.privacy.filterNoise
+// - Background script uses this setting in isNoiseRequest() function
+// - Filters telemetry, analytics, tracking domains and paths automatically
+// - Full filtering logic is in src/background/background.ts (isNoiseRequest function)
 import './settings.css';
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -214,12 +226,30 @@ const Settings: React.FC = () => {
   const loadSettings = async () => {
     try {
       // MEMORY LEAK FIX: Use minimal chrome.storage call
-      const result = await chrome.storage.sync.get(['extensionSettings']);
-      if (result.extensionSettings) {
-        // Use deep merge to handle partial settings
-        const mergedSettings = deepMerge(defaultSettings, result.extensionSettings);
-        setSettings(mergedSettings);
+      // Check both storage locations for backward compatibility
+      const [syncResult, localResult] = await Promise.all([
+        chrome.storage.sync.get(['extensionSettings']),
+        chrome.storage.local.get(['settings'])
+      ]);
+      
+      let loadedSettings = defaultSettings;
+      
+      // Priority: local storage (used by background script) > sync storage
+      if (localResult.settings) {
+        // Map from background script format to UI format
+        const backendSettings = localResult.settings;
+        loadedSettings = {
+          ...defaultSettings,
+          networkInterception: backendSettings.networkInterception || defaultSettings.networkInterception,
+          errorLogging: backendSettings.errorLogging || defaultSettings.errorLogging,
+          tokenLogging: backendSettings.tokenLogging || defaultSettings.tokenLogging,
+        };
+      } else if (syncResult.extensionSettings) {
+        // Use deep merge to handle partial settings from sync storage
+        loadedSettings = deepMerge(defaultSettings, syncResult.extensionSettings);
       }
+      
+      setSettings(loadedSettings);
     } catch (error) {
       console.error('Failed to load settings:', error);
       setSaveMessage('Error loading settings. Using defaults.');
@@ -231,7 +261,21 @@ const Settings: React.FC = () => {
   const saveSettings = async () => {
     setIsSaving(true);
     try {
-      await chrome.storage.sync.set({ extensionSettings: settings });
+      // Save to both storage locations for compatibility
+      // Background script expects chrome.storage.local with key 'settings'
+      const backendSettings = {
+        networkInterception: settings.networkInterception,
+        errorLogging: settings.errorLogging,
+        tokenLogging: settings.tokenLogging,
+      };
+      
+      await Promise.all([
+        // Save to local storage for background script compatibility
+        chrome.storage.local.set({ settings: backendSettings }),
+        // Keep sync storage for UI persistence
+        chrome.storage.sync.set({ extensionSettings: settings })
+      ]);
+      
       setSaveMessage('Settings saved successfully!');
       
       // MEMORY LEAK FIX: Track timeout for cleanup
@@ -503,9 +547,30 @@ const Settings: React.FC = () => {
                             filterNoise: e.target.checked
                           }
                         })}
-                        label="Filter noise"
-                        description="Hide non-essential network requests"
+                        label="Filter noise requests"
+                        description="Hide telemetry, analytics, and tracking requests (e.g., Google Analytics, AWS WAF, Facebook Pixel, error tracking services)"
                       />
+
+                      {settings.networkInterception?.privacy?.filterNoise && (
+                        <div className="ml-4 mt-3 p-3 bg-muted/50 rounded-lg border border-muted">
+                          <p className="text-sm font-medium mb-2">🔇 Noise filtering is active</p>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            The following types of requests will be automatically filtered out:
+                          </p>
+                          <ul className="text-xs text-muted-foreground space-y-1">
+                            <li>• <strong>Analytics:</strong> Google Analytics, Mixpanel, Amplitude, Segment</li>
+                            <li>• <strong>Advertising:</strong> Google Ads (DoubleClick), Facebook Pixel, tracking pixels</li>
+                            <li>• <strong>Error tracking:</strong> Sentry, Bugsnag, Rollbar</li>
+                            <li>• <strong>Performance monitoring:</strong> New Relic, DataDog</li>
+                            <li>• <strong>CDN health checks:</strong> /health, /ping, /telemetry endpoints</li>
+                            <li>• <strong>Browser telemetry:</strong> Mozilla telemetry, AWS WAF</li>
+                            <li>• <strong>URL tracking parameters:</strong> utm_source, fbclid, gclid</li>
+                          </ul>
+                          <p className="text-xs text-muted-foreground mt-2 italic">
+                            Legitimate API calls and application requests will always be captured.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
