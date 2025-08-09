@@ -83,17 +83,7 @@ interface SettingsData {
     };
   };
   tokenLogging: {
-    enabled: boolean;
-    tabSpecific: {
-      enabled: boolean;
-      defaultState: 'active' | 'paused';
-    };
-    eventTypes: {
-      acquire: boolean;
-      refresh: boolean;
-      expired: boolean;
-      refresh_error: boolean;
-    };
+    showFullHash: boolean;
   };
 }
 
@@ -163,17 +153,7 @@ const defaultSettings: SettingsData = {
     }
   },
   tokenLogging: {
-    enabled: true,
-    tabSpecific: {
-      enabled: true,
-      defaultState: 'paused'
-    },
-    eventTypes: {
-      acquire: true,
-      refresh: true,
-      expired: true,
-      refresh_error: true
-    }
+    showFullHash: false
   },
 };
 
@@ -530,78 +510,38 @@ const Settings: React.FC = () => {
           {/* Token Logging Settings Card */}
           <Card>
             <CardHeader>
-              <CardTitle>Token Logging</CardTitle>
+              <CardTitle>Token Display Settings</CardTitle>
               <CardDescription>
-                Configure authentication token event monitoring
+                Configure how authentication token hashes are displayed (token logging is controlled via the dashboard)
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid gap-4">
                 <Switch
-                  checked={settings.tokenLogging?.enabled || false}
+                  checked={settings.tokenLogging?.showFullHash || false}
                   onChange={(e) => updateSetting('tokenLogging', {
                     ...settings.tokenLogging,
-                    enabled: e.target.checked
+                    showFullHash: e.target.checked
                   })}
-                  label="Enable token logging"
-                  description="Monitor authentication token events"
+                  label="Show full token hash values"
+                  description="Display complete token hashes instead of partially redacted versions"
                 />
 
-                {settings.tokenLogging?.enabled && (
-                  <div className="ml-4 border-l-2 border-muted pl-4 space-y-4">
-                    <div className="grid gap-4">
-                      <Switch
-                        checked={settings.tokenLogging?.eventTypes?.acquire || false}
-                        onChange={(e) => updateSetting('tokenLogging', {
-                          ...settings.tokenLogging,
-                          eventTypes: {
-                            ...settings.tokenLogging?.eventTypes,
-                            acquire: e.target.checked
-                          }
-                        })}
-                        label="Token acquire events"
-                        description="Log when tokens are acquired"
-                      />
+                {!settings.tokenLogging?.showFullHash && (
+                  <div className="ml-4 mt-3 p-3 bg-muted/50 rounded-lg border border-muted">
+                    <p className="text-sm font-medium mb-2">🔒 Token hashes are partially redacted</p>
+                    <p className="text-xs text-muted-foreground">
+                      Token hash values will be displayed as: <code className="bg-muted px-1 rounded">abc***...***xyz</code> (showing first/last 3 characters)
+                    </p>
+                  </div>
+                )}
 
-                      <Switch
-                        checked={settings.tokenLogging?.eventTypes?.refresh || false}
-                        onChange={(e) => updateSetting('tokenLogging', {
-                          ...settings.tokenLogging,
-                          eventTypes: {
-                            ...settings.tokenLogging?.eventTypes,
-                            refresh: e.target.checked
-                          }
-                        })}
-                        label="Token refresh events"
-                        description="Log when tokens are refreshed"
-                      />
-
-                      <Switch
-                        checked={settings.tokenLogging?.eventTypes?.expired || false}
-                        onChange={(e) => updateSetting('tokenLogging', {
-                          ...settings.tokenLogging,
-                          eventTypes: {
-                            ...settings.tokenLogging?.eventTypes,
-                            expired: e.target.checked
-                          }
-                        })}
-                        label="Token expired events"
-                        description="Log when tokens expire"
-                      />
-
-                      <Switch
-                        checked={settings.tokenLogging?.eventTypes?.refresh_error || false}
-                        onChange={(e) => updateSetting('tokenLogging', {
-                          ...settings.tokenLogging,
-                          eventTypes: {
-                            ...settings.tokenLogging?.eventTypes,
-                            refresh_error: e.target.checked
-                          }
-                        })}
-                        label="Token refresh error events"
-                        description="Log when token refresh fails"
-                      />
-                    </div>
+                {settings.tokenLogging?.showFullHash && (
+                  <div className="ml-4 mt-3 p-3 bg-yellow-50 text-yellow-800 rounded-lg border border-yellow-200">
+                    <p className="text-sm font-medium mb-2">⚠️ Full token hashes visible</p>
+                    <p className="text-xs text-muted-foreground">
+                      Complete token hash values will be displayed. Use caution when sharing screenshots or logs.
+                    </p>
                   </div>
                 )}
               </div>

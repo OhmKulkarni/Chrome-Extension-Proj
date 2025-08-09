@@ -939,7 +939,7 @@ const analyzeTokenEvent = (event: any) => {
   };
 };
 
-const TokenDetailContent: React.FC<{ tokenEvent: any; selectedField: string }> = ({ tokenEvent, selectedField }) => {
+const TokenDetailContent: React.FC<{ tokenEvent: any; selectedField: string; showFullTokenHash: boolean }> = ({ tokenEvent, selectedField, showFullTokenHash }) => {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
   };
@@ -949,7 +949,12 @@ const TokenDetailContent: React.FC<{ tokenEvent: any; selectedField: string }> =
     if (!hash) return 'N/A';
     
     // Handle special status cases - keep them as-is
-    if (hash === 'expired' || hash === 'redacted' || hash === 'N/A') {
+    if (hash === 'expired' || hash === 'redacted' || hash === 'N/A' || hash === 'refresh_error') {
+      return hash;
+    }
+    
+    // If showFullTokenHash is enabled, return the full hash
+    if (showFullTokenHash) {
       return hash;
     }
     
@@ -959,7 +964,11 @@ const TokenDetailContent: React.FC<{ tokenEvent: any; selectedField: string }> =
       return formatGitStyleHash(hash);
     }
     
-    // For other values, return as-is
+    // For other values, return as-is but check if we should abbreviate
+    if (hash.length > 16) {
+      return formatGitStyleHash(hash);
+    }
+    
     return hash;
   };
 
@@ -1028,7 +1037,50 @@ const TokenDetailContent: React.FC<{ tokenEvent: any; selectedField: string }> =
                 <div className="space-y-2">
                   <div>
                     <span className="text-xs text-gray-500">Value Hash:</span>
-                    <p className="text-xs text-gray-900 font-mono break-all bg-gray-100 p-2 rounded">{formatHashValue(analysis.valueHash)}</p>
+                    {showFullTokenHash && analysis.valueHash && analysis.valueHash.length > 16 && 
+                     !['expired', 'redacted', 'N/A', 'refresh_error'].includes(analysis.valueHash) ? (
+                      <div className="mt-1 flex items-center space-x-2">
+                        <input 
+                          type="text" 
+                          value={formatHashValue(analysis.valueHash)} 
+                          readOnly 
+                          className="bg-gray-100 border border-gray-300 rounded px-2 py-1 text-xs font-mono flex-1 cursor-pointer select-all"
+                          onClick={(e) => (e.target as HTMLInputElement).select()}
+                          title={`Full hash: ${formatHashValue(analysis.valueHash)}\nClick to select all for copying`}
+                        />
+                        <button
+                          onClick={async (e) => {
+                            try {
+                              await navigator.clipboard.writeText(formatHashValue(analysis.valueHash));
+                              // Optional: Show a brief success indicator
+                              const btn = e.target as HTMLButtonElement;
+                              const originalText = btn.textContent;
+                              btn.textContent = '✓';
+                              btn.className = btn.className.replace('text-gray-400', 'text-green-500');
+                              setTimeout(() => {
+                                btn.textContent = originalText;
+                                btn.className = btn.className.replace('text-green-500', 'text-gray-400');
+                              }, 1000);
+                            } catch (err) {
+                              console.error('Failed to copy hash:', err);
+                            }
+                          }}
+                          className="text-gray-400 hover:text-gray-600 transition-colors duration-200 flex-shrink-0"
+                          title="Copy hash to clipboard"
+                        >
+                          📋
+                        </button>
+                      </div>
+                    ) : (
+                      <p 
+                        className="text-xs text-gray-900 font-mono break-all bg-gray-100 p-2 rounded" 
+                        title={showFullTokenHash && analysis.valueHash && !['expired', 'redacted', 'N/A', 'refresh_error'].includes(analysis.valueHash) 
+                          ? `Full hash: ${formatHashValue(analysis.valueHash)}` 
+                          : analysis.valueHash}
+                      >
+                        {formatHashValue(analysis.valueHash)}
+                      </p>
+                    )}
                   </div>
                   {analysis.expiry && (
                     <div>
@@ -1100,6 +1152,9 @@ const Dashboard: React.FC = () => {
   const [filterTokenType, setFilterTokenType] = useState<string>('all');
   const [tokenSearchTerm, setTokenSearchTerm] = useState<string>('');
 
+  // Settings state for token hash display
+  const [showFullTokenHash, setShowFullTokenHash] = useState(false);
+
   // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [tabsLoggingStatus, setTabsLoggingStatus] = useState<TabLoggingStatus[]>([]);
@@ -1143,7 +1198,12 @@ const Dashboard: React.FC = () => {
     if (!hash) return 'N/A';
     
     // Handle special status cases - keep them as-is
-    if (hash === 'expired' || hash === 'redacted' || hash === 'N/A') {
+    if (hash === 'expired' || hash === 'redacted' || hash === 'N/A' || hash === 'refresh_error') {
+      return hash;
+    }
+    
+    // If showFullTokenHash is enabled, return the full hash
+    if (showFullTokenHash) {
       return hash;
     }
     
@@ -1153,7 +1213,11 @@ const Dashboard: React.FC = () => {
       return formatGitStyleHash(hash);
     }
     
-    // For other values, return as-is
+    // For other values, return as-is but check if we should abbreviate
+    if (hash.length > 16) {
+      return formatGitStyleHash(hash);
+    }
+    
     return hash;
   };
 
@@ -1247,6 +1311,35 @@ const Dashboard: React.FC = () => {
       console.error('❌ Error loading token events page:', error)
     }
   }, [])
+
+  // MEMORY LEAK FIX: Load extension settings to configure display options
+  const loadSettings = useCallback(async () => {
+    try {
+      // Load settings from both storage locations (same logic as settings UI)
+      const [syncResult, localResult] = await Promise.all([
+        chrome.storage.sync.get(['extensionSettings']),
+        chrome.storage.local.get(['settings'])
+      ]);
+      
+      let tokenSettings = { showFullHash: false }; // Default
+      
+      // Priority: local storage (used by background script) > sync storage
+      if (localResult.settings?.tokenLogging) {
+        tokenSettings = {
+          showFullHash: localResult.settings.tokenLogging.showFullHash || false
+        };
+      } else if (syncResult.extensionSettings?.tokenLogging) {
+        tokenSettings = {
+          showFullHash: syncResult.extensionSettings.tokenLogging.showFullHash || false
+        };
+      }
+      
+      setShowFullTokenHash(tokenSettings.showFullHash);
+    } catch (error) {
+      console.error('Failed to load extension settings:', error);
+      // Keep default value (false) on error
+    }
+  }, []);
 
   const loadDashboardData = useCallback(async () => {
     try {
@@ -1360,7 +1453,8 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     loadDashboardData();
     loadTabsLoggingStatus();
-  }, [loadDashboardData, loadTabsLoggingStatus]); // MEMORY LEAK FIX: Include all dependencies
+    loadSettings();
+  }, [loadDashboardData, loadTabsLoggingStatus, loadSettings]); // MEMORY LEAK FIX: Include all dependencies
 
   // MEMORY LEAK FIX: Load page data on-demand when page changes
   // Always load first page, then check totals for subsequent pages
@@ -1400,6 +1494,20 @@ const Dashboard: React.FC = () => {
           console.log('📡 DASHBOARD: Tab logging states changed, updating sidebar...');
           loadTabsLoggingStatus(); // Refresh the tab statuses
         }
+
+        // Check if settings changed (for token hash display)
+        if (changes.settings && changes.settings.newValue?.tokenLogging) {
+          console.log('⚙️ DASHBOARD: Token settings changed, updating display...');
+          loadSettings(); // Refresh the settings
+        }
+      }
+
+      if (namespace === 'sync') {
+        // Check if extension settings changed
+        if (changes.extensionSettings && changes.extensionSettings.newValue?.tokenLogging) {
+          console.log('⚙️ DASHBOARD: Extension token settings changed, updating display...');
+          loadSettings(); // Refresh the settings
+        }
       }
     };
 
@@ -1408,7 +1516,7 @@ const Dashboard: React.FC = () => {
     return () => {
       chrome.storage.onChanged.removeListener(handleStorageChanges);
     };
-  }, []);
+  }, [loadTabsLoggingStatus, loadSettings]); // MEMORY LEAK FIX: Include dependencies
 
   // Add real-time data refresh for network requests, errors, and tokens
   useEffect(() => {
@@ -3318,9 +3426,56 @@ const Dashboard: React.FC = () => {
                             </span>
                           </td>
                           <td className="px-6 py-4">
-                            <div className="text-xs text-gray-600 font-mono truncate max-w-xs" title={event.value_hash}>
-                              {formatHashValue(event.value_hash)}
-                            </div>
+                            {showFullTokenHash && event.value_hash && event.value_hash.length > 16 && 
+                             !['expired', 'redacted', 'N/A', 'refresh_error'].includes(event.value_hash) ? (
+                              <div className="text-xs text-gray-600 font-mono">
+                                <div className="flex items-center space-x-2">
+                                  <input 
+                                    type="text" 
+                                    value={formatHashValue(event.value_hash)} 
+                                    readOnly 
+                                    className="bg-gray-100 border border-gray-300 rounded px-2 py-1 text-xs font-mono w-40 cursor-pointer select-all"
+                                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                                    title={`Full hash: ${formatHashValue(event.value_hash)}\nClick to select all for copying`}
+                                  />
+                                  <button
+                                    onClick={async (e) => {
+                                      try {
+                                        await navigator.clipboard.writeText(formatHashValue(event.value_hash));
+                                        // Optional: Show a brief success indicator
+                                        const btn = e.target as HTMLButtonElement;
+                                        const originalText = btn.textContent;
+                                        btn.textContent = '✓';
+                                        btn.className = btn.className.replace('text-gray-400', 'text-green-500');
+                                        setTimeout(() => {
+                                          btn.textContent = originalText;
+                                          btn.className = btn.className.replace('text-green-500', 'text-gray-400');
+                                        }, 1000);
+                                      } catch (err) {
+                                        console.error('Failed to copy hash:', err);
+                                      }
+                                    }}
+                                    className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                                    title="Copy hash to clipboard"
+                                  >
+                                    📋
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div 
+                                  className="text-xs text-gray-600 font-mono truncate max-w-xs"
+                                  title={
+                                    event.value_hash && !['expired', 'redacted', 'N/A', 'refresh_error'].includes(event.value_hash)
+                                      ? (showFullTokenHash
+                                          ? `Full hash: ${event.value_hash}`
+                                          : formatHashValue(event.value_hash))
+                                      : event.value_hash
+                                  }
+                              >
+                                {formatHashValue(event.value_hash)}
+                              </div>
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {event.expiry ? 
@@ -3518,6 +3673,7 @@ const Dashboard: React.FC = () => {
               <TokenDetailContent 
                 tokenEvent={expandedItem} 
                 selectedField={selectedField}
+                showFullTokenHash={showFullTokenHash}
               />
             )}
           </div>
