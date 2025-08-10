@@ -120,7 +120,7 @@ const Popup: React.FC = () => {
         enabled: true,
         tabSpecific: {
           enabled: true,
-          defaultState: 'paused'
+          defaultState: 'paused'  // FIXED: Match background script defaults (disabled by default)
         }
       };
 
@@ -129,7 +129,7 @@ const Popup: React.FC = () => {
         enabled: true,
         tabSpecific: {
           enabled: true,
-          defaultState: 'paused'
+          defaultState: 'paused'  // FIXED: Match background script defaults (disabled by default)
         }
       };
       
@@ -138,6 +138,7 @@ const Popup: React.FC = () => {
         errorLogging: settings.errorLogging || errorLoggingDefaults,
         tokenLogging: settings.tokenLogging || tokenLoggingDefaults
       });
+      
       setLoading(false);
     });
 
@@ -465,6 +466,8 @@ const Popup: React.FC = () => {
             </button>
           </div>
         )}
+
+
 
         {/* Tab-Specific Token Logging Control */}
         {extensionEnabled && settings?.tokenLogging?.tabSpecific?.enabled && (

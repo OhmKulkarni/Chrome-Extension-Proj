@@ -11,7 +11,12 @@ let originalFetch = window.fetch;
 let originalXhrOpen = XMLHttpRequest.prototype.open;
 let originalXhrSend = XMLHttpRequest.prototype.send;
 let originalXhrSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader;
+let originalConsoleError = console.error;
+let originalConsoleWarn = console.warn;
+let originalConsoleInfo = console.info;
+let originalConsoleLog = console.log;
 let isIntercepting = false;
+let isConsoleIntercepting = false;
 
 // MEMORY LEAK FIX: Convert Promise constructor to async/await pattern
 const getCurrentTabId = async () => {
@@ -50,6 +55,42 @@ const isLoggingEnabled = async () => {
     }
   } catch (error) {
     console.warn('🌍 MAIN_WORLD: Error in isLoggingEnabled:', error);
+    return false;
+  }
+};
+
+// Check if console error logging is enabled for current tab
+const isConsoleLoggingEnabled = async () => {
+  try {
+    const tabId = await getCurrentTabId();
+    if (!tabId) return false;
+    
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      try {
+        const result = await chrome.storage.local.get([
+          `tabLogging_${tabId}`, 
+          'extensionEnabled',
+          'extensionSettings'
+        ]);
+        
+        const globalEnabled = result.extensionEnabled !== false;
+        const tabLogging = result[`tabLogging_${tabId}`];
+        const tabEnabled = !tabLogging || tabLogging.status === 'active';
+        
+        // Check if error logging is enabled in settings
+        const settings = result.extensionSettings;
+        const errorLoggingEnabled = settings?.errorLogging?.enabled !== false; // default true
+        
+        return globalEnabled && tabEnabled && errorLoggingEnabled;
+      } catch (error) {
+        console.warn('🌍 MAIN_WORLD: Error checking console logging state:', error);
+        return false;
+      }
+    } else {
+      return false;
+    }
+  } catch (error) {
+    console.warn('🌍 MAIN_WORLD: Error in isConsoleLoggingEnabled:', error);
     return false;
   }
 };
@@ -222,6 +263,73 @@ const interceptXHR = (xhr, originalXhrSend, data) => {
   return originalXhrSend.call(xhr, data);
 };
 
+// Console interception functions
+const interceptConsole = (originalMethod, methodName, severity, ...args) => {
+  // Call original method first to maintain normal console behavior
+  originalMethod.apply(console, args);
+  
+  // Check if we should capture this log level
+  const shouldCapture = async () => {
+    try {
+      const tabId = await getCurrentTabId();
+      if (!tabId) return false;
+      
+      const result = await chrome.storage.local.get(['extensionSettings']);
+      const settings = result.extensionSettings;
+      
+      if (!settings?.errorLogging?.enabled) return false;
+      
+      // Check severity filter
+      if (settings.errorLogging.severityFilter?.enabled) {
+        const allowedSeverities = settings.errorLogging.severityFilter.allowed || [];
+        return allowedSeverities.includes(severity);
+      }
+      
+      return true;
+    } catch (error) {
+      return false;
+    }
+  };
+  
+  // Capture the console output
+  shouldCapture().then(capture => {
+    if (!capture) return;
+    
+    try {
+      // Convert arguments to strings
+      const message = args.map(arg => {
+        if (typeof arg === 'object') {
+          try {
+            return JSON.stringify(arg, null, 2);
+          } catch (e) {
+            return String(arg);
+          }
+        }
+        return String(arg);
+      }).join(' ');
+      
+      // Create console error data
+      const consoleData = {
+        message: message,
+        severity: severity,
+        timestamp: new Date().toISOString(),
+        url: window.location.href,
+        domain: getSafeDomain(window.location.href),
+        source: 'page-console',
+        stack: severity === 'error' ? (new Error().stack) : null
+      };
+      
+      // Dispatch custom event for content script to catch
+      window.dispatchEvent(new CustomEvent('consoleErrorIntercepted', {
+        detail: consoleData
+      }));
+      
+    } catch (error) {
+      // Silently fail to avoid recursive console calls
+    }
+  });
+};
+
 // Try to get settings from extension storage
 try {
   // Request settings from the content script via custom event
@@ -268,6 +376,31 @@ try {
     };
   };
   
+  // Start console interception
+  const startConsoleInterception = () => {
+    if (isConsoleIntercepting) return;
+    
+    console.log('🚀 MAIN_WORLD: Starting console interception...');
+    isConsoleIntercepting = true;
+    
+    // Override console methods
+    console.error = function(...args) {
+      interceptConsole(originalConsoleError, 'error', 'error', ...args);
+    };
+    
+    console.warn = function(...args) {
+      interceptConsole(originalConsoleWarn, 'warn', 'warn', ...args);
+    };
+    
+    console.info = function(...args) {
+      interceptConsole(originalConsoleInfo, 'info', 'info', ...args);
+    };
+    
+    console.log = function(...args) {
+      interceptConsole(originalConsoleLog, 'log', 'info', ...args);
+    };
+  };
+  
   // Stop interception
   const stopInterception = () => {
     if (!isIntercepting) return;
@@ -282,11 +415,31 @@ try {
     XMLHttpRequest.prototype.setRequestHeader = originalXhrSetRequestHeader;
   };
   
+  // Stop console interception
+  const stopConsoleInterception = () => {
+    if (!isConsoleIntercepting) return;
+    
+    console.log('🛑 MAIN_WORLD: Stopping console interception...');
+    isConsoleIntercepting = false;
+    
+    // Restore original console methods
+    console.error = originalConsoleError;
+    console.warn = originalConsoleWarn;
+    console.info = originalConsoleInfo;
+    console.log = originalConsoleLog;
+  };
+  
   // Initial setup - check if we should start intercepting
   (async () => {
-    const enabled = await isLoggingEnabled();
-    if (enabled) {
+    const networkEnabled = await isLoggingEnabled();
+    const consoleEnabled = await isConsoleLoggingEnabled();
+    
+    if (networkEnabled) {
       startInterception();
+    }
+    
+    if (consoleEnabled) {
+      startConsoleInterception();
     }
   })();
   
@@ -294,11 +447,21 @@ try {
   if (typeof chrome !== 'undefined' && chrome.storage) {
     chrome.storage.onChanged.addListener(async (changes, namespace) => {
       if (namespace === 'local' || namespace === 'sync') {
-        const enabled = await isLoggingEnabled();
-        if (enabled && !isIntercepting) {
+        const networkEnabled = await isLoggingEnabled();
+        const consoleEnabled = await isConsoleLoggingEnabled();
+        
+        // Handle network interception
+        if (networkEnabled && !isIntercepting) {
           startInterception();
-        } else if (!enabled && isIntercepting) {
+        } else if (!networkEnabled && isIntercepting) {
           stopInterception();
+        }
+        
+        // Handle console interception
+        if (consoleEnabled && !isConsoleIntercepting) {
+          startConsoleInterception();
+        } else if (!consoleEnabled && isConsoleIntercepting) {
+          stopConsoleInterception();
         }
       }
     });

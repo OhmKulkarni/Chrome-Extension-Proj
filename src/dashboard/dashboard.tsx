@@ -1389,8 +1389,11 @@ const Dashboard: React.FC = () => {
   // MEMORY LEAK FIX: Wrap loadTabsLoggingStatus in useCallback for stable reference
   const loadTabsLoggingStatus = useCallback(async () => {
     try {
-      // Get all tabs
+      // Get all tabs and global settings
       const tabs = await chrome.tabs.query({});
+      const settingsResult = await chrome.storage.local.get(['settings']);
+      const settings = settingsResult.settings || {};
+      
       const tabStatuses: TabLoggingStatus[] = [];
 
       for (const tab of tabs) {
@@ -1409,11 +1412,12 @@ const Dashboard: React.FC = () => {
             domain = 'unknown';
           }
 
-          // Determine logging status using the same logic as the working version
+          // Determine logging status with proper defaults
           let networkLogging = false;
           let errorLogging = false;
           let tokenLogging = false;
 
+          // Network logging status
           if (networkState) {
             // Check both 'status' and 'active' properties for compatibility
             if (networkState.status !== undefined) {
@@ -1421,14 +1425,28 @@ const Dashboard: React.FC = () => {
             } else {
               networkLogging = typeof networkState === 'boolean' ? networkState : networkState.active;
             }
+          } else {
+            // Use default from settings if no tab state exists
+            const defaultActive = settings.networkInterception?.tabSpecific?.defaultState === 'active';
+            networkLogging = defaultActive;
           }
 
+          // Error logging status
           if (errorState) {
             errorLogging = typeof errorState === 'boolean' ? errorState : errorState.active;
+          } else {
+            // Use default from settings if no tab state exists - should be paused by default
+            const defaultActive = settings.errorLogging?.tabSpecific?.defaultState === 'active';
+            errorLogging = defaultActive; // This will be false when defaultState is 'paused'
           }
 
+          // Token logging status
           if (tokenState) {
             tokenLogging = typeof tokenState === 'boolean' ? tokenState : tokenState.active;
+          } else {
+            // Use default from settings if no tab state exists - should be paused by default
+            const defaultActive = settings.tokenLogging?.tabSpecific?.defaultState === 'active';
+            tokenLogging = defaultActive; // This will be false when defaultState is 'paused'
           }
 
           tabStatuses.push({
@@ -1744,6 +1762,19 @@ const Dashboard: React.FC = () => {
   // For display purposes, use the current page data directly (no client-side slicing needed)
   const currentRequests = filteredAndSortedRequests; // Data is already paginated from server
 
+  // DEBUG: Add console logging to understand why table is empty
+  console.log('🔍 DASHBOARD DEBUG:', {
+    'data.networkRequests.length': data.networkRequests.length,
+    'data.totalRequests': data.totalRequests,
+    'filteredAndSortedRequests.length': filteredAndSortedRequests.length,
+    'currentRequests.length': currentRequests.length,
+    'currentPage': currentPage,
+    'requestsPerPage': requestsPerPage,
+    'searchTerm': searchTerm,
+    'filterMethod': filterMethod,
+    'currentTableIndex': currentTableIndex
+  });
+
   // Handle sorting
   const handleSort = (key: string) => {
     setSortConfig({
@@ -2021,11 +2052,17 @@ const Dashboard: React.FC = () => {
 
   // Toggle error logging for a specific tab
   const toggleTabErrorLogging = async (tabId: number) => {
+    console.log('🔥 DASHBOARD: toggleTabErrorLogging called for tab:', tabId);
+    
     try {
       const currentTab = tabsLoggingStatus.find(tab => tab.tabId === tabId);
-      if (!currentTab) return;
+      if (!currentTab) {
+        console.log('🚫 DASHBOARD: Tab not found in status array');
+        return;
+      }
 
       const newState = !currentTab.errorLogging;
+      console.log('🔥 DASHBOARD: Current state:', currentTab.errorLogging, '-> New state:', newState);
       
       // Get current tab state to preserve counter when disabling
       const tabStorageData = await chrome.storage.local.get([`tabErrorLogging_${tabId}`]);
@@ -2038,6 +2075,7 @@ const Dashboard: React.FC = () => {
         errorCount: newState ? 0 : currentCount  // Reset only when enabling, preserve when disabling
       };
       
+      console.log('🔥 DASHBOARD: Storing tab state:', tabState);
       await chrome.storage.local.set({ [`tabErrorLogging_${tabId}`]: tabState });
       
       // Send message to content script
@@ -2046,6 +2084,7 @@ const Dashboard: React.FC = () => {
           action: 'toggleErrorLogging',
           enabled: newState
         });
+        console.log('🔥 DASHBOARD: Sent message to content script');
       } catch (error) {
         console.log('Could not send message to tab (may not have content script):', error);
       }
@@ -2056,6 +2095,8 @@ const Dashboard: React.FC = () => {
           tab.tabId === tabId ? { ...tab, errorLogging: newState } : tab
         )
       );
+      
+      console.log('🔥 DASHBOARD: Updated local state');
     } catch (error) {
       console.error('Error toggling error logging:', error);
     }

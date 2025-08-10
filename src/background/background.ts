@@ -1499,6 +1499,75 @@ if (!listenersRegistered) {
             }
           }
           break;
+
+        case 'getInterceptionState':
+          // Get current interception state for a specific tab
+          try {
+            const tabId = message.tabId;
+            if (!tabId) {
+              sendResponse({ success: false, error: 'No tab ID provided' });
+              break;
+            }
+            
+            // Get current settings
+            const settingsResult = await chrome.storage.local.get(['settings']);
+            const settings = settingsResult.settings || {};
+            
+            // Get tab-specific states
+            const tabStates = await chrome.storage.local.get([
+              `tabErrorLogging_${tabId}`,
+              `tabLogging_${tabId}`
+            ]);
+            
+            // Determine console interception state
+            let consoleEnabled = false;
+            const errorLoggingConfig = settings.errorLogging || {};
+            
+            if (errorLoggingConfig.enabled) {
+              if (errorLoggingConfig.tabSpecific?.enabled) {
+                const tabErrorState = tabStates[`tabErrorLogging_${tabId}`];
+                if (tabErrorState) {
+                  consoleEnabled = typeof tabErrorState === 'boolean' ? 
+                    tabErrorState : (tabErrorState.active || false);
+                } else {
+                  consoleEnabled = errorLoggingConfig.tabSpecific?.defaultState === 'active';
+                }
+              } else {
+                consoleEnabled = true; // Global enabled, tab-specific disabled
+              }
+            }
+            
+            // Determine network interception state
+            let networkEnabled = false;
+            const networkConfig = settings.networkInterception || {};
+            
+            if (networkConfig.enabled) {
+              if (networkConfig.tabSpecific?.enabled) {
+                const tabNetworkState = tabStates[`tabLogging_${tabId}`];
+                if (tabNetworkState) {
+                  networkEnabled = typeof tabNetworkState === 'boolean' ? 
+                    tabNetworkState : (tabNetworkState.active || false);
+                } else {
+                  networkEnabled = networkConfig.tabSpecific?.defaultState === 'active';
+                }
+              } else {
+                networkEnabled = true; // Global enabled, tab-specific disabled
+              }
+            }
+            
+            sendResponse({
+              success: true,
+              consoleEnabled,
+              networkEnabled
+            });
+          } catch (error) {
+            console.error('Failed to get interception state:', error);
+            sendResponse({ 
+              success: false, 
+              error: error instanceof Error ? error.message : 'Unknown error' 
+            });
+          }
+          break;
           
         case 'getTabInfo':
           // Get current active tab information
