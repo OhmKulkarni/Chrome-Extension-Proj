@@ -451,9 +451,15 @@ initializeStorage()
 
 // Initialize Chrome storage with the settings structure expected by content script
 const initializeChromeStorageSettings = () => {
-  chrome.storage.sync.get(['extensionSettings'], (result) => {
-    if (!result.extensionSettings || !result.extensionSettings.networkInterception) {
-      console.log('[Web App Monitor] Initializing Chrome storage settings...');
+  // Always ensure local storage has settings (used by popup and background)
+  chrome.storage.local.get(['settings'], (localResult) => {
+    const needsInit = !localResult.settings || 
+                     !localResult.settings.errorLogging || 
+                     !localResult.settings.errorLogging.tabSpecific ||
+                     localResult.settings.errorLogging.tabSpecific.enabled !== true;
+                     
+    if (needsInit) {
+      console.log('[Web App Monitor] Initializing/updating Chrome local storage settings...');
       
       const defaultSettings = {
         notifications: true,
@@ -480,7 +486,7 @@ const initializeChromeStorageSettings = () => {
           },
           tabSpecific: {
             enabled: true,
-            defaultState: 'paused' // Per-tab: starts paused, user must enable
+            defaultState: 'active' // Per-tab: starts active by default
           },
           requestFilters: {
             enabled: false,
@@ -495,19 +501,35 @@ const initializeChromeStorageSettings = () => {
             allowed: ['error', 'warn', 'info']
           },
           tabSpecific: {
+            enabled: true, // Tab-specific control enabled for user flexibility
+            defaultState: 'paused' // FIXED: New tabs start paused (disabled by default)
+          }
+        },
+        tokenLogging: {
+          enabled: true,
+          tabSpecific: {
             enabled: true,
-            defaultState: 'paused' // Per-tab: starts paused, user must enable
+            defaultState: 'paused'  // Start paused by default
           }
         },
       };
       
       chrome.storage.local.set({ settings: defaultSettings }, () => {
-        console.log('[Web App Monitor] ✅ Chrome storage settings initialized');
-        console.log('[Web App Monitor] Permission-based logging enabled: Network & Error logging capabilities enabled');
-        console.log('[Web App Monitor] Per-tab defaults: Both start paused, user must manually enable per tab');
+        console.log('[Web App Monitor] ✅ Chrome local storage settings initialized/updated');
+        console.log('[Web App Monitor] Error logging tab-specific enabled: true');
+        console.log('[Web App Monitor] Error logging default state: paused');
       });
     } else {
-      console.log('[Web App Monitor] Chrome storage settings already exist');
+      console.log('[Web App Monitor] Chrome local storage settings already properly configured');
+    }
+  });
+  
+  // Also check/initialize sync storage for backward compatibility
+  chrome.storage.sync.get(['extensionSettings'], (syncResult) => {
+    if (!syncResult.extensionSettings || !syncResult.extensionSettings.networkInterception) {
+      console.log('[Web App Monitor] Sync storage not found - local storage will be used');
+    } else {
+      console.log('[Web App Monitor] Chrome sync storage settings already exist');
     }
   });
 };
@@ -975,6 +997,8 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
 
 // Console error handler
 async function handleConsoleError(errorData: any, sendResponse: (response: any) => void, sender?: chrome.runtime.MessageSender) {
+  console.log('🔥 BACKGROUND: handleConsoleError called with data:', errorData);
+  
   try {
     if (!storageManager.isInitialized()) {
       await storageManager.init();
@@ -983,18 +1007,23 @@ async function handleConsoleError(errorData: any, sendResponse: (response: any) 
     // Check if error logging is enabled globally
     const settings = await chrome.storage.local.get(['settings']);
     const errorLoggingConfig = settings.settings?.errorLogging || {};
+    console.log('🔥 BACKGROUND: Error logging config:', errorLoggingConfig);
     
     if (!errorLoggingConfig.enabled) {
+      console.log('🚫 BACKGROUND: Error logging globally disabled');
       sendResponse({ success: false, reason: 'Error logging disabled' });
       return;
     }
 
     // Check tab-specific error logging ONLY if tab-specific is enabled
     if (errorLoggingConfig.tabSpecific?.enabled) {
+      console.log('🔥 BACKGROUND: Tab-specific enabled, checking tab state for tab:', errorData.tabId);
+      
       if (errorData.tabId) {
         try {
           const tabData = await chrome.storage.local.get([`tabErrorLogging_${errorData.tabId}`]);
           const tabState = tabData[`tabErrorLogging_${errorData.tabId}`];
+          console.log('🔥 BACKGROUND: Tab state from storage:', tabState);
           
           let isTabLoggingActive = false;
           if (tabState) {
@@ -1002,11 +1031,17 @@ async function handleConsoleError(errorData: any, sendResponse: (response: any) 
           } else {
             // No tab state exists, use default
             isTabLoggingActive = errorLoggingConfig.tabSpecific?.defaultState === 'active';
+            console.log('🔥 BACKGROUND: No tab state, using default:', isTabLoggingActive);
           }
           
+          console.log('🔥 BACKGROUND: Final isTabLoggingActive:', isTabLoggingActive);
+          
           if (!isTabLoggingActive) {
+            console.log('🚫 BACKGROUND: Tab error logging is paused, rejecting error (this is expected default behavior)');
             sendResponse({ success: false, reason: 'Tab error logging paused' });
             return;
+          } else {
+            console.log('✅ BACKGROUND: Tab error logging is active, proceeding to store');
           }
         } catch (tabError) {
           console.warn('Could not determine tab error logging state, using default:', tabError);
@@ -1014,6 +1049,7 @@ async function handleConsoleError(errorData: any, sendResponse: (response: any) 
       } else {
         // No tab ID provided but tab-specific is enabled - use default behavior
         const defaultActive = errorLoggingConfig.tabSpecific?.defaultState === 'active';
+        console.log('🔥 BACKGROUND: No tab ID, using default state:', defaultActive);
         if (!defaultActive) {
           sendResponse({ success: false, reason: 'No tab ID and default state is paused' });
           return;
