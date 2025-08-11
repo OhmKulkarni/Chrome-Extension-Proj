@@ -486,7 +486,7 @@ const initializeChromeStorageSettings = () => {
           },
           tabSpecific: {
             enabled: true,
-            defaultState: 'active' // Per-tab: starts active by default
+            defaultState: 'paused' // FIXED: Per-tab starts paused (disabled by default)
           },
           requestFilters: {
             enabled: false,
