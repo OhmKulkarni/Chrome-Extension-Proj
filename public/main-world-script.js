@@ -31,8 +31,11 @@ let extensionSettings = {
 };
 
 // Global state for dynamic interception control
-window.__consoleInterceptionEnabled = window.__consoleInterceptionEnabled ?? true;
+window.__consoleInterceptionEnabled = window.__consoleInterceptionEnabled ?? false;
 window.__networkInterceptionEnabled = window.__networkInterceptionEnabled ?? true;
+
+// Prevent recursive console interception
+window.__isInterceptingConsole = window.__isInterceptingConsole ?? false;
 
 // State change locks to prevent race conditions
 let consoleStateChanging = false;
@@ -127,42 +130,67 @@ const isLoggingEnabled = async () => {
 // Check if console error logging is enabled for current tab
 const isConsoleLoggingEnabled = async () => {
   try {
-    const tabId = await getCurrentTabId();
-    if (!tabId) return false;
-    
-    if (typeof chrome !== 'undefined' && chrome.storage) {
-      try {
-        const result = await chrome.storage.local.get([
-          `tabLogging_${tabId}`, 
-          'extensionEnabled',
-          'extensionSettings'
-        ]);
-        
-        const globalEnabled = result.extensionEnabled !== false;
-        const tabLogging = result[`tabLogging_${tabId}`];
-        const tabEnabled = !tabLogging || tabLogging.status === 'active';
-        
-        // Check if error logging is enabled in settings
-        const settings = result.extensionSettings;
-        const errorLoggingEnabled = settings?.errorLogging?.enabled !== false; // default true
-        
-        return globalEnabled && tabEnabled && errorLoggingEnabled;
-      } catch (error) {
-        // CRITICAL: Use original console to prevent infinite recursion
+    const result = await chrome.storage.local.get(['settings', 'extensionEnabled']);
+    const errorConfig = result.settings?.errorLogging;
+
+    // Debug logging
+    if (window.__originalConsoleLog) {
+      window.__originalConsoleLog('🔍 MAIN-WORLD: isConsoleLoggingEnabled check:', {
+        settings: result.settings,
+        errorConfig: errorConfig,
+        extensionEnabled: result.extensionEnabled
+      });
+    }
+
+    // If error logging is globally disabled, return false (same pattern as network)
+    if (errorConfig?.enabled !== true) {
+      if (window.__originalConsoleLog) {
+        window.__originalConsoleLog('🚫 MAIN-WORLD: Console logging disabled globally');
+      }
+      return false;
+    }
+
+    // Check tab-specific state if enabled
+    if (errorConfig?.tabSpecific?.enabled) {
+      const tabId = await getCurrentTabId();
+      if (!tabId) {
         if (window.__originalConsoleWarn) {
-          window.__originalConsoleWarn('🌍 MAIN_WORLD: Error checking console logging state:', error);
+          window.__originalConsoleWarn('⚠️ MAIN-WORLD: No tab ID, defaulting to disabled');
         }
         return false;
       }
-    } else {
-      return false;
+
+      const tabKey = `tabErrorLogging_${tabId}`;
+      const tabResult = await chrome.storage.local.get([tabKey]);
+      const tabLogging = tabResult[tabKey];
+
+      let tabEnabled;
+      if (tabLogging) {
+        // Use explicit tab state if it exists
+        tabEnabled = tabLogging.status === 'active' || tabLogging.active === true;
+      } else {
+        // Use default state from settings (should be 'paused')
+        const defaultState = errorConfig?.tabSpecific?.defaultState || 'paused';
+        tabEnabled = defaultState === 'active';
+      }
+
+      if (window.__originalConsoleLog) {
+        window.__originalConsoleLog('📱 MAIN-WORLD: Tab-specific console logging state:', {
+          tabId,
+          tabLogging,
+          tabEnabled
+        });
+      }
+      return tabEnabled;
     }
+
+    // If tab-specific is disabled, use global state
+    return true;
   } catch (error) {
-    // CRITICAL: Use original console to prevent infinite recursion
-    if (window.__originalConsoleWarn) {
-      window.__originalConsoleWarn('🌍 MAIN_WORLD: Error in isConsoleLoggingEnabled:', error);
+    if (window.__originalConsoleLog) {
+      window.__originalConsoleLog('❌ MAIN-WORLD: Error checking console logging state:', error);
     }
-    return false;
+    return false; // Default to disabled on error
   }
 };
 
@@ -337,52 +365,87 @@ const interceptXHR = (xhr, originalXhrSend, data) => {
 };
 
 // Console interception functions
-const interceptConsole = (originalMethod, methodName, severity, ...args) => {
-  // Call original method first to maintain normal console behavior
-  originalMethod.apply(console, args);
-  
-  // PERFORMANCE OPTIMIZATION: Early exit if interception is disabled
+function interceptConsole(methodName, severity, ...args) {
+  // Skip if disabled (double-check)
   if (!window.__consoleInterceptionEnabled) {
-    return; // Zero overhead when disabled
+    return;
   }
-  
-  // MEMORY OPTIMIZATION: Reduce per-console-call logging
+
+  // Prevent recursive interception
+  if (window.__isInterceptingConsole) {
+    return;
+  }
+
   try {
-    // Convert arguments to strings
+    window.__isInterceptingConsole = true;
+
+    // Convert arguments to string efficiently with better error handling
     const message = args.map(arg => {
+      if (arg === null) return 'null';
+      if (arg === undefined) return 'undefined';
+      if (typeof arg === 'string') return arg;
+      if (typeof arg === 'number' || typeof arg === 'boolean') return String(arg);
+      // Handle Error objects specifically to get stack traces
+      if (arg instanceof Error) {
+        return `${arg.name}: ${arg.message}`;
+      }
+      // For objects, try JSON stringify with size limit
       if (typeof arg === 'object') {
         try {
-          return JSON.stringify(arg, null, 2);
+          const str = JSON.stringify(arg, null, 2);
+          // Limit size to prevent memory issues
+          return str.length > 1000 ? str.substring(0, 1000) + '...' : str;
         } catch (e) {
-          return String(arg);
+          return '[Object]';
         }
       }
       return String(arg);
     }).join(' ');
-    
-    // Create console error data immediately
+
+    // Get stack trace for errors or if an Error object was passed
+    let stackTrace = null;
+    if (severity === 'error') {
+      // Check if any argument is an Error object with a stack
+      const errorArg = args.find(arg => arg instanceof Error && arg.stack);
+      if (errorArg) {
+        stackTrace = errorArg.stack.substring(0, 1000);
+      } else {
+        // Generate a stack trace for the current location
+        try {
+          throw new Error();
+        } catch (e) {
+          stackTrace = e.stack ? e.stack.substring(0, 1000) : null;
+        }
+      }
+    }
+
+    // Create minimal console data object
     const consoleData = {
-      message: message,
+      message: message.substring(0, 2000), // Limit message size
       severity: severity,
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(), // Use number instead of ISO string
       url: window.location.href,
       domain: getSafeDomain(window.location.href),
       source: 'page-console',
-      stack: severity === 'error' ? (new Error().stack) : null
+      // Include stack for errors to help with debugging
+      stack: stackTrace
     };
-    
-    // Dispatch custom event for content script to catch
+
+    // Dispatch event for content script
     window.dispatchEvent(new CustomEvent('consoleErrorIntercepted', {
       detail: consoleData
     }));
-    
+
   } catch (error) {
-    // MEMORY OPTIMIZATION: Only log critical errors
-    if (window.__originalConsoleLog) {
-      window.__originalConsoleLog('🌍 MAIN-WORLD: Console interception error:', error);
+    // Silent fail to prevent recursive errors
+    if (window.__originalConsole && window.__originalConsole.error) {
+      window.__originalConsole.error('Console interception error:', error);
     }
+  } finally {
+    // Always clear the flag to prevent lock-ups
+    window.__isInterceptingConsole = false;
   }
-};
+}
 
 // Try to get settings from extension storage
 try {
@@ -470,31 +533,35 @@ try {
     if (!window.__interceptedConsole) {
       window.__interceptedConsole = {
         log: function(...args) {
+          // Always call original first
+          window.__originalConsole.log.apply(console, arguments);
+          // Then intercept if enabled
           if (window.__consoleInterceptionEnabled) {
-            interceptConsole(originalConsoleLog, 'log', 'info', ...args);
-          } else {
-            return window.__originalConsole.log.apply(console, arguments);
+            interceptConsole('log', 'info', ...args);
           }
         },
         error: function(...args) {
+          // Always call original first
+          window.__originalConsole.error.apply(console, arguments);
+          // Then intercept if enabled
           if (window.__consoleInterceptionEnabled) {
-            interceptConsole(originalConsoleError, 'error', 'error', ...args);
-          } else {
-            return window.__originalConsole.error.apply(console, arguments);
+            interceptConsole('error', 'error', ...args);
           }
         },
         warn: function(...args) {
+          // Always call original first
+          window.__originalConsole.warn.apply(console, arguments);
+          // Then intercept if enabled
           if (window.__consoleInterceptionEnabled) {
-            interceptConsole(originalConsoleWarn, 'warn', 'warn', ...args);
-          } else {
-            return window.__originalConsole.warn.apply(console, arguments);
+            interceptConsole('warn', 'warn', ...args);
           }
         },
         info: function(...args) {
+          // Always call original first
+          window.__originalConsole.info.apply(console, arguments);
+          // Then intercept if enabled
           if (window.__consoleInterceptionEnabled) {
-            interceptConsole(originalConsoleInfo, 'info', 'info', ...args);
-          } else {
-            return window.__originalConsole.info.apply(console, arguments);
+            interceptConsole('info', 'info', ...args);
           }
         }
       };
@@ -699,15 +766,12 @@ try {
   // Initial setup - start both interceptions immediately for maximum compatibility
   (() => {
     try {
-      // Always start console interception immediately
-      startConsoleInterception();
-      
       // Always start network interception immediately  
       startInterception();
       
       // MEMORY OPTIMIZATION: Keep only essential success logging
       if (window.__originalConsoleLog) {
-        window.__originalConsoleLog('✅ MAIN-WORLD: Interceptions started');
+        window.__originalConsoleLog('✅ MAIN-WORLD: Network interception started');
       }
     } catch (error) {
       if (window.__originalConsoleLog) {
@@ -715,6 +779,41 @@ try {
       }
     }
   })();
+
+  // Storage-based initialization for console errors - defaults to disabled
+  setTimeout(async () => {
+    try {
+      // Query storage for actual console logging state
+      const consoleShouldBeEnabled = await isConsoleLoggingEnabled();
+      if (window.__originalConsoleLog) {
+        window.__originalConsoleLog('🔍 MAIN-WORLD: Console interception initial state check:', {
+          shouldBeEnabled: consoleShouldBeEnabled,
+          currentState: window.__consoleInterceptionEnabled
+        });
+      }
+
+      // Sync console interception state with storage
+      if (consoleShouldBeEnabled && !window.__consoleInterceptionEnabled) {
+        if (window.__originalConsoleLog) {
+          window.__originalConsoleLog('🎛️ MAIN-WORLD: Enabling console interception based on storage');
+        }
+        enableConsoleInterception();
+      } else if (!consoleShouldBeEnabled && window.__consoleInterceptionEnabled) {
+        if (window.__originalConsoleLog) {
+          window.__originalConsoleLog('🎛️ MAIN-WORLD: Disabling console interception based on storage');
+        }
+        disableConsoleInterception();
+      }
+    } catch (error) {
+      if (window.__originalConsoleLog) {
+        window.__originalConsoleLog('⚠️ MAIN-WORLD: Error checking console interception state:', error);
+      }
+      // Default to disabled on error
+      if (window.__consoleInterceptionEnabled) {
+        disableConsoleInterception();
+      }
+    }
+  }, 250);
   
   // Listen for storage changes to start/stop interception
   if (typeof chrome !== 'undefined' && chrome.storage) {

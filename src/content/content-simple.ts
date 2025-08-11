@@ -497,62 +497,73 @@ window.addEventListener('networkRequestIntercepted', eventHandlers.networkInterc
 eventHandlers.consoleIntercepted = async (event: any) => {
   const errorData = event.detail;
   
-  // MEMORY OPTIMIZATION: Reduce per-console-error logging to minimize tab memory usage
-  
   try {
+    // Quick context check
     if (!isExtensionContextValid()) {
-      console.log('⚠️ CONTENT: Extension context invalid, console error not stored');
-      return;
+      return; // Silent fail
     }
-    
-    try {
-      // MEMORY LEAK FIX: Use centralized handler instead of direct chrome.runtime.sendMessage
-      const tabResponse = await sendChromeMessage({ action: 'getCurrentTabId' });
-      // Add tab context information
-      const enrichedData = {
-        ...errorData,
-        tabUrl: window.location.href,
-        tabDomain: window.location.hostname,
-        tabId: tabResponse?.tabId
-      };
-      
-      console.log('📡 CONTENT: Sending console error to background:', enrichedData);
-      
-      // Send to background for storage
-      chrome.runtime.sendMessage({
-        type: 'CONSOLE_ERROR',
-        data: enrichedData
-      }).then(() => {
-        console.log('✅ CONTENT: Stored console error');
-      }).catch((error) => {
-        console.log('❌ CONTENT: Failed to store console error:', error);
-        extensionContextValid = false;
-      });
-    } catch (tabError) {
-      console.log('❌ CONTENT: Could not get tab ID:', tabError);
-      // Send without tab ID as fallback
-      const enrichedData = {
-        ...errorData,
-        tabUrl: window.location.href,
-        tabDomain: window.location.hostname
-      };
-      
-      console.log('📡 CONTENT: Sending console error to background (no tab ID):', enrichedData);
-      
-      chrome.runtime.sendMessage({
-        type: 'CONSOLE_ERROR',
-        data: enrichedData
-      });
+
+    // Get tab ID efficiently
+    const tabResponse = await sendChromeMessage({ action: 'getCurrentTabId' });
+    if (!tabResponse?.tabId) return;
+
+    // Format data for existing CONSOLE_ERROR handler
+    const formattedData = {
+      message: errorData.message || 'Unknown error',
+      stack: errorData.stack || null,
+      timestamp: errorData.timestamp || Date.now(),
+      severity: errorData.severity || 'error',
+      url: errorData.url || window.location.href,
+      tabId: tabResponse.tabId,
+      tabUrl: window.location.href,
+      domain: errorData.domain || window.location.hostname
+    };
+
+    // Send to background script using existing CONSOLE_ERROR action
+    const response = await sendChromeMessage({
+      action: 'CONSOLE_ERROR',
+      data: formattedData
+    });
+
+    // Only log errors in debug mode, not success to prevent console pollution
+    if (!response?.success && response?.reason !== 'Tab error logging paused') {
+      console.debug('❌ CONTENT: Failed to store console error:', response?.reason || 'Unknown error');
     }
-    
   } catch (error) {
-    console.log('❌ CONTENT: Error processing console error:', error);
+    // Silent fail to prevent memory leaks and recursive console errors
     extensionContextValid = false;
   }
 };
 
 // Add the event listener
 window.addEventListener('consoleErrorIntercepted', eventHandlers.consoleIntercepted);
+
+// Initialize console error interception state
+async function initializeConsoleInterceptionState() {
+  try {
+    // Get current tab ID
+    const tabResponse = await sendChromeMessage({ action: 'getCurrentTabId' });
+    if (!tabResponse?.tabId) return;
+
+    // Get interception state from background
+    const response = await sendChromeMessage({
+      action: 'getInterceptionState',
+      tabId: tabResponse.tabId
+    });
+
+    // Send control message to main world
+    if (response?.consoleEnabled !== undefined) {
+      window.postMessage({
+        type: 'CONTROL_INTERCEPTION',
+        target: 'console',
+        enabled: response.consoleEnabled
+      }, '*');
+      console.log('📱 CONTENT: Set initial console interception state:', response.consoleEnabled);
+    }
+  } catch (error) {
+    console.log('⚠️ CONTENT: Could not initialize console interception state:', error);
+  }
+}
 
 // MEMORY LEAK FIX: Runtime message listener with cleanup
 eventHandlers.runtimeMessage = (message, _sender, sendResponse) => {
@@ -788,3 +799,8 @@ console.log('✅ CONTENT: Main world injection setup completed');
 
 // Single injection attempt on script load
 setTimeout(() => injectMainWorldScript(), 100);
+
+// Call after main world script injection
+setTimeout(() => {
+  initializeConsoleInterceptionState();
+}, 500);

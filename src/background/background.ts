@@ -1076,17 +1076,21 @@ async function handleConsoleError(errorData: any, sendResponse: (response: any) 
     // Extract main domain from the tab URL for intelligent grouping
     const mainDomain = tabUrl ? extractMainDomain(tabUrl) : extractMainDomain(errorData.url || 'unknown');
     
+    // Validate and normalize severity
+    const validSeverities = ['error', 'warn', 'info'] as const;
+    const normalizedSeverity = validSeverities.includes(errorData.severity) ? errorData.severity : 'error';
+    
     // Map the error data from main-world-script to storage API format
     const storageData = {
       message: errorData.message || 'Unknown error',
-      stack_trace: errorData.stack || 'No stack trace available',
-      timestamp: errorData.timestamp ? new Date(errorData.timestamp).getTime() : Date.now(),
-      severity: errorData.severity || 'error',
+      stack_trace: errorData.stack || null, // Use null instead of default string to save memory
+      timestamp: typeof errorData.timestamp === 'number' ? errorData.timestamp : Date.now(),
+      severity: normalizedSeverity,
       url: errorData.url || 'Unknown URL',
       // Add tab context for intelligent domain grouping
       tab_id: tabId,
       tab_url: tabUrl,
-      main_domain: mainDomain // Store the main domain directly for reliableGrouping
+      main_domain: mainDomain // Store the main domain directly for reliable grouping
     };
     
     // Store the console error
