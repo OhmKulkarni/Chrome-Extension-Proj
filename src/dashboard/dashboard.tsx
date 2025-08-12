@@ -1590,6 +1590,36 @@ const Dashboard: React.FC = () => {
     let refreshInterval: number | null = null
     let isActive = true
     
+    // RACE CONDITION PREVENTION: Debounce timers for real-time updates
+    let networkDebounceTimer: number | null = null
+    let consoleDebounceTimer: number | null = null  
+    let tokenDebounceTimer: number | null = null
+    
+    // Debounced refresh functions to prevent rapid successive calls
+    const debouncedNetworkRefresh = () => {
+      if (!isActive) return
+      if (networkDebounceTimer) clearTimeout(networkDebounceTimer)
+      networkDebounceTimer = window.setTimeout(() => {
+        if (isActive) loadNetworkRequestsPage(currentPage, requestsPerPage)
+      }, 100) // 100ms debounce
+    }
+    
+    const debouncedConsoleRefresh = () => {
+      if (!isActive) return
+      if (consoleDebounceTimer) clearTimeout(consoleDebounceTimer)
+      consoleDebounceTimer = window.setTimeout(() => {
+        if (isActive) loadConsoleErrorsPage(currentErrorPage, errorsPerPage)
+      }, 100) // 100ms debounce
+    }
+    
+    const debouncedTokenRefresh = () => {
+      if (!isActive) return
+      if (tokenDebounceTimer) clearTimeout(tokenDebounceTimer)
+      tokenDebounceTimer = window.setTimeout(() => {
+        if (isActive) loadTokenEventsPage(currentTokenPage, tokenEventsPerPage)
+      }, 100) // 100ms debounce
+    }
+    
     // MEMORY LEAK FIX: Memory-aware interval with exponential backoff
     const startPeriodicRefresh = () => {
       if (!isActive) return
@@ -1653,20 +1683,21 @@ const Dashboard: React.FC = () => {
       if (message.type === 'DATA_UPDATED') {
         console.log('📡 DASHBOARD: Received data update notification:', message.dataType);
         
-        // Update counts AND refresh current page data
+        // Update counts for all data types
         loadDashboardData();
         
-        // Also refresh the current page data to show new entries immediately
-        const currentTableName = tableNames[currentTableIndex];
-        if (message.dataType === 'network_request' && currentTableName === 'Network Requests') {
-          console.log('🔄 DASHBOARD: Refreshing network requests page');
-          loadNetworkRequestsPage(currentPage, requestsPerPage);
-        } else if (message.dataType === 'console_error' && currentTableName === 'Console Errors') {
-          console.log('🔄 DASHBOARD: Refreshing console errors page');
-          loadConsoleErrorsPage(currentErrorPage, errorsPerPage);
-        } else if (message.dataType === 'token_event' && currentTableName === 'Token Events') {
-          console.log('🔄 DASHBOARD: Refreshing token events page');
-          loadTokenEventsPage(currentTokenPage, tokenEventsPerPage);
+        // REAL-TIME UPDATE: Always refresh the specific data type's page data
+        // regardless of which table is currently active, to ensure data freshness
+        // when user switches between tables. Use debounced functions to prevent rapid calls.
+        if (message.dataType === 'network_request') {
+          console.log('🔄 DASHBOARD: Refreshing network requests page (real-time)');
+          debouncedNetworkRefresh();
+        } else if (message.dataType === 'console_error') {
+          console.log('🔄 DASHBOARD: Refreshing console errors page (real-time)');
+          debouncedConsoleRefresh();
+        } else if (message.dataType === 'token_event') {
+          console.log('🔄 DASHBOARD: Refreshing token events page (real-time)');
+          debouncedTokenRefresh();
         }
       }
     };
@@ -1676,10 +1707,27 @@ const Dashboard: React.FC = () => {
 
     return () => {
       isActive = false
+      
+      // Clean up periodic refresh interval
       if (refreshInterval) {
         clearTimeout(refreshInterval)
         refreshInterval = null
       }
+      
+      // MEMORY LEAK PREVENTION: Clean up debounce timers
+      if (networkDebounceTimer) {
+        clearTimeout(networkDebounceTimer)
+        networkDebounceTimer = null
+      }
+      if (consoleDebounceTimer) {
+        clearTimeout(consoleDebounceTimer)
+        consoleDebounceTimer = null
+      }
+      if (tokenDebounceTimer) {
+        clearTimeout(tokenDebounceTimer)
+        tokenDebounceTimer = null
+      }
+      
       chrome.runtime.onMessage.removeListener(handleBackgroundMessages);
     };
   }, [loadDashboardData, tableNames, currentTableIndex, currentPage, requestsPerPage, loadNetworkRequestsPage, currentErrorPage, errorsPerPage, loadConsoleErrorsPage, currentTokenPage, tokenEventsPerPage, loadTokenEventsPage]); // Include all dependencies
