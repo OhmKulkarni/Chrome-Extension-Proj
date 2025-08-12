@@ -47,29 +47,6 @@ interface SettingsData {
       enabled: boolean;
       defaultState: 'active' | 'paused';
     };
-    requestFilters: {
-      methods: {
-        enabled: boolean;
-        allowed: Array<'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD'>;
-      };
-      contentTypes: {
-        enabled: boolean;
-        allowed: Array<'json' | 'html' | 'image' | 'script' | 'css' | 'xml' | 'text' | 'other'>;
-      };
-      pathFilters: {
-        enabled: boolean;
-        keywords: string[];
-        regex: string[];
-        includeMode: boolean;
-      };
-    };
-    profiles: Array<{
-      id: string;
-      name: string;
-      description?: string;
-      active: boolean;
-      settings: Partial<SettingsData['networkInterception']>;
-    }>;
   };
   errorLogging: {
     enabled: boolean;
@@ -114,32 +91,7 @@ const defaultSettings: SettingsData = {
     tabSpecific: {
       enabled: true,
       defaultState: 'paused'
-    },
-    requestFilters: {
-      methods: {
-        enabled: false,
-        allowed: ['GET', 'POST', 'PUT', 'DELETE']
-      },
-      contentTypes: {
-        enabled: false,
-        allowed: ['json', 'html', 'script']
-      },
-      pathFilters: {
-        enabled: false,
-        keywords: [],
-        regex: [],
-        includeMode: true
-      }
-    },
-    profiles: [
-      {
-        id: 'default',
-        name: 'Default Profile',
-        description: 'Standard network interception settings',
-        active: true,
-        settings: {}
-      }
-    ]
+    }
   },
   errorLogging: {
     enabled: true,
