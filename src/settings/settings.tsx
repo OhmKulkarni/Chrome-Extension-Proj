@@ -23,7 +23,6 @@ import { Switch } from './components/ui/switch';
 
 interface SettingsData {
   networkInterception: {
-    enabled: boolean;
     bodyCapture: {
       mode: 'disabled' | 'partial' | 'full';
       captureRequests: boolean;
@@ -65,7 +64,6 @@ interface SettingsData {
 
 const defaultSettings: SettingsData = {
   networkInterception: {
-    enabled: true,
     bodyCapture: {
       mode: 'partial',
       captureRequests: false,
@@ -324,18 +322,7 @@ const Settings: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid gap-4">
-                <Switch
-                  checked={settings.networkInterception?.enabled || false}
-                  onChange={(e) => updateSetting('networkInterception', {
-                    ...settings.networkInterception,
-                    enabled: e.target.checked
-                  })}
-                  label="Enable network interception"
-                  description="Capture and monitor network requests"
-                />
-
-                {settings.networkInterception?.enabled && (
-                  <div className="ml-4 border-l-2 border-muted pl-4 space-y-4">
+                <div className="space-y-4">
                     <div className="grid gap-2">
                       <label className="setting-label">Body Capture Mode</label>
                       <Select
@@ -438,8 +425,7 @@ const Settings: React.FC = () => {
                         </div>
                       )}
                     </div>
-                  </div>
-                )}
+                </div>
               </div>
             </CardContent>
           </Card>

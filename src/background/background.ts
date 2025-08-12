@@ -745,12 +745,6 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
       await chrome.storage.local.set({ settings });
     }
     
-    // Check if network interception is enabled
-    if (!networkConfig.enabled) {
-      sendResponse({ success: false, reason: 'Network interception disabled' });
-      return;
-    }
-    
     // Check tab-specific control (ALWAYS check if enabled, regardless of default)
     if (networkConfig.tabSpecific?.enabled) {
       // Get the sender tab ID from the message
@@ -1619,18 +1613,18 @@ if (!listenersRegistered) {
             let networkEnabled = false;
             const networkConfig = settings.networkInterception || {};
             
-            if (networkConfig.enabled) {
-              if (networkConfig.tabSpecific?.enabled) {
-                const tabNetworkState = tabStates[`tabLogging_${tabId}`];
-                if (tabNetworkState) {
-                  networkEnabled = typeof tabNetworkState === 'boolean' ? 
-                    tabNetworkState : (tabNetworkState.active || false);
-                } else {
-                  networkEnabled = networkConfig.tabSpecific?.defaultState === 'active';
-                }
+            // Network interception is always enabled at base level
+            // Check tab-specific controls if enabled
+            if (networkConfig.tabSpecific?.enabled) {
+              const tabNetworkState = tabStates[`tabLogging_${tabId}`];
+              if (tabNetworkState) {
+                networkEnabled = typeof tabNetworkState === 'boolean' ? 
+                  tabNetworkState : (tabNetworkState.active || false);
               } else {
-                networkEnabled = true; // Global enabled, tab-specific disabled
+                networkEnabled = networkConfig.tabSpecific?.defaultState === 'active';
               }
+            } else {
+              networkEnabled = true; // No tab-specific controls, always enabled
             }
             
             sendResponse({
