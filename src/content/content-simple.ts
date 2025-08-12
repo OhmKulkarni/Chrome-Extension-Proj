@@ -603,11 +603,127 @@ async function initializeConsoleInterceptionState() {
   }
 }
 
+// Function to handle site reactivation - check current logging states and restart monitoring
+async function handleSiteReactivation(): Promise<void> {
+  try {
+    console.log('🔄 CONTENT: Site reactivated, checking current logging states...');
+    
+    // Get current tab ID
+    const tabResponse = await sendChromeMessage({ action: 'getCurrentTabId' });
+    if (!tabResponse?.tabId) {
+      console.log('⚠️ CONTENT: No tab ID available for reactivation');
+      return;
+    }
+    
+    const tabId = tabResponse.tabId;
+    
+    // Get current logging states from storage
+    const storageResult = await chrome.storage.local.get([
+      `tabLogging_${tabId}`,
+      `tabErrorLogging_${tabId}`,
+      `tabTokenLogging_${tabId}`
+    ]);
+    
+    const networkState = storageResult[`tabLogging_${tabId}`];
+    const errorState = storageResult[`tabErrorLogging_${tabId}`];
+    const tokenState = storageResult[`tabTokenLogging_${tabId}`];
+    
+    console.log('📊 CONTENT: Current logging states:', {
+      network: networkState?.active || networkState?.status === 'active',
+      error: errorState?.active,
+      token: tokenState?.active
+    });
+    
+    // If any logging is enabled, inject main world script and set up monitoring
+    const networkEnabled = networkState?.active || networkState?.status === 'active';
+    const errorEnabled = errorState?.active;
+    const tokenEnabled = tokenState?.active;
+    
+    if (networkEnabled || errorEnabled || tokenEnabled) {
+      console.log('🌍 CONTENT: Some logging is enabled, injecting main world script...');
+      
+      // Inject main world script if needed
+      const injectionSuccess = await injectMainWorldScript();
+      
+      if (injectionSuccess) {
+        // Set up monitoring states based on current toggles
+        if (networkEnabled) {
+          console.log('🔄 CONTENT: Enabling network monitoring...');
+          window.postMessage({
+            type: 'CONTROL_INTERCEPTION',
+            target: 'network',
+            enabled: true
+          }, '*');
+        }
+        
+        if (errorEnabled) {
+          console.log('🔄 CONTENT: Enabling error monitoring...');
+          window.postMessage({
+            type: 'CONTROL_INTERCEPTION',
+            target: 'console',
+            enabled: true
+          }, '*');
+        }
+        
+        // Token logging is handled in background script, no content script control needed
+        
+        console.log('✅ CONTENT: Site reactivation complete, monitoring restored');
+      } else {
+        console.log('❌ CONTENT: Failed to inject main world script during reactivation');
+      }
+    } else {
+      console.log('ℹ️ CONTENT: No logging enabled, site reactivated but no monitoring needed');
+    }
+    
+  } catch (error) {
+    console.error('❌ CONTENT: Error during site reactivation:', error);
+  }
+}
+
 // MEMORY LEAK FIX: Runtime message listener with cleanup
 eventHandlers.runtimeMessage = (message, _sender, sendResponse) => {
   if (message.action === 'ping') {
     console.log('📱 CONTENT: Ping received');
     sendResponse({ success: true, message: 'Content script is active' });
+    return true;
+  }
+  
+  if (message.action === 'EXTENSION_STATE_CHANGED') {
+    console.log('📱 CONTENT: Extension state changed (global):', message.enabled);
+    
+    // Send state change to main world script
+    window.dispatchEvent(new CustomEvent('extensionStateChange', {
+      detail: { enabled: message.enabled }
+    }));
+    
+    if (message.enabled) {
+      // Extension was re-enabled, start context checking
+      startContextChecking();
+    } else {
+      // Extension was disabled, stop all monitoring
+      stopContextChecking();
+    }
+    
+    sendResponse({ success: true });
+    return true;
+  }
+  
+  if (message.action === 'SITE_SPECIFIC_STATE_CHANGED') {
+    console.log('📱 CONTENT: Site-specific state changed:', message.enabled);
+    
+    if (message.enabled) {
+      // Site was re-enabled, check current logging states and start monitoring
+      handleSiteReactivation();
+    } else {
+      // Site was disabled, send disable signal to main world
+      window.postMessage({
+        type: 'CONTROL_INTERCEPTION',
+        target: 'all',
+        enabled: false
+      }, '*');
+    }
+    
+    sendResponse({ success: true });
     return true;
   }
   
@@ -622,6 +738,13 @@ eventHandlers.runtimeMessage = (message, _sender, sendResponse) => {
       });
     } else {
       console.log('🚫 CONTENT: Network logging disabled');
+      
+      // Send control message to main world script
+      window.postMessage({
+        type: 'CONTROL_INTERCEPTION',
+        target: 'network',
+        enabled: false
+      }, '*');
     }
     
     sendResponse({ success: true });
@@ -632,17 +755,6 @@ eventHandlers.runtimeMessage = (message, _sender, sendResponse) => {
     window.postMessage({
       type: 'CONTROL_INTERCEPTION',
       target: 'console',
-      enabled: message.enabled
-    }, '*');
-    
-    sendResponse({ success: true });
-  } else if (message.action === 'toggleLogging') {
-    console.log('📱 CONTENT: Toggle network logging:', message.enabled);
-    
-    // Send control message to main world script
-    window.postMessage({
-      type: 'CONTROL_INTERCEPTION',
-      target: 'network',
       enabled: message.enabled
     }, '*');
     

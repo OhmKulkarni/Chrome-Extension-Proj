@@ -184,8 +184,23 @@ export class ExtensionStateController {
 
     try {
       await chrome.storage.local.set({ extensionState: this.state });
+      
+      // Notify the specific tab of site-specific state change
+      await this.notifyTabStateChange(tabId, enabled);
     } catch (error) {
       console.error('Failed to set tab state:', error);
+    }
+  }
+
+  private async notifyTabStateChange(tabId: number, enabled: boolean): Promise<void> {
+    try {
+      await chrome.tabs.sendMessage(tabId, {
+        action: 'SITE_SPECIFIC_STATE_CHANGED',
+        enabled: enabled
+      });
+    } catch (error) {
+      // Tab might not have content script or be invalid, ignore
+      console.log(`Could not notify tab ${tabId} of state change:`, error);
     }
   }
 

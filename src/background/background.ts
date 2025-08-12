@@ -714,6 +714,16 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
       await storageManager.init();
     }
     
+    // FIRST: Check if the extension is enabled for this tab
+    const tabId = sender?.tab?.id;
+    if (tabId) {
+      const isExtensionEnabled = await extensionStateController.isExtensionEnabled(tabId);
+      if (!isExtensionEnabled) {
+        sendResponse({ success: false, reason: 'Extension disabled for this tab' });
+        return;
+      }
+    }
+    
     // Get current settings to check filtering rules
     const settingsResult = await chrome.storage.local.get(['settings']);
     const settings = settingsResult.settings || {};
@@ -891,8 +901,7 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
     
     // Store the request (either non-token request or token request with logging enabled)
     
-    // Get tab information for context
-    const tabId = sender?.tab?.id;
+    // Get tab information for context (tabId already declared above)
     const tabUrl = sender?.tab?.url;
     
     // Extract main domain from the tab URL for intelligent grouping
@@ -1010,6 +1019,16 @@ async function handleConsoleError(errorData: any, sendResponse: (response: any) 
       await storageManager.init();
     }
 
+    // FIRST: Check if the extension is enabled for this tab
+    const tabId = errorData.tabId || sender?.tab?.id;
+    if (tabId) {
+      const isExtensionEnabled = await extensionStateController.isExtensionEnabled(tabId);
+      if (!isExtensionEnabled) {
+        sendResponse({ success: false, reason: 'Extension disabled for this tab' });
+        return;
+      }
+    }
+
     // Check if error logging is enabled globally
     const settings = await chrome.storage.local.get(['settings']);
     const errorLoggingConfig = settings.settings?.errorLogging || {};
@@ -1075,8 +1094,7 @@ async function handleConsoleError(errorData: any, sendResponse: (response: any) 
       }
     }
     
-    // Get tab information for context
-    const tabId = sender?.tab?.id;
+    // Get tab information for context (tabId already declared above)
     const tabUrl = sender?.tab?.url;
     
     // Extract main domain from the tab URL for intelligent grouping
