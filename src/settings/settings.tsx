@@ -425,7 +425,165 @@ const Settings: React.FC = () => {
                         </div>
                       )}
                     </div>
+
+                    <div className="grid gap-4">
+                      <Switch
+                        checked={settings.networkInterception?.urlPatterns?.enabled || false}
+                        onChange={(e) => updateSetting('networkInterception', {
+                          ...settings.networkInterception,
+                          urlPatterns: {
+                            ...settings.networkInterception?.urlPatterns,
+                            enabled: e.target.checked
+                          }
+                        })}
+                        label="Enable URL pattern filtering"
+                        description="Only capture requests matching specific URL patterns (e.g., https://api.example.com/*)"
+                      />
+
+                      {settings.networkInterception?.urlPatterns?.enabled && (
+                        <div className="ml-4 mt-3 p-3 bg-muted/50 rounded-lg border border-muted">
+                          <p className="text-sm font-medium mb-3">🎯 URL Pattern Configuration</p>
+                          <p className="text-xs text-muted-foreground mb-3">
+                            Define URL patterns to capture. Use * for wildcards (e.g., https://api.example.com/*)
+                          </p>
+                          
+                          {settings.networkInterception?.urlPatterns?.patterns?.map((pattern, index) => (
+                            <div key={pattern.id} className="flex items-center space-x-3 mb-2 p-2 bg-background rounded border">
+                              <input
+                                type="checkbox"
+                                checked={pattern.active}
+                                onChange={(e) => {
+                                  const updatedPatterns = [...(settings.networkInterception?.urlPatterns?.patterns || [])];
+                                  updatedPatterns[index] = { ...pattern, active: e.target.checked };
+                                  updateSetting('networkInterception', {
+                                    ...settings.networkInterception,
+                                    urlPatterns: {
+                                      ...settings.networkInterception?.urlPatterns,
+                                      patterns: updatedPatterns
+                                    }
+                                  });
+                                }}
+                                className="h-4 w-4 text-primary border-input rounded focus:ring-ring"
+                              />
+                              <Input
+                                value={pattern.pattern}
+                                onChange={(e) => {
+                                  const updatedPatterns = [...(settings.networkInterception?.urlPatterns?.patterns || [])];
+                                  updatedPatterns[index] = { ...pattern, pattern: e.target.value };
+                                  updateSetting('networkInterception', {
+                                    ...settings.networkInterception,
+                                    urlPatterns: {
+                                      ...settings.networkInterception?.urlPatterns,
+                                      patterns: updatedPatterns
+                                    }
+                                  });
+                                }}
+                                placeholder="https://api.example.com/*"
+                                className="flex-1"
+                              />
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const updatedPatterns = settings.networkInterception?.urlPatterns?.patterns?.filter((_, i) => i !== index) || [];
+                                  updateSetting('networkInterception', {
+                                    ...settings.networkInterception,
+                                    urlPatterns: {
+                                      ...settings.networkInterception?.urlPatterns,
+                                      patterns: updatedPatterns
+                                    }
+                                  });
+                                }}
+                              >
+                                Remove
+                              </Button>
+                            </div>
+                          ))}
+                          
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const newPattern = {
+                                id: `pattern-${Date.now()}`,
+                                pattern: '',
+                                active: true,
+                                description: ''
+                              };
+                              const updatedPatterns = [...(settings.networkInterception?.urlPatterns?.patterns || []), newPattern];
+                              updateSetting('networkInterception', {
+                                ...settings.networkInterception,
+                                urlPatterns: {
+                                  ...settings.networkInterception?.urlPatterns,
+                                  patterns: updatedPatterns
+                                }
+                              });
+                            }}
+                          >
+                            Add Pattern
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid gap-4">
+                      <Switch
+                        checked={settings.networkInterception?.tabSpecific?.enabled || false}
+                        onChange={(e) => updateSetting('networkInterception', {
+                          ...settings.networkInterception,
+                          tabSpecific: {
+                            ...settings.networkInterception?.tabSpecific,
+                            enabled: e.target.checked
+                          }
+                        })}
+                        label="Enable per-tab controls"
+                        description="Allow individual tab monitoring control via the popup"
+                      />
+
+                      {settings.networkInterception?.tabSpecific?.enabled && (
+                        <div className="ml-4 mt-3 p-3 bg-muted/50 rounded-lg border border-muted">
+                          <p className="text-sm font-medium mb-3">🗂️ Tab-Specific Control Settings</p>
+                          
+                          <div className="grid gap-2">
+                            <label className="setting-label">Default state for new tabs</label>
+                            <Select
+                              value={settings.networkInterception?.tabSpecific?.defaultState || 'paused'}
+                              onChange={(e) => updateSetting('networkInterception', {
+                                ...settings.networkInterception,
+                                tabSpecific: {
+                                  ...settings.networkInterception?.tabSpecific,
+                                  defaultState: e.target.value as any
+                                }
+                              })}
+                              className="max-w-xs"
+                            >
+                              <option value="active">Active (monitoring enabled)</option>
+                              <option value="paused">Paused (monitoring disabled)</option>
+                            </Select>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              This determines whether new tabs start with monitoring enabled or disabled
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* URL Pattern and Tab Control Settings Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Advanced Network Settings</CardTitle>
+              <CardDescription>
+                Configure URL pattern filtering and tab-specific behavior
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="text-sm text-muted-foreground">
+                <p><strong>URL Pattern Filtering:</strong> When enabled, only requests matching your defined patterns will be captured.</p>
+                <p><strong>Tab-Specific Controls:</strong> When enabled, each tab can be individually controlled via the popup interface.</p>
               </div>
             </CardContent>
           </Card>
@@ -549,6 +707,46 @@ const Settings: React.FC = () => {
                         <p className="text-sm text-muted-foreground">
                           Unselected severity levels will be ignored completely
                         </p>
+                      </div>
+                    )}
+
+                    <Switch
+                      checked={settings.errorLogging?.tabSpecific?.enabled || false}
+                      onChange={(e) => updateSetting('errorLogging', {
+                        ...settings.errorLogging,
+                        tabSpecific: {
+                          ...settings.errorLogging?.tabSpecific,
+                          enabled: e.target.checked
+                        }
+                      })}
+                      label="Enable per-tab error logging controls"
+                      description="Allow individual tab error monitoring control via the popup"
+                    />
+
+                    {settings.errorLogging?.tabSpecific?.enabled && (
+                      <div className="ml-4 mt-3 p-3 bg-muted/50 rounded-lg border border-muted">
+                        <p className="text-sm font-medium mb-3">🗂️ Tab-Specific Error Logging</p>
+                        
+                        <div className="grid gap-2">
+                          <label className="setting-label">Default state for new tabs</label>
+                          <Select
+                            value={settings.errorLogging?.tabSpecific?.defaultState || 'paused'}
+                            onChange={(e) => updateSetting('errorLogging', {
+                              ...settings.errorLogging,
+                              tabSpecific: {
+                                ...settings.errorLogging?.tabSpecific,
+                                defaultState: e.target.value as any
+                              }
+                            })}
+                            className="max-w-xs"
+                          >
+                            <option value="active">Active (error logging enabled)</option>
+                            <option value="paused">Paused (error logging disabled)</option>
+                          </Select>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            This determines whether new tabs start with error logging enabled or disabled
+                          </p>
+                        </div>
                       </div>
                     )}
                   </div>
