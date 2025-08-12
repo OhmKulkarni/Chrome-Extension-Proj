@@ -31,7 +31,6 @@ interface SettingsData {
       maxBodySize: number;
     };
     privacy: {
-      autoRedact: boolean;
       filterNoise: boolean;
     };
     urlPatterns: {
@@ -74,7 +73,6 @@ const defaultSettings: SettingsData = {
       maxBodySize: 2000,
     },
     privacy: {
-      autoRedact: true,
       filterNoise: true,
     },
     urlPatterns: {
@@ -406,19 +404,6 @@ const Settings: React.FC = () => {
                     </div>
 
                     <div className="grid gap-4">
-                      <Switch
-                        checked={settings.networkInterception?.privacy?.autoRedact || false}
-                        onChange={(e) => updateSetting('networkInterception', {
-                          ...settings.networkInterception,
-                          privacy: {
-                            ...settings.networkInterception?.privacy,
-                            autoRedact: e.target.checked
-                          }
-                        })}
-                        label="Auto-redact sensitive data"
-                        description="Automatically hide potentially sensitive information"
-                      />
-
                       <Switch
                         checked={settings.networkInterception?.privacy?.filterNoise || false}
                         onChange={(e) => updateSetting('networkInterception', {

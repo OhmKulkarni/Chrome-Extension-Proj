@@ -483,7 +483,6 @@ const initializeChromeStorageSettings = () => {
             captureResponses: false,
           },
           privacy: {
-            autoRedact: true,
             filterNoise: true,
           },
           urlPatterns: {

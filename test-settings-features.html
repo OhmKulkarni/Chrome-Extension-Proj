@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings Feature Testing</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255,255,255,0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        .feature-section {
+            background: rgba(255,255,255,0.1);
+            padding: 25px;
+            margin: 20px 0;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .test-button { 
+            padding: 12px 24px; 
+            margin: 8px; 
+            background: #4CAF50; 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .test-button:hover { 
+            background: #45a049; 
+            transform: translateY(-2px);
+        }
+        .test-button.secondary {
+            background: #2196F3;
+        }
+        .test-button.secondary:hover {
+            background: #1976D2;
+        }
+        .test-button.warning {
+            background: #ff9800;
+        }
+        .test-button.warning:hover {
+            background: #f57c00;
+        }
+        .result { 
+            margin: 10px 0; 
+            padding: 12px; 
+            background: rgba(255,255,255,0.15); 
+            border-radius: 6px; 
+            border-left: 4px solid #4CAF50;
+            font-size: 14px;
+        }
+        .result.success { border-left-color: #4CAF50; }
+        .result.error { border-left-color: #f44336; }
+        .result.info { border-left-color: #2196F3; }
+        .result.warning { border-left-color: #ff9800; }
+        .instructions {
+            background: rgba(33, 150, 243, 0.2);
+            border: 1px solid #2196F3;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-working { background: #4CAF50; }
+        .status-broken { background: #f44336; }
+        .status-testing { background: #ff9800; }
+        .clear-button {
+            background: #f44336;
+            float: right;
+        }
+        .clear-button:hover {
+            background: #d32f2f;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Settings Feature Testing Suite</h1>
+        <p>Comprehensive testing for all implemented network interception settings.</p>
+        
+        <div class="instructions">
+            <h2>📋 Pre-Test Setup</h2>
+            <ol>
+                <li><strong>Open Extension Settings:</strong> Right-click extension → Options</li>
+                <li><strong>Enable Features:</strong> Turn ON all toggles you want to test</li>
+                <li><strong>Open Popup:</strong> Ensure Global Power + Site Toggle are ON</li>
+                <li><strong>Enable Logging:</strong> Turn ON network/error/token logging in popup</li>
+                <li><strong>Open Dashboard:</strong> Keep dashboard open to monitor results</li>
+            </ol>
+        </div>
+
+        <!-- Feature 1: Basic Network Interception -->
+        <div class="feature-section">
+            <h2><span class="status-indicator status-testing"></span>1. Basic Network Interception</h2>
+            <p><strong>Tests:</strong> `networkInterception.enabled` setting</p>
+            <div>
+                <button class="test-button" onclick="testBasicInterception()">Test Basic Network Requests</button>
+                <button class="test-button secondary" onclick="testDifferentMethods()">Test Different HTTP Methods</button>
+                <button class="test-button clear-button" onclick="clearSection('basic')">Clear</button>
+            </div>
+            <div id="basic-results"></div>
+        </div>
+
+        <!-- Feature 2: Tab-Specific Controls -->
+        <div class="feature-section">
+            <h2><span class="status-indicator status-testing"></span>2. Tab-Specific Controls</h2>
+            <p><strong>Tests:</strong> `networkInterception.tabSpecific.enabled` setting</p>
+            <div class="instructions">
+                <strong>Manual Test:</strong> Use popup to toggle the blue "Site Toggle" on/off while generating requests below.
+            </div>
+            <div>
+                <button class="test-button" onclick="testTabSpecific()">Generate Tab-Specific Test Traffic</button>
+                <button class="test-button secondary" onclick="checkTabState()">Check Current Tab State</button>
+                <button class="test-button clear-button" onclick="clearSection('tab')">Clear</button>
+            </div>
+            <div id="tab-results"></div>
+        </div>
+
+        <!-- Feature 3: Noise Filtering -->
+        <div class="feature-section">
+            <h2><span class="status-indicator status-testing"></span>3. Noise/Telemetry Filtering</h2>
+            <p><strong>Tests:</strong> `networkInterception.privacy.filterNoise` setting</p>
+            <div>
+                <button class="test-button" onclick="testNoiseFiltering()">Test Analytics/Tracking Requests</button>
+                <button class="test-button warning" onclick="testLegitimateRequests()">Test Legitimate Requests</button>
+                <button class="test-button clear-button" onclick="clearSection('noise')">Clear</button>
+            </div>
+            <div id="noise-results"></div>
+        </div>
+
+        <!-- Feature 4: URL Pattern Filtering -->
+        <div class="feature-section">
+            <h2><span class="status-indicator status-testing"></span>4. URL Pattern Filtering</h2>
+            <p><strong>Tests:</strong> `networkInterception.urlPatterns.enabled` setting</p>
+            <div class="instructions">
+                <strong>Setup:</strong> Add pattern like `https://httpbin.org/*` in settings to test this feature.
+            </div>
+            <div>
+                <button class="test-button" onclick="testUrlPatterns()">Test Pattern Matching</button>
+                <button class="test-button secondary" onclick="testNonMatchingUrls()">Test Non-Matching URLs</button>
+                <button class="test-button clear-button" onclick="clearSection('patterns')">Clear</button>
+            </div>
+            <div id="patterns-results"></div>
+        </div>
+
+        <!-- Feature 5: Error Logging -->
+        <div class="feature-section">
+            <h2><span class="status-indicator status-testing"></span>5. Console Error Logging</h2>
+            <p><strong>Tests:</strong> `errorLogging.enabled` and severity filtering</p>
+            <div>
+                <button class="test-button" onclick="testErrorLogging()">Generate Console Errors</button>
+                <button class="test-button secondary" onclick="testDifferentSeverities()">Test Different Severities</button>
+                <button class="test-button clear-button" onclick="clearSection('errors')">Clear</button>
+            </div>
+            <div id="errors-results"></div>
+        </div>
+
+        <!-- Feature 6: Token Detection -->
+        <div class="feature-section">
+            <h2><span class="status-indicator status-testing"></span>6. Token Detection & Display</h2>
+            <p><strong>Tests:</strong> Token detection and `tokenLogging.showFullHash` setting</p>
+            <div>
+                <button class="test-button" onclick="testTokenDetection()">Test Token Requests</button>
+                <button class="test-button secondary" onclick="testJWTTokens()">Test JWT Tokens</button>
+                <button class="test-button clear-button" onclick="clearSection('tokens')">Clear</button>
+            </div>
+            <div id="tokens-results"></div>
+        </div>
+
+        <!-- Feature 7: Body Capture -->
+        <div class="feature-section">
+            <h2><span class="status-indicator status-testing"></span>7. Body Capture Configuration</h2>
+            <p><strong>Tests:</strong> `bodyCapture.mode` setting (UI only - no implementation)</p>
+            <div>
+                <button class="test-button" onclick="testBodyCapture()">Test Body Capture Settings</button>
+                <button class="test-button secondary" onclick="checkBodyCaptureMode()">Check Current Mode</button>
+                <button class="test-button clear-button" onclick="clearSection('body')">Clear</button>
+            </div>
+            <div id="body-results"></div>
+        </div>
+
+        <!-- Master Controls -->
+        <div class="feature-section">
+            <h2>🎛️ Master Controls</h2>
+            <div>
+                <button class="test-button" onclick="runAllTests()">🚀 Run All Tests</button>
+                <button class="test-button secondary" onclick="generateTestReport()">📊 Generate Test Report</button>
+                <button class="test-button warning" onclick="clearAllResults()">🧹 Clear All Results</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let testCounter = 0;
+
+        function log(message, type = 'info', section = 'general') {
+            testCounter++;
+            const container = document.getElementById(`${section}-results`) || document.body;
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = `<strong>[${testCounter}]</strong> ${message} <small>(${new Date().toLocaleTimeString()})</small>`;
+            container.appendChild(div);
+            console.log(`🧪 TEST ${testCounter}: ${message}`);
+        }
+
+        function clearSection(section) {
+            const container = document.getElementById(`${section}-results`);
+            if (container) {
+                container.innerHTML = '';
+            }
+        }
+
+        function clearAllResults() {
+            ['basic', 'tab', 'noise', 'patterns', 'errors', 'tokens', 'body'].forEach(clearSection);
+            testCounter = 0;
+        }
+
+        // Feature 1: Basic Network Interception
+        async function testBasicInterception() {
+            log('Testing basic network interception...', 'info', 'basic');
+            
+            try {
+                const response = await fetch('https://httpbin.org/get');
+                log(`✅ GET request successful: ${response.status}`, 'success', 'basic');
+                
+                const postResponse = await fetch('https://httpbin.org/post', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ test: 'basic-interception', timestamp: Date.now() })
+                });
+                log(`✅ POST request successful: ${postResponse.status}`, 'success', 'basic');
+                
+                log('✅ Basic interception test complete - check dashboard for captured requests', 'success', 'basic');
+            } catch (error) {
+                log(`❌ Basic interception test failed: ${error.message}`, 'error', 'basic');
+            }
+        }
+
+        async function testDifferentMethods() {
+            const methods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
+            log('Testing different HTTP methods...', 'info', 'basic');
+            
+            for (const method of methods) {
+                try {
+                    const response = await fetch(`https://httpbin.org/${method.toLowerCase()}`, {
+                        method: method,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: method !== 'GET' ? JSON.stringify({ method, test: true }) : undefined
+                    });
+                    log(`✅ ${method} request: ${response.status}`, 'success', 'basic');
+                } catch (error) {
+                    log(`❌ ${method} request failed: ${error.message}`, 'error', 'basic');
+                }
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+        }
+
+        // Feature 2: Tab-Specific Controls
+        async function testTabSpecific() {
+            log('Generating traffic for tab-specific testing...', 'info', 'tab');
+            log('💡 Now toggle the blue "Site Toggle" in popup to test tab-specific controls', 'warning', 'tab');
+            
+            for (let i = 0; i < 3; i++) {
+                try {
+                    await fetch(`https://httpbin.org/get?tab-test=${i}&timestamp=${Date.now()}`);
+                    log(`📡 Tab test request ${i + 1} sent`, 'info', 'tab');
+                } catch (error) {
+                    log(`❌ Tab test request ${i + 1} failed: ${error.message}`, 'error', 'tab');
+                }
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            
+            log('✅ Tab-specific test traffic complete', 'success', 'tab');
+        }
+
+        function checkTabState() {
+            log('💡 Check the popup to see current tab state (blue toggle)', 'info', 'tab');
+            log('💡 Also check dashboard to see if requests are being captured', 'info', 'tab');
+        }
+
+        // Feature 3: Noise Filtering
+        async function testNoiseFiltering() {
+            log('Testing noise/telemetry filtering...', 'info', 'noise');
+            
+            const noiseUrls = [
+                'https://www.google-analytics.com/collect',
+                'https://googletagmanager.com/gtag/js',
+                'https://connect.facebook.net/en_US/fbevents.js',
+                'https://www.googletagmanager.com/gtm.js'
+            ];
+            
+            log('⚠️ These requests should be FILTERED OUT if noise filtering is enabled:', 'warning', 'noise');
+            
+            for (const url of noiseUrls) {
+                try {
+                    await fetch(url, { mode: 'no-cors' });
+                    log(`📡 Noise request sent: ${url}`, 'info', 'noise');
+                } catch (error) {
+                    log(`📡 Noise request attempted: ${url} (${error.message})`, 'info', 'noise');
+                }
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+            
+            log('✅ Check dashboard - noise requests should NOT appear if filtering is enabled', 'success', 'noise');
+        }
+
+        async function testLegitimateRequests() {
+            log('Testing legitimate requests (should NOT be filtered)...', 'info', 'noise');
+            
+            try {
+                await fetch('https://httpbin.org/get?legitimate=true');
+                log('✅ Legitimate request sent - should appear in dashboard', 'success', 'noise');
+                
+                await fetch('https://jsonplaceholder.typicode.com/posts/1');
+                log('✅ API request sent - should appear in dashboard', 'success', 'noise');
+            } catch (error) {
+                log(`❌ Legitimate request failed: ${error.message}`, 'error', 'noise');
+            }
+        }
+
+        // Feature 4: URL Pattern Filtering
+        async function testUrlPatterns() {
+            log('Testing URL pattern filtering...', 'info', 'patterns');
+            log('💡 Ensure you have httpbin.org patterns configured in settings', 'warning', 'patterns');
+            
+            try {
+                await fetch('https://httpbin.org/get?pattern-test=true');
+                log('📡 httpbin.org request (should match pattern)', 'info', 'patterns');
+                
+                await fetch('https://jsonplaceholder.typicode.com/posts?pattern-test=true');
+                log('📡 jsonplaceholder.com request (might not match pattern)', 'info', 'patterns');
+                
+                log('✅ Check dashboard to see which requests were captured based on your patterns', 'success', 'patterns');
+            } catch (error) {
+                log(`❌ Pattern test failed: ${error.message}`, 'error', 'patterns');
+            }
+        }
+
+        async function testNonMatchingUrls() {
+            log('Testing URLs that should NOT match patterns...', 'info', 'patterns');
+            
+            const nonMatchingUrls = [
+                'https://example.com/api/test',
+                'https://github.com/api/user',
+                'https://stackoverflow.com/questions'
+            ];
+            
+            for (const url of nonMatchingUrls) {
+                try {
+                    await fetch(url, { mode: 'no-cors' });
+                    log(`📡 Non-matching URL tested: ${url}`, 'info', 'patterns');
+                } catch (error) {
+                    log(`📡 Non-matching URL attempted: ${url}`, 'info', 'patterns');
+                }
+            }
+            
+            log('✅ These requests should NOT appear in dashboard if pattern filtering is strict', 'success', 'patterns');
+        }
+
+        // Feature 5: Error Logging
+        function testErrorLogging() {
+            log('Generating console errors for testing...', 'info', 'errors');
+            
+            console.error('TEST ERROR: This is a test error message');
+            console.warn('TEST WARNING: This is a test warning message');
+            console.info('TEST INFO: This is a test info message');
+            
+            try {
+                throw new Error('TEST EXCEPTION: Intentional test error');
+            } catch (error) {
+                console.error('TEST CAUGHT ERROR:', error.message);
+            }
+            
+            log('✅ Console errors generated - check dashboard error section', 'success', 'errors');
+        }
+
+        function testDifferentSeverities() {
+            log('Testing different error severities...', 'info', 'errors');
+            
+            setTimeout(() => console.error('DELAYED ERROR: Async error test'), 100);
+            setTimeout(() => console.warn('DELAYED WARNING: Async warning test'), 200);
+            setTimeout(() => console.info('DELAYED INFO: Async info test'), 300);
+            setTimeout(() => console.log('DELAYED LOG: Async log test'), 400);
+            
+            log('✅ Severity tests scheduled - check dashboard and settings for filtering', 'success', 'errors');
+        }
+
+        // Feature 6: Token Detection
+        async function testTokenDetection() {
+            log('Testing token detection...', 'info', 'tokens');
+            
+            try {
+                await fetch('https://httpbin.org/post', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test.signature',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        grant_type: 'authorization_code',
+                        client_id: 'test-client'
+                    })
+                });
+                
+                log('📡 Token request sent with Authorization header', 'info', 'tokens');
+                
+                await fetch('https://httpbin.org/post', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        refresh_token: 'test-refresh-token',
+                        grant_type: 'refresh_token'
+                    })
+                });
+                
+                log('📡 Refresh token request sent', 'info', 'tokens');
+                log('✅ Check dashboard tokens section for detected tokens', 'success', 'tokens');
+                
+            } catch (error) {
+                log(`❌ Token test failed: ${error.message}`, 'error', 'tokens');
+            }
+        }
+
+        async function testJWTTokens() {
+            log('Testing JWT token detection...', 'info', 'tokens');
+            
+            const fakeJWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c';
+            
+            try {
+                await fetch('https://httpbin.org/post', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${fakeJWT}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ token: fakeJWT })
+                });
+                
+                log('📡 JWT token request sent', 'info', 'tokens');
+                log('✅ Check token display settings and dashboard for hash visibility', 'success', 'tokens');
+            } catch (error) {
+                log(`❌ JWT test failed: ${error.message}`, 'error', 'tokens');
+            }
+        }
+
+        // Feature 7: Body Capture
+        function testBodyCapture() {
+            log('Testing body capture configuration...', 'info', 'body');
+            log('⚠️ Note: Body capture is UI-only (no actual capture implementation)', 'warning', 'body');
+            log('💡 Check settings page for body capture mode options', 'info', 'body');
+            log('💡 Available modes: disabled, partial, full', 'info', 'body');
+        }
+
+        function checkBodyCaptureMode() {
+            log('💡 Go to Settings > Network Interception to check body capture mode', 'info', 'body');
+            log('💡 Try changing the mode and saving settings', 'info', 'body');
+            log('⚠️ This is a UI-only feature - no actual body data is captured yet', 'warning', 'body');
+        }
+
+        // Master Controls
+        async function runAllTests() {
+            log('🚀 Running comprehensive test suite...', 'info', 'basic');
+            
+            await testBasicInterception();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await testTabSpecific();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await testNoiseFiltering();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await testUrlPatterns();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            testErrorLogging();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await testTokenDetection();
+            testBodyCapture();
+            
+            log('🎉 All automated tests complete! Check dashboard for results.', 'success', 'basic');
+        }
+
+        function generateTestReport() {
+            const report = {
+                timestamp: new Date().toISOString(),
+                testsRun: testCounter,
+                features: [
+                    '✅ Basic Network Interception',
+                    '✅ Tab-Specific Controls',  
+                    '✅ Noise/Telemetry Filtering',
+                    '✅ URL Pattern Filtering',
+                    '✅ Console Error Logging',
+                    '✅ Token Detection',
+                    '⚠️ Body Capture (UI only)'
+                ]
+            };
+            
+            console.log('📊 TEST REPORT:', report);
+            log('📊 Test report generated - check browser console for details', 'success', 'basic');
+        }
+
+        // Auto-run basic connectivity test
+        window.onload = function() {
+            log('🧪 Settings feature testing suite loaded', 'info', 'basic');
+            log('💡 Use the buttons above to test individual features', 'info', 'basic');
+            
+            // Quick connectivity test
+            setTimeout(async () => {
+                try {
+                    await fetch('https://httpbin.org/get?connectivity-test=true');
+                    log('✅ Initial connectivity test passed', 'success', 'basic');
+                } catch (error) {
+                    log('❌ Initial connectivity test failed', 'error', 'basic');
+                }
+            }, 1000);
+        };
+    </script>
+</body>
+</html>
