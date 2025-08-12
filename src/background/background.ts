@@ -12,9 +12,11 @@ const delay = createDelayPromise
 // --- Environment-Aware Storage System ---
 import { EnvironmentStorageManager } from './environment-storage-manager';
 import { tabDomainTracker } from '../dashboard/components/domainUtils';
+import { ExtensionStateController } from '../utils/extensionStateController';
 
 // Initialize environment-aware storage system
 const storageManager = new EnvironmentStorageManager();
+const extensionStateController = ExtensionStateController.getInstance();
 let isStorageInitialized = false;
 
 // Safe storage initialization that can be called multiple times
@@ -26,8 +28,12 @@ async function ensureStorageInitialized(): Promise<void> {
   try {
     console.log('🔧 Initializing storage manager...');
     await storageManager.init();
+    
+    console.log('🔧 Initializing extension state controller...');
+    await extensionStateController.init();
+    
     isStorageInitialized = true;
-    console.log('✅ Storage manager initialized successfully');
+    console.log('✅ Storage manager and extension state initialized successfully');
   } catch (error) {
     console.error('❌ Failed to initialize storage manager:', error);
     isStorageInitialized = false;
@@ -1488,6 +1494,62 @@ if (!listenersRegistered) {
             sendResponse({ success: false, error: 'No tab ID available' });
           }
           break;
+
+          case 'GET_EXTENSION_STATE':
+            // Get extension state for a specific tab
+            try {
+              const tabId = message.tabId || (sender.tab?.id);
+              const isEnabled = await extensionStateController.isExtensionEnabled(tabId);
+              sendResponse({ enabled: isEnabled });
+            } catch (error) {
+              console.error('Failed to get extension state:', error);
+              sendResponse({ enabled: true }); // Default to enabled on error
+            }
+            break;
+
+          case 'GET_GLOBAL_POWER_STATE':
+            // Get only the global power state (entire extension on/off)
+            try {
+              const isEnabled = await extensionStateController.isGlobalPowerEnabled();
+              sendResponse({ enabled: isEnabled });
+            } catch (error) {
+              console.error('Failed to get global power state:', error);
+              sendResponse({ enabled: true }); // Default to enabled on error
+            }
+            break;
+
+          case 'GET_SITE_SPECIFIC_STATE':
+            // Get only the site-specific state for a tab
+            try {
+              const tabId = message.tabId || (sender.tab?.id);
+              if (!tabId) {
+                sendResponse({ enabled: true, error: 'No tab ID provided' });
+                break;
+              }
+              const isEnabled = await extensionStateController.isSiteSpecificEnabled(tabId);
+              sendResponse({ enabled: isEnabled });
+            } catch (error) {
+              console.error('Failed to get site-specific state:', error);
+              sendResponse({ enabled: true }); // Default to enabled on error
+            }
+            break;
+
+          case 'SET_EXTENSION_STATE':
+            // Set global or tab-specific extension state
+            try {
+              if (message.tabId) {
+                // Get tab URL for tab-specific state
+                const tab = await chrome.tabs.get(message.tabId);
+                await extensionStateController.setTabState(message.tabId, message.enabled, tab.url || '');
+              } else {
+                await extensionStateController.setGlobalState(message.enabled);
+              }
+              sendResponse({ success: true });
+            } catch (error) {
+              console.error('Failed to set extension state:', error);
+              sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+            }
+            break;
 
         case 'getCurrentTabId':
         case 'GET_CURRENT_TAB_ID':

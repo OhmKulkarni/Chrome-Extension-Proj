@@ -95,7 +95,8 @@ interface StorageData {
 
 const Popup: React.FC = () => {
   const [tabInfo, setTabInfo] = useState<TabInfo>({});
-  const [extensionEnabled, setExtensionEnabled] = useState(true);
+  const [globalPowerEnabled, setGlobalPowerEnabled] = useState(true); // Global power button  
+  const [siteSpecificEnabled, setSiteSpecificEnabled] = useState(true); // Site-specific toggle
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<StorageData['extensionSettings']>({});
   const [tabLoggingActive, setTabLoggingActive] = useState(false);
@@ -142,10 +143,56 @@ const Popup: React.FC = () => {
       setLoading(false);
     });
 
-    // Also get extension enabled state from sync storage (if it exists there)
-    chrome.storage.sync.get(['extensionEnabled'], (result) => {
-      setExtensionEnabled(result.extensionEnabled ?? true);
-    });
+    // Also get extension enabled state from the new extension state controller
+    const loadExtensionState = async () => {
+      try {
+        // Load global power state (entire extension on/off)
+        const globalResponse = await sendChromeMessage({
+          action: 'GET_GLOBAL_POWER_STATE'
+        });
+        
+        if (globalResponse && 'enabled' in globalResponse) {
+          setGlobalPowerEnabled(globalResponse.enabled);
+        } else {
+          // Fallback to sync storage for backward compatibility
+          chrome.storage.sync.get(['extensionEnabled'], (result) => {
+            setGlobalPowerEnabled(result.extensionEnabled ?? true);
+          });
+        }
+
+        // Load site-specific state for current tab
+        chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+          if (tabs[0]?.id && tabs[0]?.url) {
+            try {
+              const siteResponse = await sendChromeMessage({
+                action: 'GET_SITE_SPECIFIC_STATE', 
+                tabId: tabs[0].id
+              });
+              
+              if (siteResponse && 'enabled' in siteResponse) {
+                setSiteSpecificEnabled(siteResponse.enabled);
+              } else {
+                // Default to enabled for site-specific if no override
+                setSiteSpecificEnabled(true);
+              }
+            } catch (error) {
+              console.error('Error loading site-specific state:', error);
+              setSiteSpecificEnabled(true);
+            }
+          }
+        });
+        
+      } catch (error) {
+        console.error('Error loading extension state:', error);
+        // Fallback to sync storage
+        chrome.storage.sync.get(['extensionEnabled'], (result) => {
+          setGlobalPowerEnabled(result.extensionEnabled ?? true);
+        });
+        setSiteSpecificEnabled(true);
+      }
+    };
+    
+    loadExtensionState();
 
     // Get current tab's logging state (network, error, and token)
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -267,10 +314,51 @@ const Popup: React.FC = () => {
     };
   }, []);
 
-  const toggleExtension = () => {
-    const newState = !extensionEnabled;
-    setExtensionEnabled(newState);
+  // MEMORY LEAK FIX: Toggle global power state (entire extension)
+  const toggleGlobalPower = async () => {
+    const newState = !globalPowerEnabled;
+    setGlobalPowerEnabled(newState);
+    
+    // Update Chrome storage for backward compatibility
     chrome.storage.sync.set({ extensionEnabled: newState });
+    
+    // Update extension state controller for immediate effect
+    try {
+      const response = await sendChromeMessage({
+        action: 'SET_EXTENSION_STATE',
+        enabled: newState
+      });
+      
+      if (!response?.success) {
+        console.warn('Failed to update global extension state:', response);
+      }
+    } catch (error) {
+      console.error('Error updating global extension state:', error);
+    }
+  };
+
+  // MEMORY LEAK FIX: Toggle site-specific state (current site only)
+  const toggleSiteSpecific = async () => {
+    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+      if (tabs[0]?.id && tabs[0]?.url) {
+        const newState = !siteSpecificEnabled;
+        setSiteSpecificEnabled(newState);
+        
+        try {
+          const response = await sendChromeMessage({
+            action: 'SET_EXTENSION_STATE',
+            tabId: tabs[0].id,
+            enabled: newState
+          });
+          
+          if (!response?.success) {
+            console.warn('Failed to update site-specific extension state:', response);
+          }
+        } catch (error) {
+          console.error('Error updating site-specific extension state:', error);
+        }
+      }
+    });
   };
 
   const toggleTabLogging = () => {
@@ -397,30 +485,60 @@ const Popup: React.FC = () => {
           </div>
         </div>
 
-        {/* Extension Toggle */}
-        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+        {/* Global Power Button */}
+        <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200">
           <div>
-            <h3 className="font-semibold text-gray-800">Extension Status</h3>
+            <h3 className="font-semibold text-gray-800 flex items-center">
+              <span className="text-lg mr-2">⚡</span>
+              Global Power
+            </h3>
             <p className="text-sm text-gray-600">
-              {extensionEnabled ? 'Enabled' : 'Disabled'}
+              {globalPowerEnabled ? 'Extension Active' : 'Extension Disabled'} 
             </p>
           </div>
           <button
-            onClick={toggleExtension}
+            onClick={toggleGlobalPower}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              extensionEnabled ? 'bg-blue-500' : 'bg-gray-300'
+              globalPowerEnabled ? 'bg-red-500' : 'bg-gray-300'
             }`}
           >
             <span
               className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                extensionEnabled ? 'translate-x-6' : 'translate-x-1'
+                globalPowerEnabled ? 'translate-x-6' : 'translate-x-1'
               }`}
             />
           </button>
         </div>
 
+        {/* Site-Specific Toggle (only show when global power is on) */}
+        {globalPowerEnabled && (
+          <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <div>
+              <h3 className="font-semibold text-gray-800 flex items-center">
+                <span className="text-lg mr-2">🌐</span>
+                This Site
+              </h3>
+              <p className="text-sm text-gray-600">
+                {siteSpecificEnabled ? 'Monitoring Active' : 'Site Disabled'}
+              </p>
+            </div>
+            <button
+              onClick={toggleSiteSpecific}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                siteSpecificEnabled ? 'bg-blue-500' : 'bg-gray-300'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  siteSpecificEnabled ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+        )}
+
         {/* Tab-Specific Logging Control */}
-        {extensionEnabled && settings?.networkInterception?.tabSpecific?.enabled && (
+        {globalPowerEnabled && siteSpecificEnabled && settings?.networkInterception?.tabSpecific?.enabled && (
           <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
             <div>
               <h3 className="font-semibold text-gray-800">Tab Logging</h3>
@@ -444,7 +562,7 @@ const Popup: React.FC = () => {
         )}
 
         {/* Tab-Specific Error Logging Control */}
-        {extensionEnabled && settings?.errorLogging?.tabSpecific?.enabled && (
+        {globalPowerEnabled && siteSpecificEnabled && settings?.errorLogging?.tabSpecific?.enabled && (
           <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200">
             <div>
               <h3 className="font-semibold text-gray-800">Error Logging</h3>
@@ -470,7 +588,7 @@ const Popup: React.FC = () => {
 
 
         {/* Tab-Specific Token Logging Control */}
-        {extensionEnabled && settings?.tokenLogging?.tabSpecific?.enabled && (
+        {globalPowerEnabled && siteSpecificEnabled && settings?.tokenLogging?.tabSpecific?.enabled && (
           <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200">
             <div>
               <h3 className="font-semibold text-gray-800">Token Logging</h3>

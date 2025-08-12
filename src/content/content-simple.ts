@@ -1,3 +1,41 @@
+// === EXTENSION STATE CHECK ===
+// PHASE 2: Check extension state FIRST before any initialization
+async function checkExtensionState(): Promise<boolean> {
+  try {
+    // Get current tab ID
+    const tabResponse = await sendChromeMessage({ action: 'getCurrentTabId' });
+    const tabId = tabResponse?.tabId;
+    
+    // Get extension state from background
+    const stateResponse = await sendChromeMessage({ 
+      action: 'GET_EXTENSION_STATE',
+      tabId: tabId 
+    });
+    
+    const isEnabled = stateResponse?.enabled ?? true; // Default to enabled if unknown
+    
+    // Send state to main world script
+    window.dispatchEvent(new CustomEvent('extensionStateChange', {
+      detail: { enabled: isEnabled }
+    }));
+    
+    if (!isEnabled) {
+      console.log('🚫 CONTENT: Extension is disabled, skipping all initialization');
+      return false;
+    }
+    
+    console.log('✅ CONTENT: Extension is enabled, proceeding with initialization');
+    return true;
+  } catch (error) {
+    console.log('⚠️ CONTENT: Failed to check extension state, defaulting to enabled:', error);
+    // Send enabled state to main world script as fallback
+    window.dispatchEvent(new CustomEvent('extensionStateChange', {
+      detail: { enabled: true }
+    }));
+    return true; // Default to enabled on error for backward compatibility
+  }
+}
+
 // Simplified content script focused on network interception
 // MEMORY OPTIMIZATION: Reduced logging to minimize tab memory usage
 
@@ -745,7 +783,14 @@ const startContextChecking = () => {
   scheduleNextCheck()
 }
 
-startContextChecking()
+// MEMORY LEAK FIX: Stop context checking when extension is disabled
+function stopContextChecking() {
+  if (contextCheckIntervalId) {
+    clearTimeout(contextCheckIntervalId);
+    contextCheckIntervalId = null;
+    console.log('🚫 CONTENT: Context checking stopped');
+  }
+}
 
 // MEMORY LEAK FIX: Clear interval on page unload to prevent accumulation
 eventHandlers.beforeUnload2 = () => {
@@ -761,46 +806,66 @@ if (window.addEventListener && eventHandlers.beforeUnload2) {
 }
 
 // Initialize injection on content script load
-if (document.readyState === 'loading') {
-  eventHandlers.domContentLoaded = () => {
-    setTimeout(() => injectMainWorldScript(), 100);
-  };
-  if (document.addEventListener && eventHandlers.domContentLoaded) {
-    document.addEventListener('DOMContentLoaded', eventHandlers.domContentLoaded);
+// PHASE 2: Check extension state FIRST before any initialization
+async function initializeContentScript() {
+  const isExtensionEnabled = await checkExtensionState();
+  
+  if (!isExtensionEnabled) {
+    // Extension is disabled - do absolutely nothing
+    console.log('🚫 CONTENT: Extension disabled, content script will remain inactive');
+    return;
   }
-} else {
-  setTimeout(() => injectMainWorldScript(), 100);
-}
-
-// Also inject when document is ready if not already done
-eventHandlers.windowLoad = () => {
-  setTimeout(() => {
-    if (!injectionAttempted) {
-      injectMainWorldScript();
+  
+  // Extension is enabled - proceed with normal initialization
+  console.log('✅ CONTENT: Extension enabled, starting content script initialization');
+  
+  // Start context checking only when extension is enabled
+  startContextChecking();
+  
+  if (document.readyState === 'loading') {
+    eventHandlers.domContentLoaded = () => {
+      setTimeout(() => injectMainWorldScript(), 100);
+    };
+    if (document.addEventListener && eventHandlers.domContentLoaded) {
+      document.addEventListener('DOMContentLoaded', eventHandlers.domContentLoaded);
     }
-  }, 500);
-};
+  } else {
+    setTimeout(() => injectMainWorldScript(), 100);
+  }
 
-// Register window load listener
-if (window.addEventListener && eventHandlers.windowLoad) {
-  window.addEventListener('load', eventHandlers.windowLoad);
+  // Also inject when document is ready if not already done
+  eventHandlers.windowLoad = () => {
+    setTimeout(() => {
+      if (!injectionAttempted) {
+        injectMainWorldScript();
+      }
+    }, 500);
+  };
+
+  // Register window load listener
+  if (window.addEventListener && eventHandlers.windowLoad) {
+    window.addEventListener('load', eventHandlers.windowLoad);
+  }
+
+  console.log('✅ CONTENT: Chrome APIs available');
+  console.log('✅ CONTENT: Main world injection setup completed');
+
+  // Export for debugging
+  (window as any).__contentScriptDebug = {
+    isExtensionContextValid,
+    injectMainWorldScript,
+    extensionContextValid,
+    injectionAttempted
+  };
+
+  // Single injection attempt on script load
+  setTimeout(() => injectMainWorldScript(), 100);
+
+  // PERFORMANCE OPTIMIZATION: Use comprehensive initialization for both console and network
+  setTimeout(() => {
+    initializeInterceptionState();
+  }, 500);
 }
 
-// Export for debugging
-(window as any).__contentScriptDebug = {
-  isExtensionContextValid,
-  injectMainWorldScript,
-  extensionContextValid,
-  injectionAttempted
-};
-
-console.log('✅ CONTENT: Chrome APIs available');
-console.log('✅ CONTENT: Main world injection setup completed');
-
-// Single injection attempt on script load
-setTimeout(() => injectMainWorldScript(), 100);
-
-// Call after main world script injection
-setTimeout(() => {
-  initializeConsoleInterceptionState();
-}, 500);
+// Start initialization
+initializeContentScript();

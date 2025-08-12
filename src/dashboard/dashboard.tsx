@@ -1131,6 +1131,7 @@ const Dashboard: React.FC = () => {
     tokenEvents: [],
     totalTokenEvents: 0
   });
+  const [globalPowerEnabled, setGlobalPowerEnabled] = useState(true); // Global power button
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [requestsPerPage] = useState(10);
@@ -1468,11 +1469,59 @@ const Dashboard: React.FC = () => {
     }
   }, []); // Empty dependencies - function doesn't depend on state/props
 
+  // MEMORY LEAK FIX: Load global power state separately 
+  const loadGlobalPowerState = useCallback(async () => {
+    try {
+      const response = await sendChromeMessage({
+        action: 'GET_GLOBAL_POWER_STATE'
+      });
+      
+      if (response && 'enabled' in response) {
+        setGlobalPowerEnabled(response.enabled);
+      } else {
+        // Fallback to sync storage for backward compatibility
+        const storageData = await chrome.storage.sync.get(['extensionEnabled']);
+        setGlobalPowerEnabled(storageData.extensionEnabled ?? true);
+      }
+    } catch (error) {
+      console.error('Error loading global power state:', error);
+      // Fallback to sync storage
+      const storageData = await chrome.storage.sync.get(['extensionEnabled']);
+      setGlobalPowerEnabled(storageData.extensionEnabled ?? true);
+    }
+  }, []); // Empty dependencies - function doesn't depend on state/props
+
   useEffect(() => {
     loadDashboardData();
     loadTabsLoggingStatus();
     loadSettings();
-  }, [loadDashboardData, loadTabsLoggingStatus, loadSettings]); // MEMORY LEAK FIX: Include all dependencies
+    loadGlobalPowerState(); // Load global power state
+  }, [loadDashboardData, loadTabsLoggingStatus, loadSettings, loadGlobalPowerState]); // MEMORY LEAK FIX: Include all dependencies
+
+  // MEMORY LEAK FIX: Toggle global power state (entire extension)
+  const toggleGlobalPower = useCallback(async () => {
+    const newState = !globalPowerEnabled;
+    setGlobalPowerEnabled(newState);
+    
+    // Update Chrome storage for backward compatibility
+    await chrome.storage.sync.set({ extensionEnabled: newState });
+    
+    // Update extension state controller for immediate effect
+    try {
+      const response = await sendChromeMessage({
+        action: 'SET_EXTENSION_STATE',
+        enabled: newState
+      });
+      
+      if (!response?.success) {
+        console.warn('Failed to update global extension state:', response);
+      } else {
+        console.log(`🔄 Dashboard: Global power ${newState ? 'enabled' : 'disabled'}`);
+      }
+    } catch (error) {
+      console.error('Error updating global extension state:', error);
+    }
+  }, [globalPowerEnabled]); // Include globalPowerEnabled as dependency
 
   // MEMORY LEAK FIX: Load page data on-demand when page changes
   // Always load first page, then check totals for subsequent pages
@@ -2455,6 +2504,27 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
             <div className="flex gap-3">
+              {/* Global Power Button */}
+              <div className="flex items-center">
+                <span className="text-sm font-medium text-gray-700 mr-3 flex items-center">
+                  <span className="text-lg mr-1">⚡</span>
+                  Extension Power
+                </span>
+                <button
+                  onClick={toggleGlobalPower}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    globalPowerEnabled ? 'bg-green-500' : 'bg-red-500'
+                  }`}
+                  title={`Click to ${globalPowerEnabled ? 'disable' : 'enable'} entire extension`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      globalPowerEnabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+              
               <button
                 onClick={refreshData}
                 className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
