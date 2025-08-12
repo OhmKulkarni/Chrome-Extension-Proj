@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Toggle Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: rgba(255,255,255,0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        .button { 
+            padding: 12px 24px; 
+            margin: 10px; 
+            background: #4CAF50; 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        .button:hover { 
+            background: #45a049; 
+            transform: translateY(-2px);
+        }
+        .button.danger {
+            background: #f44336;
+        }
+        .button.danger:hover {
+            background: #d32f2f;
+        }
+        .button.warning {
+            background: #ff9800;
+        }
+        .button.warning:hover {
+            background: #f57c00;
+        }
+        .result { 
+            margin: 15px 0; 
+            padding: 15px; 
+            background: rgba(255,255,255,0.15); 
+            border-radius: 8px; 
+            border-left: 4px solid #4CAF50;
+        }
+        .success { border-left-color: #4CAF50; }
+        .error { border-left-color: #f44336; }
+        .info { border-left-color: #2196F3; }
+        .warning { border-left-color: #ff9800; }
+        .test-section {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+        }
+        .instruction {
+            background: rgba(33, 150, 243, 0.2);
+            border: 1px solid #2196F3;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .step {
+            background: rgba(76, 175, 80, 0.2);
+            border-left: 3px solid #4CAF50;
+            padding: 10px 15px;
+            margin: 10px 0;
+        }
+        .counter {
+            display: inline-block;
+            background: #4CAF50;
+            color: white;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 25px;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Dynamic Toggle Test</h1>
+        <p>This page tests whether the extension responds to toggle changes <strong>without requiring a page refresh</strong>.</p>
+        
+        <div class="instruction">
+            <h2>📋 Test Instructions</h2>
+            <div class="step">
+                <span class="counter">1</span>
+                <strong>Load Extension:</strong> Make sure the extension is installed and working
+            </div>
+            <div class="step">
+                <span class="counter">2</span>
+                <strong>Open Popup:</strong> Click the extension icon to open the popup
+            </div>
+            <div class="step">
+                <span class="counter">3</span>
+                <strong>Verify States:</strong> Ensure Global Power (red) = ON, Site Toggle (blue) = ON
+            </div>
+            <div class="step">
+                <span class="counter">4</span>
+                <strong>Enable Logging:</strong> Turn ON all three logging toggles (green/yellow switches)
+            </div>
+            <div class="step">
+                <span class="counter">5</span>
+                <strong>Test Activity:</strong> Click "Generate Test Activity" below to verify logging works
+            </div>
+            <div class="step">
+                <span class="counter">6</span>
+                <strong>Disable Site:</strong> Turn OFF the blue "Site Toggle" in popup
+            </div>
+            <div class="step">
+                <span class="counter">7</span>
+                <strong>Test Disabled:</strong> Click test buttons again - should see no activity
+            </div>
+            <div class="step">
+                <span class="counter">8</span>
+                <strong>Enable Site:</strong> Turn ON the blue "Site Toggle" again (WITHOUT refreshing page)
+            </div>
+            <div class="step">
+                <span class="counter">9</span>
+                <strong>Test Restored:</strong> Click test buttons - should work immediately!
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>🧪 Test Activity Generators</h2>
+            <p>Use these buttons to generate different types of extension activity:</p>
+            
+            <div>
+                <h3>Network Requests</h3>
+                <button class="button" onclick="generateNetworkActivity()">Generate Network Activity</button>
+                <button class="button warning" onclick="generateTokenActivity()">Generate Token Activity</button>
+                <button class="button" onclick="generateAPIActivity()">Generate API Activity</button>
+            </div>
+
+            <div>
+                <h3>Console Errors</h3>
+                <button class="button danger" onclick="generateConsoleErrors()">Generate Console Errors</button>
+                <button class="button warning" onclick="generateWarnings()">Generate Warnings</button>
+            </div>
+
+            <div>
+                <h3>Combined Tests</h3>
+                <button class="button" onclick="generateAllActivity()">Generate ALL Activity</button>
+                <button class="button danger" onclick="clearResults()">Clear Results</button>
+            </div>
+        </div>
+
+        <div id="results">
+            <h2>📊 Test Results</h2>
+            <div class="result info">
+                <strong>Ready:</strong> Click "Generate Test Activity" to start testing
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>🔍 What to Watch For</h2>
+            <div class="instruction">
+                <h3>✅ Expected Behavior:</h3>
+                <ul>
+                    <li><strong>Site ON:</strong> Activity buttons generate network requests, console messages, tokens</li>
+                    <li><strong>Site OFF:</strong> Activity buttons do nothing or get blocked</li>
+                    <li><strong>Site Re-enabled:</strong> Activity works <em>immediately</em> without refresh</li>
+                </ul>
+                
+                <h3>❌ Signs of Problems:</h3>
+                <ul>
+                    <li>Need to refresh page after re-enabling site toggle</li>
+                    <li>Activity doesn't resume when site is re-enabled</li>
+                    <li>Memory leaks or performance issues</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let testCount = 0;
+
+        function log(message, type = 'info') {
+            testCount++;
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = `<strong>Test ${testCount}:</strong> ${message} <small>(${new Date().toLocaleTimeString()})</small>`;
+            results.appendChild(div);
+            console.log(`🧪 DYNAMIC TEST ${testCount}: ${message}`);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '<h2>📊 Test Results</h2>';
+            testCount = 0;
+            log('Results cleared, ready for new tests', 'info');
+        }
+
+        async function makeRequest(url, options = {}) {
+            try {
+                const response = await fetch(url, {
+                    method: options.method || 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer test-token-' + Date.now(),
+                        ...options.headers
+                    },
+                    body: options.body ? JSON.stringify(options.body) : undefined
+                });
+                
+                log(`Network request to ${url} - Status: ${response.status}`, 
+                    response.ok ? 'success' : 'error');
+                
+                return response;
+            } catch (error) {
+                log(`Network request to ${url} failed: ${error.message}`, 'error');
+                return null;
+            }
+        }
+
+        async function generateNetworkActivity() {
+            log('Generating network activity...', 'info');
+            
+            const endpoints = [
+                'https://httpbin.org/get',
+                'https://httpbin.org/post',
+                'https://jsonplaceholder.typicode.com/posts/1',
+                'https://jsonplaceholder.typicode.com/users'
+            ];
+            
+            for (const endpoint of endpoints) {
+                await makeRequest(endpoint);
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+        }
+
+        async function generateTokenActivity() {
+            log('Generating token-related activity...', 'info');
+            
+            const tokenEndpoints = [
+                'https://httpbin.org/post', // Will be treated as token endpoint due to headers
+                'https://jsonplaceholder.typicode.com/auth/login',
+                'https://jsonplaceholder.typicode.com/token/refresh'
+            ];
+            
+            for (const endpoint of tokenEndpoints) {
+                await makeRequest(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test.signature',
+                        'X-Refresh-Token': 'refresh-token-here'
+                    },
+                    body: {
+                        grant_type: 'authorization_code',
+                        username: 'testuser'
+                    }
+                });
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+        }
+
+        async function generateAPIActivity() {
+            log('Generating API activity...', 'info');
+            
+            await makeRequest('https://httpbin.org/get', {
+                headers: {
+                    'X-API-Key': 'test-api-key-12345',
+                    'User-Agent': 'DynamicToggleTest/1.0'
+                }
+            });
+            
+            await makeRequest('https://httpbin.org/post', {
+                method: 'POST',
+                body: {
+                    test: 'api-data',
+                    timestamp: Date.now()
+                }
+            });
+        }
+
+        function generateConsoleErrors() {
+            log('Generating console errors...', 'info');
+            
+            // Generate various types of console messages
+            console.error('Test error generated at', new Date().toISOString());
+            console.warn('Test warning generated at', new Date().toISOString());
+            console.log('Test log message for testing');
+            
+            // Generate a runtime error
+            try {
+                throw new Error('Intentional test error for extension monitoring');
+            } catch (error) {
+                console.error('Caught test error:', error.message);
+            }
+            
+            log('Console errors generated', 'warning');
+        }
+
+        function generateWarnings() {
+            log('Generating console warnings...', 'info');
+            
+            console.warn('Warning: Test warning message #1');
+            console.warn('Warning: Test warning message #2');
+            console.info('Info: Test info message');
+            
+            log('Console warnings generated', 'warning');
+        }
+
+        async function generateAllActivity() {
+            log('Starting comprehensive activity test...', 'info');
+            
+            await generateNetworkActivity();
+            generateConsoleErrors();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await generateTokenActivity();
+            generateWarnings();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await generateAPIActivity();
+            
+            log('All activity generation complete!', 'success');
+        }
+
+        // Auto-run initial test on page load
+        window.onload = function() {
+            log('Dynamic toggle test page loaded', 'info');
+            log('Extension should detect this page and be ready for testing', 'info');
+            
+            // Generate some initial activity to verify extension is working
+            setTimeout(() => {
+                log('Running initial connectivity test...', 'info');
+                makeRequest('https://httpbin.org/get').then(() => {
+                    log('Initial test complete - extension should have captured this request', 'success');
+                });
+            }, 1000);
+        };
+    </script>
+</body>
+</html>

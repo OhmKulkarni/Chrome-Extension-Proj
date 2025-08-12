@@ -261,6 +261,7 @@ let injectionAttempted = false;
 // MEMORY LEAK FIX: Store event handlers for cleanup
 const eventHandlers = {
   settingsRequest: null as EventListener | null,
+  contentScriptRequest: null as EventListener | null,
   networkIntercepted: null as EventListener | null,
   consoleIntercepted: null as EventListener | null,
   beforeUnload1: null as EventListener | null,
@@ -277,6 +278,10 @@ const cleanupEventListeners = () => {
   if (eventHandlers.settingsRequest) {
     window.removeEventListener('extensionRequestSettings', eventHandlers.settingsRequest);
     eventHandlers.settingsRequest = null;
+  }
+  if (eventHandlers.contentScriptRequest) {
+    window.removeEventListener('contentScriptRequest', eventHandlers.contentScriptRequest);
+    eventHandlers.contentScriptRequest = null;
   }
   if (eventHandlers.networkIntercepted) {
     window.removeEventListener('networkRequestIntercepted', eventHandlers.networkIntercepted);
@@ -319,8 +324,9 @@ const cleanupEventListeners = () => {
 // Listen for settings requests from main-world script
 eventHandlers.settingsRequest = async () => {
   try {
-    const result = await chrome.storage.sync.get(['networkInterception']);
-    const settings = result.networkInterception || { bodyCapture: { maxBodySize: 2000 } };
+    // Use local storage for consistency with background script
+    const result = await chrome.storage.local.get(['settings']);
+    const settings = result.settings?.networkInterception || { bodyCapture: { maxBodySize: 2000 } };
     
     window.dispatchEvent(new CustomEvent('extensionSettingsResponse', {
       detail: { networkInterception: settings }
@@ -338,6 +344,115 @@ eventHandlers.settingsRequest = async () => {
 
 // Add the event listener
 window.addEventListener('extensionRequestSettings', eventHandlers.settingsRequest);
+
+// Add handler for requests from main-world script
+eventHandlers.contentScriptRequest = async (event: Event) => {
+  const customEvent = event as CustomEvent;
+  const { action, requestId } = customEvent.detail;
+  let response = null;
+  
+  console.log('📨 CONTENT: Received request from main-world:', action, 'ID:', requestId);
+  
+  try {
+    switch (action) {
+      case 'checkNetworkLogging':
+        console.log('📨 CONTENT: Processing checkNetworkLogging request...');
+        const tabResponse = await sendChromeMessage({ action: 'getCurrentTabId' });
+        const tabId = tabResponse?.tabId;
+        console.log('📨 CONTENT: Current tab ID:', tabId);
+        
+        if (tabId) {
+          const result = await chrome.storage.local.get([`tabLogging_${tabId}`, 'extensionEnabled']);
+          const globalEnabled = result.extensionEnabled !== false;
+          const tabLogging = result[`tabLogging_${tabId}`];
+          const tabEnabled = !tabLogging || tabLogging.status === 'active';
+          
+          console.log('📨 CONTENT: Network logging state - Global:', globalEnabled, 'Tab:', tabEnabled, 'TabLogging:', tabLogging);
+          response = { enabled: globalEnabled && tabEnabled };
+        } else {
+          console.log('📨 CONTENT: No tab ID available, returning false');
+          response = { enabled: false };
+        }
+        break;
+        
+      case 'checkConsoleLogging':
+        console.log('📨 CONTENT: Processing checkConsoleLogging request...');
+        const currentTabResponse = await sendChromeMessage({ action: 'getCurrentTabId' });
+        const currentTabId = currentTabResponse?.tabId;
+        console.log('📨 CONTENT: Current tab ID for console:', currentTabId);
+        
+        if (currentTabId) {
+          const result = await chrome.storage.local.get([
+            `tabLogging_${currentTabId}`, 
+            'extensionEnabled',
+            'settings'
+          ]);
+          
+          const globalEnabled = result.extensionEnabled !== false;
+          const tabLogging = result[`tabLogging_${currentTabId}`];
+          const tabEnabled = !tabLogging || tabLogging.status === 'active';
+          const errorLoggingEnabled = result.settings?.errorLogging?.enabled !== false;
+          
+          console.log('📨 CONTENT: Console logging state - Global:', globalEnabled, 'Tab:', tabEnabled, 'ErrorLogging:', errorLoggingEnabled);
+          response = { enabled: globalEnabled && tabEnabled && errorLoggingEnabled };
+        } else {
+          console.log('📨 CONTENT: No tab ID available for console, returning false');
+          response = { enabled: false };
+        }
+        break;
+        
+      case 'checkConsoleSeverity':
+        console.log('📨 CONTENT: Processing checkConsoleSeverity request for:', customEvent.detail.data?.severity);
+        const severity = customEvent.detail.data?.severity || 'error';
+        
+        const tabIdResponse = await sendChromeMessage({ action: 'getCurrentTabId' });
+        const tabIdForSeverity = tabIdResponse?.tabId;
+        
+        if (tabIdForSeverity) {
+          const result = await chrome.storage.local.get([
+            `tabLogging_${tabIdForSeverity}`, 
+            'extensionEnabled',
+            'settings'
+          ]);
+          
+          const globalEnabled = result.extensionEnabled !== false;
+          const tabLogging = result[`tabLogging_${tabIdForSeverity}`];
+          const tabEnabled = !tabLogging || tabLogging.status === 'active';
+          const errorLoggingEnabled = result.settings?.errorLogging?.enabled !== false;
+          
+          // Check severity filter
+          let severityAllowed = true;
+          if (result.settings?.errorLogging?.severityFilter?.enabled) {
+            const allowedSeverities = result.settings.errorLogging.severityFilter.allowed || [];
+            severityAllowed = allowedSeverities.includes(severity);
+          }
+          
+          console.log('📨 CONTENT: Console severity check - Global:', globalEnabled, 'Tab:', tabEnabled, 'ErrorLogging:', errorLoggingEnabled, 'SeverityAllowed:', severityAllowed);
+          response = { enabled: globalEnabled && tabEnabled && errorLoggingEnabled && severityAllowed };
+        } else {
+          console.log('📨 CONTENT: No tab ID available for severity check, returning false');
+          response = { enabled: false };
+        }
+        break;
+        
+      default:
+        console.log('📨 CONTENT: Unknown action:', action);
+        response = { error: 'Unknown action' };
+    }
+  } catch (error) {
+    console.log('❌ CONTENT: Error handling content script request:', error);
+    response = { error: String(error) };
+  }
+  
+  console.log('📨 CONTENT: Sending response for', action, ':', response);
+  
+  // Send response back to main-world script
+  window.dispatchEvent(new CustomEvent('contentScriptResponse', {
+    detail: { requestId, response }
+  }));
+};
+
+window.addEventListener('contentScriptRequest', eventHandlers.contentScriptRequest);
 
 // CRITICAL FIX: Add missing network request message listener
 // This was causing network requests to not be forwarded to background script!
@@ -767,8 +882,20 @@ eventHandlers.runtimeMessage = (message, _sender, sendResponse) => {
 chrome.runtime.onMessage.addListener(eventHandlers.runtimeMessage);
 
 // MEMORY LEAK FIX: Storage change listener with proper cleanup
-const storageChangeHandler = (changes: any, namespace: string) => {
+const storageChangeHandler = async (changes: any, namespace: string) => {
   if (namespace === 'local') {
+    // Check for settings changes
+    if (changes.settings) {
+      console.log('⚙️ CONTENT: Settings changed, updating main-world script...');
+      // Send updated settings to main-world script
+      const newSettings = changes.settings.newValue;
+      if (newSettings?.networkInterception) {
+        window.dispatchEvent(new CustomEvent('extensionSettingsResponse', {
+          detail: { networkInterception: newSettings.networkInterception }
+        }));
+      }
+    }
+    
     // Check for tab logging changes
     for (const key in changes) {
       if (key.startsWith('tabLogging_')) {
@@ -776,12 +903,39 @@ const storageChangeHandler = (changes: any, namespace: string) => {
         const change = changes[key];
         console.log('📡 CONTENT: Tab logging state changed for tab', tabId, ':', change.newValue);
         
-        // If logging was enabled and we haven't injected yet, try to inject
-        if (change.newValue?.status === 'active') {
-          console.log('🔄 CONTENT: Tab logging enabled via storage change, attempting injection...');
-          injectMainWorldScript().then(success => {
-            console.log('🌍 CONTENT: Storage-triggered injection result:', success);
+        // Get current tab ID to see if this change affects current tab
+        const tabResponse = await sendChromeMessage({ action: 'getCurrentTabId' });
+        const currentTabId = tabResponse?.tabId;
+        
+        if (currentTabId && tabId === currentTabId.toString()) {
+          const tabLoggingEnabled = change.newValue?.status === 'active';
+          
+          // Check if extension is globally enabled
+          const stateResponse = await sendChromeMessage({
+            action: 'GET_EXTENSION_STATE',
+            tabId: currentTabId
           });
+          const globalEnabled = stateResponse?.enabled ?? true;
+          
+          // Check console logging settings
+          const settingsResult = await chrome.storage.local.get(['settings']);
+          const errorLoggingEnabled = settingsResult.settings?.errorLogging?.enabled !== false;
+          
+          // Notify main-world script about state changes
+          window.dispatchEvent(new CustomEvent('tabLoggingStateChange', {
+            detail: {
+              networkEnabled: globalEnabled && tabLoggingEnabled,
+              consoleEnabled: globalEnabled && tabLoggingEnabled && errorLoggingEnabled
+            }
+          }));
+          
+          // If logging was enabled and we haven't injected yet, try to inject
+          if (tabLoggingEnabled) {
+            console.log('🔄 CONTENT: Tab logging enabled via storage change, attempting injection...');
+            injectMainWorldScript().then(success => {
+              console.log('🌍 CONTENT: Storage-triggered injection result:', success);
+            });
+          }
         }
       }
     }
