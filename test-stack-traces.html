@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stack Trace Test</title>
+</head>
+<body>
+    <h1>Stack Trace Test Page</h1>
+    <p>Open DevTools Console to see the results</p>
+    <button onclick="testDirectError()">Test Direct Error</button>
+    <button onclick="testNestedError()">Test Nested Error</button>
+    <button onclick="testActualError()">Test Actual Error Object</button>
+
+    <script>
+        function testDirectError() {
+            console.error("Direct console.error call from testDirectError");
+        }
+
+        function testNestedError() {
+            function level1() {
+                function level2() {
+                    function level3() {
+                        console.error("Nested console.error from level3");
+                    }
+                    level3();
+                }
+                level2();
+            }
+            level1();
+        }
+
+        function testActualError() {
+            try {
+                throw new Error("This is an actual Error object");
+            } catch (e) {
+                console.error("Caught error:", e);
+            }
+        }
+
+        // Auto-run tests
+        setTimeout(() => {
+            console.log("=== Running Stack Trace Tests ===");
+            testDirectError();
+            setTimeout(() => testNestedError(), 100);
+            setTimeout(() => testActualError(), 200);
+        }, 1000);
+    </script>
+</body>
+</html>

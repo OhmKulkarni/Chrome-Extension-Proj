@@ -2,8 +2,14 @@
 // Use original console.log for the initial message before interception starts
 (console.log || function(){})('🌍 MAIN-WORLD: Script injected into main world');
 
+// Guard against multiple injections
+if (window.__MAIN_WORLD_SCRIPT_INJECTED) {
+  console.log('🌍 MAIN-WORLD: Script already injected, skipping...');
+} else {
+  window.__MAIN_WORLD_SCRIPT_INJECTED = true;
+
 // Default settings - complete structure for body capture control
-let extensionSettings = {
+var extensionSettings = {
   bodyCapture: {
     mode: 'disabled',        // 'disabled' | 'partial' | 'full'
     captureRequests: false,  // Only used when mode = 'partial'
@@ -347,7 +353,7 @@ const interceptXHR = (xhr, originalXhrSend, data) => {
 };
 
 // Console interception functions
-const interceptConsole = async (originalMethod, methodName, severity, ...args) => {
+const interceptConsole = async (originalMethod, methodName, severity, callSiteStack, ...args) => {
   // Call original method first to maintain normal console behavior
   originalMethod.apply(console, args);
   
@@ -370,8 +376,21 @@ const interceptConsole = async (originalMethod, methodName, severity, ...args) =
     
     debugLog('🌍 MAIN_WORLD: Console severity enabled, capturing:', severity);
     
-    // Convert arguments to strings
+    // Convert arguments to strings and check for Error objects
+    let errorStack = null;
+    let capturedError = null;
+    
     const message = args.map(arg => {
+      // Check if argument is an Error object with stack trace
+      if (arg instanceof Error) {
+        if (arg.stack) {
+          errorStack = arg.stack; // Preserve original Error stack
+          capturedError = arg;
+          debugLog('🌍 MAIN_WORLD: Found Error object with stack');
+        }
+        return `${arg.name || 'Error'}: ${arg.message}`;
+      }
+      
       if (typeof arg === 'object') {
         try {
           return JSON.stringify(arg, null, 2);
@@ -382,6 +401,42 @@ const interceptConsole = async (originalMethod, methodName, severity, ...args) =
       return String(arg);
     }).join(' ');
     
+    // If no Error object was passed but we need stack trace, use the call site stack
+    if (!errorStack && (severity === 'error' || severity === 'warn') && callSiteStack) {
+      // PHASE 3 FIX: Use pre-captured stack from call site
+      // Remove the interceptor frames from the stack
+      const stackLines = callSiteStack.split('\n');
+      
+      // Find where the actual user code starts (skip interceptor frames)
+      let userStackStart = 0;
+      for (let i = 0; i < stackLines.length; i++) {
+        const line = stackLines[i];
+        // Skip lines that are part of the interceptor or console override
+        if (line.includes('interceptConsole') || 
+            line.includes('console.error') ||
+            line.includes('console.warn') ||
+            line.includes('console.info') ||
+            line.includes('console.log') ||
+            line.includes('main-world-script.js')) {
+          userStackStart = i + 1;
+        } else if (userStackStart > 0) {
+          // We've found the first non-interceptor line
+          break;
+        }
+      }
+      
+      // Reconstruct stack with user code only
+      if (userStackStart < stackLines.length) {
+        const cleanedLines = stackLines.slice(userStackStart);
+        // Add a descriptive first line
+        errorStack = 'Error\n' + cleanedLines.join('\n');
+        debugLog('🌍 MAIN_WORLD: Used call site stack trace, removed', userStackStart, 'interceptor frames');
+      } else {
+        // Fallback if we couldn't clean the stack
+        errorStack = callSiteStack;
+      }
+    }
+    
     // Create console error data
     const consoleData = {
       message: message,
@@ -390,7 +445,10 @@ const interceptConsole = async (originalMethod, methodName, severity, ...args) =
       url: window.location.href,
       domain: getSafeDomain(window.location.href),
       source: 'page-console',
-      stack: severity === 'error' ? (new Error().stack) : null
+      stack: errorStack,
+      // Include error details if available
+      errorName: capturedError?.name || null,
+      errorMessage: capturedError?.message || null
     };
     
     debugLog('🌍 MAIN_WORLD: Dispatching console error event:', consoleData);
@@ -472,20 +530,99 @@ try {
     
     // Override console methods
     console.error = function(...args) {
-      interceptConsole(originalConsoleError, 'error', 'error', ...args);
+      // PHASE 1 FIX: Capture stack trace immediately at console call site
+      const callSiteStack = new Error().stack;
+      interceptConsole(originalConsoleError, 'error', 'error', callSiteStack, ...args);
     };
     
     console.warn = function(...args) {
-      interceptConsole(originalConsoleWarn, 'warn', 'warn', ...args);
+      // PHASE 1 FIX: Capture stack trace immediately at console call site
+      const callSiteStack = new Error().stack;
+      interceptConsole(originalConsoleWarn, 'warn', 'warn', callSiteStack, ...args);
     };
     
     console.info = function(...args) {
-      interceptConsole(originalConsoleInfo, 'info', 'info', ...args);
+      // PHASE 1 FIX: Capture stack trace immediately at console call site
+      const callSiteStack = new Error().stack;
+      interceptConsole(originalConsoleInfo, 'info', 'info', callSiteStack, ...args);
     };
     
     console.log = function(...args) {
-      interceptConsole(originalConsoleLog, 'log', 'info', ...args);
+      // PHASE 1 FIX: Capture stack trace immediately at console call site
+      const callSiteStack = new Error().stack;
+      interceptConsole(originalConsoleLog, 'log', 'info', callSiteStack, ...args);
     };
+  };
+  
+  // Global error handlers for uncaught errors
+  const setupGlobalErrorHandlers = () => {
+    // Handle uncaught errors
+    window.addEventListener('error', async (event) => {
+      debugLog('🌍 MAIN_WORLD: Uncaught error detected:', event);
+      
+      // Filter out browser API policy errors that aren't relevant for debugging
+      const message = event.message || '';
+      const stack = event.error?.stack || '';
+      
+      if (message.includes('browsingTopics') || 
+          message.includes('interest-cohort') ||
+          message.includes('Permissions Policy denied') ||
+          stack.includes('pd?gdpr=')) {
+        debugLog('🌍 MAIN_WORLD: Filtering out browser policy error:', message);
+        return;
+      }
+      
+      // Check if console logging is enabled
+      const result = await requestFromContentScript('checkConsoleSeverity', { severity: 'error' });
+      if (!result?.enabled) return;
+      
+      const errorData = {
+        message: event.message || 'Uncaught error',
+        severity: 'error',
+        timestamp: new Date().toISOString(),
+        url: event.filename || window.location.href,
+        domain: getSafeDomain(event.filename || window.location.href),
+        source: 'uncaught-error',
+        stack: event.error?.stack || `Error at ${event.filename}:${event.lineno}:${event.colno}`,
+        errorName: event.error?.name || 'Error',
+        errorMessage: event.error?.message || event.message,
+        lineNumber: event.lineno,
+        columnNumber: event.colno
+      };
+      
+      debugLog('🌍 MAIN_WORLD: Dispatching uncaught error event:', errorData);
+      window.dispatchEvent(new CustomEvent('consoleErrorIntercepted', {
+        detail: errorData
+      }));
+    });
+    
+    // Handle unhandled promise rejections
+    window.addEventListener('unhandledrejection', async (event) => {
+      debugLog('🌍 MAIN_WORLD: Unhandled promise rejection detected:', event);
+      
+      // Check if console logging is enabled
+      const result = await requestFromContentScript('checkConsoleSeverity', { severity: 'error' });
+      if (!result?.enabled) return;
+      
+      const errorData = {
+        message: `Unhandled Promise Rejection: ${event.reason}`,
+        severity: 'error',
+        timestamp: new Date().toISOString(),
+        url: window.location.href,
+        domain: getSafeDomain(window.location.href),
+        source: 'unhandled-promise',
+        stack: event.reason?.stack || new Error().stack,
+        errorName: event.reason?.name || 'UnhandledPromiseRejection',
+        errorMessage: event.reason?.message || String(event.reason)
+      };
+      
+      debugLog('🌍 MAIN_WORLD: Dispatching unhandled promise event:', errorData);
+      window.dispatchEvent(new CustomEvent('consoleErrorIntercepted', {
+        detail: errorData
+      }));
+    });
+    
+    debugLog('🌍 MAIN_WORLD: Global error handlers setup complete');
   };
   
   // Stop interception
@@ -543,6 +680,7 @@ try {
     if (consoleEnabled) {
       debugLog('🌍 MAIN_WORLD: Console logging enabled, starting console interception...');
       startConsoleInterception();
+      setupGlobalErrorHandlers(); // Add global error handlers
     } else {
       debugLog('🌍 MAIN_WORLD: Console logging disabled, not starting console interception');
     }
@@ -583,6 +721,7 @@ try {
       if (consoleEnabled && !isConsoleIntercepting) {
         debugLog('🌍 MAIN_WORLD: Starting console interception due to state change');
         startConsoleInterception();
+        setupGlobalErrorHandlers(); // Add global error handlers when starting console interception
       } else if (!consoleEnabled && isConsoleIntercepting) {
         debugLog('🌍 MAIN_WORLD: Stopping console interception due to state change');
         stopConsoleInterception();
@@ -609,3 +748,5 @@ window.addEventListener('checkMainWorldActive', (event) => {
 if (window.__originalConsole && window.__originalConsole.log) {
   window.__originalConsole.log('🌍 MAIN-WORLD: Network interception script loaded and ready');
 }
+
+} // End of injection guard

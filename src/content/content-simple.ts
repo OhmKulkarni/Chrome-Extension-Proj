@@ -664,12 +664,19 @@ eventHandlers.consoleIntercepted = async (event: any) => {
     const formattedData = {
       message: errorData.message || 'Unknown error',
       stack: errorData.stack || null,
+      stack_trace: errorData.stack || null, // Ensure compatibility with dashboard
       timestamp: errorData.timestamp || Date.now(),
       severity: errorData.severity || 'error',
       url: errorData.url || window.location.href,
       tabId: tabResponse.tabId,
       tabUrl: window.location.href,
-      domain: errorData.domain || window.location.hostname
+      domain: errorData.domain || window.location.hostname,
+      // Include enhanced error data
+      errorName: errorData.errorName || null,
+      errorMessage: errorData.errorMessage || null,
+      lineNumber: errorData.lineNumber || null,
+      columnNumber: errorData.columnNumber || null,
+      source: errorData.source || 'page-console'
     };
 
     // Send to background script using existing CONSOLE_ERROR action
