@@ -1,21 +1,9 @@
 // Main world injection script - runs in the same context as the page
-// Use original console.log for the initial message before interception starts
-(console.log || function(){})('🌍 MAIN-WORLD: Script injected into main world');
+console.log('🌍 MAIN-WORLD: Script injected into main world');
 
-// Guard against multiple injections
-if (window.__MAIN_WORLD_SCRIPT_INJECTED) {
-  console.log('🌍 MAIN-WORLD: Script already injected, skipping...');
-} else {
-  window.__MAIN_WORLD_SCRIPT_INJECTED = true;
-
-// Default settings - complete structure for body capture control
-var extensionSettings = {
-  bodyCapture: {
-    mode: 'disabled',        // 'disabled' | 'partial' | 'full'
-    captureRequests: false,  // Only used when mode = 'partial'
-    captureResponses: false, // Only used when mode = 'partial'
-    maxBodySize: 2000       // Only used when mode = 'partial', ignored in 'full'
-  }
+// Default settings
+let extensionSettings = {
+  maxBodySize: 2000 // Default truncation limit
 };
 
 // Track original functions and interception state
@@ -23,33 +11,12 @@ let originalFetch = window.fetch;
 let originalXhrOpen = XMLHttpRequest.prototype.open;
 let originalXhrSend = XMLHttpRequest.prototype.send;
 let originalXhrSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader;
-
-// Store original console methods properly to prevent recursive calls
-if (!window.__originalConsole) {
-  window.__originalConsole = {
-    error: console.error,
-    warn: console.warn,
-    info: console.info,
-    log: console.log
-  };
-}
-
-let originalConsoleError = window.__originalConsole.error;
-let originalConsoleWarn = window.__originalConsole.warn;
-let originalConsoleInfo = window.__originalConsole.info;
-let originalConsoleLog = window.__originalConsole.log;
+let originalConsoleError = console.error;
+let originalConsoleWarn = console.warn;
+let originalConsoleInfo = console.info;
+let originalConsoleLog = console.log;
 let isIntercepting = false;
 let isConsoleIntercepting = false;
-
-// Prevent recursive console interception
-window.__isInterceptingConsole = window.__isInterceptingConsole ?? false;
-
-// Debug logging function that won't cause recursion
-const debugLog = (message, ...args) => {
-  if (window.__originalConsole && window.__originalConsole.log) {
-    window.__originalConsole.log(message, ...args);
-  }
-};
 
 // State tracking for main-world context (no direct Chrome API access)
 let mainWorldState = {
@@ -64,13 +31,13 @@ const requestFromContentScript = (action, data = {}) => {
     const requestId = Math.random().toString(36);
     let resolved = false;
     
-    debugLog('🌍 MAIN_WORLD: Requesting from content script:', action, 'ID:', requestId);
+    console.log('🌍 MAIN_WORLD: Requesting from content script:', action, 'ID:', requestId);
     
     const responseHandler = (event) => {
       if (event.detail?.requestId === requestId && !resolved) {
         resolved = true;
         window.removeEventListener('contentScriptResponse', responseHandler);
-        debugLog('🌍 MAIN_WORLD: Received response for:', action, 'Response:', event.detail.response);
+        console.log('🌍 MAIN_WORLD: Received response for:', action, 'Response:', event.detail.response);
         resolve(event.detail.response);
       }
     };
@@ -85,7 +52,7 @@ const requestFromContentScript = (action, data = {}) => {
       if (!resolved) {
         resolved = true;
         window.removeEventListener('contentScriptResponse', responseHandler);
-        debugLog('🌍 MAIN_WORLD: Request timeout for:', action);
+        console.log('🌍 MAIN_WORLD: Request timeout for:', action);
         resolve(null);
       }
     }, 1000);
@@ -95,12 +62,12 @@ const requestFromContentScript = (action, data = {}) => {
 // Check if logging is enabled for current tab
 const isLoggingEnabled = async () => {
   try {
-    debugLog('🌍 MAIN_WORLD: Checking if logging is enabled...');
+    console.log('🌍 MAIN_WORLD: Checking if logging is enabled...');
     const result = await requestFromContentScript('checkNetworkLogging');
-    debugLog('🌍 MAIN_WORLD: Network logging check result:', result);
+    console.log('🌍 MAIN_WORLD: Network logging check result:', result);
     return result?.enabled ?? mainWorldState.networkLoggingEnabled;
   } catch (error) {
-    debugLog('🌍 MAIN_WORLD: Error checking logging state:', error);
+    console.warn('🌍 MAIN_WORLD: Error checking logging state:', error);
     return mainWorldState.networkLoggingEnabled;
   }
 };
@@ -108,12 +75,12 @@ const isLoggingEnabled = async () => {
 // Check if console error logging is enabled for current tab
 const isConsoleLoggingEnabled = async () => {
   try {
-    debugLog('🌍 MAIN_WORLD: Checking if console logging is enabled...');
+    console.log('🌍 MAIN_WORLD: Checking if console logging is enabled...');
     const result = await requestFromContentScript('checkConsoleLogging');
-    debugLog('🌍 MAIN_WORLD: Console logging check result:', result);
+    console.log('🌍 MAIN_WORLD: Console logging check result:', result);
     return result?.enabled ?? mainWorldState.consoleLoggingEnabled;
   } catch (error) {
-    debugLog('🌍 MAIN_WORLD: Error checking console logging state:', error);
+    console.warn('🌍 MAIN_WORLD: Error checking console logging state:', error);
     return mainWorldState.consoleLoggingEnabled;
   }
 };
@@ -123,7 +90,7 @@ function getSafeDomain(url) {
   try {
     return new URL(url).hostname;
   } catch (error) {
-    debugLog('🌍 MAIN-WORLD: Invalid URL, using fallback domain:', url);
+    console.log('🌍 MAIN-WORLD: Invalid URL, using fallback domain:', url);
     // Extract domain from URL string manually
     if (typeof url === 'string') {
       const match = url.match(/^https?:\/\/([^\/]+)/);
@@ -134,7 +101,7 @@ function getSafeDomain(url) {
 }
 
 // Helper function to truncate body content based on settings
-function truncateBody(text, maxSize = extensionSettings.bodyCapture.maxBodySize) {
+function truncateBody(text, maxSize = extensionSettings.maxBodySize) {
   if (!text || typeof text !== 'string') return '';
   
   // Safety: Even if user sets 0 (no limit), apply a reasonable safety limit to prevent memory issues
@@ -150,7 +117,7 @@ function truncateBody(text, maxSize = extensionSettings.bodyCapture.maxBodySize)
   }
   
   if (text.length > effectiveMaxSize) {
-    debugLog(`🌍 MAIN-WORLD: Truncating body from ${text.length} to ${effectiveMaxSize} characters (user limit: ${maxSize})`);
+    console.log(`🌍 MAIN-WORLD: Truncating body from ${text.length} to ${effectiveMaxSize} characters (user limit: ${maxSize})`);
     return text.substring(0, effectiveMaxSize) + '... [TRUNCATED]';
   }
   
@@ -162,61 +129,37 @@ const interceptFetch = (originalFetch, input, init) => {
   const startTime = Date.now();
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
   
-  debugLog('🌍 MAIN-WORLD: Intercepted fetch request:', url);
+  console.log('🌍 MAIN-WORLD: Intercepted fetch request:', url);
   
   // Call the original fetch
   return originalFetch.call(this, input, init).then(async response => {
     const endTime = Date.now();
-    debugLog('🌍 MAIN-WORLD: Fetch response received for:', url, 'Status:', response.status);
+    console.log('🌍 MAIN-WORLD: Fetch response received for:', url, 'Status:', response.status);
     
-    // Mode-based body capture with memory optimization
+    // Try to capture response body
     let responseBody = '';
     let requestBody = '';
     
-    // Copy settings to local variables to prevent race conditions
-    const captureMode = extensionSettings.bodyCapture.mode;
-    const captureRequests = extensionSettings.bodyCapture.captureRequests;
-    const captureResponses = extensionSettings.bodyCapture.captureResponses;
-    const maxBodySize = extensionSettings.bodyCapture.maxBodySize;
-
-    // Early exit if body capture is disabled - prevents unnecessary processing
-    if (captureMode === 'disabled') {
-      requestBody = '[Body capture disabled in settings]';
-      responseBody = '[Body capture disabled in settings]';
-    } else {
-      try {
-        // Handle request body based on mode and settings
-        if (init && init.body) {
-          if (captureMode === 'full' || (captureMode === 'partial' && captureRequests)) {
-            const size = captureMode === 'full' ? 0 : maxBodySize;
-            requestBody = truncateBody(String(init.body), size);
-            debugLog('🌍 MAIN-WORLD: Request body captured (mode:', captureMode, ')');
-          } else {
-            requestBody = '[Request body capture disabled]';
-          }
-        }
-        
-        // Handle response body based on mode and settings  
-        if (captureMode === 'full' || (captureMode === 'partial' && captureResponses)) {
-          const responseClone = response.clone();
-          const contentType = response.headers.get('content-type') || '';
-          
-          if (contentType.includes('application/json') || contentType.includes('text/')) {
-            try {
-              const text = await responseClone.text();
-              const size = captureMode === 'full' ? 0 : maxBodySize;
-              responseBody = truncateBody(text, size);
-              debugLog('🌍 MAIN-WORLD: Response body captured (mode:', captureMode, ')');
-            } catch (e) {
-              debugLog('🌍 MAIN-WORLD: Could not read response body:', e);
-            }
-          }
-        } else {
-          responseBody = '[Response body capture disabled]';
-        }
-      } catch (e) {
-        debugLog('🌍 MAIN-WORLD: Error capturing fetch body:', e);
+    try {
+      // Capture request body
+      if (init && init.body) {
+        requestBody = truncateBody(String(init.body), extensionSettings.maxBodySize);
       }
+      
+      // Clone response to capture body
+      const responseClone = response.clone();
+      const contentType = response.headers.get('content-type') || '';
+      
+      if (contentType.includes('application/json') || contentType.includes('text/')) {
+        try {
+          responseBody = await responseClone.text();
+          responseBody = truncateBody(responseBody, extensionSettings.maxBodySize);
+        } catch (e) {
+          console.log('🌍 MAIN-WORLD: Could not read response body:', e);
+        }
+      }
+    } catch (e) {
+      console.log('🌍 MAIN-WORLD: Error capturing fetch body:', e);
     }
     
     // Capture request headers
@@ -253,7 +196,7 @@ const interceptFetch = (originalFetch, input, init) => {
       timestamp: new Date().toISOString()
     };
 
-    debugLog('🌍 MAIN-WORLD: Sending fetch data:', capturedData);
+    console.log('🌍 MAIN-WORLD: Sending fetch data:', capturedData);
     
     // Send to content script
     window.postMessage({
@@ -263,7 +206,7 @@ const interceptFetch = (originalFetch, input, init) => {
     
     return response;
   }).catch(error => {
-    debugLog('🌍 MAIN-WORLD: Fetch error:', error);
+    console.log('🌍 MAIN-WORLD: Fetch error:', error);
     throw error;
   });
 };
@@ -286,31 +229,17 @@ const interceptXHR = (xhr, originalXhrSend, data) => {
         });
       }
     } catch (e) {
-      debugLog('🌍 MAIN-WORLD: Could not get XHR response headers:', e);
+      console.log('🌍 MAIN-WORLD: Could not get XHR response headers:', e);
     }
 
-    // Mode-based XHR response body capture
+    // Capture response body  
     let responseBody = '';
-    
-    // Copy settings to local variables to prevent race conditions
-    const captureMode = extensionSettings.bodyCapture.mode;
-    const captureResponses = extensionSettings.bodyCapture.captureResponses;
-    const maxBodySize = extensionSettings.bodyCapture.maxBodySize;
-    
-    if (captureMode === 'disabled') {
-      responseBody = '[Body capture disabled in settings]';
-    } else if (captureMode === 'full' || (captureMode === 'partial' && captureResponses)) {
-      try {
-        if (xhr.responseText) {
-          const size = captureMode === 'full' ? 0 : maxBodySize;
-          responseBody = truncateBody(xhr.responseText, size);
-          debugLog('🌍 MAIN-WORLD: XHR response body captured (mode:', captureMode, ')');
-        }
-      } catch (e) {
-        debugLog('🌍 MAIN-WORLD: Could not get XHR response body:', e);
+    try {
+      if (xhr.responseText) {
+        responseBody = truncateBody(xhr.responseText, extensionSettings.maxBodySize);
       }
-    } else {
-      responseBody = '[Response body capture disabled]';
+    } catch (e) {
+      console.log('🌍 MAIN-WORLD: Could not get XHR response body:', e);
     }
 
     // Send captured data
@@ -324,23 +253,12 @@ const interceptXHR = (xhr, originalXhrSend, data) => {
       duration: endTime - xhr._startTime,
       requestHeaders: xhr._requestHeaders || {},
       responseHeaders,
-      requestBody: (() => {
-        if (!data) return '';
-        const captureMode = extensionSettings.bodyCapture.mode;
-        if (captureMode === 'disabled') {
-          return '[Body capture disabled in settings]';
-        }
-        if (captureMode === 'full' || (captureMode === 'partial' && extensionSettings.bodyCapture.captureRequests)) {
-          const size = captureMode === 'full' ? 0 : extensionSettings.bodyCapture.maxBodySize;
-          return truncateBody(String(data), size);
-        }
-        return '[Request body capture disabled]';
-      })(),
+      requestBody: data ? truncateBody(String(data), extensionSettings.maxBodySize) : '',
       responseBody,
       timestamp: new Date().toISOString()
     };
 
-    debugLog('🌍 MAIN-WORLD: Sending XHR data:', capturedData);
+    console.log('🌍 MAIN-WORLD: Sending XHR data:', capturedData);
     
     // Send to content script
     window.postMessage({
@@ -353,118 +271,70 @@ const interceptXHR = (xhr, originalXhrSend, data) => {
 };
 
 // Console interception functions
-const interceptConsole = async (originalMethod, methodName, severity, callSiteStack, ...args) => {
+const interceptConsole = (originalMethod, methodName, severity, ...args) => {
   // Call original method first to maintain normal console behavior
   originalMethod.apply(console, args);
   
-  // Prevent recursive interception
-  if (window.__isInterceptingConsole) {
-    return;
-  }
-  
-  window.__isInterceptingConsole = true;
-  
-  try {
-    // Check if we should capture this log level using content script communication
-    debugLog('🌍 MAIN_WORLD: Checking console severity capture for:', severity);
-    const result = await requestFromContentScript('checkConsoleSeverity', { severity });
-    
-    if (!result?.enabled) {
-      debugLog('🌍 MAIN_WORLD: Console severity not enabled for:', severity);
-      return;
+  // Check if we should capture this log level
+  const shouldCapture = async () => {
+    try {
+      const tabId = await getCurrentTabId();
+      if (!tabId) return false;
+      
+      const result = await chrome.storage.local.get(['extensionSettings']);
+      const settings = result.extensionSettings;
+      
+      if (!settings?.errorLogging?.enabled) return false;
+      
+      // Check severity filter
+      if (settings.errorLogging.severityFilter?.enabled) {
+        const allowedSeverities = settings.errorLogging.severityFilter.allowed || [];
+        return allowedSeverities.includes(severity);
+      }
+      
+      return true;
+    } catch (error) {
+      return false;
     }
+  };
+  
+  // Capture the console output
+  shouldCapture().then(capture => {
+    if (!capture) return;
     
-    debugLog('🌍 MAIN_WORLD: Console severity enabled, capturing:', severity);
-    
-    // Convert arguments to strings and check for Error objects
-    let errorStack = null;
-    let capturedError = null;
-    
-    const message = args.map(arg => {
-      // Check if argument is an Error object with stack trace
-      if (arg instanceof Error) {
-        if (arg.stack) {
-          errorStack = arg.stack; // Preserve original Error stack
-          capturedError = arg;
-          debugLog('🌍 MAIN_WORLD: Found Error object with stack');
+    try {
+      // Convert arguments to strings
+      const message = args.map(arg => {
+        if (typeof arg === 'object') {
+          try {
+            return JSON.stringify(arg, null, 2);
+          } catch (e) {
+            return String(arg);
+          }
         }
-        return `${arg.name || 'Error'}: ${arg.message}`;
-      }
+        return String(arg);
+      }).join(' ');
       
-      if (typeof arg === 'object') {
-        try {
-          return JSON.stringify(arg, null, 2);
-        } catch (e) {
-          return String(arg);
-        }
-      }
-      return String(arg);
-    }).join(' ');
-    
-    // If no Error object was passed but we need stack trace, use the call site stack
-    if (!errorStack && (severity === 'error' || severity === 'warn') && callSiteStack) {
-      // PHASE 3 FIX: Use pre-captured stack from call site
-      // Remove the interceptor frames from the stack
-      const stackLines = callSiteStack.split('\n');
+      // Create console error data
+      const consoleData = {
+        message: message,
+        severity: severity,
+        timestamp: new Date().toISOString(),
+        url: window.location.href,
+        domain: getSafeDomain(window.location.href),
+        source: 'page-console',
+        stack: severity === 'error' ? (new Error().stack) : null
+      };
       
-      // Find where the actual user code starts (skip interceptor frames)
-      let userStackStart = 0;
-      for (let i = 0; i < stackLines.length; i++) {
-        const line = stackLines[i];
-        // Skip lines that are part of the interceptor or console override
-        if (line.includes('interceptConsole') || 
-            line.includes('console.error') ||
-            line.includes('console.warn') ||
-            line.includes('console.info') ||
-            line.includes('console.log') ||
-            line.includes('main-world-script.js')) {
-          userStackStart = i + 1;
-        } else if (userStackStart > 0) {
-          // We've found the first non-interceptor line
-          break;
-        }
-      }
+      // Dispatch custom event for content script to catch
+      window.dispatchEvent(new CustomEvent('consoleErrorIntercepted', {
+        detail: consoleData
+      }));
       
-      // Reconstruct stack with user code only
-      if (userStackStart < stackLines.length) {
-        const cleanedLines = stackLines.slice(userStackStart);
-        // Add a descriptive first line
-        errorStack = 'Error\n' + cleanedLines.join('\n');
-        debugLog('🌍 MAIN_WORLD: Used call site stack trace, removed', userStackStart, 'interceptor frames');
-      } else {
-        // Fallback if we couldn't clean the stack
-        errorStack = callSiteStack;
-      }
+    } catch (error) {
+      // Silently fail to avoid recursive console calls
     }
-    
-    // Create console error data
-    const consoleData = {
-      message: message,
-      severity: severity,
-      timestamp: new Date().toISOString(),
-      url: window.location.href,
-      domain: getSafeDomain(window.location.href),
-      source: 'page-console',
-      stack: errorStack,
-      // Include error details if available
-      errorName: capturedError?.name || null,
-      errorMessage: capturedError?.message || null
-    };
-    
-    debugLog('🌍 MAIN_WORLD: Dispatching console error event:', consoleData);
-    
-    // Dispatch custom event for content script to catch
-    window.dispatchEvent(new CustomEvent('consoleErrorIntercepted', {
-      detail: consoleData
-    }));
-    
-  } catch (error) {
-    debugLog('🌍 MAIN_WORLD: Error in console interception:', error);
-    // Silently fail to avoid recursive console calls
-  } finally {
-    // Always clear the flag to prevent lock-ups
-    window.__isInterceptingConsole = false;
-  }
+  });
 };
 
 // Try to get settings from extension storage
@@ -472,17 +342,11 @@ try {
   // Request settings from the content script via custom event
   window.dispatchEvent(new CustomEvent('extensionRequestSettings'));
   
-  // Listen for settings response - handle complete body capture structure
+  // Listen for settings response
   window.addEventListener('extensionSettingsResponse', (event) => {
-    if (event.detail?.networkInterception?.bodyCapture) {
-      const bc = event.detail.networkInterception.bodyCapture;
-      extensionSettings.bodyCapture = {
-        mode: bc.mode || 'disabled',
-        captureRequests: bc.captureRequests || false,
-        captureResponses: bc.captureResponses || false,
-        maxBodySize: bc.maxBodySize || 2000
-      };
-      debugLog('🌍 MAIN_WORLD: Updated body capture settings:', extensionSettings.bodyCapture);
+    if (event.detail && event.detail.networkInterception && event.detail.networkInterception.bodyCapture) {
+      extensionSettings.maxBodySize = event.detail.networkInterception.bodyCapture.maxBodySize || 2000;
+      console.log('🌍 MAIN_WORLD: Updated settings - maxBodySize:', extensionSettings.maxBodySize);
     }
   });
   
@@ -490,7 +354,7 @@ try {
   const startInterception = () => {
     if (isIntercepting) return;
     
-    debugLog('🚀 MAIN_WORLD: Starting network interception...');
+    console.log('🚀 MAIN_WORLD: Starting network interception...');
     isIntercepting = true;
     
     // Set up fetch interception
@@ -525,111 +389,32 @@ try {
   const startConsoleInterception = () => {
     if (isConsoleIntercepting) return;
     
-    debugLog('🚀 MAIN_WORLD: Starting console interception...');
+    console.log('🚀 MAIN_WORLD: Starting console interception...');
     isConsoleIntercepting = true;
     
     // Override console methods
     console.error = function(...args) {
-      // PHASE 1 FIX: Capture stack trace immediately at console call site
-      const callSiteStack = new Error().stack;
-      interceptConsole(originalConsoleError, 'error', 'error', callSiteStack, ...args);
+      interceptConsole(originalConsoleError, 'error', 'error', ...args);
     };
     
     console.warn = function(...args) {
-      // PHASE 1 FIX: Capture stack trace immediately at console call site
-      const callSiteStack = new Error().stack;
-      interceptConsole(originalConsoleWarn, 'warn', 'warn', callSiteStack, ...args);
+      interceptConsole(originalConsoleWarn, 'warn', 'warn', ...args);
     };
     
     console.info = function(...args) {
-      // PHASE 1 FIX: Capture stack trace immediately at console call site
-      const callSiteStack = new Error().stack;
-      interceptConsole(originalConsoleInfo, 'info', 'info', callSiteStack, ...args);
+      interceptConsole(originalConsoleInfo, 'info', 'info', ...args);
     };
     
     console.log = function(...args) {
-      // PHASE 1 FIX: Capture stack trace immediately at console call site
-      const callSiteStack = new Error().stack;
-      interceptConsole(originalConsoleLog, 'log', 'info', callSiteStack, ...args);
+      interceptConsole(originalConsoleLog, 'log', 'info', ...args);
     };
-  };
-  
-  // Global error handlers for uncaught errors
-  const setupGlobalErrorHandlers = () => {
-    // Handle uncaught errors
-    window.addEventListener('error', async (event) => {
-      debugLog('🌍 MAIN_WORLD: Uncaught error detected:', event);
-      
-      // Filter out browser API policy errors that aren't relevant for debugging
-      const message = event.message || '';
-      const stack = event.error?.stack || '';
-      
-      if (message.includes('browsingTopics') || 
-          message.includes('interest-cohort') ||
-          message.includes('Permissions Policy denied') ||
-          stack.includes('pd?gdpr=')) {
-        debugLog('🌍 MAIN_WORLD: Filtering out browser policy error:', message);
-        return;
-      }
-      
-      // Check if console logging is enabled
-      const result = await requestFromContentScript('checkConsoleSeverity', { severity: 'error' });
-      if (!result?.enabled) return;
-      
-      const errorData = {
-        message: event.message || 'Uncaught error',
-        severity: 'error',
-        timestamp: new Date().toISOString(),
-        url: event.filename || window.location.href,
-        domain: getSafeDomain(event.filename || window.location.href),
-        source: 'uncaught-error',
-        stack: event.error?.stack || `Error at ${event.filename}:${event.lineno}:${event.colno}`,
-        errorName: event.error?.name || 'Error',
-        errorMessage: event.error?.message || event.message,
-        lineNumber: event.lineno,
-        columnNumber: event.colno
-      };
-      
-      debugLog('🌍 MAIN_WORLD: Dispatching uncaught error event:', errorData);
-      window.dispatchEvent(new CustomEvent('consoleErrorIntercepted', {
-        detail: errorData
-      }));
-    });
-    
-    // Handle unhandled promise rejections
-    window.addEventListener('unhandledrejection', async (event) => {
-      debugLog('🌍 MAIN_WORLD: Unhandled promise rejection detected:', event);
-      
-      // Check if console logging is enabled
-      const result = await requestFromContentScript('checkConsoleSeverity', { severity: 'error' });
-      if (!result?.enabled) return;
-      
-      const errorData = {
-        message: `Unhandled Promise Rejection: ${event.reason}`,
-        severity: 'error',
-        timestamp: new Date().toISOString(),
-        url: window.location.href,
-        domain: getSafeDomain(window.location.href),
-        source: 'unhandled-promise',
-        stack: event.reason?.stack || new Error().stack,
-        errorName: event.reason?.name || 'UnhandledPromiseRejection',
-        errorMessage: event.reason?.message || String(event.reason)
-      };
-      
-      debugLog('🌍 MAIN_WORLD: Dispatching unhandled promise event:', errorData);
-      window.dispatchEvent(new CustomEvent('consoleErrorIntercepted', {
-        detail: errorData
-      }));
-    });
-    
-    debugLog('🌍 MAIN_WORLD: Global error handlers setup complete');
   };
   
   // Stop interception
   const stopInterception = () => {
     if (!isIntercepting) return;
     
-    debugLog('🛑 MAIN_WORLD: Stopping network interception...');
+    console.log('🛑 MAIN_WORLD: Stopping network interception...');
     isIntercepting = false;
     
     // Restore original functions
@@ -643,7 +428,7 @@ try {
   const stopConsoleInterception = () => {
     if (!isConsoleIntercepting) return;
     
-    debugLog('🛑 MAIN_WORLD: Stopping console interception...');
+    console.log('🛑 MAIN_WORLD: Stopping console interception...');
     isConsoleIntercepting = false;
     
     // Restore original console methods
@@ -655,7 +440,7 @@ try {
   
   // Initial setup - check if we should start intercepting
   (async () => {
-    debugLog('🌍 MAIN_WORLD: Initializing network interception...');
+    console.log('🌍 MAIN_WORLD: Initializing network interception...');
     
     // Request initial settings
     window.dispatchEvent(new CustomEvent('extensionRequestSettings'));
@@ -664,25 +449,24 @@ try {
     await new Promise(resolve => setTimeout(resolve, 100));
     
     // Check initial states
-    debugLog('🌍 MAIN_WORLD: Checking initial logging states...');
+    console.log('🌍 MAIN_WORLD: Checking initial logging states...');
     const networkEnabled = await isLoggingEnabled();
     const consoleEnabled = await isConsoleLoggingEnabled();
     
-    debugLog('🌍 MAIN_WORLD: Initial states - Network:', networkEnabled, 'Console:', consoleEnabled);
+    console.log('🌍 MAIN_WORLD: Initial states - Network:', networkEnabled, 'Console:', consoleEnabled);
     
     if (networkEnabled) {
-      debugLog('🌍 MAIN_WORLD: Network logging enabled, starting interception...');
+      console.log('🌍 MAIN_WORLD: Network logging enabled, starting interception...');
       startInterception();
     } else {
-      debugLog('🌍 MAIN_WORLD: Network logging disabled, not starting interception');
+      console.log('🌍 MAIN_WORLD: Network logging disabled, not starting interception');
     }
     
     if (consoleEnabled) {
-      debugLog('🌍 MAIN_WORLD: Console logging enabled, starting console interception...');
+      console.log('🌍 MAIN_WORLD: Console logging enabled, starting console interception...');
       startConsoleInterception();
-      setupGlobalErrorHandlers(); // Add global error handlers
     } else {
-      debugLog('🌍 MAIN_WORLD: Console logging disabled, not starting console interception');
+      console.log('🌍 MAIN_WORLD: Console logging disabled, not starting console interception');
     }
   })();
   
@@ -690,7 +474,7 @@ try {
   window.addEventListener('extensionStateChange', (event) => {
     if (event.detail?.enabled !== undefined) {
       mainWorldState.extensionEnabled = event.detail.enabled;
-      debugLog('🌍 MAIN_WORLD: Extension enabled state changed:', mainWorldState.extensionEnabled);
+      console.log('🌍 MAIN_WORLD: Extension enabled state changed:', mainWorldState.extensionEnabled);
       
       if (!mainWorldState.extensionEnabled) {
         stopInterception();
@@ -701,16 +485,16 @@ try {
   
   // Listen for tab logging state changes
   window.addEventListener('tabLoggingStateChange', async (event) => {
-    debugLog('🌍 MAIN_WORLD: Tab logging state change received:', event.detail);
+    console.log('🌍 MAIN_WORLD: Tab logging state change received:', event.detail);
     
     if (event.detail?.networkEnabled !== undefined) {
       const networkEnabled = event.detail.networkEnabled && mainWorldState.extensionEnabled;
       
       if (networkEnabled && !isIntercepting) {
-        debugLog('🌍 MAIN_WORLD: Starting network interception due to state change');
+        console.log('🌍 MAIN_WORLD: Starting network interception due to state change');
         startInterception();
       } else if (!networkEnabled && isIntercepting) {
-        debugLog('🌍 MAIN_WORLD: Stopping network interception due to state change');
+        console.log('🌍 MAIN_WORLD: Stopping network interception due to state change');
         stopInterception();
       }
     }
@@ -719,23 +503,22 @@ try {
       const consoleEnabled = event.detail.consoleEnabled && mainWorldState.extensionEnabled;
       
       if (consoleEnabled && !isConsoleIntercepting) {
-        debugLog('🌍 MAIN_WORLD: Starting console interception due to state change');
+        console.log('🌍 MAIN_WORLD: Starting console interception due to state change');
         startConsoleInterception();
-        setupGlobalErrorHandlers(); // Add global error handlers when starting console interception
       } else if (!consoleEnabled && isConsoleIntercepting) {
-        debugLog('🌍 MAIN_WORLD: Stopping console interception due to state change');
+        console.log('🌍 MAIN_WORLD: Stopping console interception due to state change');
         stopConsoleInterception();
       }
     }
   });
   
 } catch (error) {
-  debugLog('🌍 MAIN-WORLD: Could not get settings, using defaults:', error);
+  console.log('🌍 MAIN-WORLD: Could not get settings, using defaults:', error);
 }
 
 // Add activity check response handler
 window.addEventListener('checkMainWorldActive', (event) => {
-  debugLog('🌍 MAIN-WORLD: Activity check received');
+  console.log('🌍 MAIN-WORLD: Activity check received');
   window.dispatchEvent(new CustomEvent('mainWorldActiveResponse', {
     detail: { 
       checkId: event.detail?.checkId,
@@ -744,9 +527,4 @@ window.addEventListener('checkMainWorldActive', (event) => {
   }));
 });
 
-// Use original console for final load message to avoid interception
-if (window.__originalConsole && window.__originalConsole.log) {
-  window.__originalConsole.log('🌍 MAIN-WORLD: Network interception script loaded and ready');
-}
-
-} // End of injection guard
+console.log('🌍 MAIN-WORLD: Network interception script loaded and ready');

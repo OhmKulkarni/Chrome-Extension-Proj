@@ -3,6 +3,9 @@
 import './popup.css';
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
+import { Button } from './components/ui/button';
+import { Switch } from './components/ui/switch';
 
 // MEMORY LEAK FIX: External delay function to prevent closure capture
 function createDelayPromise(ms: number): Promise<void> {
@@ -463,173 +466,197 @@ const Popup: React.FC = () => {
   }
 
   return (
-    <div className="w-80 h-96 bg-white shadow-lg">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4">
-        <h1 className="text-lg font-bold">Web App Monitor</h1>
-        <p className="text-sm opacity-90">Scaffold v1.0.0</p>
-      </div>
-
-      {/* Content */}
-      <div className="p-4 space-y-4">
-        {/* Current Tab Info */}
-        <div className="bg-gray-50 rounded-lg p-3">
-          <h3 className="font-semibold text-gray-800 mb-2">Current Tab</h3>
-          <div className="space-y-1">
-            <p className="text-sm text-gray-600 truncate">
-              <span className="font-medium">Title:</span> {tabInfo.title || 'Unknown'}
-            </p>
-            <p className="text-sm text-gray-600 truncate">
-              <span className="font-medium">URL:</span> {tabInfo.url || 'Unknown'}
-            </p>
-          </div>
+    <div className="w-96 bg-gradient-to-br from-blue-50 via-white to-purple-50 min-h-[500px]">
+      <div className="p-4 space-y-3">
+        {/* Header with Gradient */}
+        <div className="text-center pb-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg p-4 shadow-lg">
+          <h1 className="text-xl font-bold tracking-tight flex items-center justify-center">
+            <span className="mr-2">📊</span>
+            Web App Monitor
+          </h1>
+          <p className="text-blue-100 text-xs mt-1">
+            Scaffold v1.0.0 • Extension Popup
+          </p>
         </div>
 
-        {/* Global Power Button */}
-        <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200">
-          <div>
-            <h3 className="font-semibold text-gray-800 flex items-center">
-              <span className="text-lg mr-2">⚡</span>
-              Global Power
-            </h3>
-            <p className="text-sm text-gray-600">
-              {globalPowerEnabled ? 'Extension Active' : 'Extension Disabled'} 
-            </p>
-          </div>
-          <button
-            onClick={toggleGlobalPower}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              globalPowerEnabled ? 'bg-red-500' : 'bg-gray-300'
-            }`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                globalPowerEnabled ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
-        </div>
+        {/* Current Tab Info Card */}
+        <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50">
+          <CardHeader className="pb-3 pt-4 px-4">
+            <CardTitle className="text-base flex items-center text-blue-900">
+              <span className="mr-2">🌐</span>
+              Current Tab
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 px-4 pb-4">
+            <div>
+              <p className="text-xs font-medium text-blue-700">Title</p>
+              <p className="text-sm truncate text-blue-900">{tabInfo.title || 'Unknown'}</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-blue-700">URL</p>
+              <p className="text-xs truncate text-blue-600">{tabInfo.url || 'Unknown'}</p>
+            </div>
+          </CardContent>
+        </Card>
 
-        {/* Site-Specific Toggle (only show when global power is on) */}
+        {/* Global Power Control Card */}
+        <Card className="border-2 border-green-200 bg-gradient-to-r from-green-50 to-emerald-50">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CardTitle className="text-base flex items-center text-green-900">
+              <span className="mr-2">⚡</span>
+              Extension Status
+            </CardTitle>
+            <CardDescription className="text-xs text-green-700">
+              {globalPowerEnabled ? '✅ Extension is active' : '🔴 Extension is disabled'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <div className="bg-white rounded-md p-3 border-2 border-green-200 shadow-sm">
+              <Switch
+                checked={globalPowerEnabled}
+                onChange={() => toggleGlobalPower()}
+                label="Global Power"
+                description={globalPowerEnabled ? '🟢 All monitoring active' : '🔴 All monitoring disabled'}
+                className={globalPowerEnabled ? 'accent-green-500' : 'accent-red-500'}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Site-Specific Control Card */}
         {globalPowerEnabled && (
-          <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
-            <div>
-              <h3 className="font-semibold text-gray-800 flex items-center">
-                <span className="text-lg mr-2">🌐</span>
+          <Card className="border-2 border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-base flex items-center text-purple-900">
+                <span className="mr-2">🏠</span>
                 This Site
-              </h3>
-              <p className="text-sm text-gray-600">
-                {siteSpecificEnabled ? 'Monitoring Active' : 'Site Disabled'}
-              </p>
-            </div>
-            <button
-              onClick={toggleSiteSpecific}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                siteSpecificEnabled ? 'bg-blue-500' : 'bg-gray-300'
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  siteSpecificEnabled ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
-          </div>
+              </CardTitle>
+              <CardDescription className="text-xs text-purple-700">
+                {siteSpecificEnabled ? '🟢 Site monitoring enabled' : '🟡 Site monitoring disabled'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <div className="bg-white rounded-md p-3 border-2 border-purple-200 shadow-sm">
+                <Switch
+                  checked={siteSpecificEnabled}
+                  onChange={() => toggleSiteSpecific()}
+                  label="Site Monitoring"
+                  description={siteSpecificEnabled ? '🟢 Monitoring enabled for this site' : '🟡 Monitoring disabled for this site'}
+                  className={siteSpecificEnabled ? 'accent-purple-500' : 'accent-gray-400'}
+                />
+              </div>
+            </CardContent>
+          </Card>
         )}
 
-        {/* Tab-Specific Logging Control */}
-        {globalPowerEnabled && siteSpecificEnabled && settings?.networkInterception?.tabSpecific?.enabled && (
-          <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
-            <div>
-              <h3 className="font-semibold text-gray-800">Tab Logging</h3>
-              <p className="text-sm text-gray-600">
-                {tabLoggingActive ? 'Active' : 'Paused'}
-              </p>
-            </div>
-            <button
-              onClick={toggleTabLogging}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                tabLoggingActive ? 'bg-green-500' : 'bg-gray-300'
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  tabLoggingActive ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
-          </div>
-        )}
+        {/* Tab-Specific Controls */}
+        {globalPowerEnabled && siteSpecificEnabled && (
+          <div className="space-y-3">
+            {/* Network Logging Control */}
+            {settings?.networkInterception?.tabSpecific?.enabled && (
+              <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+                <CardHeader className="pb-2 pt-4 px-4">
+                  <CardTitle className="text-base flex items-center text-blue-900">
+                    <span className="mr-2">🌐</span>
+                    Network Logging
+                  </CardTitle>
+                  <CardDescription className="text-xs text-blue-700">
+                    {tabLoggingActive ? '📡 Capturing network requests' : '⏸️ Network monitoring paused'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="px-4 pb-4">
+                  <div className="bg-white rounded-md p-3 border-2 border-blue-200 shadow-sm">
+                    <Switch
+                      checked={tabLoggingActive}
+                      onChange={() => toggleTabLogging()}
+                      label="Network Monitoring"
+                      description={tabLoggingActive ? '📡 Capturing network requests' : '⏸️ Network monitoring paused'}
+                      className={tabLoggingActive ? 'accent-blue-500' : 'accent-gray-400'}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-        {/* Tab-Specific Error Logging Control */}
-        {globalPowerEnabled && siteSpecificEnabled && settings?.errorLogging?.tabSpecific?.enabled && (
-          <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200">
-            <div>
-              <h3 className="font-semibold text-gray-800">Error Logging</h3>
-              <p className="text-sm text-gray-600">
-                {tabErrorLoggingActive ? 'Active' : 'Paused'}
-              </p>
-            </div>
-            <button
-              onClick={toggleTabErrorLogging}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                tabErrorLoggingActive ? 'bg-red-500' : 'bg-gray-300'
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  tabErrorLoggingActive ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
-          </div>
-        )}
+            {/* Error Logging Control */}
+            {settings?.errorLogging?.tabSpecific?.enabled && (
+              <Card className="border-2 border-red-200 bg-gradient-to-r from-red-50 to-orange-50">
+                <CardHeader className="pb-2 pt-4 px-4">
+                  <CardTitle className="text-base flex items-center text-red-900">
+                    <span className="mr-2">⚠️</span>
+                    Error Logging
+                  </CardTitle>
+                  <CardDescription className="text-xs text-red-700">
+                    {tabErrorLoggingActive ? '🔴 Capturing console errors' : '⏸️ Error monitoring paused'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="px-4 pb-4">
+                  <div className="bg-white rounded-md p-3 border-2 border-red-200 shadow-sm">
+                    <Switch
+                      checked={tabErrorLoggingActive}
+                      onChange={() => toggleTabErrorLogging()}
+                      label="Error Monitoring"
+                      description={tabErrorLoggingActive ? '🔴 Capturing console errors' : '⏸️ Error monitoring paused'}
+                      className={tabErrorLoggingActive ? 'accent-red-500' : 'accent-gray-400'}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-
-
-        {/* Tab-Specific Token Logging Control */}
-        {globalPowerEnabled && siteSpecificEnabled && settings?.tokenLogging?.tabSpecific?.enabled && (
-          <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-            <div>
-              <h3 className="font-semibold text-gray-800">Token Logging</h3>
-              <p className="text-sm text-gray-600">
-                {tabTokenLoggingActive ? 'Active' : 'Paused'}
-              </p>
-            </div>
-            <button
-              onClick={toggleTabTokenLogging}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                tabTokenLoggingActive ? 'bg-yellow-500' : 'bg-gray-300'
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  tabTokenLoggingActive ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
+            {/* Token Logging Control */}
+            {settings?.tokenLogging?.tabSpecific?.enabled && (
+              <Card className="border-2 border-yellow-200 bg-gradient-to-r from-yellow-50 to-amber-50">
+                <CardHeader className="pb-2 pt-4 px-4">
+                  <CardTitle className="text-base flex items-center text-yellow-900">
+                    <span className="mr-2">🔑</span>
+                    Token Logging
+                  </CardTitle>
+                  <CardDescription className="text-xs text-yellow-700">
+                    {tabTokenLoggingActive ? '🟡 Capturing authentication tokens' : '⏸️ Token monitoring paused'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="px-4 pb-4">
+                  <div className="bg-white rounded-md p-3 border-2 border-yellow-200 shadow-sm">
+                    <Switch
+                      checked={tabTokenLoggingActive}
+                      onChange={() => toggleTabTokenLogging()}
+                      label="Token Monitoring"
+                      description={tabTokenLoggingActive ? '🟡 Capturing authentication tokens' : '⏸️ Token monitoring paused'}
+                      className={tabTokenLoggingActive ? 'accent-yellow-500' : 'accent-gray-400'}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
 
         {/* Action Buttons */}
-        <div className="space-y-2">
-          <button
+        <div className="space-y-2 pt-2">
+          <Button
             onClick={openDashboard}
-            className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+            className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white border-2 border-blue-300 shadow-lg transform hover:scale-105 transition-all duration-200"
+            size="default"
           >
+            <span className="mr-2">📊</span>
             Open Dashboard
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={openSettings}
-            className="w-full bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+            variant="outline"
+            className="w-full border-2 border-purple-300 text-purple-700 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 shadow-lg transform hover:scale-105 transition-all duration-200"
+            size="default"
           >
+            <span className="mr-2">⚙️</span>
             Settings
-          </button>
+          </Button>
         </div>
 
         {/* Footer */}
-        <div className="text-center pt-4 border-t border-gray-200">
-          <p className="text-xs text-gray-500">
+        <div className="text-center pt-3 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50 rounded-lg p-2">
+          <p className="text-xs text-gray-600 flex items-center justify-center">
+            <span className="mr-1">🛠️</span>
             Built with TypeScript, React & Vite
           </p>
         </div>
