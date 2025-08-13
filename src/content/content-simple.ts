@@ -1,6 +1,25 @@
+// === EXTENSION CONTEXT VALIDATION ===
+// Check if extension context is still valid
+let extensionContextValid = true;
+
+function isExtensionContextValid(): boolean {
+  try {
+    // Test if chrome.runtime is accessible
+    return !!chrome.runtime && !!chrome.runtime.id && extensionContextValid;
+  } catch (error) {
+    extensionContextValid = false;
+    return false;
+  }
+}
+
 // === EXTENSION STATE CHECK ===
 // PHASE 2: Check extension state FIRST before any initialization
 async function checkExtensionState(): Promise<boolean> {
+  if (!isExtensionContextValid()) {
+    console.log('🚫 CONTENT: Extension context invalid, skipping state check');
+    return false;
+  }
+  
   try {
     // Get current tab ID
     const tabResponse = await sendChromeMessage({ action: 'getCurrentTabId' });
@@ -110,8 +129,28 @@ const sendChromeMessage = async (message: any): Promise<any> => {
     const result = response ? { ...response } : null
     return result
   } catch (error) {
-    console.error('Chrome message failed:', error)
-    return null
+    if (error instanceof Error && error.message.includes('Extension context invalidated')) {
+      console.warn('🔄 CONTENT: Extension context invalidated, content script needs refresh')
+      // Mark context as invalid to prevent further operations
+      extensionContextValid = false;
+      // The extension was reloaded/updated, content script context is stale
+      // We should gracefully stop operations and wait for page reload
+      return null
+    } else if (error instanceof Error && error.message.includes('Could not establish connection')) {
+      console.warn('⚠️ CONTENT: Background script not ready, retrying...')
+      // Retry once after a short delay
+      await new Promise(resolve => setTimeout(resolve, 100))
+      try {
+        const response = await chrome.runtime.sendMessage(message)
+        return response ? { ...response } : null
+      } catch (retryError) {
+        console.error('❌ CONTENT: Chrome message failed after retry:', retryError)
+        return null
+      }
+    } else {
+      console.error('❌ CONTENT: Chrome message failed:', error)
+      return null
+    }
   }
 }
 
@@ -254,8 +293,7 @@ async function shouldInterceptOnThisSite(): Promise<boolean> {
   }
 }
 
-// Track extension context validity
-let extensionContextValid = true;
+// Track injection state
 let injectionAttempted = false;
 
 // MEMORY LEAK FIX: Store event handlers for cleanup
@@ -476,31 +514,6 @@ const networkMessageHandler = async (event: MessageEvent) => {
 // Add the critical missing message listener
 window.addEventListener('message', networkMessageHandler);
 eventHandlers.windowMessage = networkMessageHandler;
-
-// Check if extension context is still valid
-function isExtensionContextValid(): boolean {
-  try {
-    // More thorough check for extension context
-    if (!chrome || !chrome.runtime) {
-      console.log('❌ CONTENT: Chrome runtime not available');
-      return false;
-    }
-    
-    // Check if runtime.id is accessible (throws error if context invalid)
-    const id = chrome.runtime.id;
-    if (!id) {
-      console.log('❌ CONTENT: Runtime ID not available');
-      return false;
-    }
-    
-    console.log('✅ CONTENT: Extension context valid, ID:', id);
-    return true;
-  } catch (error) {
-    console.log('❌ CONTENT: Extension context check failed:', error);
-    extensionContextValid = false;
-    return false;
-  }
-}
 
 // MAIN WORLD INJECTION for page-level network interception
 async function injectMainWorldScript() {
