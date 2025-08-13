@@ -42,23 +42,23 @@ interface SettingsData {
       }>;
     };
     tabSpecific: {
-      enabled: boolean;
       defaultState: 'active' | 'paused';
     };
   };
   errorLogging: {
-    enabled: boolean;
     severityFilter: {
       enabled: boolean;
       allowed: Array<'error' | 'warn' | 'info'>;
     };
     tabSpecific: {
-      enabled: boolean;
       defaultState: 'active' | 'paused';
     };
   };
   tokenLogging: {
     showFullHash: boolean;
+    tabSpecific: {
+      defaultState: 'active' | 'paused';
+    };
   };
 }
 
@@ -85,23 +85,23 @@ const defaultSettings: SettingsData = {
       ]
     },
     tabSpecific: {
-      enabled: true,
       defaultState: 'paused'
     }
   },
   errorLogging: {
-    enabled: true,
     severityFilter: {
       enabled: false,
       allowed: ['error', 'warn', 'info']
     },
     tabSpecific: {
-      enabled: true,
       defaultState: 'paused'
     }
   },
   tokenLogging: {
-    showFullHash: false
+    showFullHash: false,
+    tabSpecific: {
+      defaultState: 'paused'
+    }
   },
 };
 
@@ -294,10 +294,30 @@ const Settings: React.FC = () => {
       <div className="container mx-auto py-8 px-4 max-w-4xl">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-          <p className="text-muted-foreground mt-2">
-            Manage your extension preferences and behavior
-          </p>
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+              <p className="text-muted-foreground mt-2">
+                Manage your extension preferences and behavior
+              </p>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex space-x-3">
+              <Button 
+                variant="outline"
+                onClick={resetSettings}
+              >
+                Reset to Default
+              </Button>
+              <Button 
+                onClick={saveSettings} 
+                disabled={isSaving}
+              >
+                {isSaving ? 'Saving...' : 'Save Settings'}
+              </Button>
+            </div>
+          </div>
         </div>
 
         {/* Save Message */}
@@ -567,63 +587,32 @@ const Settings: React.FC = () => {
                     </div>
 
                     <div className="grid gap-4">
-                      <Switch
-                        checked={settings.networkInterception?.tabSpecific?.enabled || false}
-                        onChange={(e) => updateSetting('networkInterception', {
-                          ...settings.networkInterception,
-                          tabSpecific: {
-                            ...settings.networkInterception?.tabSpecific,
-                            enabled: e.target.checked
-                          }
-                        })}
-                        label="Enable per-tab controls"
-                        description="Allow individual tab monitoring control via the popup"
-                      />
-
-                      {settings.networkInterception?.tabSpecific?.enabled && (
-                        <div className="ml-4 mt-3 p-3 bg-muted/50 rounded-lg border border-muted">
-                          <p className="text-sm font-medium mb-3">🗂️ Tab-Specific Control Settings</p>
-                          
-                          <div className="grid gap-2">
-                            <label className="setting-label">Default state for new tabs</label>
-                            <Select
-                              value={settings.networkInterception?.tabSpecific?.defaultState || 'paused'}
-                              onChange={(e) => updateSetting('networkInterception', {
-                                ...settings.networkInterception,
-                                tabSpecific: {
-                                  ...settings.networkInterception?.tabSpecific,
-                                  defaultState: e.target.value as any
-                                }
-                              })}
-                              className="max-w-xs"
-                            >
-                              <option value="active">Active (monitoring enabled)</option>
-                              <option value="paused">Paused (monitoring disabled)</option>
-                            </Select>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              This determines whether new tabs start with monitoring enabled or disabled
-                            </p>
-                          </div>
+                      <div className="p-3 bg-muted/50 rounded-lg border border-muted">
+                        <p className="text-sm font-medium mb-3">🗂️ Tab-Specific Control Settings</p>
+                        
+                        <div className="grid gap-2">
+                          <label className="setting-label">Default state for new tabs</label>
+                          <Select
+                            value={settings.networkInterception?.tabSpecific?.defaultState || 'paused'}
+                            onChange={(e) => updateSetting('networkInterception', {
+                              ...settings.networkInterception,
+                              tabSpecific: {
+                                ...settings.networkInterception?.tabSpecific,
+                                defaultState: e.target.value as any
+                              }
+                            })}
+                            className="max-w-xs"
+                          >
+                            <option value="active">Active (monitoring enabled)</option>
+                            <option value="paused">Paused (monitoring disabled)</option>
+                          </Select>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            This determines whether new tabs start with network monitoring enabled or disabled
+                          </p>
                         </div>
-                      )}
+                      </div>
                     </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* URL Pattern and Tab Control Settings Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Advanced Network Settings</CardTitle>
-              <CardDescription>
-                Configure URL pattern filtering and tab-specific behavior
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="text-sm text-muted-foreground">
-                <p><strong>URL Pattern Filtering:</strong> When enabled, only requests matching your defined patterns will be captured.</p>
-                <p><strong>Tab-Specific Controls:</strong> When enabled, each tab can be individually controlled via the popup interface.</p>
               </div>
             </CardContent>
           </Card>
@@ -665,6 +654,33 @@ const Settings: React.FC = () => {
                     </p>
                   </div>
                 )}
+
+                <div className="border-t pt-4">
+                  <div className="p-3 bg-muted/50 rounded-lg border border-muted">
+                    <p className="text-sm font-medium mb-3">🗂️ Tab-Specific Token Logging</p>
+                    
+                    <div className="grid gap-2">
+                      <label className="setting-label">Default state for new tabs</label>
+                      <Select
+                        value={settings.tokenLogging?.tabSpecific?.defaultState || 'paused'}
+                        onChange={(e) => updateSetting('tokenLogging', {
+                          ...settings.tokenLogging,
+                          tabSpecific: {
+                            ...settings.tokenLogging?.tabSpecific,
+                            defaultState: e.target.value as any
+                          }
+                        })}
+                        className="max-w-xs"
+                      >
+                        <option value="active">Active (token logging enabled)</option>
+                        <option value="paused">Paused (token logging disabled)</option>
+                      </Select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        This determines whether new tabs start with token logging enabled or disabled
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -679,118 +695,93 @@ const Settings: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid gap-4">
-                <Switch
-                  checked={settings.errorLogging?.enabled || false}
-                  onChange={(e) => updateSetting('errorLogging', {
-                    ...settings.errorLogging,
-                    enabled: e.target.checked
-                  })}
-                  label="Enable error logging"
-                  description="Monitor and capture console errors"
-                />
+                <div className="space-y-4">
+                  <Switch
+                    checked={settings.errorLogging?.severityFilter?.enabled || false}
+                    onChange={(e) => updateSetting('errorLogging', {
+                      ...settings.errorLogging,
+                      severityFilter: {
+                        ...settings.errorLogging?.severityFilter,
+                        enabled: e.target.checked
+                      }
+                    })}
+                    label="Filter by severity"
+                    description="Only capture specific error levels"
+                  />
 
-                {settings.errorLogging?.enabled && (
-                  <div className="ml-4 border-l-2 border-muted pl-4 space-y-4">
-                    <Switch
-                      checked={settings.errorLogging?.severityFilter?.enabled || false}
-                      onChange={(e) => updateSetting('errorLogging', {
-                        ...settings.errorLogging,
-                        severityFilter: {
-                          ...settings.errorLogging?.severityFilter,
-                          enabled: e.target.checked
-                        }
-                      })}
-                      label="Filter by severity"
-                      description="Only capture specific error levels"
-                    />
-
-                    {settings.errorLogging?.severityFilter?.enabled && (
-                      <div className="ml-4 space-y-2">
-                        <p className="text-sm font-medium">Capture these severity levels:</p>
-                        <div className="space-y-2">
-                          {(['error', 'warn', 'info'] as const).map((severity) => (
-                            <label key={severity} className="flex items-center space-x-3">
-                              <input
-                                type="checkbox"
-                                checked={settings.errorLogging?.severityFilter?.allowed?.includes(severity) || false}
-                                onChange={(e) => {
-                                  const currentAllowed = settings.errorLogging?.severityFilter?.allowed || [];
-                                  const newAllowed = e.target.checked
-                                    ? [...currentAllowed, severity]
-                                    : currentAllowed.filter(s => s !== severity);
-                                  
-                                  updateSetting('errorLogging', {
-                                    ...settings.errorLogging,
-                                    severityFilter: {
-                                      ...settings.errorLogging?.severityFilter,
-                                      allowed: newAllowed as any
-                                    }
-                                  });
-                                }}
-                                className="h-4 w-4 text-primary border-input rounded focus:ring-ring"
-                              />
-                              <span className="text-sm capitalize">
-                                {severity}
-                                <span className={`ml-2 px-2 py-1 text-xs rounded-full ${
-                                  severity === 'error' ? 'bg-red-100 text-red-800' :
-                                  severity === 'warn' ? 'bg-yellow-100 text-yellow-800' :
-                                  'bg-blue-100 text-blue-800'
-                                }`}>
-                                  {severity === 'error' ? 'console.error()' :
-                                   severity === 'warn' ? 'console.warn()' :
-                                   'console.info/log()'}
-                                </span>
+                  {settings.errorLogging?.severityFilter?.enabled && (
+                    <div className="ml-4 space-y-2">
+                      <p className="text-sm font-medium">Capture these severity levels:</p>
+                      <div className="space-y-2">
+                        {(['error', 'warn', 'info'] as const).map((severity) => (
+                          <label key={severity} className="flex items-center space-x-3">
+                            <input
+                              type="checkbox"
+                              checked={settings.errorLogging?.severityFilter?.allowed?.includes(severity) || false}
+                              onChange={(e) => {
+                                const currentAllowed = settings.errorLogging?.severityFilter?.allowed || [];
+                                const newAllowed = e.target.checked
+                                  ? [...currentAllowed, severity]
+                                  : currentAllowed.filter(s => s !== severity);
+                                
+                                updateSetting('errorLogging', {
+                                  ...settings.errorLogging,
+                                  severityFilter: {
+                                    ...settings.errorLogging?.severityFilter,
+                                    allowed: newAllowed as any
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 text-primary border-input rounded focus:ring-ring"
+                            />
+                            <span className="text-sm capitalize">
+                              {severity}
+                              <span className={`ml-2 px-2 py-1 text-xs rounded-full ${
+                                severity === 'error' ? 'bg-red-100 text-red-800' :
+                                severity === 'warn' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-blue-100 text-blue-800'
+                              }`}>
+                                {severity === 'error' ? 'console.error()' :
+                                 severity === 'warn' ? 'console.warn()' :
+                                 'console.info/log()'}
                               </span>
-                            </label>
-                          ))}
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          Unselected severity levels will be ignored completely
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Unselected severity levels will be ignored completely
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="grid gap-4">
+                    <div className="p-3 bg-muted/50 rounded-lg border border-muted">
+                      <p className="text-sm font-medium mb-3">🗂️ Tab-Specific Error Logging</p>
+                      
+                      <div className="grid gap-2">
+                        <label className="setting-label">Default state for new tabs</label>
+                        <Select
+                          value={settings.errorLogging?.tabSpecific?.defaultState || 'paused'}
+                          onChange={(e) => updateSetting('errorLogging', {
+                            ...settings.errorLogging,
+                            tabSpecific: {
+                              ...settings.errorLogging?.tabSpecific,
+                              defaultState: e.target.value as any
+                            }
+                          })}
+                          className="max-w-xs"
+                        >
+                          <option value="active">Active (error logging enabled)</option>
+                          <option value="paused">Paused (error logging disabled)</option>
+                        </Select>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          This determines whether new tabs start with error logging enabled or disabled
                         </p>
                       </div>
-                    )}
-
-                    <Switch
-                      checked={settings.errorLogging?.tabSpecific?.enabled || false}
-                      onChange={(e) => updateSetting('errorLogging', {
-                        ...settings.errorLogging,
-                        tabSpecific: {
-                          ...settings.errorLogging?.tabSpecific,
-                          enabled: e.target.checked
-                        }
-                      })}
-                      label="Enable per-tab error logging controls"
-                      description="Allow individual tab error monitoring control via the popup"
-                    />
-
-                    {settings.errorLogging?.tabSpecific?.enabled && (
-                      <div className="ml-4 mt-3 p-3 bg-muted/50 rounded-lg border border-muted">
-                        <p className="text-sm font-medium mb-3">🗂️ Tab-Specific Error Logging</p>
-                        
-                        <div className="grid gap-2">
-                          <label className="setting-label">Default state for new tabs</label>
-                          <Select
-                            value={settings.errorLogging?.tabSpecific?.defaultState || 'paused'}
-                            onChange={(e) => updateSetting('errorLogging', {
-                              ...settings.errorLogging,
-                              tabSpecific: {
-                                ...settings.errorLogging?.tabSpecific,
-                                defaultState: e.target.value as any
-                              }
-                            })}
-                            className="max-w-xs"
-                          >
-                            <option value="active">Active (error logging enabled)</option>
-                            <option value="paused">Paused (error logging disabled)</option>
-                          </Select>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            This determines whether new tabs start with error logging enabled or disabled
-                          </p>
-                        </div>
-                      </div>
-                    )}
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -884,22 +875,6 @@ const Settings: React.FC = () => {
               </div>
             </CardContent>
           </Card>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex justify-end space-x-3 mt-8">
-          <Button 
-            variant="outline"
-            onClick={resetSettings}
-          >
-            Reset to Default
-          </Button>
-          <Button 
-            onClick={saveSettings} 
-            disabled={isSaving}
-          >
-            {isSaving ? 'Saving...' : 'Save Settings'}
-          </Button>
         </div>
       </div>
     </div>

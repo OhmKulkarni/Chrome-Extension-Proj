@@ -391,10 +391,9 @@ eventHandlers.contentScriptRequest = async (event: Event) => {
           const globalEnabled = result.extensionEnabled !== false;
           const tabLogging = result[`tabLogging_${currentTabId}`];
           const tabEnabled = !tabLogging || tabLogging.status === 'active';
-          const errorLoggingEnabled = result.settings?.errorLogging?.enabled !== false;
           
-          console.log('📨 CONTENT: Console logging state - Global:', globalEnabled, 'Tab:', tabEnabled, 'ErrorLogging:', errorLoggingEnabled);
-          response = { enabled: globalEnabled && tabEnabled && errorLoggingEnabled };
+          console.log('📨 CONTENT: Console logging state - Global:', globalEnabled, 'Tab:', tabEnabled);
+          response = { enabled: globalEnabled && tabEnabled };
         } else {
           console.log('📨 CONTENT: No tab ID available for console, returning false');
           response = { enabled: false };
@@ -418,7 +417,6 @@ eventHandlers.contentScriptRequest = async (event: Event) => {
           const globalEnabled = result.extensionEnabled !== false;
           const tabLogging = result[`tabLogging_${tabIdForSeverity}`];
           const tabEnabled = !tabLogging || tabLogging.status === 'active';
-          const errorLoggingEnabled = result.settings?.errorLogging?.enabled !== false;
           
           // Check severity filter
           let severityAllowed = true;
@@ -427,8 +425,8 @@ eventHandlers.contentScriptRequest = async (event: Event) => {
             severityAllowed = allowedSeverities.includes(severity);
           }
           
-          console.log('📨 CONTENT: Console severity check - Global:', globalEnabled, 'Tab:', tabEnabled, 'ErrorLogging:', errorLoggingEnabled, 'SeverityAllowed:', severityAllowed);
-          response = { enabled: globalEnabled && tabEnabled && errorLoggingEnabled && severityAllowed };
+          console.log('📨 CONTENT: Console severity check - Global:', globalEnabled, 'Tab:', tabEnabled, 'SeverityAllowed:', severityAllowed);
+          response = { enabled: globalEnabled && tabEnabled && severityAllowed };
         } else {
           console.log('📨 CONTENT: No tab ID available for severity check, returning false');
           response = { enabled: false };
@@ -924,15 +922,11 @@ const storageChangeHandler = async (changes: any, namespace: string) => {
           });
           const globalEnabled = stateResponse?.enabled ?? true;
           
-          // Check console logging settings
-          const settingsResult = await chrome.storage.local.get(['settings']);
-          const errorLoggingEnabled = settingsResult.settings?.errorLogging?.enabled !== false;
-          
           // Notify main-world script about state changes
           window.dispatchEvent(new CustomEvent('tabLoggingStateChange', {
             detail: {
               networkEnabled: globalEnabled && tabLoggingEnabled,
-              consoleEnabled: globalEnabled && tabLoggingEnabled && errorLoggingEnabled
+              consoleEnabled: globalEnabled && tabLoggingEnabled
             }
           }));
           

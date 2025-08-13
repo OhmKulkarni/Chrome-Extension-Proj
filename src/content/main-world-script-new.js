@@ -284,10 +284,8 @@ const interceptConsole = (originalMethod, methodName, severity, ...args) => {
       const result = await chrome.storage.local.get(['extensionSettings']);
       const settings = result.extensionSettings;
       
-      if (!settings?.errorLogging?.enabled) return false;
-      
       // Check severity filter
-      if (settings.errorLogging.severityFilter?.enabled) {
+      if (settings?.errorLogging?.severityFilter?.enabled) {
         const allowedSeverities = settings.errorLogging.severityFilter.allowed || [];
         return allowedSeverities.includes(severity);
       }
