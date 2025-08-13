@@ -580,15 +580,32 @@ class BodyCaptureDebugger {
     }
   }
 
-  // MEMORY LEAK FIX: Truncate large bodies to prevent memory bloat
+  // MEMORY LEAK FIX: Truncate large bodies to prevent memory bloat using user setting
   private truncateBodyIfNeeded(body: any): any {
     if (typeof body !== 'string') {
       return body;
     }
     
-    if (body.length > BodyCaptureDebugger.MAX_BODY_SIZE) {
-      const truncated = body.substring(0, BodyCaptureDebugger.MAX_BODY_SIZE);
-      console.log(`[BodyCaptureDebugger] Truncated body from ${body.length} to ${truncated.length} characters`);
+    // Get user-configured max body size, fallback to 50KB default, 0 means no limit
+    const userMaxSize = this.settings?.networkInterception?.bodyCapture?.maxBodySize;
+    let maxSize: number;
+    
+    if (typeof userMaxSize === 'number') {
+      if (userMaxSize === 0) {
+        // User set 0 = no limit, but apply safety limit to prevent memory issues
+        maxSize = BodyCaptureDebugger.MAX_BODY_SIZE; // Still use 50KB safety limit
+      } else {
+        // User specified a limit, respect it but cap at safety limit
+        maxSize = Math.min(userMaxSize, BodyCaptureDebugger.MAX_BODY_SIZE);
+      }
+    } else {
+      // No setting found, use default
+      maxSize = BodyCaptureDebugger.MAX_BODY_SIZE;
+    }
+    
+    if (body.length > maxSize) {
+      const truncated = body.substring(0, maxSize);
+      console.log(`[BodyCaptureDebugger] Truncated body from ${body.length} to ${truncated.length} characters (limit: ${maxSize})`);
       return truncated + '... [TRUNCATED]';
     }
     

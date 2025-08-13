@@ -1,5 +1,65 @@
-// Simplified content script focused on Reddit network interception
-console.log('✅ CONTENT: Script loaded on:', window.location.href);
+// === EXTENSION CONTEXT VALIDATION ===
+// Check if extension context is still valid
+let extensionContextValid = true;
+
+// Development debug: Log when content script loads
+console.log('📦 CONTENT SCRIPT LOADED:', new Date().toISOString(), 'Context Fix v2');
+
+function isExtensionContextValid(): boolean {
+  try {
+    // Test if chrome.runtime is accessible
+    return !!chrome.runtime && !!chrome.runtime.id && extensionContextValid;
+  } catch (error) {
+    extensionContextValid = false;
+    return false;
+  }
+}
+
+// === EXTENSION STATE CHECK ===
+// PHASE 2: Check extension state FIRST before any initialization
+async function checkExtensionState(): Promise<boolean> {
+  if (!isExtensionContextValid()) {
+    console.log('🚫 CONTENT: Extension context invalid, skipping state check');
+    return false;
+  }
+  
+  try {
+    // Get current tab ID
+    const tabResponse = await sendChromeMessage({ action: 'getCurrentTabId' });
+    const tabId = tabResponse?.tabId;
+    
+    // Get extension state from background
+    const stateResponse = await sendChromeMessage({ 
+      action: 'GET_EXTENSION_STATE',
+      tabId: tabId 
+    });
+    
+    const isEnabled = stateResponse?.enabled ?? true; // Default to enabled if unknown
+    
+    // Send state to main world script
+    window.dispatchEvent(new CustomEvent('extensionStateChange', {
+      detail: { enabled: isEnabled }
+    }));
+    
+    if (!isEnabled) {
+      console.log('🚫 CONTENT: Extension is disabled, skipping all initialization');
+      return false;
+    }
+    
+    console.log('✅ CONTENT: Extension is enabled, proceeding with initialization');
+    return true;
+  } catch (error) {
+    console.log('⚠️ CONTENT: Failed to check extension state, defaulting to enabled:', error);
+    // Send enabled state to main world script as fallback
+    window.dispatchEvent(new CustomEvent('extensionStateChange', {
+      detail: { enabled: true }
+    }));
+    return true; // Default to enabled on error for backward compatibility
+  }
+}
+
+// Simplified content script focused on network interception
+// MEMORY OPTIMIZATION: Reduced logging to minimize tab memory usage
 
 // MEMORY LEAK FIX: Helper function to check main world script activity without Promise constructor leaks
 const checkMainWorldActive = async (): Promise<boolean> => {
@@ -38,7 +98,7 @@ const loadScriptPromise = async (script: HTMLScriptElement): Promise<boolean> =>
       if (!resolved) {
         resolved = true;
         cleanup();
-        console.log('✅ CONTENT: Web-accessible script loaded successfully');
+        // MEMORY OPTIMIZATION: Reduce success logging
         resolve(true);
       }
     };
@@ -47,6 +107,7 @@ const loadScriptPromise = async (script: HTMLScriptElement): Promise<boolean> =>
       if (!resolved) {
         resolved = true;
         cleanup();
+        // MEMORY OPTIMIZATION: Keep only critical error logging
         console.log('❌ CONTENT: Web-accessible script failed to load:', error);
         resolve(false);
       }
@@ -71,14 +132,33 @@ const sendChromeMessage = async (message: any): Promise<any> => {
     const result = response ? { ...response } : null
     return result
   } catch (error) {
-    console.error('Chrome message failed:', error)
-    return null
+    if (error instanceof Error && error.message.includes('Extension context invalidated')) {
+      console.warn('🔄 CONTENT: Extension context invalidated, content script needs refresh')
+      // Mark context as invalid to prevent further operations
+      extensionContextValid = false;
+      // The extension was reloaded/updated, content script context is stale
+      // We should gracefully stop operations and wait for page reload
+      return null
+    } else if (error instanceof Error && error.message.includes('Could not establish connection')) {
+      console.warn('⚠️ CONTENT: Background script not ready, retrying...')
+      // Retry once after a short delay
+      await new Promise(resolve => setTimeout(resolve, 100))
+      try {
+        const response = await chrome.runtime.sendMessage(message)
+        return response ? { ...response } : null
+      } catch (retryError) {
+        console.error('❌ CONTENT: Chrome message failed after retry:', retryError)
+        return null
+      }
+    } else {
+      console.error('❌ CONTENT: Chrome message failed:', error)
+      return null
+    }
   }
 }
 
-// Check if we're on Reddit
+// MEMORY OPTIMIZATION: Check if we're on a site that should be intercepted
 const isReddit = window.location.hostname.includes('reddit.com');
-console.log('📍 CONTENT: Is Reddit?', isReddit);
 
 // Check if extension should be active on this site
 async function shouldInterceptOnThisSite(): Promise<boolean> {
@@ -87,17 +167,15 @@ async function shouldInterceptOnThisSite(): Promise<boolean> {
     const result = await chrome.storage.sync.get(['networkInterception', 'extensionEnabled']);
     const networkSettings = result.networkInterception;
     
-    console.log('🔍 CONTENT: Retrieved settings:', JSON.stringify(result, null, 2));
+    // MEMORY OPTIMIZATION: Reduce verbose logging
     
     // Check if extension is globally disabled
     if (result.extensionEnabled === false) {
-      console.log('🚫 CONTENT: Extension globally disabled');
       return false;
     }
     
     // If network interception is completely disabled, don't inject
     if (!networkSettings?.enabled) {
-      console.log('🚫 CONTENT: Network interception disabled in settings');
       console.log('🔍 CONTENT: networkSettings:', networkSettings);
       
       // If no settings exist at all, initialize with defaults and allow
@@ -218,13 +296,13 @@ async function shouldInterceptOnThisSite(): Promise<boolean> {
   }
 }
 
-// Track extension context validity
-let extensionContextValid = true;
+// Track injection state
 let injectionAttempted = false;
 
 // MEMORY LEAK FIX: Store event handlers for cleanup
 const eventHandlers = {
   settingsRequest: null as EventListener | null,
+  contentScriptRequest: null as EventListener | null,
   networkIntercepted: null as EventListener | null,
   consoleIntercepted: null as EventListener | null,
   beforeUnload1: null as EventListener | null,
@@ -241,6 +319,10 @@ const cleanupEventListeners = () => {
   if (eventHandlers.settingsRequest) {
     window.removeEventListener('extensionRequestSettings', eventHandlers.settingsRequest);
     eventHandlers.settingsRequest = null;
+  }
+  if (eventHandlers.contentScriptRequest) {
+    window.removeEventListener('contentScriptRequest', eventHandlers.contentScriptRequest);
+    eventHandlers.contentScriptRequest = null;
   }
   if (eventHandlers.networkIntercepted) {
     window.removeEventListener('networkRequestIntercepted', eventHandlers.networkIntercepted);
@@ -283,8 +365,9 @@ const cleanupEventListeners = () => {
 // Listen for settings requests from main-world script
 eventHandlers.settingsRequest = async () => {
   try {
-    const result = await chrome.storage.sync.get(['networkInterception']);
-    const settings = result.networkInterception || { bodyCapture: { maxBodySize: 2000 } };
+    // Use local storage for consistency with background script
+    const result = await chrome.storage.local.get(['settings']);
+    const settings = result.settings?.networkInterception || { bodyCapture: { maxBodySize: 2000 } };
     
     window.dispatchEvent(new CustomEvent('extensionSettingsResponse', {
       detail: { networkInterception: settings }
@@ -302,6 +385,113 @@ eventHandlers.settingsRequest = async () => {
 
 // Add the event listener
 window.addEventListener('extensionRequestSettings', eventHandlers.settingsRequest);
+
+// Add handler for requests from main-world script
+eventHandlers.contentScriptRequest = async (event: Event) => {
+  const customEvent = event as CustomEvent;
+  const { action, requestId } = customEvent.detail;
+  let response = null;
+  
+  console.log('📨 CONTENT: Received request from main-world:', action, 'ID:', requestId);
+  
+  try {
+    switch (action) {
+      case 'checkNetworkLogging':
+        console.log('📨 CONTENT: Processing checkNetworkLogging request...');
+        const tabResponse = await sendChromeMessage({ action: 'getCurrentTabId' });
+        const tabId = tabResponse?.tabId;
+        console.log('📨 CONTENT: Current tab ID:', tabId);
+        
+        if (tabId) {
+          const result = await chrome.storage.local.get([`tabLogging_${tabId}`, 'extensionEnabled']);
+          const globalEnabled = result.extensionEnabled !== false;
+          const tabLogging = result[`tabLogging_${tabId}`];
+          const tabEnabled = !tabLogging || tabLogging.status === 'active';
+          
+          console.log('📨 CONTENT: Network logging state - Global:', globalEnabled, 'Tab:', tabEnabled, 'TabLogging:', tabLogging);
+          response = { enabled: globalEnabled && tabEnabled };
+        } else {
+          console.log('📨 CONTENT: No tab ID available, returning false');
+          response = { enabled: false };
+        }
+        break;
+        
+      case 'checkConsoleLogging':
+        console.log('📨 CONTENT: Processing checkConsoleLogging request...');
+        const currentTabResponse = await sendChromeMessage({ action: 'getCurrentTabId' });
+        const currentTabId = currentTabResponse?.tabId;
+        console.log('📨 CONTENT: Current tab ID for console:', currentTabId);
+        
+        if (currentTabId) {
+          const result = await chrome.storage.local.get([
+            `tabLogging_${currentTabId}`, 
+            'extensionEnabled',
+            'settings'
+          ]);
+          
+          const globalEnabled = result.extensionEnabled !== false;
+          const tabLogging = result[`tabLogging_${currentTabId}`];
+          const tabEnabled = !tabLogging || tabLogging.status === 'active';
+          
+          console.log('📨 CONTENT: Console logging state - Global:', globalEnabled, 'Tab:', tabEnabled);
+          response = { enabled: globalEnabled && tabEnabled };
+        } else {
+          console.log('📨 CONTENT: No tab ID available for console, returning false');
+          response = { enabled: false };
+        }
+        break;
+        
+      case 'checkConsoleSeverity':
+        console.log('📨 CONTENT: Processing checkConsoleSeverity request for:', customEvent.detail.data?.severity);
+        const severity = customEvent.detail.data?.severity || 'error';
+        
+        const tabIdResponse = await sendChromeMessage({ action: 'getCurrentTabId' });
+        const tabIdForSeverity = tabIdResponse?.tabId;
+        
+        if (tabIdForSeverity) {
+          const result = await chrome.storage.local.get([
+            `tabLogging_${tabIdForSeverity}`, 
+            'extensionEnabled',
+            'settings'
+          ]);
+          
+          const globalEnabled = result.extensionEnabled !== false;
+          const tabLogging = result[`tabLogging_${tabIdForSeverity}`];
+          const tabEnabled = !tabLogging || tabLogging.status === 'active';
+          
+          // Check severity filter
+          let severityAllowed = true;
+          if (result.settings?.errorLogging?.severityFilter?.enabled) {
+            const allowedSeverities = result.settings.errorLogging.severityFilter.allowed || [];
+            severityAllowed = allowedSeverities.includes(severity);
+          }
+          
+          console.log('📨 CONTENT: Console severity check - Global:', globalEnabled, 'Tab:', tabEnabled, 'SeverityAllowed:', severityAllowed);
+          response = { enabled: globalEnabled && tabEnabled && severityAllowed };
+        } else {
+          console.log('📨 CONTENT: No tab ID available for severity check, returning false');
+          response = { enabled: false };
+        }
+        break;
+        
+      default:
+        console.log('📨 CONTENT: Unknown action:', action);
+        response = { error: 'Unknown action' };
+    }
+  } catch (error) {
+    console.log('❌ CONTENT: Error handling content script request:', error);
+    response = { error: String(error) };
+  }
+  
+  console.log('📨 CONTENT: Sending response for', action, ':', response);
+  
+  // Send response back to main-world script
+  window.dispatchEvent(new CustomEvent('contentScriptResponse', {
+    detail: { requestId, response }
+  }));
+};
+
+window.addEventListener('contentScriptRequest', eventHandlers.contentScriptRequest);
 
 // CRITICAL FIX: Add missing network request message listener
 // This was causing network requests to not be forwarded to background script!
@@ -328,31 +518,6 @@ const networkMessageHandler = async (event: MessageEvent) => {
 window.addEventListener('message', networkMessageHandler);
 eventHandlers.windowMessage = networkMessageHandler;
 
-// Check if extension context is still valid
-function isExtensionContextValid(): boolean {
-  try {
-    // More thorough check for extension context
-    if (!chrome || !chrome.runtime) {
-      console.log('❌ CONTENT: Chrome runtime not available');
-      return false;
-    }
-    
-    // Check if runtime.id is accessible (throws error if context invalid)
-    const id = chrome.runtime.id;
-    if (!id) {
-      console.log('❌ CONTENT: Runtime ID not available');
-      return false;
-    }
-    
-    console.log('✅ CONTENT: Extension context valid, ID:', id);
-    return true;
-  } catch (error) {
-    console.log('❌ CONTENT: Extension context check failed:', error);
-    extensionContextValid = false;
-    return false;
-  }
-}
-
 // MAIN WORLD INJECTION for page-level network interception
 async function injectMainWorldScript() {
   if (injectionAttempted) {
@@ -368,6 +533,14 @@ async function injectMainWorldScript() {
       console.log('🔄 CONTENT: Main-world script not active, proceeding with injection...');
       injectionAttempted = false; // Reset to allow re-injection
     }
+  }
+  
+  // Check if there are already any injected scripts to prevent duplicates
+  const existingScripts = document.querySelectorAll('script[src*="main-world-script.js"]');
+  if (existingScripts.length > 0) {
+    console.log('⚠️ CONTENT: Main world script already injected via DOM, skipping');
+    injectionAttempted = true;
+    return true;
   }
   
   injectionAttempted = true;
@@ -400,10 +573,26 @@ async function tryWebAccessibleInjection(): Promise<boolean> {
   try {
     console.log('🔄 CONTENT: Starting web-accessible script injection...');
     
+    // Check if script is already injected
+    const isAlreadyActive = await checkMainWorldActive();
+    if (isAlreadyActive) {
+      console.log('✅ CONTENT: Main world script already active, skipping injection');
+      return true;
+    }
+    
+    // Double-check DOM for existing script elements
+    const existingScripts = document.querySelectorAll('script[src*="main-world-script.js"]');
+    if (existingScripts.length > 0) {
+      console.log('⚠️ CONTENT: Script element already exists in DOM, removing and re-injecting');
+      existingScripts.forEach(script => script.remove());
+    }
+    
     // Use the pre-built main world script from web_accessible_resources
     const script = document.createElement('script');
     script.src = chrome.runtime.getURL('main-world-script.js');
     script.async = false;
+    script.onload = () => console.log('✅ CONTENT: Main world script loaded successfully');
+    script.onerror = (error) => console.log('❌ CONTENT: Main world script failed to load:', error);
     
     // Inject the script
     (document.head || document.documentElement).appendChild(script);
@@ -411,6 +600,12 @@ async function tryWebAccessibleInjection(): Promise<boolean> {
     // MEMORY LEAK FIX: Use helper function instead of Promise constructor
     const success = await loadScriptPromise(script);
     console.log(success ? '✅ CONTENT: Direct script injection successful' : '❌ CONTENT: Direct script injection failed');
+    
+    // Initialize interception state after successful injection
+    if (success) {
+      setTimeout(() => initializeInterceptionState(), 200); // Small delay to ensure main world script is ready
+    }
+    
     return success;
     
   } catch (error) {
@@ -422,21 +617,15 @@ async function tryWebAccessibleInjection(): Promise<boolean> {
 // Listen for network requests from main world
 eventHandlers.networkIntercepted = async (event: any) => {
   const requestData = event.detail;
-  console.log('📡 CONTENT: Captured network request:', requestData.url);
-  console.log('📍 CONTENT: Current extension context valid?', extensionContextValid);
+  
+  // MEMORY OPTIMIZATION: Reduce per-request logging to minimize tab memory usage
   
   // Always check context validity before processing
   const contextValid = isExtensionContextValid();
-  console.log('🔍 CONTENT: Fresh context check result:', contextValid);
   
   if (!contextValid) {
-    console.log('⚠️ CONTENT: Extension context invalid, network request captured but not stored');
-    console.log('📊 CONTENT: Request details:', {
-      url: requestData.url,
-      method: requestData.method,
-      timestamp: new Date().toISOString(),
-      pageUrl: window.location.href
-    });
+    // MEMORY OPTIMIZATION: Only log critical context failures
+    console.log('⚠️ CONTENT: Extension context invalid, request not stored');
     return;
   }
   
@@ -448,24 +637,22 @@ eventHandlers.networkIntercepted = async (event: any) => {
       tabDomain: window.location.hostname
     };
     
-    console.log('📤 CONTENT: Sending network request to background:', enrichedData.url);
-    
+    // MEMORY OPTIMIZATION: Remove per-request success logging
     // MEMORY LEAK FIX: Use centralized handler to prevent response accumulation
-    try {
-      const response = await sendChromeMessage({
-        type: 'NETWORK_REQUEST',
-        data: enrichedData
-      });
-      console.log('✅ CONTENT: Network request processed by background:', response);
-    } catch (error) {
-      console.log('❌ CONTENT: Failed to store network request:', error);
-      console.log('🔍 CONTENT: Error details:', error instanceof Error ? error.message : String(error));
+    const response = await sendChromeMessage({
+      type: 'NETWORK_REQUEST',
+      data: enrichedData
+    });
+    
+    // Only log if there's an error
+    if (!response?.success) {
+      console.log('❌ CONTENT: Failed to store network request:', response?.error);
       extensionContextValid = false;
     }
     
   } catch (error) {
+    // MEMORY OPTIMIZATION: Reduce error logging detail
     console.log('❌ CONTENT: Error processing network request:', error);
-    console.log('🔍 CONTENT: Error details:', error instanceof Error ? error.message : String(error));
     extensionContextValid = false;
   }
 };
@@ -476,52 +663,48 @@ window.addEventListener('networkRequestIntercepted', eventHandlers.networkInterc
 // Listen for console errors from main world
 eventHandlers.consoleIntercepted = async (event: any) => {
   const errorData = event.detail;
-  console.log('📡 CONTENT: Captured console error:', errorData.message);
   
   try {
+    // Quick context check
     if (!isExtensionContextValid()) {
-      console.log('⚠️ CONTENT: Extension context invalid, console error captured but not stored');
-      return;
+      return; // Silent fail
     }
-    
-    try {
-      // MEMORY LEAK FIX: Use centralized handler instead of direct chrome.runtime.sendMessage
-      const tabResponse = await sendChromeMessage({ action: 'getCurrentTabId' });
-      // Add tab context information
-      const enrichedData = {
-        ...errorData,
-        tabUrl: window.location.href,
-        tabDomain: window.location.hostname,
-        tabId: tabResponse?.tabId
-      };
-      
-      // Send to background for storage
-      chrome.runtime.sendMessage({
-        type: 'CONSOLE_ERROR',
-        data: enrichedData
-      }).then(() => {
-        console.log('✅ CONTENT: Stored console error');
-      }).catch((error) => {
-        console.log('❌ CONTENT: Failed to store console error:', error);
-        extensionContextValid = false;
-      });
-    } catch (tabError) {
-      console.log('❌ CONTENT: Could not get tab ID:', tabError);
-      // Send without tab ID as fallback
-      const enrichedData = {
-        ...errorData,
-        tabUrl: window.location.href,
-        tabDomain: window.location.hostname
-      };
-      
-      chrome.runtime.sendMessage({
-        type: 'CONSOLE_ERROR',
-        data: enrichedData
-      });
+
+    // Get tab ID efficiently
+    const tabResponse = await sendChromeMessage({ action: 'getCurrentTabId' });
+    if (!tabResponse?.tabId) return;
+
+    // Format data for existing CONSOLE_ERROR handler
+    const formattedData = {
+      message: errorData.message || 'Unknown error',
+      stack: errorData.stack || null,
+      stack_trace: errorData.stack || null, // Ensure compatibility with dashboard
+      timestamp: errorData.timestamp || Date.now(),
+      severity: errorData.severity || 'error',
+      url: errorData.url || window.location.href,
+      tabId: tabResponse.tabId,
+      tabUrl: window.location.href,
+      domain: errorData.domain || window.location.hostname,
+      // Include enhanced error data
+      errorName: errorData.errorName || null,
+      errorMessage: errorData.errorMessage || null,
+      lineNumber: errorData.lineNumber || null,
+      columnNumber: errorData.columnNumber || null,
+      source: errorData.source || 'page-console'
+    };
+
+    // Send to background script using existing CONSOLE_ERROR action
+    const response = await sendChromeMessage({
+      action: 'CONSOLE_ERROR',
+      data: formattedData
+    });
+
+    // Only log errors in debug mode, not success to prevent console pollution
+    if (!response?.success && response?.reason !== 'Tab error logging paused') {
+      console.debug('❌ CONTENT: Failed to store console error:', response?.reason || 'Unknown error');
     }
-    
   } catch (error) {
-    console.log('❌ CONTENT: Error processing console error:', error);
+    // Silent fail to prevent memory leaks and recursive console errors
     extensionContextValid = false;
   }
 };
@@ -529,11 +712,154 @@ eventHandlers.consoleIntercepted = async (event: any) => {
 // Add the event listener
 window.addEventListener('consoleErrorIntercepted', eventHandlers.consoleIntercepted);
 
+// Initialize console error interception state
+async function initializeConsoleInterceptionState() {
+  try {
+    // Get current tab ID
+    const tabResponse = await sendChromeMessage({ action: 'getCurrentTabId' });
+    if (!tabResponse?.tabId) return;
+
+    // Get interception state from background
+    const response = await sendChromeMessage({
+      action: 'getInterceptionState',
+      tabId: tabResponse.tabId
+    });
+
+    // Send control message to main world
+    if (response?.consoleEnabled !== undefined) {
+      window.postMessage({
+        type: 'CONTROL_INTERCEPTION',
+        target: 'console',
+        enabled: response.consoleEnabled
+      }, '*');
+      console.log('📱 CONTENT: Set initial console interception state:', response.consoleEnabled);
+    }
+  } catch (error) {
+    console.log('⚠️ CONTENT: Could not initialize console interception state:', error);
+  }
+}
+
+// Function to handle site reactivation - check current logging states and restart monitoring
+async function handleSiteReactivation(): Promise<void> {
+  try {
+    console.log('🔄 CONTENT: Site reactivated, checking current logging states...');
+    
+    // Get current tab ID
+    const tabResponse = await sendChromeMessage({ action: 'getCurrentTabId' });
+    if (!tabResponse?.tabId) {
+      console.log('⚠️ CONTENT: No tab ID available for reactivation');
+      return;
+    }
+    
+    const tabId = tabResponse.tabId;
+    
+    // Get current logging states from storage
+    const storageResult = await chrome.storage.local.get([
+      `tabLogging_${tabId}`,
+      `tabErrorLogging_${tabId}`,
+      `tabTokenLogging_${tabId}`
+    ]);
+    
+    const networkState = storageResult[`tabLogging_${tabId}`];
+    const errorState = storageResult[`tabErrorLogging_${tabId}`];
+    const tokenState = storageResult[`tabTokenLogging_${tabId}`];
+    
+    console.log('📊 CONTENT: Current logging states:', {
+      network: networkState?.active || networkState?.status === 'active',
+      error: errorState?.active,
+      token: tokenState?.active
+    });
+    
+    // If any logging is enabled, inject main world script and set up monitoring
+    const networkEnabled = networkState?.active || networkState?.status === 'active';
+    const errorEnabled = errorState?.active;
+    const tokenEnabled = tokenState?.active;
+    
+    if (networkEnabled || errorEnabled || tokenEnabled) {
+      console.log('🌍 CONTENT: Some logging is enabled, injecting main world script...');
+      
+      // Inject main world script if needed
+      const injectionSuccess = await injectMainWorldScript();
+      
+      if (injectionSuccess) {
+        // Set up monitoring states based on current toggles
+        if (networkEnabled) {
+          console.log('🔄 CONTENT: Enabling network monitoring...');
+          window.postMessage({
+            type: 'CONTROL_INTERCEPTION',
+            target: 'network',
+            enabled: true
+          }, '*');
+        }
+        
+        if (errorEnabled) {
+          console.log('🔄 CONTENT: Enabling error monitoring...');
+          window.postMessage({
+            type: 'CONTROL_INTERCEPTION',
+            target: 'console',
+            enabled: true
+          }, '*');
+        }
+        
+        // Token logging is handled in background script, no content script control needed
+        
+        console.log('✅ CONTENT: Site reactivation complete, monitoring restored');
+      } else {
+        console.log('❌ CONTENT: Failed to inject main world script during reactivation');
+      }
+    } else {
+      console.log('ℹ️ CONTENT: No logging enabled, site reactivated but no monitoring needed');
+    }
+    
+  } catch (error) {
+    console.error('❌ CONTENT: Error during site reactivation:', error);
+  }
+}
+
 // MEMORY LEAK FIX: Runtime message listener with cleanup
 eventHandlers.runtimeMessage = (message, _sender, sendResponse) => {
   if (message.action === 'ping') {
     console.log('📱 CONTENT: Ping received');
     sendResponse({ success: true, message: 'Content script is active' });
+    return true;
+  }
+  
+  if (message.action === 'EXTENSION_STATE_CHANGED') {
+    console.log('📱 CONTENT: Extension state changed (global):', message.enabled);
+    
+    // Send state change to main world script
+    window.dispatchEvent(new CustomEvent('extensionStateChange', {
+      detail: { enabled: message.enabled }
+    }));
+    
+    if (message.enabled) {
+      // Extension was re-enabled, start context checking
+      startContextChecking();
+    } else {
+      // Extension was disabled, stop all monitoring
+      stopContextChecking();
+    }
+    
+    sendResponse({ success: true });
+    return true;
+  }
+  
+  if (message.action === 'SITE_SPECIFIC_STATE_CHANGED') {
+    console.log('📱 CONTENT: Site-specific state changed:', message.enabled);
+    
+    if (message.enabled) {
+      // Site was re-enabled, check current logging states and start monitoring
+      handleSiteReactivation();
+    } else {
+      // Site was disabled, send disable signal to main world
+      window.postMessage({
+        type: 'CONTROL_INTERCEPTION',
+        target: 'all',
+        enabled: false
+      }, '*');
+    }
+    
+    sendResponse({ success: true });
     return true;
   }
   
@@ -548,11 +874,26 @@ eventHandlers.runtimeMessage = (message, _sender, sendResponse) => {
       });
     } else {
       console.log('🚫 CONTENT: Network logging disabled');
+      
+      // Send control message to main world script
+      window.postMessage({
+        type: 'CONTROL_INTERCEPTION',
+        target: 'network',
+        enabled: false
+      }, '*');
     }
     
     sendResponse({ success: true });
   } else if (message.action === 'toggleErrorLogging') {
     console.log('📱 CONTENT: Toggle error logging:', message.enabled);
+    
+    // Send control message to main world script
+    window.postMessage({
+      type: 'CONTROL_INTERCEPTION',
+      target: 'console',
+      enabled: message.enabled
+    }, '*');
+    
     sendResponse({ success: true });
   }
   return true; // Keep the message channel open for async response
@@ -562,8 +903,20 @@ eventHandlers.runtimeMessage = (message, _sender, sendResponse) => {
 chrome.runtime.onMessage.addListener(eventHandlers.runtimeMessage);
 
 // MEMORY LEAK FIX: Storage change listener with proper cleanup
-const storageChangeHandler = (changes: any, namespace: string) => {
+const storageChangeHandler = async (changes: any, namespace: string) => {
   if (namespace === 'local') {
+    // Check for settings changes
+    if (changes.settings) {
+      console.log('⚙️ CONTENT: Settings changed, updating main-world script...');
+      // Send updated settings to main-world script
+      const newSettings = changes.settings.newValue;
+      if (newSettings?.networkInterception) {
+        window.dispatchEvent(new CustomEvent('extensionSettingsResponse', {
+          detail: { networkInterception: newSettings.networkInterception }
+        }));
+      }
+    }
+    
     // Check for tab logging changes
     for (const key in changes) {
       if (key.startsWith('tabLogging_')) {
@@ -571,12 +924,35 @@ const storageChangeHandler = (changes: any, namespace: string) => {
         const change = changes[key];
         console.log('📡 CONTENT: Tab logging state changed for tab', tabId, ':', change.newValue);
         
-        // If logging was enabled and we haven't injected yet, try to inject
-        if (change.newValue?.status === 'active') {
-          console.log('🔄 CONTENT: Tab logging enabled via storage change, attempting injection...');
-          injectMainWorldScript().then(success => {
-            console.log('🌍 CONTENT: Storage-triggered injection result:', success);
+        // Get current tab ID to see if this change affects current tab
+        const tabResponse = await sendChromeMessage({ action: 'getCurrentTabId' });
+        const currentTabId = tabResponse?.tabId;
+        
+        if (currentTabId && tabId === currentTabId.toString()) {
+          const tabLoggingEnabled = change.newValue?.status === 'active';
+          
+          // Check if extension is globally enabled
+          const stateResponse = await sendChromeMessage({
+            action: 'GET_EXTENSION_STATE',
+            tabId: currentTabId
           });
+          const globalEnabled = stateResponse?.enabled ?? true;
+          
+          // Notify main-world script about state changes
+          window.dispatchEvent(new CustomEvent('tabLoggingStateChange', {
+            detail: {
+              networkEnabled: globalEnabled && tabLoggingEnabled,
+              consoleEnabled: globalEnabled && tabLoggingEnabled
+            }
+          }));
+          
+          // If logging was enabled and we haven't injected yet, try to inject
+          if (tabLoggingEnabled) {
+            console.log('🔄 CONTENT: Tab logging enabled via storage change, attempting injection...');
+            injectMainWorldScript().then(success => {
+              console.log('🌍 CONTENT: Storage-triggered injection result:', success);
+            });
+          }
         }
       }
     }
@@ -588,6 +964,52 @@ chrome.storage.onChanged.addListener(storageChangeHandler);
 
 // Add storage handler to cleanup system
 eventHandlers.storageChange = storageChangeHandler;
+
+// === INTERCEPTION STATE INITIALIZATION ===
+
+// Function to query and set initial interception state in main world script
+async function initializeInterceptionState(): Promise<void> {
+  try {
+    const tabResponse = await sendChromeMessage({ action: 'getCurrentTabId' });
+    const tabId = tabResponse?.tabId;
+    
+    if (!tabId) {
+      console.log('📱 CONTENT: No tab ID available for interception state initialization');
+      return;
+    }
+    
+    // Get current interception state from background
+    const stateResponse = await sendChromeMessage({
+      action: 'getInterceptionState',
+      tabId: tabId
+    });
+    
+    if (stateResponse?.success !== false) {
+      const { consoleEnabled, networkEnabled } = stateResponse;
+      
+      console.log('📱 CONTENT: Setting initial interception state:', {
+        console: consoleEnabled,
+        network: networkEnabled
+      });
+      
+      // Set console interception state in main world
+      window.postMessage({
+        type: 'CONTROL_INTERCEPTION',
+        target: 'console',
+        enabled: consoleEnabled
+      }, '*');
+      
+      // Set network interception state in main world
+      window.postMessage({
+        type: 'CONTROL_INTERCEPTION',
+        target: 'network',
+        enabled: networkEnabled
+      }, '*');
+    }
+  } catch (error) {
+    console.log('📱 CONTENT: Failed to initialize interception state:', error);
+  }
+}
 
 // Listen for extension context invalidation
 eventHandlers.beforeUnload1 = () => {
@@ -644,7 +1066,14 @@ const startContextChecking = () => {
   scheduleNextCheck()
 }
 
-startContextChecking()
+// MEMORY LEAK FIX: Stop context checking when extension is disabled
+function stopContextChecking() {
+  if (contextCheckIntervalId) {
+    clearTimeout(contextCheckIntervalId);
+    contextCheckIntervalId = null;
+    console.log('🚫 CONTENT: Context checking stopped');
+  }
+}
 
 // MEMORY LEAK FIX: Clear interval on page unload to prevent accumulation
 eventHandlers.beforeUnload2 = () => {
@@ -660,41 +1089,66 @@ if (window.addEventListener && eventHandlers.beforeUnload2) {
 }
 
 // Initialize injection on content script load
-if (document.readyState === 'loading') {
-  eventHandlers.domContentLoaded = () => {
-    setTimeout(() => injectMainWorldScript(), 100);
-  };
-  if (document.addEventListener && eventHandlers.domContentLoaded) {
-    document.addEventListener('DOMContentLoaded', eventHandlers.domContentLoaded);
+// PHASE 2: Check extension state FIRST before any initialization
+async function initializeContentScript() {
+  const isExtensionEnabled = await checkExtensionState();
+  
+  if (!isExtensionEnabled) {
+    // Extension is disabled - do absolutely nothing
+    console.log('🚫 CONTENT: Extension disabled, content script will remain inactive');
+    return;
   }
-} else {
-  setTimeout(() => injectMainWorldScript(), 100);
-}
-
-// Also inject when document is ready if not already done
-eventHandlers.windowLoad = () => {
-  setTimeout(() => {
-    if (!injectionAttempted) {
-      injectMainWorldScript();
+  
+  // Extension is enabled - proceed with normal initialization
+  console.log('✅ CONTENT: Extension enabled, starting content script initialization');
+  
+  // Start context checking only when extension is enabled
+  startContextChecking();
+  
+  if (document.readyState === 'loading') {
+    eventHandlers.domContentLoaded = () => {
+      setTimeout(() => injectMainWorldScript(), 100);
+    };
+    if (document.addEventListener && eventHandlers.domContentLoaded) {
+      document.addEventListener('DOMContentLoaded', eventHandlers.domContentLoaded);
     }
-  }, 500);
-};
+  } else {
+    setTimeout(() => injectMainWorldScript(), 100);
+  }
 
-// Register window load listener
-if (window.addEventListener && eventHandlers.windowLoad) {
-  window.addEventListener('load', eventHandlers.windowLoad);
+  // Also inject when document is ready if not already done
+  eventHandlers.windowLoad = () => {
+    setTimeout(() => {
+      if (!injectionAttempted) {
+        injectMainWorldScript();
+      }
+    }, 500);
+  };
+
+  // Register window load listener
+  if (window.addEventListener && eventHandlers.windowLoad) {
+    window.addEventListener('load', eventHandlers.windowLoad);
+  }
+
+  console.log('✅ CONTENT: Chrome APIs available');
+  console.log('✅ CONTENT: Main world injection setup completed');
+
+  // Export for debugging
+  (window as any).__contentScriptDebug = {
+    isExtensionContextValid,
+    injectMainWorldScript,
+    extensionContextValid,
+    injectionAttempted
+  };
+
+  // Single injection attempt on script load
+  setTimeout(() => injectMainWorldScript(), 100);
+
+  // PERFORMANCE OPTIMIZATION: Use comprehensive initialization for both console and network
+  setTimeout(() => {
+    initializeInterceptionState();
+  }, 500);
 }
 
-// Export for debugging
-(window as any).__contentScriptDebug = {
-  isExtensionContextValid,
-  injectMainWorldScript,
-  extensionContextValid,
-  injectionAttempted
-};
-
-console.log('✅ CONTENT: Chrome APIs available');
-console.log('✅ CONTENT: Main world injection setup completed');
-
-// Single injection attempt on script load
-setTimeout(() => injectMainWorldScript(), 100);
+// Start initialization
+initializeContentScript();

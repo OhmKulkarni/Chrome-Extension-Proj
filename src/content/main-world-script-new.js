@@ -11,46 +11,77 @@ let originalFetch = window.fetch;
 let originalXhrOpen = XMLHttpRequest.prototype.open;
 let originalXhrSend = XMLHttpRequest.prototype.send;
 let originalXhrSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader;
+let originalConsoleError = console.error;
+let originalConsoleWarn = console.warn;
+let originalConsoleInfo = console.info;
+let originalConsoleLog = console.log;
 let isIntercepting = false;
+let isConsoleIntercepting = false;
 
-// MEMORY LEAK FIX: Convert Promise constructor to async/await pattern
-const getCurrentTabId = async () => {
-  if (typeof chrome !== 'undefined' && chrome.runtime) {
-    try {
-      const response = await chrome.runtime.sendMessage({ action: 'getCurrentTabId' })
-      return response?.tabId || null
-    } catch (error) {
-      console.warn('🌍 MAIN_WORLD: Error getting tab ID:', error)
-      return null
-    }
-  } else {
-    return null
+// State tracking for main-world context (no direct Chrome API access)
+let mainWorldState = {
+  extensionEnabled: true,
+  networkLoggingEnabled: true,
+  consoleLoggingEnabled: true
+};
+
+// Communication with content script for Chrome API access
+const requestFromContentScript = (action, data = {}) => {
+  return new Promise((resolve) => {
+    const requestId = Math.random().toString(36);
+    let resolved = false;
+    
+    console.log('🌍 MAIN_WORLD: Requesting from content script:', action, 'ID:', requestId);
+    
+    const responseHandler = (event) => {
+      if (event.detail?.requestId === requestId && !resolved) {
+        resolved = true;
+        window.removeEventListener('contentScriptResponse', responseHandler);
+        console.log('🌍 MAIN_WORLD: Received response for:', action, 'Response:', event.detail.response);
+        resolve(event.detail.response);
+      }
+    };
+    
+    window.addEventListener('contentScriptResponse', responseHandler);
+    window.dispatchEvent(new CustomEvent('contentScriptRequest', {
+      detail: { action, data, requestId }
+    }));
+    
+    // Cleanup timeout
+    setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        window.removeEventListener('contentScriptResponse', responseHandler);
+        console.log('🌍 MAIN_WORLD: Request timeout for:', action);
+        resolve(null);
+      }
+    }, 1000);
+  });
+};
+
+// Check if logging is enabled for current tab
+const isLoggingEnabled = async () => {
+  try {
+    console.log('🌍 MAIN_WORLD: Checking if logging is enabled...');
+    const result = await requestFromContentScript('checkNetworkLogging');
+    console.log('🌍 MAIN_WORLD: Network logging check result:', result);
+    return result?.enabled ?? mainWorldState.networkLoggingEnabled;
+  } catch (error) {
+    console.warn('🌍 MAIN_WORLD: Error checking logging state:', error);
+    return mainWorldState.networkLoggingEnabled;
   }
 };
 
-// Check if logging is enabled for current tab - MEMORY LEAK FIX: Convert Promise constructor
-const isLoggingEnabled = async () => {
+// Check if console error logging is enabled for current tab
+const isConsoleLoggingEnabled = async () => {
   try {
-    const tabId = await getCurrentTabId();
-    if (!tabId) return false;
-    
-    if (typeof chrome !== 'undefined' && chrome.storage) {
-      try {
-        const result = await chrome.storage.local.get([`tabLogging_${tabId}`, 'extensionEnabled'])
-        const globalEnabled = result.extensionEnabled !== false; // default true
-        const tabLogging = result[`tabLogging_${tabId}`];
-        const tabEnabled = !tabLogging || tabLogging.status === 'active'; // default true
-        return globalEnabled && tabEnabled;
-      } catch (error) {
-        console.warn('🌍 MAIN_WORLD: Error checking logging state:', error);
-        return false;
-      }
-    } else {
-      return false;
-    }
+    console.log('🌍 MAIN_WORLD: Checking if console logging is enabled...');
+    const result = await requestFromContentScript('checkConsoleLogging');
+    console.log('🌍 MAIN_WORLD: Console logging check result:', result);
+    return result?.enabled ?? mainWorldState.consoleLoggingEnabled;
   } catch (error) {
-    console.warn('🌍 MAIN_WORLD: Error in isLoggingEnabled:', error);
-    return false;
+    console.warn('🌍 MAIN_WORLD: Error checking console logging state:', error);
+    return mainWorldState.consoleLoggingEnabled;
   }
 };
 
@@ -72,8 +103,25 @@ function getSafeDomain(url) {
 // Helper function to truncate body content based on settings
 function truncateBody(text, maxSize = extensionSettings.maxBodySize) {
   if (!text || typeof text !== 'string') return '';
-  if (maxSize === 0) return text; // No limit
-  return text.substring(0, maxSize);
+  
+  // Safety: Even if user sets 0 (no limit), apply a reasonable safety limit to prevent memory issues
+  const SAFETY_MAX_SIZE = 50000; // 50KB safety limit
+  let effectiveMaxSize;
+  
+  if (maxSize === 0) {
+    // User wants no limit, but apply safety limit to prevent memory bloat
+    effectiveMaxSize = SAFETY_MAX_SIZE;
+  } else {
+    // User specified a limit, respect it but cap at safety limit
+    effectiveMaxSize = Math.min(maxSize, SAFETY_MAX_SIZE);
+  }
+  
+  if (text.length > effectiveMaxSize) {
+    console.log(`🌍 MAIN-WORLD: Truncating body from ${text.length} to ${effectiveMaxSize} characters (user limit: ${maxSize})`);
+    return text.substring(0, effectiveMaxSize) + '... [TRUNCATED]';
+  }
+  
+  return text;
 }
 
 // Create our main world interception
@@ -222,6 +270,71 @@ const interceptXHR = (xhr, originalXhrSend, data) => {
   return originalXhrSend.call(xhr, data);
 };
 
+// Console interception functions
+const interceptConsole = (originalMethod, methodName, severity, ...args) => {
+  // Call original method first to maintain normal console behavior
+  originalMethod.apply(console, args);
+  
+  // Check if we should capture this log level
+  const shouldCapture = async () => {
+    try {
+      const tabId = await getCurrentTabId();
+      if (!tabId) return false;
+      
+      const result = await chrome.storage.local.get(['extensionSettings']);
+      const settings = result.extensionSettings;
+      
+      // Check severity filter
+      if (settings?.errorLogging?.severityFilter?.enabled) {
+        const allowedSeverities = settings.errorLogging.severityFilter.allowed || [];
+        return allowedSeverities.includes(severity);
+      }
+      
+      return true;
+    } catch (error) {
+      return false;
+    }
+  };
+  
+  // Capture the console output
+  shouldCapture().then(capture => {
+    if (!capture) return;
+    
+    try {
+      // Convert arguments to strings
+      const message = args.map(arg => {
+        if (typeof arg === 'object') {
+          try {
+            return JSON.stringify(arg, null, 2);
+          } catch (e) {
+            return String(arg);
+          }
+        }
+        return String(arg);
+      }).join(' ');
+      
+      // Create console error data
+      const consoleData = {
+        message: message,
+        severity: severity,
+        timestamp: new Date().toISOString(),
+        url: window.location.href,
+        domain: getSafeDomain(window.location.href),
+        source: 'page-console',
+        stack: severity === 'error' ? (new Error().stack) : null
+      };
+      
+      // Dispatch custom event for content script to catch
+      window.dispatchEvent(new CustomEvent('consoleErrorIntercepted', {
+        detail: consoleData
+      }));
+      
+    } catch (error) {
+      // Silently fail to avoid recursive console calls
+    }
+  });
+};
+
 // Try to get settings from extension storage
 try {
   // Request settings from the content script via custom event
@@ -264,7 +377,34 @@ try {
     };
     
     XMLHttpRequest.prototype.send = function(data) {
+      // Set up the interception listener and call original send
       interceptXHR(this, originalXhrSend, data);
+      return originalXhrSend.call(this, data);
+    };
+  };
+  
+  // Start console interception
+  const startConsoleInterception = () => {
+    if (isConsoleIntercepting) return;
+    
+    console.log('🚀 MAIN_WORLD: Starting console interception...');
+    isConsoleIntercepting = true;
+    
+    // Override console methods
+    console.error = function(...args) {
+      interceptConsole(originalConsoleError, 'error', 'error', ...args);
+    };
+    
+    console.warn = function(...args) {
+      interceptConsole(originalConsoleWarn, 'warn', 'warn', ...args);
+    };
+    
+    console.info = function(...args) {
+      interceptConsole(originalConsoleInfo, 'info', 'info', ...args);
+    };
+    
+    console.log = function(...args) {
+      interceptConsole(originalConsoleLog, 'log', 'info', ...args);
     };
   };
   
@@ -282,30 +422,107 @@ try {
     XMLHttpRequest.prototype.setRequestHeader = originalXhrSetRequestHeader;
   };
   
+  // Stop console interception
+  const stopConsoleInterception = () => {
+    if (!isConsoleIntercepting) return;
+    
+    console.log('🛑 MAIN_WORLD: Stopping console interception...');
+    isConsoleIntercepting = false;
+    
+    // Restore original console methods
+    console.error = originalConsoleError;
+    console.warn = originalConsoleWarn;
+    console.info = originalConsoleInfo;
+    console.log = originalConsoleLog;
+  };
+  
   // Initial setup - check if we should start intercepting
   (async () => {
-    const enabled = await isLoggingEnabled();
-    if (enabled) {
+    console.log('🌍 MAIN_WORLD: Initializing network interception...');
+    
+    // Request initial settings
+    window.dispatchEvent(new CustomEvent('extensionRequestSettings'));
+    
+    // Wait a bit for content script to be ready
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Check initial states
+    console.log('🌍 MAIN_WORLD: Checking initial logging states...');
+    const networkEnabled = await isLoggingEnabled();
+    const consoleEnabled = await isConsoleLoggingEnabled();
+    
+    console.log('🌍 MAIN_WORLD: Initial states - Network:', networkEnabled, 'Console:', consoleEnabled);
+    
+    if (networkEnabled) {
+      console.log('🌍 MAIN_WORLD: Network logging enabled, starting interception...');
       startInterception();
+    } else {
+      console.log('🌍 MAIN_WORLD: Network logging disabled, not starting interception');
+    }
+    
+    if (consoleEnabled) {
+      console.log('🌍 MAIN_WORLD: Console logging enabled, starting console interception...');
+      startConsoleInterception();
+    } else {
+      console.log('🌍 MAIN_WORLD: Console logging disabled, not starting console interception');
     }
   })();
   
-  // Listen for storage changes to start/stop interception
-  if (typeof chrome !== 'undefined' && chrome.storage) {
-    chrome.storage.onChanged.addListener(async (changes, namespace) => {
-      if (namespace === 'local' || namespace === 'sync') {
-        const enabled = await isLoggingEnabled();
-        if (enabled && !isIntercepting) {
-          startInterception();
-        } else if (!enabled && isIntercepting) {
-          stopInterception();
-        }
+  // Listen for extension state changes from content script
+  window.addEventListener('extensionStateChange', (event) => {
+    if (event.detail?.enabled !== undefined) {
+      mainWorldState.extensionEnabled = event.detail.enabled;
+      console.log('🌍 MAIN_WORLD: Extension enabled state changed:', mainWorldState.extensionEnabled);
+      
+      if (!mainWorldState.extensionEnabled) {
+        stopInterception();
+        stopConsoleInterception();
       }
-    });
-  }
+    }
+  });
+  
+  // Listen for tab logging state changes
+  window.addEventListener('tabLoggingStateChange', async (event) => {
+    console.log('🌍 MAIN_WORLD: Tab logging state change received:', event.detail);
+    
+    if (event.detail?.networkEnabled !== undefined) {
+      const networkEnabled = event.detail.networkEnabled && mainWorldState.extensionEnabled;
+      
+      if (networkEnabled && !isIntercepting) {
+        console.log('🌍 MAIN_WORLD: Starting network interception due to state change');
+        startInterception();
+      } else if (!networkEnabled && isIntercepting) {
+        console.log('🌍 MAIN_WORLD: Stopping network interception due to state change');
+        stopInterception();
+      }
+    }
+    
+    if (event.detail?.consoleEnabled !== undefined) {
+      const consoleEnabled = event.detail.consoleEnabled && mainWorldState.extensionEnabled;
+      
+      if (consoleEnabled && !isConsoleIntercepting) {
+        console.log('🌍 MAIN_WORLD: Starting console interception due to state change');
+        startConsoleInterception();
+      } else if (!consoleEnabled && isConsoleIntercepting) {
+        console.log('🌍 MAIN_WORLD: Stopping console interception due to state change');
+        stopConsoleInterception();
+      }
+    }
+  });
   
 } catch (error) {
   console.log('🌍 MAIN-WORLD: Could not get settings, using defaults:', error);
 }
+
+// Add activity check response handler
+window.addEventListener('checkMainWorldActive', (event) => {
+  console.log('🌍 MAIN-WORLD: Activity check received');
+  window.dispatchEvent(new CustomEvent('mainWorldActiveResponse', {
+    detail: { 
+      checkId: event.detail?.checkId,
+      isActive: true 
+    }
+  }));
+});
 
 console.log('🌍 MAIN-WORLD: Network interception script loaded and ready');

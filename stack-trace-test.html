@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stack Trace Test Page</title>
+</head>
+<body>
+    <h1>Stack Trace Test Page</h1>
+    <p>This page is for testing console error stack trace capture.</p>
+    
+    <div>
+        <button onclick="testConsoleError()">Test Console Error</button>
+        <button onclick="testConsoleErrorWithError()">Test Console Error with Error Object</button>
+        <button onclick="testConsoleWarn()">Test Console Warn</button>
+        <button onclick="testUncaughtError()">Test Uncaught Error</button>
+        <button onclick="testPromiseRejection()">Test Promise Rejection</button>
+        <button onclick="testCrossOriginError()">Test Cross-Origin Script Error</button>
+    </div>
+
+    <script>
+        function testConsoleError() {
+            console.error("This is a test console error from testConsoleError function");
+        }
+
+        function testConsoleErrorWithError() {
+            const error = new Error("This is an Error object passed to console.error");
+            console.error("Error object test:", error);
+        }
+
+        function testConsoleWarn() {
+            console.warn("This is a test console warning from testConsoleWarn function");
+        }
+
+        function testUncaughtError() {
+            // This will trigger the global error handler
+            setTimeout(() => {
+                throw new Error("This is an uncaught error from testUncaughtError");
+            }, 100);
+        }
+
+        function testPromiseRejection() {
+            // This will trigger the unhandled promise rejection handler
+            new Promise((resolve, reject) => {
+                reject(new Error("This is an unhandled promise rejection"));
+            });
+        }
+
+        function testCrossOriginError() {
+            // Simulate a cross-origin script error
+            const script = document.createElement('script');
+            script.src = 'https://example.com/nonexistent-script.js';
+            script.onerror = () => {
+                console.error("Cross-origin script failed to load");
+            };
+            document.head.appendChild(script);
+        }
+
+        // Add a nested function test
+        function outerFunction() {
+            function innerFunction() {
+                function deepFunction() {
+                    console.error("This is a nested function error with deep stack trace");
+                }
+                deepFunction();
+            }
+            innerFunction();
+        }
+
+        // Add button for nested test
+        const nestedButton = document.createElement('button');
+        nestedButton.textContent = 'Test Nested Function Error';
+        nestedButton.onclick = outerFunction;
+        document.querySelector('div').appendChild(nestedButton);
+
+        console.log("Stack trace test page loaded successfully");
+    </script>
+</body>
+</html>

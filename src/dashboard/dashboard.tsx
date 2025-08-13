@@ -321,6 +321,57 @@ const RequestDetailContent: React.FC<{ request: any; selectedField: string }> = 
     const requestBody = request.request_body || request.requestBody;
     const responseBody = request.response_body || request.responseBody || request.response_data;
 
+    // Check if body capture is disabled in settings
+    const isBodyCaptureDisabled = (body: any): boolean => {
+      return typeof body === 'string' && (
+        body === '[Body capture disabled in settings]' ||
+        body === '[Request body capture disabled]' ||
+        body === '[Response body capture disabled]'
+      );
+    };
+
+    // Render body content with proper messaging for disabled capture
+    const renderBodyContent = (body: string, type: 'request' | 'response') => {
+      if (body === '[Body capture disabled in settings]') {
+        return (
+          <div className="p-4 bg-muted/50 rounded-lg border border-dashed">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <span className="text-sm">⚙️</span>
+              <span>Body capture is disabled in settings</span>
+            </div>
+            <p className="text-sm mt-2">
+              To view {type} bodies, enable body capture in the extension settings.
+            </p>
+          </div>
+        );
+      }
+      
+      if (body === `[${type.charAt(0).toUpperCase() + type.slice(1)} body capture disabled]`) {
+        return (
+          <div className="p-4 bg-muted/50 rounded-lg border border-dashed">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <span className="text-sm">⚙️</span>
+              <span>{type.charAt(0).toUpperCase() + type.slice(1)} body capture is disabled</span>
+            </div>
+            <p className="text-sm mt-2">
+              Enable "{type} body capture" in settings to view this content.
+            </p>
+          </div>
+        );
+      }
+      
+      // Normal body display with pretty-printing
+      if (!body) {
+        return <div className="text-gray-500 italic">(empty)</div>;
+      }
+      
+      return (
+        <pre className="bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto max-h-96 text-sm font-mono">
+          <code className="whitespace-pre-wrap break-words">{prettyPrintIfJson(body)}</code>
+        </pre>
+      );
+    };
+
     // Pretty-print JSON string bodies
     const prettyPrintIfJson = (str: any) => {
       if (typeof str !== 'string') return str;
@@ -455,32 +506,32 @@ const RequestDetailContent: React.FC<{ request: any; selectedField: string }> = 
           <div>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-gray-900">Request Body</h3>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => copyToClipboard(typeof requestBody === 'string' ? prettyPrintIfJson(requestBody) : formatJSON(requestBody))}
-                  className="copy-button text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
-                >
-                  Copy
-                </button>
-                {requestBody && (typeof requestBody === 'string' ? requestBody.length : JSON.stringify(requestBody).length) > 1000 && (
+              {!isBodyCaptureDisabled(requestBody) && (
+                <div className="flex space-x-2">
                   <button
-                    onClick={() => {
-                      const content = typeof requestBody === 'string' ? prettyPrintIfJson(requestBody) : formatJSON(requestBody);
-                      const newWindow = window.open('', '_blank');
-                      if (newWindow) {
-                        newWindow.document.write(`<pre style="white-space: pre-wrap; word-wrap: break-word; font-family: monospace; padding: 20px;">${content}</pre>`);
-                      }
-                    }}
-                    className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
+                    onClick={() => copyToClipboard(typeof requestBody === 'string' ? prettyPrintIfJson(requestBody) : formatJSON(requestBody))}
+                    className="copy-button text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
                   >
-                    View Full
+                    Copy
                   </button>
-                )}
-              </div>
+                  {requestBody && (typeof requestBody === 'string' ? requestBody.length : JSON.stringify(requestBody).length) > 1000 && (
+                    <button
+                      onClick={() => {
+                        const content = typeof requestBody === 'string' ? prettyPrintIfJson(requestBody) : formatJSON(requestBody);
+                        const newWindow = window.open('', '_blank');
+                        if (newWindow) {
+                          newWindow.document.write(`<pre style="white-space: pre-wrap; word-wrap: break-word; font-family: monospace; padding: 20px;">${content}</pre>`);
+                        }
+                      }}
+                      className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
+                    >
+                      View Full
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
-            <div className="code-block bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto text-sm font-mono max-h-96">
-              <pre className="whitespace-pre-wrap break-words">{typeof requestBody === 'string' ? prettyPrintIfJson(requestBody) : formatJSON(requestBody)}</pre>
-            </div>
+            {renderBodyContent(requestBody, 'request')}
           </div>
         )}
 
@@ -490,7 +541,7 @@ const RequestDetailContent: React.FC<{ request: any; selectedField: string }> = 
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-2">
                 <h3 className="text-sm font-semibold text-gray-900">Response Body</h3>
-                {isStatusOnlyResponse(responseBody) && (
+                {!isBodyCaptureDisabled(responseBody) && isStatusOnlyResponse(responseBody) && (
                   <div className="relative group">
                     <div className="w-4 h-4 bg-yellow-100 border border-yellow-300 rounded-full flex items-center justify-center cursor-help">
                       <span className="text-yellow-600 text-sm">📄</span>
@@ -505,31 +556,35 @@ const RequestDetailContent: React.FC<{ request: any; selectedField: string }> = 
                   </div>
                 )}
               </div>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => copyToClipboard(typeof responseBody === 'string' ? responseBody : formatJSON(responseBody))}
-                  className="copy-button text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
-                >
-                  Copy
-                </button>
-                {responseBody && (typeof responseBody === 'string' ? responseBody.length : JSON.stringify(responseBody).length) > 1000 && (
+              {!isBodyCaptureDisabled(responseBody) && (
+                <div className="flex space-x-2">
                   <button
-                    onClick={() => {
-                      const content = typeof responseBody === 'string' ? responseBody : formatJSON(responseBody);
-                      const newWindow = window.open('', '_blank');
-                      if (newWindow) {
-                        newWindow.document.write(`<pre style="white-space: pre-wrap; word-wrap: break-word; font-family: monospace; padding: 20px;">${content}</pre>`);
-                      }
-                    }}
-                    className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
+                    onClick={() => copyToClipboard(typeof responseBody === 'string' ? responseBody : formatJSON(responseBody))}
+                    className="copy-button text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
                   >
-                    View Full
+                    Copy
                   </button>
-                )}
-              </div>
+                  {responseBody && (typeof responseBody === 'string' ? responseBody.length : JSON.stringify(responseBody).length) > 1000 && (
+                    <button
+                      onClick={() => {
+                        const content = typeof responseBody === 'string' ? responseBody : formatJSON(responseBody);
+                        const newWindow = window.open('', '_blank');
+                        if (newWindow) {
+                          newWindow.document.write(`<pre style="white-space: pre-wrap; word-wrap: break-word; font-family: monospace; padding: 20px;">${content}</pre>`);
+                        }
+                      }}
+                      className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
+                    >
+                      View Full
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
-            {/* Enhanced response body display with status explanation */}
-            {isStatusOnlyResponse(responseBody) ? (
+            {/* Use renderBodyContent for disabled capture handling, fallback to existing logic for special cases */}
+            {isBodyCaptureDisabled(responseBody) ? (
+              renderBodyContent(responseBody, 'response')
+            ) : isStatusOnlyResponse(responseBody) ? (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <div className="flex items-start space-x-3">
                   <div className="flex-1">
@@ -551,9 +606,7 @@ const RequestDetailContent: React.FC<{ request: any; selectedField: string }> = 
                 </div>
               </div>
             ) : (
-              <div className="code-block bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto text-sm font-mono max-h-96">
-                <pre className="whitespace-pre-wrap break-words">{typeof responseBody === 'string' ? responseBody : formatJSON(responseBody)}</pre>
-              </div>
+              renderBodyContent(responseBody, 'response')
             )}
           </div>
         )}
@@ -939,7 +992,7 @@ const analyzeTokenEvent = (event: any) => {
   };
 };
 
-const TokenDetailContent: React.FC<{ tokenEvent: any; selectedField: string }> = ({ tokenEvent, selectedField }) => {
+const TokenDetailContent: React.FC<{ tokenEvent: any; selectedField: string; showFullTokenHash: boolean }> = ({ tokenEvent, selectedField, showFullTokenHash }) => {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
   };
@@ -949,7 +1002,12 @@ const TokenDetailContent: React.FC<{ tokenEvent: any; selectedField: string }> =
     if (!hash) return 'N/A';
     
     // Handle special status cases - keep them as-is
-    if (hash === 'expired' || hash === 'redacted' || hash === 'N/A') {
+    if (hash === 'expired' || hash === 'redacted' || hash === 'N/A' || hash === 'refresh_error') {
+      return hash;
+    }
+    
+    // If showFullTokenHash is enabled, return the full hash
+    if (showFullTokenHash) {
       return hash;
     }
     
@@ -959,7 +1017,11 @@ const TokenDetailContent: React.FC<{ tokenEvent: any; selectedField: string }> =
       return formatGitStyleHash(hash);
     }
     
-    // For other values, return as-is
+    // For other values, return as-is but check if we should abbreviate
+    if (hash.length > 16) {
+      return formatGitStyleHash(hash);
+    }
+    
     return hash;
   };
 
@@ -1028,7 +1090,50 @@ const TokenDetailContent: React.FC<{ tokenEvent: any; selectedField: string }> =
                 <div className="space-y-2">
                   <div>
                     <span className="text-xs text-gray-500">Value Hash:</span>
-                    <p className="text-xs text-gray-900 font-mono break-all bg-gray-100 p-2 rounded">{formatHashValue(analysis.valueHash)}</p>
+                    {showFullTokenHash && analysis.valueHash && analysis.valueHash.length > 16 && 
+                     !['expired', 'redacted', 'N/A', 'refresh_error'].includes(analysis.valueHash) ? (
+                      <div className="mt-1 flex items-center space-x-2">
+                        <input 
+                          type="text" 
+                          value={formatHashValue(analysis.valueHash)} 
+                          readOnly 
+                          className="bg-gray-100 border border-gray-300 rounded px-2 py-1 text-xs font-mono flex-1 cursor-pointer select-all"
+                          onClick={(e) => (e.target as HTMLInputElement).select()}
+                          title={`Full hash: ${formatHashValue(analysis.valueHash)}\nClick to select all for copying`}
+                        />
+                        <button
+                          onClick={async (e) => {
+                            try {
+                              await navigator.clipboard.writeText(formatHashValue(analysis.valueHash));
+                              // Optional: Show a brief success indicator
+                              const btn = e.target as HTMLButtonElement;
+                              const originalText = btn.textContent;
+                              btn.textContent = '✓';
+                              btn.className = btn.className.replace('text-gray-400', 'text-green-500');
+                              setTimeout(() => {
+                                btn.textContent = originalText;
+                                btn.className = btn.className.replace('text-green-500', 'text-gray-400');
+                              }, 1000);
+                            } catch (err) {
+                              console.error('Failed to copy hash:', err);
+                            }
+                          }}
+                          className="text-gray-400 hover:text-gray-600 transition-colors duration-200 flex-shrink-0"
+                          title="Copy hash to clipboard"
+                        >
+                          📋
+                        </button>
+                      </div>
+                    ) : (
+                      <p 
+                        className="text-xs text-gray-900 font-mono break-all bg-gray-100 p-2 rounded" 
+                        title={showFullTokenHash && analysis.valueHash && !['expired', 'redacted', 'N/A', 'refresh_error'].includes(analysis.valueHash) 
+                          ? `Full hash: ${formatHashValue(analysis.valueHash)}` 
+                          : analysis.valueHash}
+                      >
+                        {formatHashValue(analysis.valueHash)}
+                      </p>
+                    )}
                   </div>
                   {analysis.expiry && (
                     <div>
@@ -1079,6 +1184,7 @@ const Dashboard: React.FC = () => {
     tokenEvents: [],
     totalTokenEvents: 0
   });
+  const [globalPowerEnabled, setGlobalPowerEnabled] = useState(true); // Global power button
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [requestsPerPage] = useState(10);
@@ -1099,6 +1205,9 @@ const Dashboard: React.FC = () => {
   const [tokenSortConfig, setTokenSortConfig] = useState<SortConfig>({ key: 'timestamp', direction: 'desc' });
   const [filterTokenType, setFilterTokenType] = useState<string>('all');
   const [tokenSearchTerm, setTokenSearchTerm] = useState<string>('');
+
+  // Settings state for token hash display
+  const [showFullTokenHash, setShowFullTokenHash] = useState(false);
 
   // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -1143,7 +1252,12 @@ const Dashboard: React.FC = () => {
     if (!hash) return 'N/A';
     
     // Handle special status cases - keep them as-is
-    if (hash === 'expired' || hash === 'redacted' || hash === 'N/A') {
+    if (hash === 'expired' || hash === 'redacted' || hash === 'N/A' || hash === 'refresh_error') {
+      return hash;
+    }
+    
+    // If showFullTokenHash is enabled, return the full hash
+    if (showFullTokenHash) {
       return hash;
     }
     
@@ -1153,7 +1267,11 @@ const Dashboard: React.FC = () => {
       return formatGitStyleHash(hash);
     }
     
-    // For other values, return as-is
+    // For other values, return as-is but check if we should abbreviate
+    if (hash.length > 16) {
+      return formatGitStyleHash(hash);
+    }
+    
     return hash;
   };
 
@@ -1248,6 +1366,35 @@ const Dashboard: React.FC = () => {
     }
   }, [])
 
+  // MEMORY LEAK FIX: Load extension settings to configure display options
+  const loadSettings = useCallback(async () => {
+    try {
+      // Load settings from both storage locations (same logic as settings UI)
+      const [syncResult, localResult] = await Promise.all([
+        chrome.storage.sync.get(['extensionSettings']),
+        chrome.storage.local.get(['settings'])
+      ]);
+      
+      let tokenSettings = { showFullHash: false }; // Default
+      
+      // Priority: local storage (used by background script) > sync storage
+      if (localResult.settings?.tokenLogging) {
+        tokenSettings = {
+          showFullHash: localResult.settings.tokenLogging.showFullHash || false
+        };
+      } else if (syncResult.extensionSettings?.tokenLogging) {
+        tokenSettings = {
+          showFullHash: syncResult.extensionSettings.tokenLogging.showFullHash || false
+        };
+      }
+      
+      setShowFullTokenHash(tokenSettings.showFullHash);
+    } catch (error) {
+      console.error('Failed to load extension settings:', error);
+      // Keep default value (false) on error
+    }
+  }, []);
+
   const loadDashboardData = useCallback(async () => {
     try {
       // Get tabs count and current active tab
@@ -1296,8 +1443,11 @@ const Dashboard: React.FC = () => {
   // MEMORY LEAK FIX: Wrap loadTabsLoggingStatus in useCallback for stable reference
   const loadTabsLoggingStatus = useCallback(async () => {
     try {
-      // Get all tabs
+      // Get all tabs and global settings
       const tabs = await chrome.tabs.query({});
+      const settingsResult = await chrome.storage.local.get(['settings']);
+      const settings = settingsResult.settings || {};
+      
       const tabStatuses: TabLoggingStatus[] = [];
 
       for (const tab of tabs) {
@@ -1316,11 +1466,12 @@ const Dashboard: React.FC = () => {
             domain = 'unknown';
           }
 
-          // Determine logging status using the same logic as the working version
+          // Determine logging status with proper defaults
           let networkLogging = false;
           let errorLogging = false;
           let tokenLogging = false;
 
+          // Network logging status
           if (networkState) {
             // Check both 'status' and 'active' properties for compatibility
             if (networkState.status !== undefined) {
@@ -1328,14 +1479,28 @@ const Dashboard: React.FC = () => {
             } else {
               networkLogging = typeof networkState === 'boolean' ? networkState : networkState.active;
             }
+          } else {
+            // Use default from settings if no tab state exists
+            const defaultActive = settings.networkInterception?.tabSpecific?.defaultState === 'active';
+            networkLogging = defaultActive;
           }
 
+          // Error logging status
           if (errorState) {
             errorLogging = typeof errorState === 'boolean' ? errorState : errorState.active;
+          } else {
+            // Use default from settings if no tab state exists - should be paused by default
+            const defaultActive = settings.errorLogging?.tabSpecific?.defaultState === 'active';
+            errorLogging = defaultActive; // This will be false when defaultState is 'paused'
           }
 
+          // Token logging status
           if (tokenState) {
             tokenLogging = typeof tokenState === 'boolean' ? tokenState : tokenState.active;
+          } else {
+            // Use default from settings if no tab state exists - should be paused by default
+            const defaultActive = settings.tokenLogging?.tabSpecific?.defaultState === 'active';
+            tokenLogging = defaultActive; // This will be false when defaultState is 'paused'
           }
 
           tabStatuses.push({
@@ -1357,10 +1522,59 @@ const Dashboard: React.FC = () => {
     }
   }, []); // Empty dependencies - function doesn't depend on state/props
 
+  // MEMORY LEAK FIX: Load global power state separately 
+  const loadGlobalPowerState = useCallback(async () => {
+    try {
+      const response = await sendChromeMessage({
+        action: 'GET_GLOBAL_POWER_STATE'
+      });
+      
+      if (response && 'enabled' in response) {
+        setGlobalPowerEnabled(response.enabled);
+      } else {
+        // Fallback to sync storage for backward compatibility
+        const storageData = await chrome.storage.sync.get(['extensionEnabled']);
+        setGlobalPowerEnabled(storageData.extensionEnabled ?? true);
+      }
+    } catch (error) {
+      console.error('Error loading global power state:', error);
+      // Fallback to sync storage
+      const storageData = await chrome.storage.sync.get(['extensionEnabled']);
+      setGlobalPowerEnabled(storageData.extensionEnabled ?? true);
+    }
+  }, []); // Empty dependencies - function doesn't depend on state/props
+
   useEffect(() => {
     loadDashboardData();
     loadTabsLoggingStatus();
-  }, [loadDashboardData, loadTabsLoggingStatus]); // MEMORY LEAK FIX: Include all dependencies
+    loadSettings();
+    loadGlobalPowerState(); // Load global power state
+  }, [loadDashboardData, loadTabsLoggingStatus, loadSettings, loadGlobalPowerState]); // MEMORY LEAK FIX: Include all dependencies
+
+  // MEMORY LEAK FIX: Toggle global power state (entire extension)
+  const toggleGlobalPower = useCallback(async () => {
+    const newState = !globalPowerEnabled;
+    setGlobalPowerEnabled(newState);
+    
+    // Update Chrome storage for backward compatibility
+    await chrome.storage.sync.set({ extensionEnabled: newState });
+    
+    // Update extension state controller for immediate effect
+    try {
+      const response = await sendChromeMessage({
+        action: 'SET_EXTENSION_STATE',
+        enabled: newState
+      });
+      
+      if (!response?.success) {
+        console.warn('Failed to update global extension state:', response);
+      } else {
+        console.log(`🔄 Dashboard: Global power ${newState ? 'enabled' : 'disabled'}`);
+      }
+    } catch (error) {
+      console.error('Error updating global extension state:', error);
+    }
+  }, [globalPowerEnabled]); // Include globalPowerEnabled as dependency
 
   // MEMORY LEAK FIX: Load page data on-demand when page changes
   // Always load first page, then check totals for subsequent pages
@@ -1400,6 +1614,20 @@ const Dashboard: React.FC = () => {
           console.log('📡 DASHBOARD: Tab logging states changed, updating sidebar...');
           loadTabsLoggingStatus(); // Refresh the tab statuses
         }
+
+        // Check if settings changed (for token hash display)
+        if (changes.settings && changes.settings.newValue?.tokenLogging) {
+          console.log('⚙️ DASHBOARD: Token settings changed, updating display...');
+          loadSettings(); // Refresh the settings
+        }
+      }
+
+      if (namespace === 'sync') {
+        // Check if extension settings changed
+        if (changes.extensionSettings && changes.extensionSettings.newValue?.tokenLogging) {
+          console.log('⚙️ DASHBOARD: Extension token settings changed, updating display...');
+          loadSettings(); // Refresh the settings
+        }
       }
     };
 
@@ -1408,7 +1636,7 @@ const Dashboard: React.FC = () => {
     return () => {
       chrome.storage.onChanged.removeListener(handleStorageChanges);
     };
-  }, []);
+  }, [loadTabsLoggingStatus, loadSettings]); // MEMORY LEAK FIX: Include dependencies
 
   // Add real-time data refresh for network requests, errors, and tokens
   useEffect(() => {
@@ -1635,6 +1863,19 @@ const Dashboard: React.FC = () => {
   
   // For display purposes, use the current page data directly (no client-side slicing needed)
   const currentRequests = filteredAndSortedRequests; // Data is already paginated from server
+
+  // DEBUG: Add console logging to understand why table is empty
+  console.log('🔍 DASHBOARD DEBUG:', {
+    'data.networkRequests.length': data.networkRequests.length,
+    'data.totalRequests': data.totalRequests,
+    'filteredAndSortedRequests.length': filteredAndSortedRequests.length,
+    'currentRequests.length': currentRequests.length,
+    'currentPage': currentPage,
+    'requestsPerPage': requestsPerPage,
+    'searchTerm': searchTerm,
+    'filterMethod': filterMethod,
+    'currentTableIndex': currentTableIndex
+  });
 
   // Handle sorting
   const handleSort = (key: string) => {
@@ -1913,11 +2154,17 @@ const Dashboard: React.FC = () => {
 
   // Toggle error logging for a specific tab
   const toggleTabErrorLogging = async (tabId: number) => {
+    console.log('🔥 DASHBOARD: toggleTabErrorLogging called for tab:', tabId);
+    
     try {
       const currentTab = tabsLoggingStatus.find(tab => tab.tabId === tabId);
-      if (!currentTab) return;
+      if (!currentTab) {
+        console.log('🚫 DASHBOARD: Tab not found in status array');
+        return;
+      }
 
       const newState = !currentTab.errorLogging;
+      console.log('🔥 DASHBOARD: Current state:', currentTab.errorLogging, '-> New state:', newState);
       
       // Get current tab state to preserve counter when disabling
       const tabStorageData = await chrome.storage.local.get([`tabErrorLogging_${tabId}`]);
@@ -1930,6 +2177,7 @@ const Dashboard: React.FC = () => {
         errorCount: newState ? 0 : currentCount  // Reset only when enabling, preserve when disabling
       };
       
+      console.log('🔥 DASHBOARD: Storing tab state:', tabState);
       await chrome.storage.local.set({ [`tabErrorLogging_${tabId}`]: tabState });
       
       // Send message to content script
@@ -1938,6 +2186,7 @@ const Dashboard: React.FC = () => {
           action: 'toggleErrorLogging',
           enabled: newState
         });
+        console.log('🔥 DASHBOARD: Sent message to content script');
       } catch (error) {
         console.log('Could not send message to tab (may not have content script):', error);
       }
@@ -1948,6 +2197,8 @@ const Dashboard: React.FC = () => {
           tab.tabId === tabId ? { ...tab, errorLogging: newState } : tab
         )
       );
+      
+      console.log('🔥 DASHBOARD: Updated local state');
     } catch (error) {
       console.error('Error toggling error logging:', error);
     }
@@ -2306,6 +2557,27 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
             <div className="flex gap-3">
+              {/* Global Power Button */}
+              <div className="flex items-center">
+                <span className="text-sm font-medium text-gray-700 mr-3 flex items-center">
+                  <span className="text-lg mr-1">⚡</span>
+                  Extension Power
+                </span>
+                <button
+                  onClick={toggleGlobalPower}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    globalPowerEnabled ? 'bg-green-500' : 'bg-red-500'
+                  }`}
+                  title={`Click to ${globalPowerEnabled ? 'disable' : 'enable'} entire extension`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      globalPowerEnabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+              
               <button
                 onClick={refreshData}
                 className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
@@ -3318,9 +3590,56 @@ const Dashboard: React.FC = () => {
                             </span>
                           </td>
                           <td className="px-6 py-4">
-                            <div className="text-xs text-gray-600 font-mono truncate max-w-xs" title={event.value_hash}>
-                              {formatHashValue(event.value_hash)}
-                            </div>
+                            {showFullTokenHash && event.value_hash && event.value_hash.length > 16 && 
+                             !['expired', 'redacted', 'N/A', 'refresh_error'].includes(event.value_hash) ? (
+                              <div className="text-xs text-gray-600 font-mono">
+                                <div className="flex items-center space-x-2">
+                                  <input 
+                                    type="text" 
+                                    value={formatHashValue(event.value_hash)} 
+                                    readOnly 
+                                    className="bg-gray-100 border border-gray-300 rounded px-2 py-1 text-xs font-mono w-40 cursor-pointer select-all"
+                                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                                    title={`Full hash: ${formatHashValue(event.value_hash)}\nClick to select all for copying`}
+                                  />
+                                  <button
+                                    onClick={async (e) => {
+                                      try {
+                                        await navigator.clipboard.writeText(formatHashValue(event.value_hash));
+                                        // Optional: Show a brief success indicator
+                                        const btn = e.target as HTMLButtonElement;
+                                        const originalText = btn.textContent;
+                                        btn.textContent = '✓';
+                                        btn.className = btn.className.replace('text-gray-400', 'text-green-500');
+                                        setTimeout(() => {
+                                          btn.textContent = originalText;
+                                          btn.className = btn.className.replace('text-green-500', 'text-gray-400');
+                                        }, 1000);
+                                      } catch (err) {
+                                        console.error('Failed to copy hash:', err);
+                                      }
+                                    }}
+                                    className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                                    title="Copy hash to clipboard"
+                                  >
+                                    📋
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div 
+                                  className="text-xs text-gray-600 font-mono truncate max-w-xs"
+                                  title={
+                                    event.value_hash && !['expired', 'redacted', 'N/A', 'refresh_error'].includes(event.value_hash)
+                                      ? (showFullTokenHash
+                                          ? `Full hash: ${event.value_hash}`
+                                          : formatHashValue(event.value_hash))
+                                      : event.value_hash
+                                  }
+                              >
+                                {formatHashValue(event.value_hash)}
+                              </div>
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {event.expiry ? 
@@ -3518,6 +3837,7 @@ const Dashboard: React.FC = () => {
               <TokenDetailContent 
                 tokenEvent={expandedItem} 
                 selectedField={selectedField}
+                showFullTokenHash={showFullTokenHash}
               />
             )}
           </div>

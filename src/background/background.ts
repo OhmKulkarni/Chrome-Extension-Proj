@@ -12,9 +12,11 @@ const delay = createDelayPromise
 // --- Environment-Aware Storage System ---
 import { EnvironmentStorageManager } from './environment-storage-manager';
 import { tabDomainTracker } from '../dashboard/components/domainUtils';
+import { ExtensionStateController } from '../utils/extensionStateController';
 
 // Initialize environment-aware storage system
 const storageManager = new EnvironmentStorageManager();
+const extensionStateController = ExtensionStateController.getInstance();
 let isStorageInitialized = false;
 
 // Safe storage initialization that can be called multiple times
@@ -26,8 +28,12 @@ async function ensureStorageInitialized(): Promise<void> {
   try {
     console.log('🔧 Initializing storage manager...');
     await storageManager.init();
+    
+    console.log('🔧 Initializing extension state controller...');
+    await extensionStateController.init();
+    
     isStorageInitialized = true;
-    console.log('✅ Storage manager initialized successfully');
+    console.log('✅ Storage manager and extension state initialized successfully');
   } catch (error) {
     console.error('❌ Failed to initialize storage manager:', error);
     isStorageInitialized = false;
@@ -296,13 +302,14 @@ async function detectTokenEvent(requestData: any): Promise<TokenEvent | null> {
     });
   }
   
-  // Extract expiry information from JWT tokens in headers
-  const expiry = extractTokenExpiry(requestData.headers);
+  // Extract expiry information from JWT tokens in headers (check both request and response)
+  const allHeaders = { ...requestData.requestHeaders, ...requestData.responseHeaders };
+  const expiry = extractTokenExpiry(allHeaders);
   
   // Detect token acquisition (successful auth requests)
   if (method === 'POST' && status >= 200 && status < 300 && isTokenEndpoint(url, 'acquire')) {
     console.log('✅ Token acquisition detected:', url);
-    const detectedTokenType = detectTokenTypeFromHeaders(requestData.headers, url);
+    const detectedTokenType = detectTokenTypeFromHeaders(allHeaders, url);
     const valueHash = await generateTokenHash(url, timestamp, detectedTokenType, method);
     return {
       type: 'acquire',
@@ -320,7 +327,7 @@ async function detectTokenEvent(requestData: any): Promise<TokenEvent | null> {
   if ((method === 'POST' || method === 'GET') && isTokenEndpoint(url, 'refresh')) {
     if (status >= 200 && status < 300) {
       console.log('✅ Token refresh detected:', url);
-      const detectedTokenType = detectTokenTypeFromHeaders(requestData.headers, url);
+      const detectedTokenType = detectTokenTypeFromHeaders(allHeaders, url);
       const valueHash = await generateTokenHash(url, timestamp, detectedTokenType, method);
       return {
         type: 'refresh',
@@ -451,9 +458,15 @@ initializeStorage()
 
 // Initialize Chrome storage with the settings structure expected by content script
 const initializeChromeStorageSettings = () => {
-  chrome.storage.sync.get(['extensionSettings'], (result) => {
-    if (!result.extensionSettings || !result.extensionSettings.networkInterception) {
-      console.log('[Web App Monitor] Initializing Chrome storage settings...');
+  // Always ensure local storage has settings (used by popup and background)
+  chrome.storage.local.get(['settings'], (localResult) => {
+    const needsInit = !localResult.settings || 
+                     !localResult.settings.errorLogging || 
+                     !localResult.settings.errorLogging.tabSpecific ||
+                     localResult.settings.errorLogging.tabSpecific.enabled !== true;
+                     
+    if (needsInit) {
+      console.log('[Web App Monitor] Initializing/updating Chrome local storage settings...');
       
       const defaultSettings = {
         notifications: true,
@@ -471,7 +484,6 @@ const initializeChromeStorageSettings = () => {
             captureResponses: false,
           },
           privacy: {
-            autoRedact: true,
             filterNoise: true,
           },
           urlPatterns: {
@@ -480,13 +492,8 @@ const initializeChromeStorageSettings = () => {
           },
           tabSpecific: {
             enabled: true,
-            defaultState: 'paused' // Per-tab: starts paused, user must enable
-          },
-          requestFilters: {
-            enabled: false,
-            filters: []
-          },
-          profiles: []
+            defaultState: 'paused' // FIXED: Per-tab starts paused (disabled by default)
+          }
         },
         errorLogging: {
           enabled: true, // Permission-based: enabled in settings
@@ -495,19 +502,35 @@ const initializeChromeStorageSettings = () => {
             allowed: ['error', 'warn', 'info']
           },
           tabSpecific: {
+            enabled: true, // Tab-specific control enabled for user flexibility
+            defaultState: 'paused' // FIXED: New tabs start paused (disabled by default)
+          }
+        },
+        tokenLogging: {
+          enabled: true,
+          tabSpecific: {
             enabled: true,
-            defaultState: 'paused' // Per-tab: starts paused, user must enable
+            defaultState: 'paused'  // Start paused by default
           }
         },
       };
       
       chrome.storage.local.set({ settings: defaultSettings }, () => {
-        console.log('[Web App Monitor] ✅ Chrome storage settings initialized');
-        console.log('[Web App Monitor] Permission-based logging enabled: Network & Error logging capabilities enabled');
-        console.log('[Web App Monitor] Per-tab defaults: Both start paused, user must manually enable per tab');
+        console.log('[Web App Monitor] ✅ Chrome local storage settings initialized/updated');
+        console.log('[Web App Monitor] Error logging tab-specific enabled: true');
+        console.log('[Web App Monitor] Error logging default state: paused');
       });
     } else {
-      console.log('[Web App Monitor] Chrome storage settings already exist');
+      console.log('[Web App Monitor] Chrome local storage settings already properly configured');
+    }
+  });
+  
+  // Also check/initialize sync storage for backward compatibility
+  chrome.storage.sync.get(['extensionSettings'], (syncResult) => {
+    if (!syncResult.extensionSettings || !syncResult.extensionSettings.networkInterception) {
+      console.log('[Web App Monitor] Sync storage not found - local storage will be used');
+    } else {
+      console.log('[Web App Monitor] Chrome sync storage settings already exist');
     }
   });
 };
@@ -686,6 +709,16 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
       await storageManager.init();
     }
     
+    // FIRST: Check if the extension is enabled for this tab
+    const tabId = sender?.tab?.id;
+    if (tabId) {
+      const isExtensionEnabled = await extensionStateController.isExtensionEnabled(tabId);
+      if (!isExtensionEnabled) {
+        sendResponse({ success: false, reason: 'Extension disabled for this tab' });
+        return;
+      }
+    }
+    
     // Get current settings to check filtering rules
     const settingsResult = await chrome.storage.local.get(['settings']);
     const settings = settingsResult.settings || {};
@@ -711,12 +744,6 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
       settings.tokenLogging = tokenLoggingDefaults;
       // Save the default settings
       await chrome.storage.local.set({ settings });
-    }
-    
-    // Check if network interception is enabled
-    if (!networkConfig.enabled) {
-      sendResponse({ success: false, reason: 'Network interception disabled' });
-      return;
     }
     
     // Check tab-specific control (ALWAYS check if enabled, regardless of default)
@@ -863,8 +890,7 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
     
     // Store the request (either non-token request or token request with logging enabled)
     
-    // Get tab information for context
-    const tabId = sender?.tab?.id;
+    // Get tab information for context (tabId already declared above)
     const tabUrl = sender?.tab?.url;
     
     // Extract main domain from the tab URL for intelligent grouping
@@ -875,8 +901,8 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
       url: requestData.url,
       method: requestData.method || 'GET',
       headers: JSON.stringify({
-        request: requestData.headers?.request || {},
-        response: requestData.headers?.response || {}
+        request: requestData.requestHeaders || {},
+        response: requestData.responseHeaders || {}
       }),
       payload_size: requestData.requestBody ? requestData.requestBody.length : 0,
       status: requestData.status || 0,
@@ -975,26 +1001,43 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
 
 // Console error handler
 async function handleConsoleError(errorData: any, sendResponse: (response: any) => void, sender?: chrome.runtime.MessageSender) {
+  console.log('🔥 BACKGROUND: handleConsoleError called with data:', errorData);
+  
   try {
     if (!storageManager.isInitialized()) {
       await storageManager.init();
     }
 
+    // FIRST: Check if the extension is enabled for this tab
+    const tabId = errorData.tabId || sender?.tab?.id;
+    if (tabId) {
+      const isExtensionEnabled = await extensionStateController.isExtensionEnabled(tabId);
+      if (!isExtensionEnabled) {
+        sendResponse({ success: false, reason: 'Extension disabled for this tab' });
+        return;
+      }
+    }
+
     // Check if error logging is enabled globally
     const settings = await chrome.storage.local.get(['settings']);
     const errorLoggingConfig = settings.settings?.errorLogging || {};
+    console.log('🔥 BACKGROUND: Error logging config:', errorLoggingConfig);
     
     if (!errorLoggingConfig.enabled) {
+      console.log('🚫 BACKGROUND: Error logging globally disabled');
       sendResponse({ success: false, reason: 'Error logging disabled' });
       return;
     }
 
     // Check tab-specific error logging ONLY if tab-specific is enabled
     if (errorLoggingConfig.tabSpecific?.enabled) {
+      console.log('🔥 BACKGROUND: Tab-specific enabled, checking tab state for tab:', errorData.tabId);
+      
       if (errorData.tabId) {
         try {
           const tabData = await chrome.storage.local.get([`tabErrorLogging_${errorData.tabId}`]);
           const tabState = tabData[`tabErrorLogging_${errorData.tabId}`];
+          console.log('🔥 BACKGROUND: Tab state from storage:', tabState);
           
           let isTabLoggingActive = false;
           if (tabState) {
@@ -1002,11 +1045,17 @@ async function handleConsoleError(errorData: any, sendResponse: (response: any) 
           } else {
             // No tab state exists, use default
             isTabLoggingActive = errorLoggingConfig.tabSpecific?.defaultState === 'active';
+            console.log('🔥 BACKGROUND: No tab state, using default:', isTabLoggingActive);
           }
           
+          console.log('🔥 BACKGROUND: Final isTabLoggingActive:', isTabLoggingActive);
+          
           if (!isTabLoggingActive) {
+            console.log('🚫 BACKGROUND: Tab error logging is paused, rejecting error (this is expected default behavior)');
             sendResponse({ success: false, reason: 'Tab error logging paused' });
             return;
+          } else {
+            console.log('✅ BACKGROUND: Tab error logging is active, proceeding to store');
           }
         } catch (tabError) {
           console.warn('Could not determine tab error logging state, using default:', tabError);
@@ -1014,6 +1063,7 @@ async function handleConsoleError(errorData: any, sendResponse: (response: any) 
       } else {
         // No tab ID provided but tab-specific is enabled - use default behavior
         const defaultActive = errorLoggingConfig.tabSpecific?.defaultState === 'active';
+        console.log('🔥 BACKGROUND: No tab ID, using default state:', defaultActive);
         if (!defaultActive) {
           sendResponse({ success: false, reason: 'No tab ID and default state is paused' });
           return;
@@ -1033,24 +1083,27 @@ async function handleConsoleError(errorData: any, sendResponse: (response: any) 
       }
     }
     
-    // Get tab information for context
-    const tabId = sender?.tab?.id;
+    // Get tab information for context (tabId already declared above)
     const tabUrl = sender?.tab?.url;
     
     // Extract main domain from the tab URL for intelligent grouping
     const mainDomain = tabUrl ? extractMainDomain(tabUrl) : extractMainDomain(errorData.url || 'unknown');
     
+    // Validate and normalize severity
+    const validSeverities = ['error', 'warn', 'info'] as const;
+    const normalizedSeverity = validSeverities.includes(errorData.severity) ? errorData.severity : 'error';
+    
     // Map the error data from main-world-script to storage API format
     const storageData = {
       message: errorData.message || 'Unknown error',
-      stack_trace: errorData.stack || 'No stack trace available',
-      timestamp: errorData.timestamp ? new Date(errorData.timestamp).getTime() : Date.now(),
-      severity: errorData.severity || 'error',
+      stack_trace: errorData.stack || null, // Use null instead of default string to save memory
+      timestamp: typeof errorData.timestamp === 'number' ? errorData.timestamp : Date.now(),
+      severity: normalizedSeverity,
       url: errorData.url || 'Unknown URL',
       // Add tab context for intelligent domain grouping
       tab_id: tabId,
       tab_url: tabUrl,
-      main_domain: mainDomain // Store the main domain directly for reliableGrouping
+      main_domain: mainDomain // Store the main domain directly for reliable grouping
     };
     
     // Store the console error
@@ -1449,6 +1502,62 @@ if (!listenersRegistered) {
           }
           break;
 
+          case 'GET_EXTENSION_STATE':
+            // Get extension state for a specific tab
+            try {
+              const tabId = message.tabId || (sender.tab?.id);
+              const isEnabled = await extensionStateController.isExtensionEnabled(tabId);
+              sendResponse({ enabled: isEnabled });
+            } catch (error) {
+              console.error('Failed to get extension state:', error);
+              sendResponse({ enabled: true }); // Default to enabled on error
+            }
+            break;
+
+          case 'GET_GLOBAL_POWER_STATE':
+            // Get only the global power state (entire extension on/off)
+            try {
+              const isEnabled = await extensionStateController.isGlobalPowerEnabled();
+              sendResponse({ enabled: isEnabled });
+            } catch (error) {
+              console.error('Failed to get global power state:', error);
+              sendResponse({ enabled: true }); // Default to enabled on error
+            }
+            break;
+
+          case 'GET_SITE_SPECIFIC_STATE':
+            // Get only the site-specific state for a tab
+            try {
+              const tabId = message.tabId || (sender.tab?.id);
+              if (!tabId) {
+                sendResponse({ enabled: true, error: 'No tab ID provided' });
+                break;
+              }
+              const isEnabled = await extensionStateController.isSiteSpecificEnabled(tabId);
+              sendResponse({ enabled: isEnabled });
+            } catch (error) {
+              console.error('Failed to get site-specific state:', error);
+              sendResponse({ enabled: true }); // Default to enabled on error
+            }
+            break;
+
+          case 'SET_EXTENSION_STATE':
+            // Set global or tab-specific extension state
+            try {
+              if (message.tabId) {
+                // Get tab URL for tab-specific state
+                const tab = await chrome.tabs.get(message.tabId);
+                await extensionStateController.setTabState(message.tabId, message.enabled, tab.url || '');
+              } else {
+                await extensionStateController.setGlobalState(message.enabled);
+              }
+              sendResponse({ success: true });
+            } catch (error) {
+              console.error('Failed to set extension state:', error);
+              sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+            }
+            break;
+
         case 'getCurrentTabId':
         case 'GET_CURRENT_TAB_ID':
           // Get current tab ID for content script
@@ -1461,6 +1570,75 @@ if (!listenersRegistered) {
             } catch (error) {
               sendResponse({ tabId: 0 });
             }
+          }
+          break;
+
+        case 'getInterceptionState':
+          // Get current interception state for a specific tab
+          try {
+            const tabId = message.tabId;
+            if (!tabId) {
+              sendResponse({ success: false, error: 'No tab ID provided' });
+              break;
+            }
+            
+            // Get current settings
+            const settingsResult = await chrome.storage.local.get(['settings']);
+            const settings = settingsResult.settings || {};
+            
+            // Get tab-specific states
+            const tabStates = await chrome.storage.local.get([
+              `tabErrorLogging_${tabId}`,
+              `tabLogging_${tabId}`
+            ]);
+            
+            // Determine console interception state
+            let consoleEnabled = false;
+            const errorLoggingConfig = settings.errorLogging || {};
+            
+            if (errorLoggingConfig.enabled) {
+              if (errorLoggingConfig.tabSpecific?.enabled) {
+                const tabErrorState = tabStates[`tabErrorLogging_${tabId}`];
+                if (tabErrorState) {
+                  consoleEnabled = typeof tabErrorState === 'boolean' ? 
+                    tabErrorState : (tabErrorState.active || false);
+                } else {
+                  consoleEnabled = errorLoggingConfig.tabSpecific?.defaultState === 'active';
+                }
+              } else {
+                consoleEnabled = true; // Global enabled, tab-specific disabled
+              }
+            }
+            
+            // Determine network interception state
+            let networkEnabled = false;
+            const networkConfig = settings.networkInterception || {};
+            
+            // Network interception is always enabled at base level
+            // Check tab-specific controls if enabled
+            if (networkConfig.tabSpecific?.enabled) {
+              const tabNetworkState = tabStates[`tabLogging_${tabId}`];
+              if (tabNetworkState) {
+                networkEnabled = typeof tabNetworkState === 'boolean' ? 
+                  tabNetworkState : (tabNetworkState.active || false);
+              } else {
+                networkEnabled = networkConfig.tabSpecific?.defaultState === 'active';
+              }
+            } else {
+              networkEnabled = true; // No tab-specific controls, always enabled
+            }
+            
+            sendResponse({
+              success: true,
+              consoleEnabled,
+              networkEnabled
+            });
+          } catch (error) {
+            console.error('Failed to get interception state:', error);
+            sendResponse({ 
+              success: false, 
+              error: error instanceof Error ? error.message : 'Unknown error' 
+            });
           }
           break;
           
