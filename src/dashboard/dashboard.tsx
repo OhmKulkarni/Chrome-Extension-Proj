@@ -321,6 +321,57 @@ const RequestDetailContent: React.FC<{ request: any; selectedField: string }> = 
     const requestBody = request.request_body || request.requestBody;
     const responseBody = request.response_body || request.responseBody || request.response_data;
 
+    // Check if body capture is disabled in settings
+    const isBodyCaptureDisabled = (body: any): boolean => {
+      return typeof body === 'string' && (
+        body === '[Body capture disabled in settings]' ||
+        body === '[Request body capture disabled]' ||
+        body === '[Response body capture disabled]'
+      );
+    };
+
+    // Render body content with proper messaging for disabled capture
+    const renderBodyContent = (body: string, type: 'request' | 'response') => {
+      if (body === '[Body capture disabled in settings]') {
+        return (
+          <div className="p-4 bg-muted/50 rounded-lg border border-dashed">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <span className="text-sm">⚙️</span>
+              <span>Body capture is disabled in settings</span>
+            </div>
+            <p className="text-sm mt-2">
+              To view {type} bodies, enable body capture in the extension settings.
+            </p>
+          </div>
+        );
+      }
+      
+      if (body === `[${type.charAt(0).toUpperCase() + type.slice(1)} body capture disabled]`) {
+        return (
+          <div className="p-4 bg-muted/50 rounded-lg border border-dashed">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <span className="text-sm">⚙️</span>
+              <span>{type.charAt(0).toUpperCase() + type.slice(1)} body capture is disabled</span>
+            </div>
+            <p className="text-sm mt-2">
+              Enable "{type} body capture" in settings to view this content.
+            </p>
+          </div>
+        );
+      }
+      
+      // Normal body display with pretty-printing
+      if (!body) {
+        return <div className="text-gray-500 italic">(empty)</div>;
+      }
+      
+      return (
+        <pre className="bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto max-h-96 text-sm font-mono">
+          <code className="whitespace-pre-wrap break-words">{prettyPrintIfJson(body)}</code>
+        </pre>
+      );
+    };
+
     // Pretty-print JSON string bodies
     const prettyPrintIfJson = (str: any) => {
       if (typeof str !== 'string') return str;
@@ -455,32 +506,32 @@ const RequestDetailContent: React.FC<{ request: any; selectedField: string }> = 
           <div>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-gray-900">Request Body</h3>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => copyToClipboard(typeof requestBody === 'string' ? prettyPrintIfJson(requestBody) : formatJSON(requestBody))}
-                  className="copy-button text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
-                >
-                  Copy
-                </button>
-                {requestBody && (typeof requestBody === 'string' ? requestBody.length : JSON.stringify(requestBody).length) > 1000 && (
+              {!isBodyCaptureDisabled(requestBody) && (
+                <div className="flex space-x-2">
                   <button
-                    onClick={() => {
-                      const content = typeof requestBody === 'string' ? prettyPrintIfJson(requestBody) : formatJSON(requestBody);
-                      const newWindow = window.open('', '_blank');
-                      if (newWindow) {
-                        newWindow.document.write(`<pre style="white-space: pre-wrap; word-wrap: break-word; font-family: monospace; padding: 20px;">${content}</pre>`);
-                      }
-                    }}
-                    className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
+                    onClick={() => copyToClipboard(typeof requestBody === 'string' ? prettyPrintIfJson(requestBody) : formatJSON(requestBody))}
+                    className="copy-button text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
                   >
-                    View Full
+                    Copy
                   </button>
-                )}
-              </div>
+                  {requestBody && (typeof requestBody === 'string' ? requestBody.length : JSON.stringify(requestBody).length) > 1000 && (
+                    <button
+                      onClick={() => {
+                        const content = typeof requestBody === 'string' ? prettyPrintIfJson(requestBody) : formatJSON(requestBody);
+                        const newWindow = window.open('', '_blank');
+                        if (newWindow) {
+                          newWindow.document.write(`<pre style="white-space: pre-wrap; word-wrap: break-word; font-family: monospace; padding: 20px;">${content}</pre>`);
+                        }
+                      }}
+                      className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
+                    >
+                      View Full
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
-            <div className="code-block bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto text-sm font-mono max-h-96">
-              <pre className="whitespace-pre-wrap break-words">{typeof requestBody === 'string' ? prettyPrintIfJson(requestBody) : formatJSON(requestBody)}</pre>
-            </div>
+            {renderBodyContent(requestBody, 'request')}
           </div>
         )}
 
@@ -490,7 +541,7 @@ const RequestDetailContent: React.FC<{ request: any; selectedField: string }> = 
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-2">
                 <h3 className="text-sm font-semibold text-gray-900">Response Body</h3>
-                {isStatusOnlyResponse(responseBody) && (
+                {!isBodyCaptureDisabled(responseBody) && isStatusOnlyResponse(responseBody) && (
                   <div className="relative group">
                     <div className="w-4 h-4 bg-yellow-100 border border-yellow-300 rounded-full flex items-center justify-center cursor-help">
                       <span className="text-yellow-600 text-sm">📄</span>
@@ -505,31 +556,35 @@ const RequestDetailContent: React.FC<{ request: any; selectedField: string }> = 
                   </div>
                 )}
               </div>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => copyToClipboard(typeof responseBody === 'string' ? responseBody : formatJSON(responseBody))}
-                  className="copy-button text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
-                >
-                  Copy
-                </button>
-                {responseBody && (typeof responseBody === 'string' ? responseBody.length : JSON.stringify(responseBody).length) > 1000 && (
+              {!isBodyCaptureDisabled(responseBody) && (
+                <div className="flex space-x-2">
                   <button
-                    onClick={() => {
-                      const content = typeof responseBody === 'string' ? responseBody : formatJSON(responseBody);
-                      const newWindow = window.open('', '_blank');
-                      if (newWindow) {
-                        newWindow.document.write(`<pre style="white-space: pre-wrap; word-wrap: break-word; font-family: monospace; padding: 20px;">${content}</pre>`);
-                      }
-                    }}
-                    className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
+                    onClick={() => copyToClipboard(typeof responseBody === 'string' ? responseBody : formatJSON(responseBody))}
+                    className="copy-button text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
                   >
-                    View Full
+                    Copy
                   </button>
-                )}
-              </div>
+                  {responseBody && (typeof responseBody === 'string' ? responseBody.length : JSON.stringify(responseBody).length) > 1000 && (
+                    <button
+                      onClick={() => {
+                        const content = typeof responseBody === 'string' ? responseBody : formatJSON(responseBody);
+                        const newWindow = window.open('', '_blank');
+                        if (newWindow) {
+                          newWindow.document.write(`<pre style="white-space: pre-wrap; word-wrap: break-word; font-family: monospace; padding: 20px;">${content}</pre>`);
+                        }
+                      }}
+                      className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
+                    >
+                      View Full
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
-            {/* Enhanced response body display with status explanation */}
-            {isStatusOnlyResponse(responseBody) ? (
+            {/* Use renderBodyContent for disabled capture handling, fallback to existing logic for special cases */}
+            {isBodyCaptureDisabled(responseBody) ? (
+              renderBodyContent(responseBody, 'response')
+            ) : isStatusOnlyResponse(responseBody) ? (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <div className="flex items-start space-x-3">
                   <div className="flex-1">
@@ -551,9 +606,7 @@ const RequestDetailContent: React.FC<{ request: any; selectedField: string }> = 
                 </div>
               </div>
             ) : (
-              <div className="code-block bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto text-sm font-mono max-h-96">
-                <pre className="whitespace-pre-wrap break-words">{typeof responseBody === 'string' ? responseBody : formatJSON(responseBody)}</pre>
-              </div>
+              renderBodyContent(responseBody, 'response')
             )}
           </div>
         )}
@@ -1676,13 +1729,10 @@ const Dashboard: React.FC = () => {
 
     return () => {
       isActive = false
-      
-      // Clean up periodic refresh interval
       if (refreshInterval) {
         clearTimeout(refreshInterval)
         refreshInterval = null
       }
-      
       chrome.runtime.onMessage.removeListener(handleBackgroundMessages);
     };
   }, [loadDashboardData, tableNames, currentTableIndex, currentPage, requestsPerPage, loadNetworkRequestsPage, currentErrorPage, errorsPerPage, loadConsoleErrorsPage, currentTokenPage, tokenEventsPerPage, loadTokenEventsPage]); // Include all dependencies

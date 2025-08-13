@@ -887,12 +887,6 @@ const storageChangeHandler = async (changes: any, namespace: string) => {
     // Check for settings changes
     if (changes.settings) {
       console.log('⚙️ CONTENT: Settings changed, updating main-world script...');
-      
-      // Notify main-world script of settings change
-      window.dispatchEvent(new CustomEvent('settingsUpdated', {
-        detail: { timestamp: Date.now() }
-      }));
-      
       // Send updated settings to main-world script
       const newSettings = changes.settings.newValue;
       if (newSettings?.networkInterception) {

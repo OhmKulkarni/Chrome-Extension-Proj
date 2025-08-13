@@ -2,11 +2,14 @@
 // Use original console.log for the initial message before interception starts
 (console.log || function(){})('🌍 MAIN-WORLD: Script injected into main world');
 
-// Default settings - complete structure
+// Default settings - complete structure for body capture control
 let extensionSettings = {
-  maxBodySize: 2000, // Default truncation limit
-  captureRequests: false, // Default: don't capture request bodies
-  captureResponses: false // Default: don't capture response bodies
+  bodyCapture: {
+    mode: 'disabled',        // 'disabled' | 'partial' | 'full'
+    captureRequests: false,  // Only used when mode = 'partial'
+    captureResponses: false, // Only used when mode = 'partial'
+    maxBodySize: 2000       // Only used when mode = 'partial', ignored in 'full'
+  }
 };
 
 // Track original functions and interception state
@@ -125,7 +128,7 @@ function getSafeDomain(url) {
 }
 
 // Helper function to truncate body content based on settings
-function truncateBody(text, maxSize = extensionSettings.maxBodySize) {
+function truncateBody(text, maxSize = extensionSettings.bodyCapture.maxBodySize) {
   if (!text || typeof text !== 'string') return '';
   
   // Safety: Even if user sets 0 (no limit), apply a reasonable safety limit to prevent memory issues
@@ -160,38 +163,54 @@ const interceptFetch = (originalFetch, input, init) => {
     const endTime = Date.now();
     debugLog('🌍 MAIN-WORLD: Fetch response received for:', url, 'Status:', response.status);
     
-    // Try to capture response body
+    // Mode-based body capture with memory optimization
     let responseBody = '';
     let requestBody = '';
     
-    try {
-      // Capture request body ONLY if enabled in settings
-      if (extensionSettings.captureRequests && init && init.body) {
-        requestBody = truncateBody(String(init.body), extensionSettings.maxBodySize);
-        debugLog('🌍 MAIN-WORLD: Request body capture enabled, captured', requestBody.length, 'chars');
-      } else if (init && init.body) {
-        requestBody = '[Body capture disabled in settings]';
-      }
-      
-      // Capture response body ONLY if enabled in settings
-      if (extensionSettings.captureResponses) {
-        const responseClone = response.clone();
-        const contentType = response.headers.get('content-type') || '';
-        
-        if (contentType.includes('application/json') || contentType.includes('text/')) {
-          try {
-            responseBody = await responseClone.text();
-            responseBody = truncateBody(responseBody, extensionSettings.maxBodySize);
-            debugLog('🌍 MAIN-WORLD: Response body capture enabled, captured', responseBody.length, 'chars');
-          } catch (e) {
-            debugLog('🌍 MAIN-WORLD: Could not read response body:', e);
+    // Copy settings to local variables to prevent race conditions
+    const captureMode = extensionSettings.bodyCapture.mode;
+    const captureRequests = extensionSettings.bodyCapture.captureRequests;
+    const captureResponses = extensionSettings.bodyCapture.captureResponses;
+    const maxBodySize = extensionSettings.bodyCapture.maxBodySize;
+
+    // Early exit if body capture is disabled - prevents unnecessary processing
+    if (captureMode === 'disabled') {
+      requestBody = '[Body capture disabled in settings]';
+      responseBody = '[Body capture disabled in settings]';
+    } else {
+      try {
+        // Handle request body based on mode and settings
+        if (init && init.body) {
+          if (captureMode === 'full' || (captureMode === 'partial' && captureRequests)) {
+            const size = captureMode === 'full' ? 0 : maxBodySize;
+            requestBody = truncateBody(String(init.body), size);
+            debugLog('🌍 MAIN-WORLD: Request body captured (mode:', captureMode, ')');
+          } else {
+            requestBody = '[Request body capture disabled]';
           }
         }
-      } else {
-        responseBody = '[Body capture disabled in settings]';
+        
+        // Handle response body based on mode and settings  
+        if (captureMode === 'full' || (captureMode === 'partial' && captureResponses)) {
+          const responseClone = response.clone();
+          const contentType = response.headers.get('content-type') || '';
+          
+          if (contentType.includes('application/json') || contentType.includes('text/')) {
+            try {
+              const text = await responseClone.text();
+              const size = captureMode === 'full' ? 0 : maxBodySize;
+              responseBody = truncateBody(text, size);
+              debugLog('🌍 MAIN-WORLD: Response body captured (mode:', captureMode, ')');
+            } catch (e) {
+              debugLog('🌍 MAIN-WORLD: Could not read response body:', e);
+            }
+          }
+        } else {
+          responseBody = '[Response body capture disabled]';
+        }
+      } catch (e) {
+        debugLog('🌍 MAIN-WORLD: Error capturing fetch body:', e);
       }
-    } catch (e) {
-      debugLog('🌍 MAIN-WORLD: Error capturing fetch body:', e);
     }
     
     // Capture request headers
@@ -264,17 +283,28 @@ const interceptXHR = (xhr, originalXhrSend, data) => {
       debugLog('🌍 MAIN-WORLD: Could not get XHR response headers:', e);
     }
 
-    // Capture response body ONLY if enabled
+    // Mode-based XHR response body capture
     let responseBody = '';
-    try {
-      if (extensionSettings.captureResponses && xhr.responseText) {
-        responseBody = truncateBody(xhr.responseText, extensionSettings.maxBodySize);
-        debugLog('🌍 MAIN-WORLD: XHR response body capture enabled, captured', responseBody.length, 'chars');
-      } else if (xhr.responseText) {
-        responseBody = '[Body capture disabled in settings]';
+    
+    // Copy settings to local variables to prevent race conditions
+    const captureMode = extensionSettings.bodyCapture.mode;
+    const captureResponses = extensionSettings.bodyCapture.captureResponses;
+    const maxBodySize = extensionSettings.bodyCapture.maxBodySize;
+    
+    if (captureMode === 'disabled') {
+      responseBody = '[Body capture disabled in settings]';
+    } else if (captureMode === 'full' || (captureMode === 'partial' && captureResponses)) {
+      try {
+        if (xhr.responseText) {
+          const size = captureMode === 'full' ? 0 : maxBodySize;
+          responseBody = truncateBody(xhr.responseText, size);
+          debugLog('🌍 MAIN-WORLD: XHR response body captured (mode:', captureMode, ')');
+        }
+      } catch (e) {
+        debugLog('🌍 MAIN-WORLD: Could not get XHR response body:', e);
       }
-    } catch (e) {
-      debugLog('🌍 MAIN-WORLD: Could not get XHR response body:', e);
+    } else {
+      responseBody = '[Response body capture disabled]';
     }
 
     // Send captured data
@@ -288,9 +318,18 @@ const interceptXHR = (xhr, originalXhrSend, data) => {
       duration: endTime - xhr._startTime,
       requestHeaders: xhr._requestHeaders || {},
       responseHeaders,
-      requestBody: extensionSettings.captureRequests && data ? 
-        truncateBody(String(data), extensionSettings.maxBodySize) : 
-        (data ? '[Body capture disabled in settings]' : ''),
+      requestBody: (() => {
+        if (!data) return '';
+        const captureMode = extensionSettings.bodyCapture.mode;
+        if (captureMode === 'disabled') {
+          return '[Body capture disabled in settings]';
+        }
+        if (captureMode === 'full' || (captureMode === 'partial' && extensionSettings.bodyCapture.captureRequests)) {
+          const size = captureMode === 'full' ? 0 : extensionSettings.bodyCapture.maxBodySize;
+          return truncateBody(String(data), size);
+        }
+        return '[Request body capture disabled]';
+      })(),
       responseBody,
       timestamp: new Date().toISOString()
     };
@@ -375,28 +414,18 @@ try {
   // Request settings from the content script via custom event
   window.dispatchEvent(new CustomEvent('extensionRequestSettings'));
   
-  // Listen for settings response - complete update
+  // Listen for settings response - handle complete body capture structure
   window.addEventListener('extensionSettingsResponse', (event) => {
-    if (event.detail && event.detail.networkInterception && event.detail.networkInterception.bodyCapture) {
-      const bodyCapture = event.detail.networkInterception.bodyCapture;
-      extensionSettings.maxBodySize = bodyCapture.maxBodySize || 2000;
-      extensionSettings.captureRequests = bodyCapture.captureRequests || false;
-      extensionSettings.captureResponses = bodyCapture.captureResponses || false;
-      debugLog('🌍 MAIN_WORLD: Updated settings:', extensionSettings);
+    if (event.detail?.networkInterception?.bodyCapture) {
+      const bc = event.detail.networkInterception.bodyCapture;
+      extensionSettings.bodyCapture = {
+        mode: bc.mode || 'disabled',
+        captureRequests: bc.captureRequests || false,
+        captureResponses: bc.captureResponses || false,
+        maxBodySize: bc.maxBodySize || 2000
+      };
+      debugLog('🌍 MAIN_WORLD: Updated body capture settings:', extensionSettings.bodyCapture);
     }
-  });
-
-  // Periodically request settings updates to ensure sync
-  setInterval(() => {
-    if (mainWorldState.extensionEnabled) {
-      window.dispatchEvent(new CustomEvent('extensionRequestSettings'));
-    }
-  }, 30000); // Check every 30 seconds
-
-  // Listen for storage changes notification from content script
-  window.addEventListener('settingsUpdated', (event) => {
-    debugLog('🌍 MAIN_WORLD: Settings update notification received');
-    window.dispatchEvent(new CustomEvent('extensionRequestSettings'));
   });
   
   // Start interception

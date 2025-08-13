@@ -327,13 +327,30 @@ const Settings: React.FC = () => {
                       <label className="setting-label">Body Capture Mode</label>
                       <Select
                         value={settings.networkInterception?.bodyCapture?.mode || 'disabled'}
-                        onChange={(e) => updateSetting('networkInterception', {
-                          ...settings.networkInterception,
-                          bodyCapture: {
-                            ...settings.networkInterception?.bodyCapture,
-                            mode: e.target.value as any
+                        onChange={(e) => {
+                          const newMode = e.target.value as 'disabled' | 'partial' | 'full';
+                          const updatedBodyCapture = { ...settings.networkInterception?.bodyCapture };
+                          
+                          // Reset dependent settings based on mode
+                          if (newMode === 'disabled') {
+                            updatedBodyCapture.mode = 'disabled';
+                            updatedBodyCapture.captureRequests = false;
+                            updatedBodyCapture.captureResponses = false;
+                          } else if (newMode === 'full') {
+                            updatedBodyCapture.mode = 'full';
+                            updatedBodyCapture.captureRequests = true;
+                            updatedBodyCapture.captureResponses = true;
+                            updatedBodyCapture.maxBodySize = 0; // No limit in full mode
+                          } else {
+                            updatedBodyCapture.mode = 'partial';
+                            // Keep existing settings for partial mode
                           }
-                        })}
+                          
+                          updateSetting('networkInterception', {
+                            ...settings.networkInterception,
+                            bodyCapture: updatedBodyCapture
+                          });
+                        }}
                         className="max-w-xs"
                       >
                         <option value="disabled">Disabled</option>
@@ -342,53 +359,76 @@ const Settings: React.FC = () => {
                       </Select>
                     </div>
 
-                    <div className="grid gap-4">
-                      <Switch
-                        checked={settings.networkInterception?.bodyCapture?.captureRequests || false}
-                        onChange={(e) => updateSetting('networkInterception', {
-                          ...settings.networkInterception,
-                          bodyCapture: {
-                            ...settings.networkInterception?.bodyCapture,
-                            captureRequests: e.target.checked
-                          }
-                        })}
-                        label="Capture request bodies"
-                        description="Include request body content in logs"
-                      />
+                    {/* Only show additional options when mode is 'partial' */}
+                    {settings.networkInterception?.bodyCapture?.mode === 'partial' && (
+                      <>
+                        <div className="grid gap-4">
+                          <Switch
+                            checked={settings.networkInterception?.bodyCapture?.captureRequests || false}
+                            onChange={(e) => updateSetting('networkInterception', {
+                              ...settings.networkInterception,
+                              bodyCapture: {
+                                ...settings.networkInterception?.bodyCapture,
+                                captureRequests: e.target.checked
+                              }
+                            })}
+                            label="Capture request bodies"
+                            description="Include request body content in logs"
+                          />
 
-                      <Switch
-                        checked={settings.networkInterception?.bodyCapture?.captureResponses || false}
-                        onChange={(e) => updateSetting('networkInterception', {
-                          ...settings.networkInterception,
-                          bodyCapture: {
-                            ...settings.networkInterception?.bodyCapture,
-                            captureResponses: e.target.checked
-                          }
-                        })}
-                        label="Capture response bodies"
-                        description="Include response body content in logs"
-                      />
-                    </div>
+                          <Switch
+                            checked={settings.networkInterception?.bodyCapture?.captureResponses || false}
+                            onChange={(e) => updateSetting('networkInterception', {
+                              ...settings.networkInterception,
+                              bodyCapture: {
+                                ...settings.networkInterception?.bodyCapture,
+                                captureResponses: e.target.checked
+                              }
+                            })}
+                            label="Capture response bodies"
+                            description="Include response body content in logs"
+                          />
+                        </div>
 
-                    <div className="grid gap-2">
-                      <label htmlFor="maxBodySize" className="setting-label">
-                        Max body size (characters, 0 = no limit)
-                      </label>
-                      <Input
-                        type="number"
-                        id="maxBodySize"
-                        min="0"
-                        value={settings.networkInterception?.bodyCapture?.maxBodySize || 2000}
-                        onChange={(e) => updateSetting('networkInterception', {
-                          ...settings.networkInterception,
-                          bodyCapture: {
-                            ...settings.networkInterception?.bodyCapture,
-                            maxBodySize: parseInt(e.target.value) || 0
-                          }
-                        })}
-                        className="max-w-xs"
-                      />
-                    </div>
+                        <div className="grid gap-2">
+                          <label htmlFor="maxBodySize" className="setting-label">
+                            Max body size (characters, 0 = no limit)
+                          </label>
+                          <Input
+                            type="number"
+                            id="maxBodySize"
+                            min="0"
+                            value={settings.networkInterception?.bodyCapture?.maxBodySize || 2000}
+                            onChange={(e) => updateSetting('networkInterception', {
+                              ...settings.networkInterception,
+                              bodyCapture: {
+                                ...settings.networkInterception?.bodyCapture,
+                                maxBodySize: parseInt(e.target.value) || 0
+                              }
+                            })}
+                            className="max-w-xs"
+                          />
+                        </div>
+                      </>
+                    )}
+                    
+                    {/* Show explanation for full mode */}
+                    {settings.networkInterception?.bodyCapture?.mode === 'full' && (
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm text-blue-800">
+                          <strong>Full mode:</strong> Captures all request and response bodies without size limits (up to 50KB safety limit).
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Show explanation for disabled mode */}
+                    {settings.networkInterception?.bodyCapture?.mode === 'disabled' && (
+                      <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                        <p className="text-sm text-gray-600">
+                          <strong>Disabled mode:</strong> Network requests are logged without body content for better performance and privacy.
+                        </p>
+                      </div>
+                    )}
 
                     <div className="grid gap-4">
                       <Switch
