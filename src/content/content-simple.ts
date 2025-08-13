@@ -2,6 +2,9 @@
 // Check if extension context is still valid
 let extensionContextValid = true;
 
+// Development debug: Log when content script loads
+console.log('📦 CONTENT SCRIPT LOADED:', new Date().toISOString(), 'Context Fix v2');
+
 function isExtensionContextValid(): boolean {
   try {
     // Test if chrome.runtime is accessible
