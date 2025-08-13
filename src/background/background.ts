@@ -302,13 +302,14 @@ async function detectTokenEvent(requestData: any): Promise<TokenEvent | null> {
     });
   }
   
-  // Extract expiry information from JWT tokens in headers
-  const expiry = extractTokenExpiry(requestData.headers);
+  // Extract expiry information from JWT tokens in headers (check both request and response)
+  const allHeaders = { ...requestData.requestHeaders, ...requestData.responseHeaders };
+  const expiry = extractTokenExpiry(allHeaders);
   
   // Detect token acquisition (successful auth requests)
   if (method === 'POST' && status >= 200 && status < 300 && isTokenEndpoint(url, 'acquire')) {
     console.log('✅ Token acquisition detected:', url);
-    const detectedTokenType = detectTokenTypeFromHeaders(requestData.headers, url);
+    const detectedTokenType = detectTokenTypeFromHeaders(allHeaders, url);
     const valueHash = await generateTokenHash(url, timestamp, detectedTokenType, method);
     return {
       type: 'acquire',
@@ -326,7 +327,7 @@ async function detectTokenEvent(requestData: any): Promise<TokenEvent | null> {
   if ((method === 'POST' || method === 'GET') && isTokenEndpoint(url, 'refresh')) {
     if (status >= 200 && status < 300) {
       console.log('✅ Token refresh detected:', url);
-      const detectedTokenType = detectTokenTypeFromHeaders(requestData.headers, url);
+      const detectedTokenType = detectTokenTypeFromHeaders(allHeaders, url);
       const valueHash = await generateTokenHash(url, timestamp, detectedTokenType, method);
       return {
         type: 'refresh',
@@ -900,8 +901,8 @@ async function handleNetworkRequest(requestData: any, sendResponse: (response: a
       url: requestData.url,
       method: requestData.method || 'GET',
       headers: JSON.stringify({
-        request: requestData.headers?.request || {},
-        response: requestData.headers?.response || {}
+        request: requestData.requestHeaders || {},
+        response: requestData.responseHeaders || {}
       }),
       payload_size: requestData.requestBody ? requestData.requestBody.length : 0,
       status: requestData.status || 0,
