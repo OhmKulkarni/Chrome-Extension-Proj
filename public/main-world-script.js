@@ -2,9 +2,11 @@
 // Use original console.log for the initial message before interception starts
 (console.log || function(){})('🌍 MAIN-WORLD: Script injected into main world');
 
-// Default settings
+// Default settings - complete structure
 let extensionSettings = {
-  maxBodySize: 2000 // Default truncation limit
+  maxBodySize: 2000, // Default truncation limit
+  captureRequests: false, // Default: don't capture request bodies
+  captureResponses: false // Default: don't capture response bodies
 };
 
 // Track original functions and interception state
@@ -163,22 +165,30 @@ const interceptFetch = (originalFetch, input, init) => {
     let requestBody = '';
     
     try {
-      // Capture request body
-      if (init && init.body) {
+      // Capture request body ONLY if enabled in settings
+      if (extensionSettings.captureRequests && init && init.body) {
         requestBody = truncateBody(String(init.body), extensionSettings.maxBodySize);
+        debugLog('🌍 MAIN-WORLD: Request body capture enabled, captured', requestBody.length, 'chars');
+      } else if (init && init.body) {
+        requestBody = '[Body capture disabled in settings]';
       }
       
-      // Clone response to capture body
-      const responseClone = response.clone();
-      const contentType = response.headers.get('content-type') || '';
-      
-      if (contentType.includes('application/json') || contentType.includes('text/')) {
-        try {
-          responseBody = await responseClone.text();
-          responseBody = truncateBody(responseBody, extensionSettings.maxBodySize);
-        } catch (e) {
-          debugLog('🌍 MAIN-WORLD: Could not read response body:', e);
+      // Capture response body ONLY if enabled in settings
+      if (extensionSettings.captureResponses) {
+        const responseClone = response.clone();
+        const contentType = response.headers.get('content-type') || '';
+        
+        if (contentType.includes('application/json') || contentType.includes('text/')) {
+          try {
+            responseBody = await responseClone.text();
+            responseBody = truncateBody(responseBody, extensionSettings.maxBodySize);
+            debugLog('🌍 MAIN-WORLD: Response body capture enabled, captured', responseBody.length, 'chars');
+          } catch (e) {
+            debugLog('🌍 MAIN-WORLD: Could not read response body:', e);
+          }
         }
+      } else {
+        responseBody = '[Body capture disabled in settings]';
       }
     } catch (e) {
       debugLog('🌍 MAIN-WORLD: Error capturing fetch body:', e);
@@ -254,11 +264,14 @@ const interceptXHR = (xhr, originalXhrSend, data) => {
       debugLog('🌍 MAIN-WORLD: Could not get XHR response headers:', e);
     }
 
-    // Capture response body  
+    // Capture response body ONLY if enabled
     let responseBody = '';
     try {
-      if (xhr.responseText) {
+      if (extensionSettings.captureResponses && xhr.responseText) {
         responseBody = truncateBody(xhr.responseText, extensionSettings.maxBodySize);
+        debugLog('🌍 MAIN-WORLD: XHR response body capture enabled, captured', responseBody.length, 'chars');
+      } else if (xhr.responseText) {
+        responseBody = '[Body capture disabled in settings]';
       }
     } catch (e) {
       debugLog('🌍 MAIN-WORLD: Could not get XHR response body:', e);
@@ -275,7 +288,9 @@ const interceptXHR = (xhr, originalXhrSend, data) => {
       duration: endTime - xhr._startTime,
       requestHeaders: xhr._requestHeaders || {},
       responseHeaders,
-      requestBody: data ? truncateBody(String(data), extensionSettings.maxBodySize) : '',
+      requestBody: extensionSettings.captureRequests && data ? 
+        truncateBody(String(data), extensionSettings.maxBodySize) : 
+        (data ? '[Body capture disabled in settings]' : ''),
       responseBody,
       timestamp: new Date().toISOString()
     };
@@ -360,12 +375,28 @@ try {
   // Request settings from the content script via custom event
   window.dispatchEvent(new CustomEvent('extensionRequestSettings'));
   
-  // Listen for settings response
+  // Listen for settings response - complete update
   window.addEventListener('extensionSettingsResponse', (event) => {
     if (event.detail && event.detail.networkInterception && event.detail.networkInterception.bodyCapture) {
-      extensionSettings.maxBodySize = event.detail.networkInterception.bodyCapture.maxBodySize || 2000;
-      debugLog('🌍 MAIN_WORLD: Updated settings - maxBodySize:', extensionSettings.maxBodySize);
+      const bodyCapture = event.detail.networkInterception.bodyCapture;
+      extensionSettings.maxBodySize = bodyCapture.maxBodySize || 2000;
+      extensionSettings.captureRequests = bodyCapture.captureRequests || false;
+      extensionSettings.captureResponses = bodyCapture.captureResponses || false;
+      debugLog('🌍 MAIN_WORLD: Updated settings:', extensionSettings);
     }
+  });
+
+  // Periodically request settings updates to ensure sync
+  setInterval(() => {
+    if (mainWorldState.extensionEnabled) {
+      window.dispatchEvent(new CustomEvent('extensionRequestSettings'));
+    }
+  }, 30000); // Check every 30 seconds
+
+  // Listen for storage changes notification from content script
+  window.addEventListener('settingsUpdated', (event) => {
+    debugLog('🌍 MAIN_WORLD: Settings update notification received');
+    window.dispatchEvent(new CustomEvent('extensionRequestSettings'));
   });
   
   // Start interception
