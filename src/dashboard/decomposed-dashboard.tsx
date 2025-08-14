@@ -7,6 +7,7 @@ import ConsoleErrorsTable from './components/ConsoleErrorsTable';
 import TokenEventsTable from './components/TokenEventsTable';
 import LazyStatisticsCard from './components/LazyStatisticsCard';
 import LeftSidebar from './components/LeftSidebar';
+import { RequestDetailContent, ErrorDetailContent, TokenDetailContent } from './shared/components/DetailedViews';
 
 // MEMORY LEAK FIX: Centralized Chrome message handler to prevent response accumulation
 const sendChromeMessage = async (message: any): Promise<any> => {
@@ -89,9 +90,17 @@ const DecomposedDashboard: React.FC = () => {
   const [tokenSortConfig, setTokenSortConfig] = useState({ key: 'timestamp', direction: 'desc' as 'asc' | 'desc' });
   const [showFullTokenHash, setShowFullTokenHash] = useState(false);
 
-  // Detail viewer state
-  const [selectedItem, setSelectedItem] = useState<any>(null);
-  const [detailViewerType, setDetailViewerType] = useState<'request' | 'error' | 'token'>('request');
+  // Detail viewer state for drag-up modal
+  const [detailViewerOpen, setDetailViewerOpen] = useState(false);
+  const [expandedItem, setExpandedItem] = useState<any>(null);
+  const [expandedItemType, setExpandedItemType] = useState<'request' | 'error' | 'token' | null>(null);
+  const [selectedField, setSelectedField] = useState('details');
+  
+  // Drag functionality for detail viewer
+  const [detailViewerHeight, setDetailViewerHeight] = useState(400);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartY, setDragStartY] = useState(0);
+  const [dragStartHeight, setDragStartHeight] = useState(0);
 
   // MEMORY LEAK FIX: Copy exact data loading logic from original dashboard
   const loadNetworkRequestsPage = useCallback(async (page: number, limit: number = 10) => {
@@ -487,15 +496,67 @@ const DecomposedDashboard: React.FC = () => {
     setCurrentTokenPage(1); // Reset to first page when sorting
   }, []);
 
-  // Handle detail view
+  // Enhanced detail viewer functions for drag-up modal
   const openDetailViewer = useCallback((item: any, type: 'request' | 'error' | 'token') => {
-    setSelectedItem(item);
-    setDetailViewerType(type);
+    setExpandedItem(item);
+    setExpandedItemType(type);
+    setDetailViewerOpen(true);
+    setSelectedField('details'); // Reset to default field
   }, []);
 
   const closeDetailViewer = useCallback(() => {
-    setSelectedItem(null);
+    setDetailViewerOpen(false);
+    setExpandedItem(null);
+    setExpandedItemType(null);
   }, []);
+
+  // Drag functionality for resizing detail viewer
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    setIsDragging(true);
+    setDragStartY(e.clientY);
+    setDragStartHeight(detailViewerHeight);
+    e.preventDefault();
+    
+    // Add cursor style to body to show dragging state
+    document.body.style.cursor = 'ns-resize';
+    document.body.style.userSelect = 'none';
+  }, [detailViewerHeight]);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDragging) return;
+    
+    // Calculate the delta from the initial drag position
+    const deltaY = dragStartY - e.clientY; // Inverted because we want upward drag to increase height
+    const newHeight = dragStartHeight + deltaY;
+    
+    const minHeight = 200;
+    const maxHeight = window.innerHeight * 0.8;
+    
+    setDetailViewerHeight(Math.max(minHeight, Math.min(maxHeight, newHeight)));
+  }, [isDragging, dragStartY, dragStartHeight]);
+
+  const handleMouseUp = useCallback(() => {
+    if (isDragging) {
+      setIsDragging(false);
+      
+      // Reset cursor styles
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+  }, [isDragging]);
+
+  // Mouse event listeners for drag functionality
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, handleMouseMove, handleMouseUp]);
 
   // Handle page changes - using same logic as original
   const handleNetworkPageChange = useCallback((page: number) => {
@@ -762,29 +823,94 @@ const DecomposedDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Detail Viewer Modal */}
-      {selectedItem && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg max-w-4xl max-h-[90vh] overflow-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">
-                  {detailViewerType === 'request' ? 'Request Details' :
-                   detailViewerType === 'error' ? 'Error Details' : 'Token Event Details'}
-                </h3>
-                <button
-                  onClick={closeDetailViewer}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+      {/* Enhanced Drag-Up Detail Viewer */}
+      {detailViewerOpen && expandedItem && (
+        <div 
+          className={`fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40 ${
+            isDragging ? 'transition-none' : 'transition-all duration-200'
+          }`}
+          style={{ height: `${detailViewerHeight}px` }}
+        >
+          {/* Drag Handle */}
+          <div 
+            className={`w-full h-3 cursor-ns-resize transition-all duration-150 flex items-center justify-center ${
+              isDragging 
+                ? 'bg-blue-200 border-t border-blue-300' 
+                : 'bg-gray-100 hover:bg-gray-200 border-t border-gray-200'
+            }`}
+            onMouseDown={handleMouseDown}
+            title="Drag to resize"
+          >
+            <div className={`transition-all duration-150 rounded-full ${
+              isDragging 
+                ? 'w-16 h-1.5 bg-blue-500' 
+                : 'w-12 h-1 bg-gray-400 hover:bg-gray-500'
+            }`}></div>
+          </div>
+          
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
+            <div className="flex items-center space-x-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {expandedItemType === 'request' ? 'Request Details' :
+                 expandedItemType === 'error' ? 'Error Details' : 'Token Event Details'}
+              </h3>
+              
+              {/* Side-by-side Field Selector */}
+              <div className="flex bg-gray-100 rounded-lg p-1">
+                {(expandedItemType === 'request' ? ['details', 'headers', 'body', 'rawjson'] :
+                  expandedItemType === 'error' ? ['details', 'stack', 'rawjson'] :
+                  ['details', 'analysis', 'rawjson']).map((field) => (
+                  <button
+                    key={field}
+                    onClick={() => setSelectedField(field)}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors capitalize ${
+                      selectedField === field
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
+                    }`}
+                  >
+                    {field === 'rawjson' ? 'Raw JSON' : 
+                     field === 'body' ? '📄 Body' :
+                     field === 'headers' ? '📋 Headers' :
+                     field === 'stack' ? '🔍 Stack' :
+                     field === 'analysis' ? '🔍 Analysis' :
+                     '📊 Details'}
+                  </button>
+                ))}
               </div>
-              <pre className="bg-gray-100 p-4 rounded overflow-auto text-sm">
-                {JSON.stringify(selectedItem, null, 2)}
-              </pre>
             </div>
+            
+            <button
+              onClick={closeDetailViewer}
+              className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-4" style={{ height: `${detailViewerHeight - 120}px` }}>
+            {expandedItemType === 'request' && (
+              <RequestDetailContent 
+                request={expandedItem} 
+                selectedField={selectedField}
+              />
+            )}
+            {expandedItemType === 'error' && (
+              <ErrorDetailContent 
+                error={expandedItem} 
+                selectedField={selectedField}
+              />
+            )}
+            {expandedItemType === 'token' && (
+              <TokenDetailContent 
+                tokenEvent={expandedItem} 
+                selectedField={selectedField}
+              />
+            )}
           </div>
         </div>
       )}
