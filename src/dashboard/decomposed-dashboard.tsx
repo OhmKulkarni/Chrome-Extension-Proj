@@ -871,11 +871,11 @@ const DecomposedDashboard: React.FC = () => {
                     }`}
                   >
                     {field === 'rawjson' ? 'Raw JSON' : 
-                     field === 'body' ? '📄 Body' :
-                     field === 'headers' ? '📋 Headers' :
-                     field === 'stack' ? '🔍 Stack' :
-                     field === 'analysis' ? '🔍 Analysis' :
-                     '📊 Details'}
+                     field === 'body' ? 'Body' :
+                     field === 'headers' ? 'Headers' :
+                     field === 'stack' ? 'Stack' :
+                     field === 'analysis' ? 'Analysis' :
+                     'Details'}
                   </button>
                 ))}
               </div>
