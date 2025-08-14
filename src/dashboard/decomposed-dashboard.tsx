@@ -7,6 +7,7 @@ import ConsoleErrorsTable from './components/ConsoleErrorsTable';
 import TokenEventsTable from './components/TokenEventsTable';
 import LazyStatisticsCard from './components/LazyStatisticsCard';
 import LeftSidebar from './components/LeftSidebar';
+import { PerformanceMonitoringDashboard } from './components/PerformanceMonitoringDashboard';
 import { RequestDetailContent, ErrorDetailContent, TokenDetailContent } from './shared/components/DetailedViews';
 
 // MEMORY LEAK FIX: Centralized Chrome message handler to prevent response accumulation
@@ -66,7 +67,7 @@ const DecomposedDashboard: React.FC = () => {
   const [sidebarMode, setSidebarMode] = useState<'logging' | 'settings' | 'base'>('base');
 
   // Table carousel state
-  const [activeTable, setActiveTable] = useState<'network' | 'errors' | 'tokens'>('network');
+  const [activeTable, setActiveTable] = useState<'network' | 'errors' | 'tokens' | 'performance'>('network');
 
   // Network requests state - using same pagination as original
   const [currentPage, setCurrentPage] = useState(1);
@@ -645,39 +646,92 @@ const DecomposedDashboard: React.FC = () => {
     };
   }, [loadTabsLoggingStatus, loadSettings]);
 
-  // Add periodic refresh - using same logic as original
+  // Add sophisticated real-time data refresh - enhanced version from main branch
   useEffect(() => {
-    let refreshInterval: number | null = null;
-    let isActive = true;
+    let refreshInterval: number | null = null
+    let isActive = true
     
+    // MEMORY LEAK FIX: Memory-aware interval with exponential backoff
     const startPeriodicRefresh = () => {
-      if (!isActive) return;
+      if (!isActive) return
       
+      // Clear any existing interval
       if (refreshInterval) {
-        clearTimeout(refreshInterval);
+        clearTimeout(refreshInterval)
       }
       
-      let currentInterval = 10000; // 10 seconds
+      // Start with 10 second intervals (slower than before)
+      let currentInterval = 10000
+      const maxInterval = 60000 // Cap at 60 seconds
       
       const scheduleNextRefresh = () => {
-        if (!isActive) return;
+        if (!isActive) return
         
         refreshInterval = window.setTimeout(() => {
-          if (!isActive) return;
+          if (!isActive) return
           
           try {
-            console.log('🔄 DASHBOARD: Periodic data refresh...');
-            loadDashboardData();
+            // Check memory pressure before refreshing
+            const performanceMemory = (performance as any).memory
+            if (performanceMemory?.usedJSHeapSize) {
+              const heapUsed = performanceMemory.usedJSHeapSize
+              const heapLimit = performanceMemory.jsHeapSizeLimit
+              const heapPercentage = (heapUsed / heapLimit) * 100
+              
+              if (heapPercentage > 85) {
+                // Skip refresh under high memory pressure
+                console.log('� Skipping dashboard refresh - high memory pressure')
+                currentInterval = Math.min(currentInterval * 1.5, maxInterval)
+                scheduleNextRefresh()
+                return
+              } else if (heapPercentage > 70) {
+                // Slow down refresh rate
+                currentInterval = Math.min(currentInterval * 1.2, maxInterval)
+              } else {
+                // Reset to normal interval
+                currentInterval = 10000
+              }
+            }
+            
+            console.log('�🔄 DASHBOARD: Periodic data refresh...')
+            loadDashboardData()
           } catch (error) {
-            console.error('Dashboard refresh error:', error);
+            console.error('Dashboard refresh error:', error)
           }
           
-          scheduleNextRefresh();
-        }, currentInterval);
-      };
+          // Schedule next refresh
+          scheduleNextRefresh()
+        }, currentInterval)
+      }
       
-      scheduleNextRefresh();
+      scheduleNextRefresh()
+    }
+
+    // Listen for background script notifications about new data
+    const handleBackgroundMessages = (message: any, _sender: any, _sendResponse: any) => {
+      if (!isActive) return
+      
+      if (message.type === 'DATA_UPDATED') {
+        console.log('📡 DASHBOARD: Received data update notification:', message.dataType);
+        
+        // Update counts AND refresh current page data
+        loadDashboardData();
+        
+        // Also refresh the current page data to show new entries immediately
+        if (message.dataType === 'network_request' && activeTable === 'network') {
+          console.log('🔄 DASHBOARD: Refreshing network requests page');
+          loadNetworkRequestsPage(currentPage, requestsPerPage);
+        } else if (message.dataType === 'console_error' && activeTable === 'errors') {
+          console.log('🔄 DASHBOARD: Refreshing console errors page');
+          loadConsoleErrorsPage(currentErrorPage, errorsPerPage);
+        } else if (message.dataType === 'token_event' && activeTable === 'tokens') {
+          console.log('🔄 DASHBOARD: Refreshing token events page');
+          loadTokenEventsPage(currentTokenPage, tokenEventsPerPage);
+        }
+      }
     };
+
+    chrome.runtime.onMessage.addListener(handleBackgroundMessages);
 
     // Start refresh after initial load
     if (!loading) {
@@ -685,12 +739,14 @@ const DecomposedDashboard: React.FC = () => {
     }
 
     return () => {
-      isActive = false;
+      isActive = false
       if (refreshInterval) {
-        clearTimeout(refreshInterval);
+        clearTimeout(refreshInterval)
+        refreshInterval = null
       }
+      chrome.runtime.onMessage.removeListener(handleBackgroundMessages);
     };
-  }, [loading, loadDashboardData]);
+  }, [loading, loadDashboardData, activeTable, currentPage, requestsPerPage, loadNetworkRequestsPage, currentErrorPage, errorsPerPage, loadConsoleErrorsPage, currentTokenPage, tokenEventsPerPage, loadTokenEventsPage]);
 
   // Calculate if there's any active logging
   const hasActiveLogging = tabsLoggingStatus.some(tab => 
@@ -765,6 +821,11 @@ const DecomposedDashboard: React.FC = () => {
             showFullTokenHash={showFullTokenHash}
             onToggleTokenHash={() => setShowFullTokenHash(!showFullTokenHash)}
           />
+        );
+
+      case 'performance':
+        return (
+          <PerformanceMonitoringDashboard />
         );
 
       default:
