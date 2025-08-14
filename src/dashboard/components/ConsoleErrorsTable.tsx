@@ -138,7 +138,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
               <thead className="bg-gray-50">
                 <tr>
                   <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="w-24 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => onSort('severity')}
                   >
                     <div className="flex items-center">
@@ -151,7 +151,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                     </div>
                   </th>
                   <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="w-2/5 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => onSort('message')}
                   >
                     <div className="flex items-center">
@@ -164,7 +164,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                     </div>
                   </th>
                   <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => onSort('url')}
                   >
                     <div className="flex items-center">
@@ -177,7 +177,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                     </div>
                   </th>
                   <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="w-24 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => onSort('timestamp')}
                   >
                     <div className="flex items-center">
@@ -199,22 +199,22 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                     onDoubleClick={() => onDetailClick(error)}
                     title="Double-click to view detailed information"
                   >
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="w-24 px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getSeverityColor(error.severity)}`}>
                         {error.severity || 'unknown'}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900 truncate max-w-md" title={error.message}>
+                    <td className="w-2/5 px-6 py-4">
+                      <div className="text-sm text-gray-900 truncate" title={error.message}>
                         {error.message}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900 truncate max-w-xs" title={error.url}>
+                    <td className="w-1/4 px-6 py-4">
+                      <div className="text-sm text-gray-900 truncate" title={error.url}>
                         {error.url}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="w-24 px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(error.timestamp).toLocaleTimeString()}
                     </td>
                   </tr>
