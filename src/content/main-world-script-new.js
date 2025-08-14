@@ -275,23 +275,15 @@ const interceptConsole = (originalMethod, methodName, severity, ...args) => {
   // Call original method first to maintain normal console behavior
   originalMethod.apply(console, args);
   
-  // Check if we should capture this log level
+  // Check if we should capture this log level using content script communication
   const shouldCapture = async () => {
     try {
-      const tabId = await getCurrentTabId();
-      if (!tabId) return false;
-      
-      const result = await chrome.storage.local.get(['extensionSettings']);
-      const settings = result.extensionSettings;
-      
-      // Check severity filter
-      if (settings?.errorLogging?.severityFilter?.enabled) {
-        const allowedSeverities = settings.errorLogging.severityFilter.allowed || [];
-        return allowedSeverities.includes(severity);
-      }
-      
-      return true;
+      // Use content script communication instead of direct Chrome API access
+      const result = await requestFromContentScript('checkConsoleSeverity', { severity });
+      console.log('🌍 MAIN_WORLD: Console severity check result:', result);
+      return result?.enabled ?? false;
     } catch (error) {
+      console.warn('🌍 MAIN_WORLD: Error checking console severity:', error);
       return false;
     }
   };
@@ -313,7 +305,45 @@ const interceptConsole = (originalMethod, methodName, severity, ...args) => {
         return String(arg);
       }).join(' ');
       
-      // Create console error data
+      // Create console error data with enhanced error object capture
+      let errorObject = null;
+      let lineNumber = null;
+      let columnNumber = null;
+      let stack = null;
+      
+      // Enhanced error capture for error objects
+      if (severity === 'error' && args.length > 0) {
+        const firstArg = args[0];
+        if (firstArg instanceof Error) {
+          errorObject = {
+            name: firstArg.name,
+            message: firstArg.message,
+            stack: firstArg.stack
+          };
+          stack = firstArg.stack;
+          
+          // Try to extract line and column numbers from stack
+          const stackMatch = firstArg.stack?.match(/(\d+):(\d+)/);
+          if (stackMatch) {
+            lineNumber = parseInt(stackMatch[1]);
+            columnNumber = parseInt(stackMatch[2]);
+          }
+        } else if (typeof firstArg === 'string' && new Error().stack) {
+          // Create a temporary error to get current stack, but clean it
+          const tempError = new Error();
+          const currentStack = tempError.stack;
+          // Remove the interceptor frames from the stack
+          if (currentStack) {
+            const lines = currentStack.split('\n');
+            const cleanedLines = lines.filter((line, index) => {
+              // Skip first few lines that are from this interceptor
+              return index > 2 && !line.includes('interceptConsole') && !line.includes('main-world-script');
+            });
+            stack = cleanedLines.join('\n');
+          }
+        }
+      }
+      
       const consoleData = {
         message: message,
         severity: severity,
@@ -321,7 +351,13 @@ const interceptConsole = (originalMethod, methodName, severity, ...args) => {
         url: window.location.href,
         domain: getSafeDomain(window.location.href),
         source: 'page-console',
-        stack: severity === 'error' ? (new Error().stack) : null
+        stack: stack,
+        // Enhanced error data
+        errorObject: errorObject,
+        lineNumber: lineNumber,
+        columnNumber: columnNumber,
+        errorName: errorObject?.name || null,
+        errorMessage: errorObject?.message || null
       };
       
       // Dispatch custom event for content script to catch

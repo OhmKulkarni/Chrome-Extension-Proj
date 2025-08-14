@@ -493,13 +493,117 @@ eventHandlers.contentScriptRequest = async (event: Event) => {
 
 window.addEventListener('contentScriptRequest', eventHandlers.contentScriptRequest);
 
-// CRITICAL FIX: Add missing network request message listener
-// This was causing network requests to not be forwarded to background script!
-const networkMessageHandler = async (event: MessageEvent) => {
+// ENHANCED MAIN-WORLD COMMUNICATION HANDLER
+// Handles both network requests and console errors from main-world script
+const mainWorldMessageHandler = async (event: MessageEvent) => {
   // Only handle messages from the main-world-script
+  if (event.source !== window || !event.data) {
+    return;
+  }
+
+  // Handle new main-world communication pattern
+  if (event.data.type === 'MAIN_WORLD_TO_CONTENT') {
+    const { action, data, id } = event.data;
+    
+    try {
+      console.log('📡 CONTENT: Received main-world request:', action, data);
+      
+      let response: any = { success: false, error: 'Unknown action' };
+      
+      switch (action) {
+        case 'logNetworkRequest':
+          // Forward network request to background
+          response = await sendChromeMessage({
+            action: 'STORE_NETWORK_REQUEST',
+            data: data
+          });
+          console.log('✅ CONTENT: Network request forwarded to background');
+          break;
+          
+        case 'logNetworkResponse':
+          // Forward network response to background  
+          response = await sendChromeMessage({
+            action: 'STORE_NETWORK_RESPONSE',
+            data: data
+          });
+          console.log('✅ CONTENT: Network response forwarded to background');
+          break;
+          
+        case 'logConsoleError':
+          // Forward console error to background
+          response = await sendChromeMessage({
+            action: 'CONSOLE_ERROR',
+            data: data
+          });
+          console.log('✅ CONTENT: Console error forwarded to background');
+          break;
+          
+        case 'getSettings':
+          // Get current settings from storage
+          try {
+            const settingsResult = await chrome.storage.local.get(['settings']);
+            response = {
+              success: true,
+              settings: settingsResult.settings || {}
+            };
+            console.log('✅ CONTENT: Settings retrieved for main-world');
+          } catch (error) {
+            response = { 
+              success: false, 
+              error: error instanceof Error ? error.message : 'Unknown error' 
+            };
+          }
+          break;
+          
+        case 'checkConsoleSeverity':
+          // Check if this console severity should be logged
+          try {
+            const settingsResult = await chrome.storage.local.get(['settings']);
+            const settings = settingsResult.settings || {};
+            const severities = settings.errorLogging?.severity || ['error', 'warn'];
+            response = {
+              success: true,
+              shouldLog: severities.includes(data.severity)
+            };
+          } catch (error) {
+            response = { 
+              success: false, 
+              error: error instanceof Error ? error.message : 'Unknown error' 
+            };
+          }
+          break;
+          
+        default:
+          console.warn('❌ CONTENT: Unknown main-world action:', action);
+      }
+      
+      // Send response back to main-world script
+      window.postMessage({
+        type: 'CONTENT_TO_MAIN_WORLD',
+        action: action,
+        id: id,
+        ...response
+      }, '*');
+      
+    } catch (error) {
+      console.error('❌ CONTENT: Failed to handle main-world request:', error);
+      
+      // Send error response back
+      window.postMessage({
+        type: 'CONTENT_TO_MAIN_WORLD',
+        action: action,
+        id: id,
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }, '*');
+    }
+    return;
+  }
+
+  // Handle legacy network message format for backward compatibility
   if (event.data?.source === 'main-world-network-interceptor') {
     try {
-      console.log('📡 CONTENT: Received network request from main-world:', event.data.data);
+      console.log('📡 CONTENT: Received legacy network request from main-world:', event.data.data);
       
       // Forward the network request data to background script
       await sendChromeMessage({
@@ -507,16 +611,16 @@ const networkMessageHandler = async (event: MessageEvent) => {
         data: event.data.data
       });
       
-      console.log('✅ CONTENT: Network request forwarded to background');
+      console.log('✅ CONTENT: Legacy network request forwarded to background');
     } catch (error) {
-      console.error('❌ CONTENT: Failed to forward network request:', error);
+      console.error('❌ CONTENT: Failed to forward legacy network request:', error);
     }
   }
 };
 
-// Add the critical missing message listener
-window.addEventListener('message', networkMessageHandler);
-eventHandlers.windowMessage = networkMessageHandler;
+// Add the enhanced message listener
+window.addEventListener('message', mainWorldMessageHandler);
+eventHandlers.windowMessage = mainWorldMessageHandler;
 
 // MAIN WORLD INJECTION for page-level network interception
 async function injectMainWorldScript() {

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Request Filtering & Console Errors</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ccc; border-radius: 5px; }
+        .test-button { background: #007cba; color: white; border: none; padding: 10px 20px; margin: 5px; cursor: pointer; border-radius: 3px; }
+        .test-button:hover { background: #005a87; }
+        .results { margin: 10px 0; padding: 10px; background: #f5f5f5; border-radius: 3px; font-family: monospace; }
+        .error { color: red; }
+        .success { color: green; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>Debug Request Filtering & Console Errors</h1>
+    
+    <div class="test-section">
+        <h2>Test Console Error Interception</h2>
+        <p>These buttons will generate different types of console messages to test if the interception is working:</p>
+        
+        <button class="test-button" onclick="testConsoleError()">Test console.error()</button>
+        <button class="test-button" onclick="testConsoleWarn()">Test console.warn()</button>
+        <button class="test-button" onclick="testConsoleInfo()">Test console.info()</button>
+        <button class="test-button" onclick="testConsoleLog()">Test console.log()</button>
+        <button class="test-button" onclick="testErrorObject()">Test Error Object</button>
+        <button class="test-button" onclick="testUnhandledError()">Test Unhandled Error</button>
+        
+        <div id="console-results" class="results">Console test results will appear here...</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Network Request Filtering</h2>
+        <p>These buttons will make network requests that should be filtered based on settings:</p>
+        
+        <button class="test-button" onclick="testNormalAPI()">Test Normal API Call</button>
+        <button class="test-button" onclick="testAnalyticsRequest()">Test Analytics Request (should be filtered)</button>
+        <button class="test-button" onclick="testGoogleAnalytics()">Test Google Analytics (should be filtered)</button>
+        <button class="test-button" onclick="testFacebookPixel()">Test Facebook Pixel (should be filtered)</button>
+        <button class="test-button" onclick="testCustomPattern()">Test Custom URL Pattern</button>
+        
+        <div id="network-results" class="results">Network test results will appear here...</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Check Current Settings</h2>
+        <button class="test-button" onclick="checkSettings()">Load Current Settings</button>
+        <div id="settings-results" class="results">Settings will appear here...</div>
+    </div>
+
+    <script>
+        // Console Error Tests
+        function testConsoleError() {
+            console.error('This is a test error message');
+            updateResults('console', 'Test error logged');
+        }
+        
+        function testConsoleWarn() {
+            console.warn('This is a test warning message');
+            updateResults('console', 'Test warning logged');
+        }
+        
+        function testConsoleInfo() {
+            console.info('This is a test info message');
+            updateResults('console', 'Test info logged');
+        }
+        
+        function testConsoleLog() {
+            console.log('This is a test log message');
+            updateResults('console', 'Test log logged');
+        }
+        
+        function testErrorObject() {
+            const error = new Error('This is a test Error object with stack trace');
+            console.error(error);
+            updateResults('console', 'Error object logged');
+        }
+        
+        function testUnhandledError() {
+            // This will trigger a runtime error
+            setTimeout(() => {
+                throw new Error('Unhandled test error');
+            }, 100);
+            updateResults('console', 'Unhandled error triggered (check console)');
+        }
+        
+        // Network Request Tests
+        async function testNormalAPI() {
+            try {
+                const response = await fetch('/api/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ test: 'data' })
+                });
+                updateResults('network', `Normal API call made (Status: ${response.status})`);
+            } catch (error) {
+                updateResults('network', `Normal API call (Expected 404): ${error.message}`);
+            }
+        }
+        
+        async function testAnalyticsRequest() {
+            try {
+                const response = await fetch('https://www.google-analytics.com/collect', {
+                    method: 'POST',
+                    body: 'test=analytics'
+                });
+                updateResults('network', `Analytics request made (This should be filtered if noise filtering is enabled)`);
+            } catch (error) {
+                updateResults('network', `Analytics request failed: ${error.message}`);
+            }
+        }
+        
+        async function testGoogleAnalytics() {
+            try {
+                const response = await fetch('https://googletagmanager.com/gtag/js?id=test', {
+                    method: 'GET'
+                });
+                updateResults('network', `Google Analytics request made (This should be filtered if noise filtering is enabled)`);
+            } catch (error) {
+                updateResults('network', `Google Analytics request failed: ${error.message}`);
+            }
+        }
+        
+        async function testFacebookPixel() {
+            try {
+                const response = await fetch('https://connect.facebook.net/en_US/fbevents.js', {
+                    method: 'GET'
+                });
+                updateResults('network', `Facebook Pixel request made (This should be filtered if noise filtering is enabled)`);
+            } catch (error) {
+                updateResults('network', `Facebook Pixel request failed: ${error.message}`);
+            }
+        }
+        
+        async function testCustomPattern() {
+            try {
+                const response = await fetch('/api/custom/endpoint/test', {
+                    method: 'GET'
+                });
+                updateResults('network', `Custom pattern test made (Depends on URL pattern settings)`);
+            } catch (error) {
+                updateResults('network', `Custom pattern test (Expected 404): ${error.message}`);
+            }
+        }
+        
+        // Settings Check
+        async function checkSettings() {
+            if (typeof chrome !== 'undefined' && chrome.storage) {
+                try {
+                    const result = await chrome.storage.local.get(['settings']);
+                    const settings = result.settings || {};
+                    
+                    const settingsDisplay = {
+                        extensionEnabled: settings.extensionEnabled,
+                        networkInterception: {
+                            enabled: settings.networkInterception?.enabled,
+                            filterNoise: settings.networkInterception?.privacy?.filterNoise,
+                            urlPatterns: settings.networkInterception?.urlPatterns,
+                            tabSpecific: settings.networkInterception?.tabSpecific
+                        },
+                        errorLogging: {
+                            enabled: settings.errorLogging?.enabled,
+                            severityFilter: settings.errorLogging?.severityFilter,
+                            tabSpecific: settings.errorLogging?.tabSpecific
+                        }
+                    };
+                    
+                    document.getElementById('settings-results').innerHTML = 
+                        '<h4>Current Settings:</h4><pre>' + JSON.stringify(settingsDisplay, null, 2) + '</pre>';
+                } catch (error) {
+                    updateResults('settings', `Error loading settings: ${error.message}`);
+                }
+            } else {
+                updateResults('settings', 'Chrome storage API not available (not in extension context)');
+            }
+        }
+        
+        function updateResults(type, message) {
+            const element = document.getElementById(type + '-results');
+            const timestamp = new Date().toLocaleTimeString();
+            element.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+        }
+        
+        // Auto-load settings on page load
+        window.addEventListener('load', () => {
+            checkSettings();
+        });
+        
+        // Listen for unhandled errors
+        window.addEventListener('error', (event) => {
+            updateResults('console', `Unhandled error caught: ${event.error?.message || event.message}`);
+        });
+        
+        // Listen for unhandled promise rejections
+        window.addEventListener('unhandledrejection', (event) => {
+            updateResults('console', `Unhandled promise rejection: ${event.reason}`);
+        });
+    </script>
+</body>
+</html>

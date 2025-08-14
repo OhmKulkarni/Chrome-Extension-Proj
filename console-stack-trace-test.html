@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Console Interception Stack Trace Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #005a87;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .console-output {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .improvements {
+            background: #e8f5e8;
+            border: 1px solid #28a745;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎯 Console Interception - Stack Trace Implementation</h1>
+    
+    <div class="improvements">
+        <h2>✅ Main Branch Implementation Restored</h2>
+        <ul>
+            <li><strong>Stack Traces:</strong> Now generated for ALL console calls (improved from main branch)</li>
+            <li><strong>Severity Mapping:</strong> error→error, warn→warn, info→info, log→info (matches main branch)</li>
+            <li><strong>Line/Column Info:</strong> Extracted from stack traces when possible</li>
+            <li><strong>Data Structure:</strong> Matches exactly what the background script expects</li>
+            <li><strong>No Recursion:</strong> Fixed infinite recursion issues while maintaining functionality</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>Console Test Functions</h2>
+        <p>Each test calls a specific console method with different argument types to verify interception and stack traces:</p>
+        
+        <button onclick="testConsoleError()">Test console.error (severity: error)</button>
+        <button onclick="testConsoleWarn()">Test console.warn (severity: warn)</button>
+        <button onclick="testConsoleInfo()">Test console.info (severity: info)</button>
+        <button onclick="testConsoleLog()">Test console.log (severity: info)</button>
+        
+        <div id="consoleStatus" class="status"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Nested Function Tests</h2>
+        <p>These tests call console methods from within nested functions to verify stack trace accuracy:</p>
+        
+        <button onclick="testNestedError()">Nested Error Call</button>
+        <button onclick="testChainedCalls()">Chained Function Calls</button>
+        <button onclick="testAsyncError()">Async Function Error</button>
+        
+        <div id="nestedStatus" class="status"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Object and Complex Data Tests</h2>
+        <p>Testing console calls with different data types to verify proper serialization:</p>
+        
+        <button onclick="testObjectLogging()">Log Objects</button>
+        <button onclick="testArrayLogging()">Log Arrays</button>
+        <button onclick="testMixedLogging()">Log Mixed Types</button>
+        
+        <div id="dataStatus" class="status"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Expected Data Structure</h2>
+        <p>Console events should be captured with this structure:</p>
+        <div class="console-output">
+{
+  "message": "Combined console arguments as string",
+  "severity": "error|warn|info",
+  "timestamp": "ISO timestamp",
+  "url": "current page URL",
+  "domain": "extracted domain",
+  "source": "page-console",
+  "stack": "full stack trace",
+  "lineNumber": 123,
+  "columnNumber": 45,
+  "filename": "current page URL"
+}</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Testing Instructions</h2>
+        <ol>
+            <li>Open Chrome DevTools and watch the Console tab</li>
+            <li>Open the Extension Dashboard to see captured console events</li>
+            <li>Make sure Console logging is enabled in extension settings</li>
+            <li>Click the test buttons above</li>
+            <li>Verify in the dashboard that:
+                <ul>
+                    <li>Console events appear with proper severity labels</li>
+                    <li>Stack traces are present and show correct file/line information</li>
+                    <li>Messages are properly formatted</li>
+                    <li>Different console methods map to correct severities</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+
+    <script>
+        // Basic console tests
+        function testConsoleError() {
+            console.error('❌ Test error message', { errorCode: 500, details: 'Something went wrong' });
+            updateStatus('consoleStatus', 'console.error() called - check dashboard for stack trace', 'error');
+        }
+        
+        function testConsoleWarn() {
+            console.warn('⚠️ Test warning message', ['warning', 'array', 'data']);
+            updateStatus('consoleStatus', 'console.warn() called - check dashboard for stack trace', 'warning');
+        }
+        
+        function testConsoleInfo() {
+            console.info('ℹ️ Test info message', 42, true, null);
+            updateStatus('consoleStatus', 'console.info() called - check dashboard for stack trace', 'success');
+        }
+        
+        function testConsoleLog() {
+            console.log('📝 Test log message', { user: 'test', timestamp: new Date() });
+            updateStatus('consoleStatus', 'console.log() called (severity: info) - check dashboard', 'success');
+        }
+        
+        // Nested function tests
+        function testNestedError() {
+            function levelOne() {
+                function levelTwo() {
+                    function levelThree() {
+                        console.error('🔥 Nested error from level 3', { level: 3, trace: 'deep' });
+                    }
+                    levelThree();
+                }
+                levelTwo();
+            }
+            levelOne();
+            updateStatus('nestedStatus', 'Nested error called - stack trace should show function hierarchy', 'error');
+        }
+        
+        function testChainedCalls() {
+            const obj = {
+                method1: function() {
+                    return this.method2();
+                },
+                method2: function() {
+                    console.warn('⛓️ Chained method warning', this);
+                    return 'chained result';
+                }
+            };
+            obj.method1();
+            updateStatus('nestedStatus', 'Chained method calls completed - check stack trace', 'warning');
+        }
+        
+        async function testAsyncError() {
+            try {
+                await new Promise((resolve, reject) => {
+                    setTimeout(() => {
+                        console.error('⏰ Async error message', { async: true, timeout: 100 });
+                        resolve('done');
+                    }, 100);
+                });
+                updateStatus('nestedStatus', 'Async error test completed - check async stack trace', 'error');
+            } catch (e) {
+                console.error('Async test failed:', e);
+            }
+        }
+        
+        // Complex data tests
+        function testObjectLogging() {
+            const complexObj = {
+                name: 'Test Object',
+                nested: {
+                    array: [1, 2, 3],
+                    date: new Date(),
+                    func: function() { return 'test'; }
+                },
+                circular: null
+            };
+            complexObj.circular = complexObj; // Create circular reference
+            
+            console.info('🎯 Complex object test', complexObj);
+            updateStatus('dataStatus', 'Complex object logged - check serialization', 'success');
+        }
+        
+        function testArrayLogging() {
+            const testArray = [
+                'string',
+                123,
+                { key: 'value' },
+                [1, 2, 3],
+                new Date(),
+                null,
+                undefined
+            ];
+            
+            console.log('📊 Array logging test', testArray);
+            updateStatus('dataStatus', 'Mixed array logged - check array serialization', 'success');
+        }
+        
+        function testMixedLogging() {
+            console.warn(
+                '🎭 Mixed arguments test:',
+                'string arg',
+                42,
+                { object: 'arg' },
+                [1, 2, 3],
+                true,
+                null,
+                undefined,
+                new Error('test error object')
+            );
+            updateStatus('dataStatus', 'Mixed argument types logged - check message formatting', 'warning');
+        }
+        
+        function updateStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+        }
+        
+        // Initialize
+        console.log('🧪 Console Stack Trace Test Page loaded at:', new Date().toISOString());
+        console.info('✅ Ready to test console interception with improved stack traces');
+    </script>
+</body>
+</html>

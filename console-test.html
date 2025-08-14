@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Console Interception Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #005a87;
+        }
+        .error-button {
+            background: #dc3545;
+        }
+        .error-button:hover {
+            background: #c82333;
+        }
+        .warn-button {
+            background: #ffc107;
+            color: #000;
+        }
+        .warn-button:hover {
+            background: #e0a800;
+        }
+        .info-section {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            border-left: 4px solid #2196f3;
+        }
+        .status {
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        #output {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Console Interception Test</h1>
+        
+        <div class="info-section">
+            <strong>Instructions:</strong> 
+            <p>1. Make sure the Chrome extension is loaded and enabled</p>
+            <p>2. Open DevTools (F12) to see console messages</p>
+            <p>3. Click the buttons below to test different console methods</p>
+            <p>4. Check if the extension is capturing these console calls</p>
+        </div>
+
+        <div class="status" id="extensionStatus">
+            Extension Status: <span id="statusText">Checking...</span>
+        </div>
+
+        <h3>Console Test Buttons</h3>
+        
+        <button onclick="testConsoleLog()">console.log()</button>
+        <button onclick="testConsoleInfo()">console.info()</button>
+        <button class="warn-button" onclick="testConsoleWarn()">console.warn()</button>
+        <button class="error-button" onclick="testConsoleError()">console.error()</button>
+        <button onclick="testConsoleDebug()">console.debug()</button>
+        <button onclick="testConsoleTrace()">console.trace()</button>
+        
+        <h3>Error Object Tests</h3>
+        <button class="error-button" onclick="testErrorObject()">Error Object</button>
+        <button class="error-button" onclick="testUncaughtError()">Uncaught Error</button>
+        <button class="error-button" onclick="testPromiseRejection()">Promise Rejection</button>
+        
+        <h3>Complex Data Tests</h3>
+        <button onclick="testComplexObject()">Complex Object</button>
+        <button onclick="testMultipleArgs()">Multiple Arguments</button>
+        
+        <div id="output"></div>
+        
+        <h3>Manual Console Commands</h3>
+        <p>Try these in the DevTools console:</p>
+        <code>
+            console.error("Manual error test");<br>
+            console.warn("Manual warning test");<br>
+            throw new Error("Manual uncaught error");
+        </code>
+    </div>
+
+    <script>
+        let testCounter = 0;
+        
+        function addOutput(message) {
+            const output = document.getElementById('output');
+            testCounter++;
+            output.innerHTML += `[${testCounter}] ${message}\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function testConsoleLog() {
+            addOutput('Testing console.log...');
+            console.log('🟢 Test console.log message', { timestamp: new Date().toISOString() });
+        }
+
+        function testConsoleInfo() {
+            addOutput('Testing console.info...');
+            console.info('🔵 Test console.info message', { timestamp: new Date().toISOString() });
+        }
+
+        function testConsoleWarn() {
+            addOutput('Testing console.warn...');
+            console.warn('🟡 Test console.warn message', { timestamp: new Date().toISOString() });
+        }
+
+        function testConsoleError() {
+            addOutput('Testing console.error...');
+            console.error('🔴 Test console.error message', { timestamp: new Date().toISOString() });
+        }
+
+        function testConsoleDebug() {
+            addOutput('Testing console.debug...');
+            console.debug('🟠 Test console.debug message', { timestamp: new Date().toISOString() });
+        }
+
+        function testConsoleTrace() {
+            addOutput('Testing console.trace...');
+            console.trace('🔍 Test console.trace message', { timestamp: new Date().toISOString() });
+        }
+
+        function testErrorObject() {
+            addOutput('Testing Error object...');
+            const error = new Error('Test error object with custom properties');
+            error.customProperty = 'custom value';
+            error.code = 'TEST_ERROR';
+            console.error('🔴 Error object test:', error);
+        }
+
+        function testUncaughtError() {
+            addOutput('Testing uncaught error...');
+            setTimeout(() => {
+                throw new Error('🔥 Test uncaught error - should be captured by window.onerror');
+            }, 100);
+        }
+
+        function testPromiseRejection() {
+            addOutput('Testing promise rejection...');
+            Promise.reject(new Error('🔥 Test unhandled promise rejection')).catch(() => {
+                // Immediately catch to prevent unhandled rejection, but this should still be logged
+            });
+            
+            // Also test an actual unhandled rejection
+            setTimeout(() => {
+                Promise.reject('🔥 Actual unhandled promise rejection');
+            }, 200);
+        }
+
+        function testComplexObject() {
+            addOutput('Testing complex object...');
+            const complexObj = {
+                nested: {
+                    deep: {
+                        data: [1, 2, 3],
+                        timestamp: new Date(),
+                        func: function() { return 'test'; }
+                    }
+                },
+                circular: null
+            };
+            complexObj.circular = complexObj; // Create circular reference
+            console.log('🔄 Complex object test:', complexObj);
+        }
+
+        function testMultipleArgs() {
+            addOutput('Testing multiple arguments...');
+            console.log('📦 Multiple args test:', 'string', 123, { obj: 'value' }, [1, 2, 3], true, null, undefined);
+        }
+
+        // Check extension status
+        function checkExtensionStatus() {
+            const statusText = document.getElementById('statusText');
+            
+            // Look for signs that the extension is active
+            if (window.fetch && window.fetch.toString().includes('apply')) {
+                statusText.textContent = 'Extension likely active (fetch intercepted)';
+                statusText.style.color = 'green';
+            } else {
+                statusText.textContent = 'Extension status unknown';
+                statusText.style.color = 'orange';
+            }
+        }
+
+        // Initialize
+        checkExtensionStatus();
+        addOutput('Console test page loaded. Click buttons to test console interception.');
+        
+        // Test basic console on load
+        setTimeout(() => {
+            console.log('🎯 Auto-test: Page loaded successfully');
+            console.warn('🎯 Auto-test: This is an automatic warning');
+            console.error('🎯 Auto-test: This is an automatic error');
+        }, 1000);
+    </script>
+</body>
+</html>

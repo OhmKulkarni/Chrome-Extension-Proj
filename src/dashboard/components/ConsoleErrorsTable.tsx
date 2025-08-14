@@ -54,7 +54,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
   const getSeverityColor = (severity: string) => {
     switch (severity.toLowerCase()) {
       case 'error': return 'bg-red-100 text-red-800';
-      case 'warning': return 'bg-yellow-100 text-yellow-800';
+      case 'warn': return 'bg-yellow-100 text-yellow-800';
       case 'info': return 'bg-blue-100 text-blue-800';
       case 'debug': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -114,9 +114,8 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
           >
             <option value="all">All Severities</option>
             <option value="error">Error</option>
-            <option value="warning">Warning</option>
+            <option value="warn">Warning</option>
             <option value="info">Info</option>
-            <option value="debug">Debug</option>
           </select>
         </div>
         
@@ -139,7 +138,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
               <thead className="bg-gray-50">
                 <tr>
                   <th 
-                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-20"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => onSort('severity')}
                   >
                     <div className="flex items-center">
@@ -152,7 +151,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                     </div>
                   </th>
                   <th 
-                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-2/5"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => onSort('message')}
                   >
                     <div className="flex items-center">
@@ -165,7 +164,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                     </div>
                   </th>
                   <th 
-                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-1/4"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => onSort('url')}
                   >
                     <div className="flex items-center">
@@ -177,11 +176,8 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                       )}
                     </div>
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
-                    Location
-                  </th>
                   <th 
-                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-20"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => onSort('timestamp')}
                   >
                     <div className="flex items-center">
@@ -203,25 +199,22 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                     onDoubleClick={() => onDetailClick(error)}
                     title="Double-click to view detailed information"
                   >
-                    <td className="px-3 py-3 whitespace-nowrap w-20">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getSeverityColor(error.severity)}`}>
-                        {error.severity.toUpperCase()}
+                        {error.severity || 'unknown'}
                       </span>
                     </td>
-                    <td className="px-3 py-3 w-2/5">
-                      <div className="text-sm text-gray-900 truncate max-w-sm" title={error.message}>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-900 truncate max-w-md" title={error.message}>
                         {error.message}
                       </div>
                     </td>
-                    <td className="px-3 py-3 w-1/4">
-                      <div className="text-sm text-gray-500 truncate max-w-xs" title={error.url}>
-                        {error.url || 'N/A'}
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-900 truncate max-w-xs" title={error.url}>
+                        {error.url}
                       </div>
                     </td>
-                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-20">
-                      {error.line && error.column ? `${error.line}:${error.column}` : 'N/A'}
-                    </td>
-                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-20">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(error.timestamp).toLocaleTimeString()}
                     </td>
                   </tr>
