@@ -2,7 +2,7 @@
 // This file contains the React component for the Chrome extension dashboard.
 import React, { useState, useEffect, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
-import StatisticsCard from './components/StatisticsCard';
+import LazyStatisticsCard from './components/LazyStatisticsCard';
 import { PerformanceMonitoringDashboard } from './components/PerformanceMonitoringDashboard';
 
 // MEMORY LEAK FIX: Centralized Chrome message handler to prevent response accumulation
@@ -3736,8 +3736,8 @@ const Dashboard: React.FC = () => {
           <PerformanceMonitoringDashboard />
         </div>
 
-        {/* Statistics Card Component */}
-        <StatisticsCard 
+        {/* Statistics Card Component - Lazy Loaded */}
+        <LazyStatisticsCard 
           networkRequests={data.networkRequests}
           consoleErrors={data.consoleErrors}
           tokenEvents={data.tokenEvents}

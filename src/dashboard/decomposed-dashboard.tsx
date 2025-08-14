@@ -6,7 +6,6 @@ import TableCarousel from './components/TableCarousel';
 import NetworkRequestsTable from './components/NetworkRequestsTable';
 import ConsoleErrorsTable from './components/ConsoleErrorsTable';
 import TokenEventsTable from './components/TokenEventsTable';
-import PerformanceTable from './components/PerformanceTable';
 import LazyStatisticsCard from './components/LazyStatisticsCard';
 
 // MEMORY LEAK FIX: Centralized Chrome message handler to prevent response accumulation
@@ -22,41 +21,68 @@ const sendChromeMessage = async (message: any): Promise<any> => {
   }
 }
 
+// Interface definitions
+interface DashboardData {
+  totalTabs: number;
+  extensionEnabled: boolean;
+  lastActivity: string;
+  networkRequests: any[];
+  totalRequests: number;
+  consoleErrors: any[];
+  totalErrors: number;
+  tokenEvents: any[];
+  totalTokenEvents: number;
+}
+
+interface TabLoggingStatus {
+  tabId: number;
+  url: string;
+  title: string;
+  domain: string;
+  networkLogging: boolean;
+  errorLogging: boolean;
+  tokenLogging: boolean;
+  favicon?: string;
+}
+
 const DecomposedDashboard: React.FC = () => {
-  // Main state
-  const [data, setData] = useState<any>({
+  // Main state - using the same structure as original dashboard
+  const [data, setData] = useState<DashboardData>({
+    totalTabs: 0,
+    extensionEnabled: true,
+    lastActivity: 'Never',
     networkRequests: [],
-    consoleErrors: [],
-    tokenEvents: [],
     totalRequests: 0,
+    consoleErrors: [],
     totalErrors: 0,
+    tokenEvents: [],
     totalTokenEvents: 0
   });
-  const [isLoading, setIsLoading] = useState(true);
-  const [extensionEnabled, setExtensionEnabled] = useState(true);
-  const [tabLoggingEnabled, setTabLoggingEnabled] = useState(false);
-  const [currentDomain, setCurrentDomain] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+
+  // Sidebar state
+  const [tabsLoggingStatus, setTabsLoggingStatus] = useState<TabLoggingStatus[]>([]);
 
   // Table carousel state
-  const [activeTable, setActiveTable] = useState<'network' | 'errors' | 'tokens' | 'performance'>('network');
+  const [activeTable, setActiveTable] = useState<'network' | 'errors' | 'tokens'>('network');
 
-  // Network requests state
-  const [networkCurrentPage, setNetworkCurrentPage] = useState(1);
-  const [networkRequestsPerPage] = useState(50);
+  // Network requests state - using same pagination as original
+  const [currentPage, setCurrentPage] = useState(1);
+  const [requestsPerPage] = useState(10);
   const [networkSearchTerm, setNetworkSearchTerm] = useState('');
   const [networkFilterMethod, setNetworkFilterMethod] = useState('all');
-  const [networkSortConfig, setNetworkSortConfig] = useState({ key: 'timestamp', direction: 'desc' as 'asc' | 'desc' });
+  const [sortConfig, setSortConfig] = useState({ key: 'timestamp', direction: 'desc' as 'asc' | 'desc' });
 
-  // Console errors state
-  const [errorsCurrentPage, setErrorsCurrentPage] = useState(1);
-  const [errorsPerPage] = useState(50);
+  // Console errors state - using same pagination as original
+  const [currentErrorPage, setCurrentErrorPage] = useState(1);
+  const [errorsPerPage] = useState(10);
   const [errorSearchTerm, setErrorSearchTerm] = useState('');
   const [errorFilterSeverity, setErrorFilterSeverity] = useState('all');
   const [errorSortConfig, setErrorSortConfig] = useState({ key: 'timestamp', direction: 'desc' as 'asc' | 'desc' });
 
-  // Token events state
-  const [tokenCurrentPage, setTokenCurrentPage] = useState(1);
-  const [tokenEventsPerPage] = useState(50);
+  // Token events state - using same pagination as original
+  const [currentTokenPage, setCurrentTokenPage] = useState(1);
+  const [tokenEventsPerPage] = useState(10);
   const [tokenSearchTerm, setTokenSearchTerm] = useState('');
   const [tokenFilterType, setTokenFilterType] = useState('all');
   const [tokenSortConfig, setTokenSortConfig] = useState({ key: 'timestamp', direction: 'desc' as 'asc' | 'desc' });
@@ -66,103 +92,382 @@ const DecomposedDashboard: React.FC = () => {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [detailViewerType, setDetailViewerType] = useState<'request' | 'error' | 'token'>('request');
 
-  // Load dashboard data
-  const loadDashboardData = useCallback(async () => {
+  // MEMORY LEAK FIX: Copy exact data loading logic from original dashboard
+  const loadNetworkRequestsPage = useCallback(async (page: number, limit: number = 10) => {
     try {
-      setIsLoading(true);
-      const response = await sendChromeMessage({ action: 'getDashboardData' });
+      console.log(`🔄 Loading network requests page ${page} with limit ${limit}`)
+      const offset = (page - 1) * limit
+      const response = await sendChromeMessage({ 
+        action: 'getNetworkRequests', 
+        limit, 
+        offset 
+      })
       
-      if (response?.success) {
-        setData(response.data || {
-          networkRequests: [],
-          consoleErrors: [],
-          tokenEvents: [],
-          totalRequests: 0,
-          totalErrors: 0,
-          totalTokenEvents: 0
-        });
+      console.log('📊 Network requests response:', response)
+      
+      if (response?.success && response?.requests) {
+        setData(prevData => ({
+          ...prevData,
+          networkRequests: response.requests,
+          totalRequests: response.total || 0
+        }))
+        console.log(`✅ Loaded ${response.requests.length} network requests, total: ${response.total}`)
       } else {
-        console.error('Failed to load dashboard data:', response?.error);
+        console.warn('⚠️ Network requests response missing success/requests:', response)
       }
     } catch (error) {
-      console.error('Error loading dashboard data:', error);
-    } finally {
-      setIsLoading(false);
+      console.error('❌ Error loading network requests page:', error)
+    }
+  }, [])
+
+  const loadConsoleErrorsPage = useCallback(async (page: number, limit: number = 10) => {
+    try {
+      console.log(`🔄 Loading console errors page ${page} with limit ${limit}`)
+      const offset = (page - 1) * limit
+      const response = await sendChromeMessage({ 
+        action: 'getConsoleErrors', 
+        limit, 
+        offset 
+      })
+      
+      console.log('📊 Console errors response:', response)
+      
+      if (response?.success && response?.errors) {
+        setData(prevData => ({
+          ...prevData,
+          consoleErrors: response.errors,
+          totalErrors: response.total || 0
+        }))
+        console.log(`✅ Loaded ${response.errors.length} console errors, total: ${response.total}`)
+      } else {
+        console.warn('⚠️ Console errors response missing success/errors:', response)
+      }
+    } catch (error) {
+      console.error('❌ Error loading console errors page:', error)
+    }
+  }, [])
+
+  const loadTokenEventsPage = useCallback(async (page: number, limit: number = 10) => {
+    try {
+      console.log(`🔄 Loading token events page ${page} with limit ${limit}`)
+      const offset = (page - 1) * limit
+      const response = await sendChromeMessage({ 
+        action: 'getTokenEvents', 
+        limit, 
+        offset 
+      })
+      
+      console.log('📊 Token events response:', response)
+      
+      if (response?.success && response?.events) {
+        setData(prevData => ({
+          ...prevData,
+          tokenEvents: response.events,
+          totalTokenEvents: response.total || 0
+        }))
+        console.log(`✅ Loaded ${response.events.length} token events, total: ${response.total}`)
+      } else {
+        console.warn('⚠️ Token events response missing success/events:', response)
+      }
+    } catch (error) {
+      console.error('❌ Error loading token events page:', error)
+    }
+  }, [])
+
+  // Load tab logging status - using same logic as original dashboard
+  const loadTabsLoggingStatus = useCallback(async () => {
+    try {
+      // Get all tabs and global settings
+      const tabs = await chrome.tabs.query({});
+      const settingsResult = await chrome.storage.local.get(['settings']);
+      const settings = settingsResult.settings || {};
+      
+      const tabStatuses: TabLoggingStatus[] = [];
+
+      for (const tab of tabs) {
+        if (tab.id && tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
+          // Get logging status for this tab
+          const result = await chrome.storage.local.get([`tabLogging_${tab.id}`, `tabErrorLogging_${tab.id}`, `tabTokenLogging_${tab.id}`]);
+          const networkState = result[`tabLogging_${tab.id}`];
+          const errorState = result[`tabErrorLogging_${tab.id}`];
+          const tokenState = result[`tabTokenLogging_${tab.id}`];
+          
+          // Get domain from URL
+          let domain = '';
+          try {
+            domain = new URL(tab.url).hostname;
+          } catch (e) {
+            domain = 'unknown';
+          }
+
+          // Determine logging status with proper defaults
+          let networkLogging = false;
+          let errorLogging = false;
+          let tokenLogging = false;
+
+          // Network logging status
+          if (networkState) {
+            // Check both 'status' and 'active' properties for compatibility
+            if (networkState.status !== undefined) {
+              networkLogging = networkState.status === 'active';
+            } else {
+              networkLogging = typeof networkState === 'boolean' ? networkState : networkState.active;
+            }
+          } else {
+            // Use default from settings if no tab state exists
+            const defaultActive = settings.networkInterception?.tabSpecific?.defaultState === 'active';
+            networkLogging = defaultActive;
+          }
+
+          // Error logging status
+          if (errorState) {
+            errorLogging = typeof errorState === 'boolean' ? errorState : errorState.active;
+          } else {
+            // Use default from settings if no tab state exists - should be paused by default
+            const defaultActive = settings.errorLogging?.tabSpecific?.defaultState === 'active';
+            errorLogging = defaultActive; // This will be false when defaultState is 'paused'
+          }
+
+          // Token logging status
+          if (tokenState) {
+            tokenLogging = typeof tokenState === 'boolean' ? tokenState : tokenState.active;
+          } else {
+            // Use default from settings if no tab state exists - should be paused by default
+            const defaultActive = settings.tokenLogging?.tabSpecific?.defaultState === 'active';
+            tokenLogging = defaultActive; // This will be false when defaultState is 'paused'
+          }
+
+          tabStatuses.push({
+            tabId: tab.id,
+            url: tab.url,
+            title: tab.title || 'Untitled',
+            domain: domain,
+            networkLogging,
+            errorLogging,
+            tokenLogging,
+            favicon: tab.favIconUrl
+          });
+        }
+      }
+
+      setTabsLoggingStatus(tabStatuses);
+    } catch (error) {
+      console.error('Error loading tabs logging status:', error);
+      setTabsLoggingStatus([]);
     }
   }, []);
 
-  // Load settings
+  // Toggle network logging for a specific tab
+  const toggleTabNetworkLogging = async (tabId: number) => {
+    try {
+      const currentTab = tabsLoggingStatus.find(tab => tab.tabId === tabId);
+      if (!currentTab) return;
+
+      const newState = !currentTab.networkLogging;
+      
+      // Get current tab state to preserve counter when disabling
+      const tabStorageData = await chrome.storage.local.get([`tabLogging_${tabId}`]);
+      const currentTabState = tabStorageData[`tabLogging_${tabId}`];
+      const currentCount = currentTabState?.requestCount || 0;
+      
+      const tabState = {
+        active: newState,
+        startTime: newState ? Date.now() : undefined,
+        requestCount: newState ? 0 : currentCount  // Reset only when enabling, preserve when disabling
+      };
+      
+      await chrome.storage.local.set({ [`tabLogging_${tabId}`]: tabState });
+      
+      // Send message to content script
+      try {
+        await chrome.tabs.sendMessage(tabId, {
+          action: 'toggleLogging',
+          enabled: newState
+        });
+      } catch (error) {
+        console.log('Could not send message to tab (may not have content script):', error);
+      }
+      
+      // Update local state
+      setTabsLoggingStatus(prev => 
+        prev.map(tab => 
+          tab.tabId === tabId ? { ...tab, networkLogging: newState } : tab
+        )
+      );
+    } catch (error) {
+      console.error('Error toggling network logging:', error);
+    }
+  };
+
+  // Toggle error logging for a specific tab
+  const toggleTabErrorLogging = async (tabId: number) => {
+    try {
+      const currentTab = tabsLoggingStatus.find(tab => tab.tabId === tabId);
+      if (!currentTab) return;
+
+      const newState = !currentTab.errorLogging;
+      
+      // Get current tab state to preserve counter when disabling
+      const tabStorageData = await chrome.storage.local.get([`tabErrorLogging_${tabId}`]);
+      const currentTabState = tabStorageData[`tabErrorLogging_${tabId}`];
+      const currentCount = currentTabState?.errorCount || 0;
+      
+      const tabState = {
+        active: newState,
+        startTime: newState ? Date.now() : undefined,
+        errorCount: newState ? 0 : currentCount  // Reset only when enabling, preserve when disabling
+      };
+      
+      await chrome.storage.local.set({ [`tabErrorLogging_${tabId}`]: tabState });
+      
+      // Send message to content script
+      try {
+        await chrome.tabs.sendMessage(tabId, {
+          action: 'toggleErrorLogging',
+          enabled: newState
+        });
+      } catch (error) {
+        console.log('Could not send message to tab (may not have content script):', error);
+      }
+      
+      // Update local state
+      setTabsLoggingStatus(prev => 
+        prev.map(tab => 
+          tab.tabId === tabId ? { ...tab, errorLogging: newState } : tab
+        )
+      );
+    } catch (error) {
+      console.error('Error toggling error logging:', error);
+    }
+  };
+
+  // Toggle token logging for a specific tab
+  const toggleTabTokenLogging = async (tabId: number) => {
+    try {
+      const currentTab = tabsLoggingStatus.find(tab => tab.tabId === tabId);
+      if (!currentTab) return;
+
+      const newState = !currentTab.tokenLogging;
+      
+      // Get current tab state to preserve counter when disabling
+      const tabStorageData = await chrome.storage.local.get([`tabTokenLogging_${tabId}`]);
+      const currentTabState = tabStorageData[`tabTokenLogging_${tabId}`];
+      const currentCount = currentTabState?.tokenCount || 0;
+      
+      const tabState = {
+        active: newState,
+        startTime: newState ? Date.now() : undefined,
+        tokenCount: newState ? 0 : currentCount  // Reset only when enabling, preserve when disabling
+      };
+      
+      await chrome.storage.local.set({ [`tabTokenLogging_${tabId}`]: tabState });
+      
+      // Note: Token logging doesn't require content script communication
+      // as it's handled purely in the background script via network interception
+      
+      // Update local state
+      setTabsLoggingStatus(prev => 
+        prev.map(tab => 
+          tab.tabId === tabId ? { ...tab, tokenLogging: newState } : tab
+        )
+      );
+    } catch (error) {
+      console.error('Error toggling token logging:', error);
+    }
+  };
+
+  // Load dashboard data - using same logic as original
+  const loadDashboardData = useCallback(async () => {
+    try {
+      setLoading(true);
+      
+      // Get tabs count - same as original
+      const tabs = await chrome.tabs.query({});
+      
+      // Load initial data for current pages
+      await Promise.all([
+        loadNetworkRequestsPage(currentPage, requestsPerPage),
+        loadConsoleErrorsPage(currentErrorPage, errorsPerPage), 
+        loadTokenEventsPage(currentTokenPage, tokenEventsPerPage),
+        loadTabsLoggingStatus()
+      ]);
+
+      // Update basic dashboard info
+      setData(prevData => ({
+        ...prevData,
+        totalTabs: tabs.length,
+        lastActivity: new Date().toLocaleString()
+      }));
+
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, requestsPerPage, currentErrorPage, errorsPerPage, currentTokenPage, tokenEventsPerPage, loadNetworkRequestsPage, loadConsoleErrorsPage, loadTokenEventsPage, loadTabsLoggingStatus]);
+
+  // Load settings - using same logic as original
   const loadSettings = useCallback(async () => {
     try {
+      const [syncResult, localResult] = await Promise.all([
+        chrome.storage.sync.get(['extensionSettings']),
+        chrome.storage.local.get(['settings'])
+      ]);
+      
+      let tokenSettings = { showFullHash: false };
+      
+      if (localResult.settings?.tokenLogging) {
+        tokenSettings = {
+          showFullHash: localResult.settings.tokenLogging.showFullHash || false
+        };
+      } else if (syncResult.extensionSettings?.tokenLogging) {
+        tokenSettings = {
+          showFullHash: syncResult.extensionSettings.tokenLogging.showFullHash || false
+        };
+      }
+      
+      setShowFullTokenHash(tokenSettings.showFullHash);
+
+      // Load global power state
       const response = await sendChromeMessage({ action: 'getSettings' });
       if (response?.success) {
-        setExtensionEnabled(response.settings?.extensionEnabled ?? true);
-        setTabLoggingEnabled(response.settings?.tabLoggingEnabled ?? false);
+        setData(prevData => ({ ...prevData, extensionEnabled: response.settings?.extensionEnabled ?? true }));
+        setData(prevData => ({
+          ...prevData,
+          extensionEnabled: response.settings?.extensionEnabled ?? true
+        }));
       }
     } catch (error) {
       console.error('Error loading settings:', error);
     }
   }, []);
 
-  // Toggle extension
+  // Toggle extension - using same logic as original
   const handleExtensionToggle = useCallback(async (enabled: boolean) => {
     try {
-      setExtensionEnabled(enabled);
+      setData(prevData => ({ ...prevData, extensionEnabled: enabled }));
       const response = await sendChromeMessage({ 
         action: 'toggleExtension', 
         enabled 
       });
       
       if (!response?.success) {
-        setExtensionEnabled(!enabled); // Revert on failure
+        setData(prevData => ({ ...prevData, extensionEnabled: !enabled })); // Revert on failure
         console.error('Failed to toggle extension:', response?.error);
       }
     } catch (error) {
       console.error('Error toggling extension:', error);
-      setExtensionEnabled(!enabled); // Revert on error
+      setData(prevData => ({ ...prevData, extensionEnabled: !enabled })); // Revert on error
     }
   }, []);
 
-  // Toggle tab logging
-  const handleTabLoggingToggle = useCallback(async (enabled: boolean) => {
-    try {
-      setTabLoggingEnabled(enabled);
-      const response = await sendChromeMessage({
-        action: 'updateSetting',
-        key: 'tabLoggingEnabled',
-        value: enabled
-      });
-
-      if (!response?.success) {
-        setTabLoggingEnabled(!enabled); // Revert on failure
-        console.error('Failed to toggle tab logging:', response?.error);
-      }
-    } catch (error) {
-      console.error('Error toggling tab logging:', error);
-      setTabLoggingEnabled(!enabled); // Revert on error
-    }
-  }, []);
-
-  // Get current domain
-  const getCurrentDomain = useCallback(async () => {
-    try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (tab?.url) {
-        const url = new URL(tab.url);
-        setCurrentDomain(url.hostname);
-      }
-    } catch (error) {
-      console.error('Error getting current domain:', error);
-    }
-  }, []);
-
-  // Handle sorting for different tables
+  // Handle sorting - using same logic as original
   const handleNetworkSort = useCallback((key: string) => {
-    setNetworkSortConfig(prev => ({
+    setSortConfig(prev => ({
       key,
       direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
     }));
-    setNetworkCurrentPage(1); // Reset to first page when sorting
+    setCurrentPage(1); // Reset to first page when sorting
   }, []);
 
   const handleErrorSort = useCallback((key: string) => {
@@ -170,7 +475,7 @@ const DecomposedDashboard: React.FC = () => {
       key,
       direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
     }));
-    setErrorsCurrentPage(1); // Reset to first page when sorting
+    setCurrentErrorPage(1); // Reset to first page when sorting
   }, []);
 
   const handleTokenSort = useCallback((key: string) => {
@@ -178,7 +483,7 @@ const DecomposedDashboard: React.FC = () => {
       key,
       direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
     }));
-    setTokenCurrentPage(1); // Reset to first page when sorting
+    setCurrentTokenPage(1); // Reset to first page when sorting
   }, []);
 
   // Handle detail view
@@ -191,25 +496,137 @@ const DecomposedDashboard: React.FC = () => {
     setSelectedItem(null);
   }, []);
 
+  // Handle page changes - using same logic as original
+  const handleNetworkPageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+    loadNetworkRequestsPage(page, requestsPerPage);
+  }, [loadNetworkRequestsPage, requestsPerPage]);
+
+  const handleErrorPageChange = useCallback((page: number) => {
+    setCurrentErrorPage(page);
+    loadConsoleErrorsPage(page, errorsPerPage);
+  }, [loadConsoleErrorsPage, errorsPerPage]);
+
+  const handleTokenPageChange = useCallback((page: number) => {
+    setCurrentTokenPage(page);
+    loadTokenEventsPage(page, tokenEventsPerPage);
+  }, [loadTokenEventsPage, tokenEventsPerPage]);
+
   // Calculate stats for sidebar
   const sidebarStats = {
     totalRequests: data.totalRequests || data.networkRequests.length,
     totalErrors: data.totalErrors || data.consoleErrors.length,
     totalTokens: data.totalTokenEvents || data.tokenEvents.length,
-    activeConnections: extensionEnabled ? 1 : 0
+    activeConnections: data.extensionEnabled ? 1 : 0
   };
 
   // Calculate pagination for each table
-  const networkTotalPages = Math.ceil((data.totalRequests || data.networkRequests.length) / networkRequestsPerPage);
+  const networkTotalPages = Math.ceil((data.totalRequests || data.networkRequests.length) / requestsPerPage);
   const errorsTotalPages = Math.ceil((data.totalErrors || data.consoleErrors.length) / errorsPerPage);
   const tokensTotalPages = Math.ceil((data.totalTokenEvents || data.tokenEvents.length) / tokenEventsPerPage);
 
-  // Initialize on mount
+  // Initialize on mount - using same logic as original
   useEffect(() => {
     loadDashboardData();
     loadSettings();
-    getCurrentDomain();
-  }, [loadDashboardData, loadSettings, getCurrentDomain]);
+    loadTabsLoggingStatus();
+  }, [loadDashboardData, loadSettings, loadTabsLoggingStatus]);
+
+  // Add real-time updates when pages change
+  useEffect(() => {
+    loadNetworkRequestsPage(currentPage, requestsPerPage);
+  }, [currentPage, requestsPerPage, loadNetworkRequestsPage]);
+
+  useEffect(() => {
+    loadConsoleErrorsPage(currentErrorPage, errorsPerPage);
+  }, [currentErrorPage, errorsPerPage, loadConsoleErrorsPage]);
+
+  useEffect(() => {
+    loadTokenEventsPage(currentTokenPage, tokenEventsPerPage);
+  }, [currentTokenPage, tokenEventsPerPage, loadTokenEventsPage]);
+
+  // Listen for storage changes - using same logic as original
+  useEffect(() => {
+    const handleStorageChanges = (changes: any, namespace: string) => {
+      if (namespace === 'local') {
+        const hasTabLoggingChanges = Object.keys(changes).some(key => 
+          key.startsWith('tabLogging_') || 
+          key.startsWith('tabErrorLogging_') || 
+          key.startsWith('tabTokenLogging_')
+        );
+        
+        if (hasTabLoggingChanges) {
+          console.log('📡 DASHBOARD: Tab logging states changed, updating sidebar...');
+          loadTabsLoggingStatus();
+        }
+
+        if (changes.settings && changes.settings.newValue?.tokenLogging) {
+          console.log('⚙️ DASHBOARD: Token settings changed, updating display...');
+          loadSettings();
+        }
+      }
+
+      if (namespace === 'sync') {
+        if (changes.extensionSettings && changes.extensionSettings.newValue?.tokenLogging) {
+          console.log('⚙️ DASHBOARD: Extension token settings changed, updating display...');
+          loadSettings();
+        }
+      }
+    };
+
+    chrome.storage.onChanged.addListener(handleStorageChanges);
+    
+    return () => {
+      chrome.storage.onChanged.removeListener(handleStorageChanges);
+    };
+  }, [loadTabsLoggingStatus, loadSettings]);
+
+  // Add periodic refresh - using same logic as original
+  useEffect(() => {
+    let refreshInterval: number | null = null;
+    let isActive = true;
+    
+    const startPeriodicRefresh = () => {
+      if (!isActive) return;
+      
+      if (refreshInterval) {
+        clearTimeout(refreshInterval);
+      }
+      
+      let currentInterval = 10000; // 10 seconds
+      
+      const scheduleNextRefresh = () => {
+        if (!isActive) return;
+        
+        refreshInterval = window.setTimeout(() => {
+          if (!isActive) return;
+          
+          try {
+            console.log('🔄 DASHBOARD: Periodic data refresh...');
+            loadDashboardData();
+          } catch (error) {
+            console.error('Dashboard refresh error:', error);
+          }
+          
+          scheduleNextRefresh();
+        }, currentInterval);
+      };
+      
+      scheduleNextRefresh();
+    };
+
+    // Start refresh after initial load
+    if (!loading) {
+      startPeriodicRefresh();
+    }
+
+    return () => {
+      isActive = false;
+      if (refreshInterval) {
+        clearTimeout(refreshInterval);
+      }
+    };
+  }, [loading, loadDashboardData]);
 
   // Render current table content
   const renderTableContent = () => {
@@ -220,12 +637,12 @@ const DecomposedDashboard: React.FC = () => {
             requests={data.networkRequests}
             totalRequests={data.totalRequests || data.networkRequests.length}
             totalFilteredRequests={data.totalRequests || data.networkRequests.length}
-            currentPage={networkCurrentPage}
+            currentPage={currentPage}
             totalPages={networkTotalPages}
-            requestsPerPage={networkRequestsPerPage}
-            onPageChange={setNetworkCurrentPage}
+            requestsPerPage={requestsPerPage}
+            onPageChange={handleNetworkPageChange}
             onSort={handleNetworkSort}
-            sortConfig={networkSortConfig}
+            sortConfig={sortConfig}
             searchTerm={networkSearchTerm}
             onSearchChange={setNetworkSearchTerm}
             filterMethod={networkFilterMethod}
@@ -240,10 +657,10 @@ const DecomposedDashboard: React.FC = () => {
             errors={data.consoleErrors}
             totalErrors={data.totalErrors || data.consoleErrors.length}
             totalFilteredErrors={data.totalErrors || data.consoleErrors.length}
-            currentPage={errorsCurrentPage}
+            currentPage={currentErrorPage}
             totalPages={errorsTotalPages}
             errorsPerPage={errorsPerPage}
-            onPageChange={setErrorsCurrentPage}
+            onPageChange={handleErrorPageChange}
             onSort={handleErrorSort}
             sortConfig={errorSortConfig}
             searchTerm={errorSearchTerm}
@@ -260,10 +677,10 @@ const DecomposedDashboard: React.FC = () => {
             events={data.tokenEvents}
             totalEvents={data.totalTokenEvents || data.tokenEvents.length}
             totalFilteredEvents={data.totalTokenEvents || data.tokenEvents.length}
-            currentPage={tokenCurrentPage}
+            currentPage={currentTokenPage}
             totalPages={tokensTotalPages}
             eventsPerPage={tokenEventsPerPage}
-            onPageChange={setTokenCurrentPage}
+            onPageChange={handleTokenPageChange}
             onSort={handleTokenSort}
             sortConfig={tokenSortConfig}
             searchTerm={tokenSearchTerm}
@@ -276,9 +693,6 @@ const DecomposedDashboard: React.FC = () => {
           />
         );
 
-      case 'performance':
-        return <PerformanceTable />;
-
       default:
         return null;
     }
@@ -289,9 +703,11 @@ const DecomposedDashboard: React.FC = () => {
       <div className="flex">
         {/* Sidebar */}
         <DashboardSidebar
-          tabLoggingEnabled={tabLoggingEnabled}
-          onTabLoggingToggle={handleTabLoggingToggle}
-          currentDomain={currentDomain}
+          tabsLoggingStatus={tabsLoggingStatus}
+          onTabNetworkLoggingToggle={toggleTabNetworkLogging}
+          onTabErrorLoggingToggle={toggleTabErrorLogging}
+          onTabTokenLoggingToggle={toggleTabTokenLogging}
+          onRefreshTabStatus={loadTabsLoggingStatus}
           stats={sidebarStats}
         />
 
@@ -299,9 +715,9 @@ const DecomposedDashboard: React.FC = () => {
         <div className="flex-1">
           {/* Header */}
           <DashboardHeader
-            extensionEnabled={extensionEnabled}
+            extensionEnabled={data.extensionEnabled}
             onExtensionToggle={handleExtensionToggle}
-            isLoading={isLoading}
+            isLoading={loading}
           />
 
           {/* Main Content Area */}
