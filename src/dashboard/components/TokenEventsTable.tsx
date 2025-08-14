@@ -153,12 +153,12 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
       {/* Table */}
       {events.length > 0 ? (
         <div className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+          <div className="overflow-x-auto min-w-0">
+            <table className="w-full table-fixed divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-24"
                     onClick={() => onSort('type')}
                   >
                     <div className="flex items-center">
@@ -171,7 +171,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                     </div>
                   </th>
                   <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-24"
                     onClick={() => onSort('tokenType')}
                   >
                     <div className="flex items-center">
@@ -184,7 +184,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                     </div>
                   </th>
                   <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-1/3"
                     onClick={() => onSort('url')}
                   >
                     <div className="flex items-center">
@@ -196,14 +196,14 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                       )}
                     </div>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
                     Method
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
                     Value Hash
                   </th>
                   <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-20"
                     onClick={() => onSort('timestamp')}
                   >
                     <div className="flex items-center">
@@ -225,26 +225,26 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                     onDoubleClick={() => onDetailClick(event)}
                     title="Double-click to view detailed information"
                   >
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 py-3 whitespace-nowrap w-24">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEventTypeColor(event.type)}`}>
                         {event.type.toUpperCase()}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-900 w-24">
                       {event.tokenType || 'Unknown'}
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900 truncate max-w-xs" title={event.url}>
+                    <td className="px-3 py-3 w-1/3">
+                      <div className="text-sm text-gray-900 truncate max-w-sm" title={event.url}>
                         {event.url || 'N/A'}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-16">
                       {event.method || 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 font-mono w-1/4">
                       {formatHash(event.valueHash || '')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-20">
                       {new Date(event.timestamp).toLocaleTimeString()}
                     </td>
                   </tr>

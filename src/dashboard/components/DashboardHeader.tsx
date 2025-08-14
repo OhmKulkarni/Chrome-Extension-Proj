@@ -3,7 +3,9 @@ import React from 'react';
 interface DashboardHeaderProps {
   extensionEnabled: boolean;
   onExtensionToggle: (enabled: boolean) => void;
+  onSidebarToggle?: () => void;
   isLoading?: boolean;
+  hasActiveLogging?: boolean;
 }
 
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({

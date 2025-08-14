@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
-import DashboardSidebar from './components/DashboardSidebar';
 import DashboardHeader from './components/DashboardHeader';
 import TableCarousel from './components/TableCarousel';
 import NetworkRequestsTable from './components/NetworkRequestsTable';
 import ConsoleErrorsTable from './components/ConsoleErrorsTable';
 import TokenEventsTable from './components/TokenEventsTable';
 import LazyStatisticsCard from './components/LazyStatisticsCard';
+import LeftSidebar from './components/LeftSidebar';
 
 // MEMORY LEAK FIX: Centralized Chrome message handler to prevent response accumulation
 const sendChromeMessage = async (message: any): Promise<any> => {
@@ -62,6 +62,7 @@ const DecomposedDashboard: React.FC = () => {
 
   // Sidebar state
   const [tabsLoggingStatus, setTabsLoggingStatus] = useState<TabLoggingStatus[]>([]);
+  const [sidebarMode, setSidebarMode] = useState<'logging' | 'settings' | 'base'>('base');
 
   // Table carousel state
   const [activeTable, setActiveTable] = useState<'network' | 'errors' | 'tokens'>('network');
@@ -516,8 +517,10 @@ const DecomposedDashboard: React.FC = () => {
   const sidebarStats = {
     totalRequests: data.totalRequests || data.networkRequests.length,
     totalErrors: data.totalErrors || data.consoleErrors.length,
-    totalTokens: data.totalTokenEvents || data.tokenEvents.length,
-    activeConnections: data.extensionEnabled ? 1 : 0
+    totalTokenEvents: data.totalTokenEvents || data.tokenEvents.length,
+    activeLoggingTabs: tabsLoggingStatus.filter(tab => 
+      tab.networkLogging || tab.errorLogging || tab.tokenLogging
+    ).length
   };
 
   // Calculate pagination for each table
@@ -628,6 +631,16 @@ const DecomposedDashboard: React.FC = () => {
     };
   }, [loading, loadDashboardData]);
 
+  // Calculate if there's any active logging
+  const hasActiveLogging = tabsLoggingStatus.some(tab => 
+    tab.networkLogging || tab.errorLogging || tab.tokenLogging
+  );
+
+  // Sidebar handlers
+  const handleSidebarModeChange = (mode: 'logging' | 'settings' | 'base') => {
+    setSidebarMode(mode);
+  };
+
   // Render current table content
   const renderTableContent = () => {
     switch (activeTable) {
@@ -699,38 +712,43 @@ const DecomposedDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="flex">
-        {/* Sidebar */}
-        <DashboardSidebar
-          tabsLoggingStatus={tabsLoggingStatus}
-          onTabNetworkLoggingToggle={toggleTabNetworkLogging}
-          onTabErrorLoggingToggle={toggleTabErrorLogging}
-          onTabTokenLoggingToggle={toggleTabTokenLogging}
-          onRefreshTabStatus={loadTabsLoggingStatus}
-          stats={sidebarStats}
+    <div className="min-h-screen bg-gray-100 flex">
+      {/* Left Sidebar */}
+      <LeftSidebar
+        sidebarMode={sidebarMode}
+        onModeChange={handleSidebarModeChange}
+        tabsLoggingStatus={tabsLoggingStatus}
+        onTabNetworkLoggingToggle={toggleTabNetworkLogging}
+        onTabErrorLoggingToggle={toggleTabErrorLogging}
+        onTabTokenLoggingToggle={toggleTabTokenLogging}
+        onRefreshTabStatus={loadTabsLoggingStatus}
+        stats={sidebarStats}
+      />
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <DashboardHeader
+          extensionEnabled={data.extensionEnabled}
+          onExtensionToggle={handleExtensionToggle}
+          isLoading={loading}
+          hasActiveLogging={hasActiveLogging}
         />
 
-        {/* Main Content */}
-        <div className="flex-1">
-          {/* Header */}
-          <DashboardHeader
-            extensionEnabled={data.extensionEnabled}
-            onExtensionToggle={handleExtensionToggle}
-            isLoading={loading}
-          />
-
-          {/* Main Content Area */}
-          <div className="p-6 space-y-6">
-            {/* Table Carousel */}
+        {/* Main Content Area */}
+        <div className="flex-1 p-6 space-y-6 overflow-hidden">
+          {/* Table Carousel */}
+          <div className="w-full">
             <TableCarousel
               activeTable={activeTable}
               onTableChange={setActiveTable}
             >
               {renderTableContent()}
             </TableCarousel>
+          </div>
 
-            {/* Statistics Card - Lazy Loaded */}
+          {/* Statistics Card - Lazy Loaded */}
+          <div className="w-full">
             <LazyStatisticsCard
               networkRequests={data.networkRequests}
               consoleErrors={data.consoleErrors}

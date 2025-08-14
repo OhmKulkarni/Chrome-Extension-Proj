@@ -134,12 +134,12 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
       {/* Table */}
       {errors.length > 0 ? (
         <div className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+          <div className="overflow-x-auto min-w-0">
+            <table className="w-full table-fixed divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-20"
                     onClick={() => onSort('severity')}
                   >
                     <div className="flex items-center">
@@ -152,7 +152,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                     </div>
                   </th>
                   <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-2/5"
                     onClick={() => onSort('message')}
                   >
                     <div className="flex items-center">
@@ -165,7 +165,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                     </div>
                   </th>
                   <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-1/4"
                     onClick={() => onSort('url')}
                   >
                     <div className="flex items-center">
@@ -177,11 +177,11 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                       )}
                     </div>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
                     Location
                   </th>
                   <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-20"
                     onClick={() => onSort('timestamp')}
                   >
                     <div className="flex items-center">
@@ -203,25 +203,25 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                     onDoubleClick={() => onDetailClick(error)}
                     title="Double-click to view detailed information"
                   >
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 py-3 whitespace-nowrap w-20">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getSeverityColor(error.severity)}`}>
                         {error.severity.toUpperCase()}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900 truncate max-w-xs" title={error.message}>
+                    <td className="px-3 py-3 w-2/5">
+                      <div className="text-sm text-gray-900 truncate max-w-sm" title={error.message}>
                         {error.message}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-3 w-1/4">
                       <div className="text-sm text-gray-500 truncate max-w-xs" title={error.url}>
                         {error.url || 'N/A'}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-20">
                       {error.line && error.column ? `${error.line}:${error.column}` : 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-20">
                       {new Date(error.timestamp).toLocaleTimeString()}
                     </td>
                   </tr>

@@ -219,12 +219,12 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
       {/* Table */}
       {requests.length > 0 ? (
         <div className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+          <div className="overflow-x-auto min-w-0">
+            <table className="w-full table-fixed divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-20"
                     onClick={() => onSort('method')}
                   >
                     <div className="flex items-center">
@@ -237,7 +237,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                     </div>
                   </th>
                   <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-1/3"
                     onClick={() => onSort('url')}
                   >
                     <div className="flex items-center">
@@ -250,7 +250,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                     </div>
                   </th>
                   <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-16"
                     onClick={() => onSort('status')}
                   >
                     <div className="flex items-center">
@@ -263,7 +263,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                     </div>
                   </th>
                   <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-16"
                     onClick={() => onSort('payload_size')}
                   >
                     <div className="flex items-center">
@@ -276,7 +276,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                     </div>
                   </th>
                   <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-20"
                     onClick={() => onSort('timestamp')}
                   >
                     <div className="flex items-center">
@@ -288,11 +288,11 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                       )}
                     </div>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
                     Headers Preview
                   </th>
                   <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-20"
                     onClick={() => onSort('response_time')}
                   >
                     <div className="flex items-center">
@@ -314,7 +314,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                     onDoubleClick={() => onDetailClick(request)}
                     title="Double-click to view detailed information"
                   >
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 py-3 whitespace-nowrap w-20">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                         request.method === 'GET' ? 'bg-blue-100 text-blue-800' :
                         request.method === 'POST' ? 'bg-green-100 text-green-800' :
@@ -325,12 +325,12 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                         {request.method}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900 truncate max-w-xs" title={request.url}>
+                    <td className="px-3 py-3 w-1/3">
+                      <div className="text-sm text-gray-900 truncate max-w-sm" title={request.url}>
                         {request.url}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 py-3 whitespace-nowrap w-16">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                         request.status >= 200 && request.status < 300 ? 'bg-green-100 text-green-800' :
                         request.status >= 300 && request.status < 400 ? 'bg-yellow-100 text-yellow-800' :
@@ -340,18 +340,18 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                         {request.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-16">
                       {request.payload_size ? `${Math.round(request.payload_size / 1024)}KB` : '-'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-20">
                       {new Date(request.timestamp).toLocaleTimeString()}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
+                    <td className="px-3 py-3 text-sm text-gray-500 w-1/4">
                       <div className="truncate max-w-xs">
                         {getHeaderPreview(request)}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-20">
                       {request.response_time ? `${request.response_time}ms` : 
                        request.time_taken ? `${request.time_taken}ms` : 'N/A'}
                     </td>
