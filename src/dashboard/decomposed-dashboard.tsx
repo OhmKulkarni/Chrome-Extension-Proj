@@ -10,6 +10,26 @@ import LeftSidebar from './components/LeftSidebar';
 import { PerformanceMonitoringDashboard } from './components/PerformanceMonitoringDashboard';
 import { RequestDetailContent, ErrorDetailContent, TokenDetailContent } from './shared/components/DetailedViews';
 
+// Chrome data clearing function
+const clearChromeData = async (): Promise<void> => {
+  const sendChromeMessage = (message: any): Promise<any> => {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage(message, resolve);
+    });
+  };
+
+  const response = await sendChromeMessage({ action: 'clearAllData' })
+  if (chrome.runtime.lastError) {
+    console.error('Dashboard: Error clearing data:', chrome.runtime.lastError)
+    throw chrome.runtime.lastError
+  } else if (response?.success) {
+    console.log('Dashboard: Data cleared successfully')
+    return
+  } else {
+    throw new Error('Failed to clear data')
+  }
+};
+
 // MEMORY LEAK FIX: Centralized Chrome message handler to prevent response accumulation
 const sendChromeMessage = async (message: any): Promise<any> => {
   try {
@@ -416,6 +436,54 @@ const DecomposedDashboard: React.FC = () => {
       setLoading(false);
     }
   }, [currentPage, requestsPerPage, currentErrorPage, errorsPerPage, currentTokenPage, tokenEventsPerPage, loadNetworkRequestsPage, loadConsoleErrorsPage, loadTokenEventsPage, loadTabsLoggingStatus]);
+
+  // Clear data function with proper error handling
+  const clearData = async () => {
+    const confirmed = window.confirm(
+      '⚠️ WARNING: This will permanently delete all recorded network requests, console errors, token events, and reset all tab counters.\n\n' +
+      'This action cannot be undone. Are you sure you want to continue?'
+    );
+    
+    if (confirmed) {
+      try {
+        setLoading(true);
+        
+        // Use the clearChromeData function
+        await clearChromeData()
+        
+        // Reset local state
+        setData({
+          totalTabs: data.totalTabs,
+          extensionEnabled: data.extensionEnabled,
+          lastActivity: data.lastActivity,
+          networkRequests: [],
+          totalRequests: 0,
+          consoleErrors: [],
+          totalErrors: 0,
+          tokenEvents: [],
+          totalTokenEvents: 0
+        });
+
+        setCurrentPage(1);
+        setCurrentErrorPage(1);
+        setCurrentTokenPage(1);
+        
+        // Reload data from database to confirm it's actually cleared
+        await loadDashboardData();
+        
+        // Trigger refresh of all dashboard components
+        window.dispatchEvent(new CustomEvent('dataCleared'));
+
+        // Show success message
+        alert('✅ All network request, console error, and token event data have been cleared successfully.');
+      } catch (error) {
+        console.error('Error clearing data:', error);
+        alert('❌ Failed to clear data. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
 
   // Load settings - using same logic as original
   const loadSettings = useCallback(async () => {
@@ -856,6 +924,46 @@ const DecomposedDashboard: React.FC = () => {
           isLoading={loading}
           hasActiveLogging={hasActiveLogging}
         />
+
+        {/* Control Buttons */}
+        <div className="px-6 py-4 bg-white border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              Last updated: {data.lastActivity}
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={loadDashboardData}
+                disabled={loading}
+                className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Refresh Data
+                  </>
+                )}
+              </button>
+              <button
+                onClick={clearData}
+                disabled={loading}
+                className="bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Clear Data
+              </button>
+            </div>
+          </div>
+        </div>
 
         {/* Main Content Area */}
         <div className="flex-1 p-6 space-y-6 overflow-hidden">
