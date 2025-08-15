@@ -5,15 +5,13 @@ interface DetailViewerProps {
   onClose: () => void;
   item: any;
   type: 'request' | 'error' | 'token';
-  showFullTokenHash?: boolean;
 }
 
 const EnhancedDetailViewer: React.FC<DetailViewerProps> = ({
   isOpen,
   onClose,
   item,
-  type,
-  showFullTokenHash = false
+  type
 }) => {
   const [selectedField, setSelectedField] = useState('details');
 
@@ -222,12 +220,6 @@ const EnhancedDetailViewer: React.FC<DetailViewerProps> = ({
   };
 
   const renderTokenDetails = () => {
-    const formatHash = (hash: string) => {
-      if (!hash) return 'N/A';
-      if (showFullTokenHash) return hash;
-      return hash.length > 16 ? `${hash.substring(0, 8)}...${hash.substring(hash.length - 8)}` : hash;
-    };
-
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between mb-3">
@@ -240,33 +232,6 @@ const EnhancedDetailViewer: React.FC<DetailViewerProps> = ({
           </button>
         </div>
         <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-          <div>
-            <span className="text-sm font-medium text-gray-700">Event Type:</span>
-            <span className={`inline-block px-2 py-1 text-xs rounded-full ml-2 ${
-              item.type === 'acquire' ? 'bg-green-100 text-green-800' :
-              item.type === 'use' ? 'bg-blue-100 text-blue-800' :
-              item.type === 'refresh' ? 'bg-yellow-100 text-yellow-800' :
-              'bg-gray-100 text-gray-800'
-            }`}>
-              {item.type?.toUpperCase() || 'N/A'}
-            </span>
-          </div>
-          <div>
-            <span className="text-sm font-medium text-gray-700">Token Type:</span>
-            <p className="text-sm text-gray-900 mt-1">{item.tokenType || 'Unknown'}</p>
-          </div>
-          <div>
-            <span className="text-sm font-medium text-gray-700">URL:</span>
-            <p className="text-sm text-gray-900 mt-1 break-all">{item.url || 'N/A'}</p>
-          </div>
-          <div>
-            <span className="text-sm font-medium text-gray-700">Method:</span>
-            <p className="text-sm text-gray-900 mt-1">{item.method || 'N/A'}</p>
-          </div>
-          <div>
-            <span className="text-sm font-medium text-gray-700">Value Hash:</span>
-            <p className="text-sm text-gray-900 mt-1 font-mono">{formatHash(item.valueHash)}</p>
-          </div>
           <div>
             <span className="text-sm font-medium text-gray-700">Timestamp:</span>
             <p className="text-sm text-gray-900 mt-1">{new Date(item.timestamp).toLocaleString()}</p>

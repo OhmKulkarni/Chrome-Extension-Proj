@@ -1,14 +1,44 @@
 import React, { useState } from 'react'
 
 // Detail Content Components
-export const RequestDetailContent: React.FC<{ request: any; selectedField: string }> = ({ request, selectedField }) => {
+export const RequestDetailContent: React.FC<{ 
+  request: any; 
+  selectedField: string;
+  settings?: any;
+}> = ({ request, selectedField, settings }) => {
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
+    // Use settings-based limit or fallback to 10KB
+    const maxClipboardSize = settings?.networkInterception?.bodyCapture?.maxBodySize || 10000;
+    const safeSize = maxClipboardSize === 0 ? 50000 : maxClipboardSize; // 0 means no limit, but use 50KB safety
+    
+    const copyText = text.length > safeSize ? 
+      text.substring(0, safeSize) + '\n[Truncated for clipboard - check settings to adjust limit]' : 
+      text;
+    
+    navigator.clipboard.writeText(copyText).catch(error => {
+      console.warn('Failed to copy to clipboard:', error);
+    });
   };
 
   const formatJSON = (obj: any) => {
     try {
-      return JSON.stringify(obj, null, 2);
+      // Use settings-based safety limits
+      const maxDisplaySize = settings?.networkInterception?.bodyCapture?.maxBodySize || 5000;
+      const safeSize = maxDisplaySize === 0 ? 50000 : maxDisplaySize; // 0 means no limit, but use 50KB safety
+      
+      const seen = new WeakSet();
+      const safeStringify = (_key: string, value: any) => {
+        if (typeof value === 'object' && value !== null) {
+          if (seen.has(value)) {
+            return '[Circular Reference]';
+          }
+          seen.add(value);
+        }
+        return value;
+      };
+      
+      const jsonString = JSON.stringify(obj, safeStringify, 2);
+      return jsonString.length > safeSize ? jsonString.substring(0, safeSize) + '...[Truncated - check settings to adjust limit]' : jsonString;
     } catch {
       return obj;
     }
@@ -465,29 +495,51 @@ export const RequestDetailContent: React.FC<{ request: any; selectedField: strin
     );
   }
 
-  // Fallback: show all request data
-  return (
-    <div className="space-y-4">
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <h3 className="text-sm font-semibold text-yellow-800 mb-2">Debug: Full Request Data</h3>
-        <p className="text-xs text-yellow-700 mb-3">Selected field "{selectedField}" - showing all available data:</p>
-        <div className="code-block bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto text-sm font-mono">
-          <pre>{formatJSON(request)}</pre>
+  // Raw JSON field
+  if (selectedField === 'rawjson') {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-gray-900">Raw JSON Data</h3>
+          <button
+            onClick={() => copyToClipboard(formatJSON(request))}
+            className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+          >
+            Copy JSON
+          </button>
         </div>
-        <button
-          onClick={() => copyToClipboard(formatJSON(request))}
-          className="copy-button mt-3 text-xs bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
-        >
-          Copy All Data
-        </button>
+        <div className="bg-gray-900 rounded-lg p-4">
+          <pre className="text-sm text-green-400 whitespace-pre-wrap overflow-auto max-h-96">
+            {formatJSON(request)}
+          </pre>
+        </div>
+        {settings?.networkInterception?.bodyCapture?.maxBodySize !== 0 && (
+          <p className="text-xs text-gray-500 mt-2">
+            Display limited by settings (max: {settings?.networkInterception?.bodyCapture?.maxBodySize || 5000} chars)
+          </p>
+        )}
       </div>
-    </div>
-  );
+    );
+  }
+
+  // Fallback for unknown fields
+  return <div className="text-gray-500">No data available for selected field: {selectedField}</div>;
 };
 
-export const ErrorDetailContent: React.FC<{ error: any; selectedField: string }> = ({ error, selectedField }) => {
+export const ErrorDetailContent: React.FC<{
+  error: any;
+  selectedField: string;
+}> = ({ error, selectedField }) => {
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
+    // For errors, use smaller limits since raw JSON is not as useful
+    const maxClipboardSize = 5000;
+    const copyText = text.length > maxClipboardSize ? 
+      text.substring(0, maxClipboardSize) + '\n[Truncated for clipboard]' : 
+      text;
+    
+    navigator.clipboard.writeText(copyText).catch(error => {
+      console.warn('Failed to copy to clipboard:', error);
+    });
   };
 
   if (selectedField === 'details') {
@@ -836,9 +888,49 @@ export const analyzeTokenEvent = (event: any) => {
   };
 };
 
-export const TokenDetailContent: React.FC<{ tokenEvent: any; selectedField: string }> = ({ tokenEvent, selectedField }) => {
+export const TokenDetailContent: React.FC<{ 
+  tokenEvent: any; 
+  selectedField: string;
+  showFullTokenHash?: boolean;
+  settings?: any;
+}> = ({ tokenEvent, selectedField, showFullTokenHash = false, settings }) => {
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
+    // Use settings-based limit for tokens
+    const maxClipboardSize = settings?.networkInterception?.bodyCapture?.maxBodySize || 10000;
+    const safeSize = maxClipboardSize === 0 ? 50000 : maxClipboardSize;
+    
+    const copyText = text.length > safeSize ? 
+      text.substring(0, safeSize) + '\n[Truncated for clipboard - check settings]' : 
+      text;
+    
+    navigator.clipboard.writeText(copyText).catch(error => {
+      console.warn('Failed to copy to clipboard:', error);
+    });
+  };
+
+  const formatJSON = (obj: any) => {
+    try {
+      const maxDisplaySize = settings?.networkInterception?.bodyCapture?.maxBodySize || 5000;
+      const safeSize = maxDisplaySize === 0 ? 50000 : maxDisplaySize;
+      
+      const seen = new WeakSet();
+      const safeStringify = (_key: string, value: any) => {
+        if (typeof value === 'object' && value !== null) {
+          if (seen.has(value)) {
+            return '[Circular Reference]';
+          }
+          seen.add(value);
+        }
+        return value;
+      };
+      
+      const jsonString = JSON.stringify(obj, safeStringify, 2);
+      return jsonString.length > safeSize ? 
+        jsonString.substring(0, safeSize) + '...[Truncated - check settings]' : 
+        jsonString;
+    } catch {
+      return String(obj);
+    }
   };
 
   // Helper function to format hash values in git-style
@@ -853,7 +945,8 @@ export const TokenDetailContent: React.FC<{ tokenEvent: any; selectedField: stri
     // For actual hash values (typically long hex strings), use git-style format
     // Only apply git-style formatting if it looks like a hash (long string, mostly hex characters)
     if (hash.length > 16 && /^[a-fA-F0-9]+$/.test(hash)) {
-      return formatGitStyleHash(hash);
+      // Use showFullTokenHash setting to determine display format
+      return showFullTokenHash ? hash : formatGitStyleHash(hash);
     }
     
     // For other values, return as-is
@@ -864,8 +957,6 @@ export const TokenDetailContent: React.FC<{ tokenEvent: any; selectedField: stri
     if (hash.length < 8) return hash; // If hash is too short, return as-is
     return hash.substring(0, 8); // Show first 8 characters like git
   };
-
-  const analysis = analyzeTokenEvent(tokenEvent);
 
   if (selectedField === 'details') {
     return (
@@ -881,57 +972,43 @@ export const TokenDetailContent: React.FC<{ tokenEvent: any; selectedField: stri
             </button>
           </div>
           <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-            <div>
-              <span className="text-sm font-medium text-gray-700">Event Type:</span>
-              <span className={`inline-block px-2 py-1 text-xs rounded-full ml-2 ${
-                analysis.type === 'Login' ? 'bg-green-100 text-green-800' :
-                analysis.type === 'Logout' ? 'bg-red-100 text-red-800' :
-                analysis.type === 'Token Refresh' ? 'bg-blue-100 text-blue-800' :
-                analysis.type === 'Expiry Check' ? 'bg-yellow-100 text-yellow-800' :
-                'bg-gray-100 text-gray-800'
-              }`}>
-                {analysis.type}
-              </span>
-            </div>
-            <div>
-              <span className="text-sm font-medium text-gray-700">Token Type:</span>
-              <p className="text-sm text-gray-900 mt-1">{analysis.tokenType}</p>
-            </div>
-            <div>
-              <span className="text-sm font-medium text-gray-700">URL:</span>
-              <p className="text-sm text-gray-900 mt-1 break-all">{analysis.url}</p>
-            </div>
-            <div>
-              <span className="text-sm font-medium text-gray-700">Method:</span>
-              <p className="text-sm text-gray-900 mt-1">{analysis.method}</p>
-            </div>
-            {analysis.status && (
+            {tokenEvent.url && (
+              <div>
+                <span className="text-sm font-medium text-gray-700">URL:</span>
+                <p className="text-sm text-gray-900 mt-1 break-all">{tokenEvent.url}</p>
+              </div>
+            )}
+            {(tokenEvent.method || tokenEvent.request_method) && (
+              <div>
+                <span className="text-sm font-medium text-gray-700">Method:</span>
+                <p className="text-sm text-gray-900 mt-1">{tokenEvent.method || tokenEvent.request_method}</p>
+              </div>
+            )}
+            {(tokenEvent.status || tokenEvent.response_status) && (
               <div>
                 <span className="text-sm font-medium text-gray-700">Status:</span>
                 <span className={`inline-block px-2 py-1 text-xs rounded-full ml-2 ${
-                  analysis.status >= 200 && analysis.status < 300 ? 'bg-green-100 text-green-800' :
-                  analysis.status >= 300 && analysis.status < 400 ? 'bg-yellow-100 text-yellow-800' :
-                  analysis.status >= 400 ? 'bg-red-100 text-red-800' :
+                  (tokenEvent.status || tokenEvent.response_status) >= 200 && (tokenEvent.status || tokenEvent.response_status) < 300 ? 'bg-green-100 text-green-800' :
+                  (tokenEvent.status || tokenEvent.response_status) >= 300 && (tokenEvent.status || tokenEvent.response_status) < 400 ? 'bg-yellow-100 text-yellow-800' :
+                  (tokenEvent.status || tokenEvent.response_status) >= 400 ? 'bg-red-100 text-red-800' :
                   'bg-gray-100 text-gray-800'
                 }`}>
-                  {analysis.status}
+                  {tokenEvent.status || tokenEvent.response_status}
                 </span>
               </div>
             )}
-            <div>
-              <span className="text-sm font-medium text-gray-700">Value Hash:</span>
-              <p className="text-sm text-gray-900 mt-1 font-mono">{formatHashValue(analysis.valueHash)}</p>
-            </div>
-            {analysis.expiry && (
+            {(tokenEvent.valueHash || tokenEvent.value_hash) && (
               <div>
-                <span className="text-sm font-medium text-gray-700">Expiry:</span>
-                <p className="text-sm text-gray-900 mt-1">{new Date(analysis.expiry).toLocaleString()}</p>
+                <span className="text-sm font-medium text-gray-700">Value Hash:</span>
+                <p className="text-sm text-gray-900 mt-1 font-mono">{formatHashValue(tokenEvent.valueHash || tokenEvent.value_hash)}</p>
               </div>
             )}
-            <div>
-              <span className="text-sm font-medium text-gray-700">Timestamp:</span>
-              <p className="text-sm text-gray-900 mt-1">{new Date(analysis.timestamp).toLocaleString()}</p>
-            </div>
+            {tokenEvent.timestamp && (
+              <div>
+                <span className="text-sm font-medium text-gray-700">Timestamp:</span>
+                <p className="text-sm text-gray-900 mt-1">{new Date(tokenEvent.timestamp).toLocaleString()}</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -939,7 +1016,11 @@ export const TokenDetailContent: React.FC<{ tokenEvent: any; selectedField: stri
   }
 
   if (selectedField === 'headers') {
-    const headers = analysis.headers;
+    // Get headers from various possible locations in the token event
+    const headers = tokenEvent.headers || 
+                   tokenEvent.request_headers || 
+                   tokenEvent.response_headers || 
+                   {};
     
     return (
       <div className="space-y-6">
@@ -992,6 +1073,33 @@ export const TokenDetailContent: React.FC<{ tokenEvent: any; selectedField: stri
           <div className="text-center py-8">
             <div className="text-gray-500">No header data available for this token event</div>
           </div>
+        )}
+      </div>
+    );
+  }
+
+  // Raw JSON field for tokens
+  if (selectedField === 'rawjson') {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-gray-900">Raw Token Event Data</h3>
+          <button
+            onClick={() => copyToClipboard(formatJSON(tokenEvent))}
+            className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+          >
+            Copy JSON
+          </button>
+        </div>
+        <div className="bg-gray-900 rounded-lg p-4">
+          <pre className="text-sm text-green-400 whitespace-pre-wrap overflow-auto max-h-96">
+            {formatJSON(tokenEvent)}
+          </pre>
+        </div>
+        {settings?.networkInterception?.bodyCapture?.maxBodySize !== 0 && (
+          <p className="text-xs text-gray-500 mt-2">
+            Display limited by settings (max: {settings?.networkInterception?.bodyCapture?.maxBodySize || 5000} chars)
+          </p>
         )}
       </div>
     );

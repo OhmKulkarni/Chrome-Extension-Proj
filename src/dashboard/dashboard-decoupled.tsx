@@ -790,7 +790,7 @@ const DecoupledDashboard: React.FC = () => {
               <div className="flex bg-gray-100 rounded-lg p-1">
                 {(expandedItemType === 'request' ? ['details', 'headers', 'body', 'rawjson'] :
                   expandedItemType === 'error' ? ['details', 'stack', 'rawjson'] :
-                  ['details', 'analysis', 'rawjson']).map((field) => (
+                  ['details', 'rawjson']).map((field) => (
                   <button
                     key={field}
                     onClick={() => setSelectedField(field)}

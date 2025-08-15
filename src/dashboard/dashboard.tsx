@@ -992,47 +992,12 @@ const analyzeTokenEvent = (event: any) => {
   };
 };
 
-const TokenDetailContent: React.FC<{ tokenEvent: any; selectedField: string; showFullTokenHash: boolean }> = ({ tokenEvent, selectedField, showFullTokenHash }) => {
+const TokenDetailContent: React.FC<{ tokenEvent: any; selectedField: string }> = ({ tokenEvent, selectedField }) => {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
   };
 
-  // Helper function to format hash values in git-style
-  const formatHashValue = (hash: string | null | undefined): string => {
-    if (!hash) return 'N/A';
-    
-    // Handle special status cases - keep them as-is
-    if (hash === 'expired' || hash === 'redacted' || hash === 'N/A' || hash === 'refresh_error') {
-      return hash;
-    }
-    
-    // If showFullTokenHash is enabled, return the full hash
-    if (showFullTokenHash) {
-      return hash;
-    }
-    
-    // For actual hash values (typically long hex strings), use git-style format
-    // Only apply git-style formatting if it looks like a hash (long string, mostly hex characters)
-    if (hash.length > 16 && /^[a-fA-F0-9]+$/.test(hash)) {
-      return formatGitStyleHash(hash);
-    }
-    
-    // For other values, return as-is but check if we should abbreviate
-    if (hash.length > 16) {
-      return formatGitStyleHash(hash);
-    }
-    
-    return hash;
-  };
-
-  const formatGitStyleHash = (hash: string): string => {
-    if (hash.length < 8) return hash; // If hash is too short, return as-is
-    return hash.slice(0, 4) + "…" + hash.slice(-4);
-  };
-
   if (selectedField === 'details') {
-    const analysis = analyzeTokenEvent(tokenEvent);
-    
     return (
       <div className="space-y-4">
         {/* Token Event Details Section */}
@@ -1040,127 +1005,23 @@ const TokenDetailContent: React.FC<{ tokenEvent: any; selectedField: string; sho
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-gray-900">Token Event Details</h3>
             <button
-              onClick={() => copyToClipboard(JSON.stringify(analysis, null, 2))}
+              onClick={() => copyToClipboard(JSON.stringify(tokenEvent, null, 2))}
               className="copy-button text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
             >
-              Copy Analysis
+              Copy All
             </button>
           </div>
-          <div className="bg-gray-50 rounded-lg p-4 space-y-4">
-            {/* Event Classification */}
-            <div className="border-b border-gray-200 pb-3">
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Event Classification</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <span className="text-xs text-gray-500">Detected Type:</span>
-                  <p className="text-sm font-medium text-gray-900">{analysis.type}</p>
-                </div>
-                <div>
-                  <span className="text-xs text-gray-500">Token Format:</span>
-                  <p className="text-sm font-medium text-gray-900">{analysis.tokenType}</p>
-                </div>
-              </div>
+          <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+            <div>
+              <span className="text-sm font-medium text-gray-700">Timestamp:</span>
+              <p className="text-sm text-gray-900 mt-1">{new Date(tokenEvent.timestamp).toLocaleString()}</p>
             </div>
-
-            {/* Request Details */}
-            <div className="border-b border-gray-200 pb-3">
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Request Details</h4>
-              <div className="space-y-2">
-                <div>
-                  <span className="text-xs text-gray-500">URL Pattern:</span>
-                  <p className="text-sm text-gray-900 break-all">{analysis.url}</p>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <span className="text-xs text-gray-500">HTTP Method:</span>
-                    <p className="text-sm font-medium text-gray-900">{analysis.method}</p>
-                  </div>
-                  <div>
-                    <span className="text-xs text-gray-500">Response Status:</span>
-                    <p className="text-sm font-medium text-gray-900">{analysis.status || 'N/A'}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Token Information */}
-            {analysis.valueHash && (
-              <div className="border-b border-gray-200 pb-3">
-                <h4 className="text-sm font-medium text-gray-700 mb-2">Token Information</h4>
-                <div className="space-y-2">
-                  <div>
-                    <span className="text-xs text-gray-500">Value Hash:</span>
-                    {showFullTokenHash && analysis.valueHash && analysis.valueHash.length > 16 && 
-                     !['expired', 'redacted', 'N/A', 'refresh_error'].includes(analysis.valueHash) ? (
-                      <div className="mt-1 flex items-center space-x-2">
-                        <input 
-                          type="text" 
-                          value={formatHashValue(analysis.valueHash)} 
-                          readOnly 
-                          className="bg-gray-100 border border-gray-300 rounded px-2 py-1 text-xs font-mono flex-1 cursor-pointer select-all"
-                          onClick={(e) => (e.target as HTMLInputElement).select()}
-                          title={`Full hash: ${formatHashValue(analysis.valueHash)}\nClick to select all for copying`}
-                        />
-                        <button
-                          onClick={async (e) => {
-                            try {
-                              await navigator.clipboard.writeText(formatHashValue(analysis.valueHash));
-                              // Optional: Show a brief success indicator
-                              const btn = e.target as HTMLButtonElement;
-                              const originalText = btn.textContent;
-                              btn.textContent = '✓';
-                              btn.className = btn.className.replace('text-gray-400', 'text-green-500');
-                              setTimeout(() => {
-                                btn.textContent = originalText;
-                                btn.className = btn.className.replace('text-green-500', 'text-gray-400');
-                              }, 1000);
-                            } catch (err) {
-                              console.error('Failed to copy hash:', err);
-                            }
-                          }}
-                          className="text-gray-400 hover:text-gray-600 transition-colors duration-200 flex-shrink-0"
-                          title="Copy hash to clipboard"
-                        >
-                          📋
-                        </button>
-                      </div>
-                    ) : (
-                      <p 
-                        className="text-xs text-gray-900 font-mono break-all bg-gray-100 p-2 rounded" 
-                        title={showFullTokenHash && analysis.valueHash && !['expired', 'redacted', 'N/A', 'refresh_error'].includes(analysis.valueHash) 
-                          ? `Full hash: ${formatHashValue(analysis.valueHash)}` 
-                          : analysis.valueHash}
-                      >
-                        {formatHashValue(analysis.valueHash)}
-                      </p>
-                    )}
-                  </div>
-                  {analysis.expiry && (
-                    <div>
-                      <span className="text-xs text-gray-500">Expiry:</span>
-                      <p className="text-sm text-gray-900">{new Date(analysis.expiry * 1000).toLocaleString()}</p>
-                    </div>
-                  )}
-                </div>
+            {tokenEvent.tab_id && (
+              <div>
+                <span className="text-sm font-medium text-gray-700">Tab ID:</span>
+                <p className="text-sm text-gray-900 mt-1">{tokenEvent.tab_id}</p>
               </div>
             )}
-
-            {/* Authentication Context */}
-            <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Authentication Context</h4>
-              <div className="text-xs text-gray-600 space-y-1">
-                {analysis.headers.authorization && (
-                  <p><strong>Authorization Header:</strong> Present ({analysis.headers.authorization.split(' ')[0]})</p>
-                )}
-                {analysis.headers.cookie && (
-                  <p><strong>Cookies:</strong> Present</p>
-                )}
-                {(analysis.headers['x-api-key'] || analysis.headers['X-API-Key']) && (
-                  <p><strong>API Key:</strong> Present</p>
-                )}
-                <p><strong>Timestamp:</strong> {new Date(analysis.timestamp).toLocaleString()}</p>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -3837,7 +3698,6 @@ const Dashboard: React.FC = () => {
               <TokenDetailContent 
                 tokenEvent={expandedItem} 
                 selectedField={selectedField}
-                showFullTokenHash={showFullTokenHash}
               />
             )}
           </div>

@@ -111,6 +111,9 @@ const DecomposedDashboard: React.FC = () => {
   const [tokenSortConfig, setTokenSortConfig] = useState({ key: 'timestamp', direction: 'desc' as 'asc' | 'desc' });
   const [showFullTokenHash, setShowFullTokenHash] = useState(false);
 
+  // Settings state for safety limits and configurations
+  const [settings, setSettings] = useState<any>(null);
+
   // Detail viewer state for drag-up modal
   const [detailViewerOpen, setDetailViewerOpen] = useState(false);
   const [expandedItem, setExpandedItem] = useState<any>(null);
@@ -492,6 +495,10 @@ const DecomposedDashboard: React.FC = () => {
         chrome.storage.sync.get(['extensionSettings']),
         chrome.storage.local.get(['settings'])
       ]);
+      
+      // Store the full settings for use in detail viewers
+      const fullSettings = localResult.settings || syncResult.extensionSettings || {};
+      setSettings(fullSettings);
       
       let tokenSettings = { showFullHash: false };
       
@@ -1028,8 +1035,8 @@ const DecomposedDashboard: React.FC = () => {
               {/* Side-by-side Field Selector */}
               <div className="flex bg-gray-100 rounded-lg p-1">
                 {(expandedItemType === 'request' ? ['details', 'headers', 'body', 'rawjson'] :
-                  expandedItemType === 'error' ? ['details', 'stack', 'rawjson'] :
-                  ['details', 'analysis', 'rawjson']).map((field) => (
+                  expandedItemType === 'error' ? ['details', 'stack'] :
+                  ['details', 'rawjson']).map((field) => (
                   <button
                     key={field}
                     onClick={() => setSelectedField(field)}
@@ -1066,6 +1073,7 @@ const DecomposedDashboard: React.FC = () => {
               <RequestDetailContent 
                 request={expandedItem} 
                 selectedField={selectedField}
+                settings={settings}
               />
             )}
             {expandedItemType === 'error' && (
@@ -1078,6 +1086,8 @@ const DecomposedDashboard: React.FC = () => {
               <TokenDetailContent 
                 tokenEvent={expandedItem} 
                 selectedField={selectedField}
+                showFullTokenHash={showFullTokenHash}
+                settings={settings}
               />
             )}
           </div>
