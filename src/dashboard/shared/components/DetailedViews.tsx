@@ -37,10 +37,12 @@ export const RequestDetailContent: React.FC<{
         return value;
       };
       
+      // Enhanced JSON formatting with proper indentation
       const jsonString = JSON.stringify(obj, safeStringify, 2);
-      return jsonString.length > safeSize ? jsonString.substring(0, safeSize) + '...[Truncated - check settings to adjust limit]' : jsonString;
-    } catch {
-      return obj;
+      return jsonString.length > safeSize ? jsonString.substring(0, safeSize) + '...\n[Truncated - check settings to adjust limit]' : jsonString;
+    } catch (e) {
+      // If JSON.stringify fails, return a readable string representation
+      return String(obj);
     }
   };
 
@@ -284,13 +286,33 @@ export const RequestDetailContent: React.FC<{
     const requestBody = request.request_body || request.requestBody;
     const responseBody = request.response_body || request.responseBody || request.response_data;
 
-    // Pretty-print JSON string bodies
+    // Enhanced JSON pretty-printing with better formatting
     const prettyPrintIfJson = (str: any) => {
-      if (typeof str !== 'string') return str;
+      if (typeof str !== 'string') {
+        // If it's already an object, stringify it with proper formatting
+        try {
+          return JSON.stringify(str, null, 2);
+        } catch {
+          return String(str);
+        }
+      }
+      
+      // If it's a string, try to parse and reformat it
       try {
         const obj = JSON.parse(str);
         return JSON.stringify(obj, null, 2);
       } catch {
+        // If parsing fails, check if it's a formatted JSON string that just needs cleaning
+        const cleaned = str.trim();
+        if (cleaned.startsWith('{') || cleaned.startsWith('[')) {
+          try {
+            // Try to parse after some basic cleanup
+            const obj = JSON.parse(cleaned);
+            return JSON.stringify(obj, null, 2);
+          } catch {
+            return str; // Return original if all parsing attempts fail
+          }
+        }
         return str;
       }
     };
@@ -427,7 +449,7 @@ export const RequestDetailContent: React.FC<{
               </div>
               <div className="flex space-x-2">
                 <button
-                  onClick={() => copyToClipboard(typeof responseBody === 'string' ? responseBody : formatJSON(responseBody))}
+                  onClick={() => copyToClipboard(typeof responseBody === 'string' ? prettyPrintIfJson(responseBody) : formatJSON(responseBody))}
                   className="copy-button text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
                 >
                   Copy
@@ -435,7 +457,7 @@ export const RequestDetailContent: React.FC<{
                 {responseBody && (typeof responseBody === 'string' ? responseBody.length : JSON.stringify(responseBody).length) > 1000 && (
                   <button
                     onClick={() => {
-                      const content = typeof responseBody === 'string' ? responseBody : formatJSON(responseBody);
+                      const content = typeof responseBody === 'string' ? prettyPrintIfJson(responseBody) : formatJSON(responseBody);
                       const newWindow = window.open('', '_blank');
                       if (newWindow) {
                         newWindow.document.write(`<pre style="white-space: pre-wrap; word-wrap: break-word; font-family: monospace; padding: 20px;">${content}</pre>`);
@@ -479,7 +501,7 @@ export const RequestDetailContent: React.FC<{
               </div>
             ) : (
               <div className="code-block bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto text-sm font-mono max-h-96">
-                <pre className="whitespace-pre-wrap break-words">{typeof responseBody === 'string' ? responseBody : formatJSON(responseBody)}</pre>
+                <pre className="whitespace-pre-wrap break-words">{typeof responseBody === 'string' ? prettyPrintIfJson(responseBody) : formatJSON(responseBody)}</pre>
               </div>
             )}
           </div>
