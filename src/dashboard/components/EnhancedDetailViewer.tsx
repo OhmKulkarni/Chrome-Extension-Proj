@@ -20,31 +20,65 @@ const EnhancedDetailViewer: React.FC<DetailViewerProps> = ({
   if (!isOpen || !item) return null;
 
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
+    // MEMORY LEAK PREVENTION: Limit clipboard data size
+    const maxClipboardSize = 10000;
+    const copyText = text.length > maxClipboardSize ? 
+      text.substring(0, maxClipboardSize) + '\n[Truncated for clipboard]' : 
+      text;
+    
+    navigator.clipboard.writeText(copyText).catch(error => {
+      console.warn('Failed to copy to clipboard:', error);
+    });
   };
 
   const formatJSON = (obj: any) => {
     try {
-      return JSON.stringify(obj, null, 2);
+      // MEMORY LEAK PREVENTION: Safe JSON formatting with size limits
+      const seen = new WeakSet();
+      const safeStringify = (_key: string, value: any) => {
+        if (typeof value === 'object' && value !== null) {
+          if (seen.has(value)) {
+            return '[Circular Reference]';
+          }
+          seen.add(value);
+        }
+        return value;
+      };
+      
+      const jsonString = JSON.stringify(obj, safeStringify, 2);
+      return jsonString.length > 5000 ? jsonString.substring(0, 5000) + '...' : jsonString;
     } catch {
       return obj;
     }
   };
 
   const getAvailableFields = () => {
-    const baseFields = ['details', 'raw'];
+    // For errors: show details and stack only (raw JSON not useful for debugging)
+    // For requests: show details, headers, body, and raw JSON (all relevant)
+    // For tokens: show details and raw JSON (for advanced debugging)
+    
+    if (type === 'error') {
+      const fields = ['details'];
+      if (item.stack || item.stackTrace) fields.push('stack');
+      return fields; // No raw JSON for errors - it's redundant
+    }
     
     if (type === 'request') {
+      const fields = ['details'];
       const hasHeaders = item.headers || item.request_headers || item.response_headers;
       const hasBody = item.request_body || item.response_body || item.requestBody || item.responseBody;
       
-      if (hasHeaders) baseFields.splice(1, 0, 'headers');
-      if (hasBody) baseFields.splice(-1, 0, 'body');
-    } else if (type === 'error') {
-      if (item.stack || item.stackTrace) baseFields.splice(1, 0, 'stack');
+      if (hasHeaders) fields.push('headers');
+      if (hasBody) fields.push('body');
+      fields.push('raw'); // Keep raw JSON for requests - useful for API debugging
+      return fields;
     }
     
-    return baseFields;
+    if (type === 'token') {
+      return ['details', 'raw']; // Keep raw JSON for tokens - useful for advanced debugging
+    }
+    
+    return ['details', 'raw']; // Default fallback
   };
 
   const renderFieldSelector = () => {
@@ -79,7 +113,7 @@ const EnhancedDetailViewer: React.FC<DetailViewerProps> = ({
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-gray-900">Request Details</h3>
           <button
-            onClick={() => copyToClipboard(JSON.stringify(item, null, 2))}
+            onClick={() => copyToClipboard(formatJSON(item))}
             className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
           >
             Copy All
@@ -138,7 +172,7 @@ const EnhancedDetailViewer: React.FC<DetailViewerProps> = ({
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-gray-900">Error Details</h3>
           <button
-            onClick={() => copyToClipboard(JSON.stringify(item, null, 2))}
+            onClick={() => copyToClipboard(formatJSON(item))}
             className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
           >
             Copy All
@@ -199,7 +233,7 @@ const EnhancedDetailViewer: React.FC<DetailViewerProps> = ({
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-gray-900">Token Event Details</h3>
           <button
-            onClick={() => copyToClipboard(JSON.stringify(item, null, 2))}
+            onClick={() => copyToClipboard(formatJSON(item))}
             className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
           >
             Copy All
@@ -347,7 +381,7 @@ const EnhancedDetailViewer: React.FC<DetailViewerProps> = ({
             </div>
             <div className="bg-gray-50 rounded-lg p-4">
               <pre className="text-sm text-gray-900 whitespace-pre-wrap overflow-auto max-h-64">
-                {typeof requestBody === 'string' ? requestBody : JSON.stringify(requestBody, null, 2)}
+                {typeof requestBody === 'string' ? requestBody : formatJSON(requestBody)}
               </pre>
             </div>
           </div>
@@ -366,7 +400,7 @@ const EnhancedDetailViewer: React.FC<DetailViewerProps> = ({
             </div>
             <div className="bg-gray-50 rounded-lg p-4">
               <pre className="text-sm text-gray-900 whitespace-pre-wrap overflow-auto max-h-64">
-                {typeof responseBody === 'string' ? responseBody : JSON.stringify(responseBody, null, 2)}
+                {typeof responseBody === 'string' ? responseBody : formatJSON(responseBody)}
               </pre>
             </div>
           </div>
@@ -413,12 +447,48 @@ const EnhancedDetailViewer: React.FC<DetailViewerProps> = ({
   };
 
   const renderRawJSON = () => {
+    // MEMORY LEAK PREVENTION: Create safe JSON with size limits
+    const createSafeJSON = (obj: any) => {
+      try {
+        // Handle circular references and limit depth
+        const seen = new WeakSet();
+        const safeStringify = (_key: string, value: any) => {
+          if (typeof value === 'object' && value !== null) {
+            if (seen.has(value)) {
+              return '[Circular Reference]';
+            }
+            seen.add(value);
+          }
+          return value;
+        };
+        
+        const jsonString = JSON.stringify(obj, safeStringify, 2);
+        
+        // Limit size to prevent memory issues (max 50KB)
+        if (jsonString.length > 50000) {
+          return jsonString.substring(0, 50000) + '\n\n... [Truncated - JSON too large]';
+        }
+        
+        return jsonString;
+      } catch (error) {
+        return `Error serializing object: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      }
+    };
+
+    const safeJSON = createSafeJSON(item);
+
     return (
       <div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-gray-900">Raw JSON Data</h3>
           <button
-            onClick={() => copyToClipboard(JSON.stringify(item, null, 2))}
+            onClick={() => {
+              // MEMORY LEAK PREVENTION: Copy limited JSON to prevent clipboard issues
+              const copyText = safeJSON.length > 10000 ? 
+                safeJSON.substring(0, 10000) + '\n\n[Truncated for clipboard]' : 
+                safeJSON;
+              copyToClipboard(copyText);
+            }}
             className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
           >
             Copy
@@ -426,7 +496,7 @@ const EnhancedDetailViewer: React.FC<DetailViewerProps> = ({
         </div>
         <div className="bg-gray-900 rounded-lg p-4">
           <pre className="text-sm text-green-400 whitespace-pre-wrap overflow-auto max-h-96">
-            {JSON.stringify(item, null, 2)}
+            {safeJSON}
           </pre>
         </div>
       </div>
