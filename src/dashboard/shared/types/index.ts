@@ -48,7 +48,7 @@ export interface TokenEvent {
   url: string;
   method?: string;
   status?: number;
-  value_hash?: string;
+  valueHash?: string;
   expiry?: number;
   timestamp: string;
   headers?: string | object;

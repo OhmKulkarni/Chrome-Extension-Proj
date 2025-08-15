@@ -36,7 +36,7 @@ export interface TokenEvent {
   status: number;
   timestamp: string;
   source_url: string;
-  value_hash: string;
+  valueHash: string;
   expiry?: number;
   domain: string;
 }
@@ -311,7 +311,7 @@ export class TokenDetectionManager {
         status,
         timestamp: request.timestamp,
         source_url: url,
-        value_hash: valueHash,
+        valueHash: valueHash,
         domain: request.domain
       };
     }
@@ -328,7 +328,7 @@ export class TokenDetectionManager {
           status,
           timestamp: request.timestamp,
           source_url: url,
-          value_hash: valueHash,
+          valueHash: valueHash,
           domain: request.domain
         };
       } else if (status >= 400) {
@@ -340,7 +340,7 @@ export class TokenDetectionManager {
           status,
           timestamp: request.timestamp,
           source_url: url,
-          value_hash: 'refresh_error',
+          valueHash: 'refresh_error',
           domain: request.domain
         };
       }
@@ -356,7 +356,7 @@ export class TokenDetectionManager {
         status,
         timestamp: request.timestamp,
         source_url: url,
-        value_hash: 'expired',
+        valueHash: 'expired',
         domain: request.domain
       };
     }

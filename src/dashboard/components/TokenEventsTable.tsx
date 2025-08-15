@@ -61,7 +61,12 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
       case 'acquire': return 'bg-green-100 text-green-800';
       case 'use': return 'bg-blue-100 text-blue-800';
       case 'refresh': return 'bg-yellow-100 text-yellow-800';
-      case 'expire': return 'bg-red-100 text-red-800';
+      case 'expire':
+      case 'expired': return 'bg-red-100 text-red-800';
+      case 'refresh_error': return 'bg-red-100 text-red-800';
+      case 'verified': return 'bg-emerald-100 text-emerald-800';
+      case 'validation_failed': return 'bg-orange-100 text-orange-800';
+      case 'revoked': return 'bg-purple-100 text-purple-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -115,7 +120,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
           </div>
         </div>
         
-        {/* Type Filter */}
+        {/* Enhanced Type Filter */}
         <div className="flex items-center space-x-3">
           <label className="text-sm font-medium text-gray-700">Type:</label>
           <select
@@ -125,9 +130,12 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
           >
             <option value="all">All Types</option>
             <option value="acquire">Acquire</option>
-            <option value="use">Use</option>
             <option value="refresh">Refresh</option>
-            <option value="expire">Expire</option>
+            <option value="expired">Expired</option>
+            <option value="verified">Verified</option>
+            <option value="validation_failed">Validation Failed</option>
+            <option value="revoked">Revoked</option>
+            <option value="refresh_error">Refresh Error</option>
           </select>
         </div>
 
