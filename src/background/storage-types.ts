@@ -32,7 +32,7 @@ export interface ConsoleError {
 export interface TokenEvent {
   id?: number
   type: 'jwt_token' | 'session_token' | 'api_key' | 'oauth_token'
-  value_hash: string // Hash of token value for privacy
+  valueHash: string // Hash of token value for privacy
   timestamp: number
   source_url: string
   expiry?: number

@@ -63,29 +63,36 @@ function extractMainDomain(url: string): string {
   }
 }
 
-// --- Token Event Tracking ---
+// Enhanced Token Event Tracking with more comprehensive event types
 interface TokenEvent {
-  type: 'acquire' | 'refresh' | 'expired' | 'refresh_error';
+  type: 'acquire' | 'refresh' | 'expired' | 'refresh_error' | 'verified' | 'validation_failed' | 'revoked';
   url: string;
   method: string;
   status: number;
   timestamp: string;
   source_url: string;
   expiry?: number;
-  value_hash?: string;
+  valueHash?: string;
 }
 
-// Token-related endpoint patterns
+// Enhanced token-related endpoint patterns from main branch analysis
 const TOKEN_ENDPOINTS = {
   acquire: [
     '/auth', '/login', '/token', '/signin', '/authenticate', '/oauth', 
     '/api/auth', '/api/login', '/api/token', '/api/signin', '/api/authenticate',
-    '/v1/auth', '/v2/auth', '/session', '/sso', '/connect'
+    '/v1/auth', '/v2/auth', '/v3/auth', '/session', '/sso', '/connect',
+    '/security/token', '/identity/token', '/oidc/token', '/oauth2/token',
+    '/auth/callback', '/saml/sso', '/cas/login', '/ldap/auth',
+    '/api/v1/auth', '/api/v2/auth', '/graphql/auth', '/rest/auth',
+    '/mobile/auth', '/web/auth', '/client/auth', '/service/auth'
   ],
   refresh: [
     '/refresh', '/renew', '/reauth', '/token/refresh', '/auth/refresh',
     '/api/refresh', '/api/renew', '/api/reauth', '/api/token/refresh',
-    '/v1/refresh', '/v2/refresh', '/session/refresh'
+    '/v1/refresh', '/v2/refresh', '/v3/refresh', '/session/refresh',
+    '/oauth/refresh', '/oauth2/refresh', '/oidc/refresh', '/jwt/refresh',
+    '/security/refresh', '/identity/refresh', '/auth/renew',
+    '/api/v1/refresh', '/api/v2/refresh', '/token/renew'
   ]
 };
 
@@ -111,118 +118,174 @@ function detectTokenTypeFromHeaders(headers: any, url: string): string {
   
   const authHeader = headersObj.authorization || headersObj.Authorization || '';
   const cookieHeader = headersObj.cookie || headersObj.Cookie || '';
-  const csrfHeader = headersObj['x-csrf-token'] || headersObj['X-CSRF-Token'] || '';
-  const apiKeyHeader = headersObj['x-api-key'] || headersObj['X-API-Key'] || headersObj['api-key'] || '';
+  const csrfHeader = headersObj['x-csrf-token'] || headersObj['X-CSRF-Token'] || 
+                     headersObj['csrf-token'] || headersObj['CSRF-Token'] || '';
+  const apiKeyHeader = headersObj['x-api-key'] || headersObj['X-API-Key'] || 
+                       headersObj['api-key'] || headersObj['API-Key'] ||
+                       headersObj['apikey'] || headersObj['ApiKey'] || '';
   
-  // Helper to check JWT format
-  const isJwt = (token: string): boolean => token.split('.').length === 3;
+  // Helper to check JWT format (3 parts separated by dots)
+  const isJwt = (token: string): boolean => {
+    const parts = token.split('.');
+    return parts.length === 3 && parts.every(part => part.length > 0);
+  };
   
-  // Helper to get JWT payload for analysis
+  // Enhanced JWT payload analysis
   const getJwtPayload = (token: string): any => {
     try {
       if (!isJwt(token)) return null;
-      return JSON.parse(atob(token.split('.')[1]));
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload;
     } catch {
       return null;
     }
   };
   
-  // 1. Bearer Token Analysis
+  // 1. Enhanced Bearer Token Analysis
   if (authHeader.startsWith('Bearer ')) {
     const token = authHeader.substring(7);
     
     if (isJwt(token)) {
       const payload = getJwtPayload(token);
       
-      // ID Token detection (OIDC)
-      if (payload && ('sub' in payload && 'email' in payload || 'aud' in payload)) {
-        return 'ID Token (JWT)';
+      if (payload) {
+        // Enhanced ID Token detection (OpenID Connect)
+        if (payload.sub && (payload.email || payload.name || payload.preferred_username) && 
+            (payload.aud || payload.azp)) {
+          return 'ID Token (JWT)';
+        }
+        
+        // Enhanced Access Token detection
+        if (payload.scope || payload.scp || payload.permissions || 
+            (payload.aud && !payload.email && !payload.name)) {
+          return 'Access Token (JWT)';
+        }
+        
+        // Refresh Token detection (specific patterns)
+        if (payload.use === 'refresh' || payload.token_use === 'refresh' ||
+            url.includes('/refresh') || url.includes('/renew')) {
+          return 'Refresh Token (JWT)';
+        }
+        
+        // Role-based tokens
+        if (payload.roles || payload.groups || payload.authorities) {
+          return 'Role Token (JWT)';
+        }
+        
+        // Service-to-service tokens
+        if (payload.client_id && !payload.sub) {
+          return 'Service Token (JWT)';
+        }
       }
       
-      // Refresh Token (JWT format but used for refresh)
+      // Fallback for JWT tokens
       if (url.includes('/refresh') || url.includes('/token') || url.includes('/renew')) {
         return 'Refresh Token (JWT)';
       }
       
       return 'Access Token (JWT)';
     } else {
-      // Opaque Bearer tokens
+      // Enhanced Opaque Bearer tokens analysis
       if (url.includes('/refresh') || url.includes('/token') || url.includes('/renew')) {
         return 'Refresh Token (Opaque)';
       }
+      
+      // Check token length patterns for classification
+      if (token.length > 200) {
+        return 'Long-lived Token (Opaque)';
+      } else if (token.length < 50) {
+        return 'Short Token (Opaque)';
+      }
+      
       return 'Access Token (Opaque)';
     }
   }
   
-  // 2. Basic Authentication
+  // 2. Enhanced Basic Authentication
   if (authHeader.startsWith('Basic ')) {
     return 'Basic Auth';
   }
   
-  // 3. API Key Authentication
-  if (authHeader.startsWith('ApiKey ') || authHeader.startsWith('API-Key ')) {
-    return 'API Key';
+  // 3. Enhanced API Key Authentication
+  if (authHeader.startsWith('ApiKey ') || authHeader.startsWith('API-Key ') ||
+      authHeader.startsWith('X-API-Key ')) {
+    return 'API Key (Header)';
   }
   
-  // 4. Custom API Key Headers
+  // 4. Custom API Key Headers (enhanced detection)
   if (apiKeyHeader) {
-    return 'API Key';
+    return 'API Key (Custom)';
   }
   
-  // 5. CSRF Token Detection
+  // 5. Enhanced CSRF Token Detection
   if (csrfHeader) {
     return 'CSRF Token';
   }
   
-  // 6. Session Token Detection (Cookies)
+  // 6. Enhanced Session Token Detection (Cookies)
   if (cookieHeader) {
-    if (cookieHeader.includes('sessionid=') || 
-        cookieHeader.includes('session=') || 
-        cookieHeader.includes('JSESSIONID=') ||
-        cookieHeader.includes('PHPSESSID=') ||
-        cookieHeader.includes('ASP.NET_SessionId=')) {
-      return 'Session Token';
+    const sessionPatterns = [
+      'sessionid=', 'session=', 'JSESSIONID=', 'PHPSESSID=', 
+      'ASP.NET_SessionId=', 'connect.sid=', 'express:sess=',
+      'laravel_session=', 'django_session=', 'flask.session='
+    ];
+    
+    if (sessionPatterns.some(pattern => cookieHeader.includes(pattern))) {
+      return 'Session Token (Cookie)';
     }
     
     if (cookieHeader.includes('access_token=')) {
       return 'Access Token (Cookie)';
     }
+    
+    if (cookieHeader.includes('refresh_token=')) {
+      return 'Refresh Token (Cookie)';
+    }
+    
+    // JWT in cookies
+    const jwtPattern = /[=\s]([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/;
+    const jwtMatch = cookieHeader.match(jwtPattern);
+    if (jwtMatch) {
+      return 'JWT Token (Cookie)';
+    }
   }
   
-  // 7. State Token Detection
-  if (url.includes('state=') || headersObj['x-state-token']) {
-    return 'State Token';
+  // 7. Enhanced State Token Detection
+  if (url.includes('state=') || headersObj['x-state-token'] || headersObj['X-State-Token']) {
+    return 'State Token (OAuth)';
   }
   
-  // 8. Custom Authorization schemes
+  // 8. Enhanced Custom Authorization schemes
   if (authHeader && !authHeader.startsWith('Bearer ') && !authHeader.startsWith('Basic ')) {
     const scheme = authHeader.split(' ')[0];
-    return `${scheme} Token`;
+    
+    // Common custom schemes
+    const knownSchemes: { [key: string]: string } = {
+      'Digest': 'Digest Auth',
+      'OAuth': 'OAuth Token',
+      'MAC': 'MAC Token',
+      'HMAC': 'HMAC Token',
+      'Signature': 'Signature Auth',
+      'Token': 'Custom Token'
+    };
+    
+    return knownSchemes[scheme] || `${scheme} Token`;
+  }
+  
+  // 9. Response body token detection (for successful auth responses)
+  if (headersObj['content-type']?.includes('application/json')) {
+    return 'Response Token (JSON)';
   }
   
   return 'Unknown';
 }
 
-// Utility function to generate a hash-like value from token metadata
+// Simple deterministic hash function for token identification (no cryptographic security needed)
 async function generateTokenHash(url: string, timestamp: string, tokenType: string, method: string): Promise<string> {
   // Create a deterministic string from metadata
   const dataToHash = `${url}-${timestamp}-${tokenType}-${method}`;
   
-  try {
-    // Use Web Crypto API if available (Chrome extension environment)
-    if (typeof crypto !== 'undefined' && crypto.subtle) {
-      const encoder = new TextEncoder();
-      const data = encoder.encode(dataToHash);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-      return hashHex;
-    }
-  } catch (error) {
-    console.warn('Web Crypto API not available, falling back to simple hash');
-  }
-  
-  // Fallback: Simple deterministic hash for display purposes
+  // Simple deterministic hash for display purposes
   let hash = 0;
   for (let i = 0; i < dataToHash.length; i++) {
     const char = dataToHash.charCodeAt(i);
@@ -240,7 +303,7 @@ async function generateTokenHash(url: string, timestamp: string, tokenType: stri
   return longHash.slice(0, 40); // Return a 40-character hex string like SHA-1
 }
 
-// Helper function to extract expiry from JWT token in headers
+// Enhanced helper function to extract expiry from JWT tokens in headers
 function extractTokenExpiry(headers: any): number | undefined {
   if (!headers || typeof headers !== 'object') return undefined;
   
@@ -254,33 +317,81 @@ function extractTokenExpiry(headers: any): number | undefined {
     }
   }
   
-  const authHeader = headersObj.authorization || headersObj.Authorization || '';
+  // Check multiple possible authorization header variations
+  const authHeaders = [
+    headersObj.authorization,
+    headersObj.Authorization,
+    headersObj['Authorization'],
+    headersObj['authorization']
+  ].filter(Boolean);
   
-  // Check for Bearer token (most common for JWT)
-  if (authHeader.startsWith('Bearer ')) {
-    const token = authHeader.substring(7);
-    
-    // Check if it's a JWT (3 parts separated by dots)
-    if (token.split('.').length === 3) {
-      try {
-        // Decode JWT payload (second part)
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        
-        // Extract expiry timestamp (standard 'exp' claim)
-        if (payload.exp && typeof payload.exp === 'number') {
-          console.log('🔐 JWT expiry extracted:', new Date(payload.exp * 1000));
-          return payload.exp; // JWT exp is in seconds since epoch
-        }
-      } catch (error) {
-        console.log('🔐 Failed to decode JWT for expiry:', error);
+  for (const authHeader of authHeaders) {
+    if (typeof authHeader === 'string') {
+      // Check for Bearer token (most common for JWT)
+      if (authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        const expiry = extractJwtExpiry(token);
+        if (expiry) return expiry;
       }
+      
+      // Check for other token formats that might contain JWT
+      if (authHeader.includes('.') && authHeader.split('.').length === 3) {
+        const expiry = extractJwtExpiry(authHeader);
+        if (expiry) return expiry;
+      }
+    }
+  }
+  
+  // Also check cookies for JWT tokens
+  const cookieHeader = headersObj.cookie || headersObj.Cookie || '';
+  if (cookieHeader) {
+    // Look for JWT patterns in cookies
+    const jwtPattern = /[=\s]([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/g;
+    let match;
+    while ((match = jwtPattern.exec(cookieHeader)) !== null) {
+      const expiry = extractJwtExpiry(match[1]);
+      if (expiry) return expiry;
     }
   }
   
   return undefined;
 }
 
-// Utility function to detect token events from network requests
+// Helper function to extract expiry from a JWT token string
+function extractJwtExpiry(token: string): number | undefined {
+  try {
+    // Check if it's a JWT (3 parts separated by dots)
+    const parts = token.split('.');
+    if (parts.length !== 3 || parts.some(part => part.length === 0)) {
+      return undefined;
+    }
+    
+    // Decode JWT payload (second part)
+    const payload = JSON.parse(atob(parts[1]));
+    
+    // Extract expiry timestamp (standard 'exp' claim)
+    if (payload.exp && typeof payload.exp === 'number') {
+      console.log('🔐 JWT expiry extracted:', new Date(payload.exp * 1000));
+      return payload.exp; // JWT exp is in seconds since epoch
+    }
+    
+    // Also check for other expiry claims
+    if (payload.expires_at && typeof payload.expires_at === 'number') {
+      return payload.expires_at;
+    }
+    
+    if (payload.expiry && typeof payload.expiry === 'number') {
+      return payload.expiry;
+    }
+    
+  } catch (error) {
+    console.log('🔐 Failed to decode JWT for expiry:', error);
+  }
+  
+  return undefined;
+}
+
+// Enhanced utility function to detect token events from network requests
 async function detectTokenEvent(requestData: any): Promise<TokenEvent | null> {
   const { url, method, status } = requestData;
   
@@ -291,14 +402,21 @@ async function detectTokenEvent(requestData: any): Promise<TokenEvent | null> {
   const timestamp = new Date().toISOString();
   const source_url = requestData.tabUrl || requestData.source_url || url;
   
-  // Log all requests for debugging
-  if (url.toLowerCase().includes('auth') || url.toLowerCase().includes('token') || url.toLowerCase().includes('login')) {
-    console.log('🔍 Potential token endpoint detected:', {
+  // Enhanced logging for potential token endpoints
+  const isAuthRelated = url.toLowerCase().includes('auth') || 
+                       url.toLowerCase().includes('token') || 
+                       url.toLowerCase().includes('login') ||
+                       url.toLowerCase().includes('oauth') ||
+                       url.toLowerCase().includes('session');
+  
+  if (isAuthRelated) {
+    console.log('🔍 Enhanced token endpoint analysis:', {
       url,
       method,
       status,
       isAcquireEndpoint: isTokenEndpoint(url, 'acquire'),
-      isRefreshEndpoint: isTokenEndpoint(url, 'refresh')
+      isRefreshEndpoint: isTokenEndpoint(url, 'refresh'),
+      hasAuthHeaders: !!(requestData.requestHeaders?.authorization || requestData.responseHeaders?.authorization)
     });
   }
   
@@ -306,11 +424,12 @@ async function detectTokenEvent(requestData: any): Promise<TokenEvent | null> {
   const allHeaders = { ...requestData.requestHeaders, ...requestData.responseHeaders };
   const expiry = extractTokenExpiry(allHeaders);
   
-  // Detect token acquisition (successful auth requests)
+  // 1. Enhanced Token Acquisition Detection (successful auth requests)
   if (method === 'POST' && status >= 200 && status < 300 && isTokenEndpoint(url, 'acquire')) {
     console.log('✅ Token acquisition detected:', url);
     const detectedTokenType = detectTokenTypeFromHeaders(allHeaders, url);
     const valueHash = await generateTokenHash(url, timestamp, detectedTokenType, method);
+    
     return {
       type: 'acquire',
       url,
@@ -318,17 +437,18 @@ async function detectTokenEvent(requestData: any): Promise<TokenEvent | null> {
       status,
       timestamp,
       source_url,
-      value_hash: valueHash,
+      valueHash: valueHash,
       expiry
     };
   }
   
-  // Detect token refresh attempts
+  // 2. Enhanced Token Refresh Detection
   if ((method === 'POST' || method === 'GET') && isTokenEndpoint(url, 'refresh')) {
     if (status >= 200 && status < 300) {
       console.log('✅ Token refresh detected:', url);
       const detectedTokenType = detectTokenTypeFromHeaders(allHeaders, url);
       const valueHash = await generateTokenHash(url, timestamp, detectedTokenType, method);
+      
       return {
         type: 'refresh',
         url,
@@ -336,12 +456,11 @@ async function detectTokenEvent(requestData: any): Promise<TokenEvent | null> {
         status,
         timestamp,
         source_url,
-        value_hash: valueHash,
+        valueHash: valueHash,
         expiry
       };
     } else if (status >= 400) {
       console.log('❌ Token refresh error detected:', url);
-      // For errors, we'll use a special indicator but still generate a hash
       return {
         type: 'refresh_error',
         url,
@@ -349,14 +468,37 @@ async function detectTokenEvent(requestData: any): Promise<TokenEvent | null> {
         status,
         timestamp,
         source_url,
-        value_hash: 'refresh_error',
+        valueHash: 'refresh_error',
         expiry
       };
     }
   }
   
-  // Detect token expiration (401/403 responses)
-  if (status === 401 || status === 403) {
+  // 3. Enhanced Token Validation/Verification Detection
+  if ((method === 'GET' || method === 'POST') && 
+      (url.includes('/verify') || url.includes('/validate') || url.includes('/check'))) {
+    if (isAuthRelated) {
+      const tokenType = status >= 200 && status < 300 ? 'valid' : 'invalid';
+      console.log(`🔍 Token validation detected (${tokenType}):`, url);
+      
+      return {
+        type: status >= 200 && status < 300 ? 'verified' : 'validation_failed',
+        url,
+        method,
+        status,
+        timestamp,
+        source_url,
+        valueHash: `validation_${tokenType}`,
+        expiry
+      };
+    }
+  }
+  
+  // 4. Enhanced Token Expiration Detection (401/403 responses with auth headers)
+  if ((status === 401 || status === 403) && 
+      (requestData.requestHeaders?.authorization || requestData.requestHeaders?.Authorization)) {
+    console.log('⏰ Token expiration detected:', url);
+    
     return {
       type: 'expired',
       url,
@@ -364,7 +506,24 @@ async function detectTokenEvent(requestData: any): Promise<TokenEvent | null> {
       status,
       timestamp,
       source_url,
-      value_hash: 'expired',
+      valueHash: 'expired',
+      expiry
+    };
+  }
+  
+  // 5. Logout/Revocation Detection
+  if ((method === 'POST' || method === 'DELETE') && 
+      (url.includes('/logout') || url.includes('/signout') || url.includes('/revoke'))) {
+    console.log('🚪 Token logout/revocation detected:', url);
+    
+    return {
+      type: 'revoked',
+      url,
+      method,
+      status,
+      timestamp,
+      source_url,
+      valueHash: 'revoked',
       expiry
     };
   }
@@ -389,7 +548,7 @@ async function storeTokenEvent(tokenEvent: TokenEvent, sender?: chrome.runtime.M
     // Prepare token event data for storage
     const tokenEventData = {
       type: tokenEvent.type as 'jwt_token' | 'session_token' | 'api_key' | 'oauth_token',
-      value_hash: tokenEvent.value_hash || `[${tokenEvent.type.toUpperCase()}]`,
+      valueHash: tokenEvent.valueHash || `[${tokenEvent.type.toUpperCase()}]`,
       timestamp: new Date(tokenEvent.timestamp).getTime(),
       source_url: tokenEvent.source_url,
       expiry: tokenEvent.expiry,

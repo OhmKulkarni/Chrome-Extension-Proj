@@ -74,7 +74,25 @@ export default defineConfig({
         settings: resolve(__dirname, 'src/settings/settings.html'),
       },
       output: {
-        // Let Vite handle chunking automatically
+        // Manual chunking for better code splitting
+        manualChunks: (id) => {
+          // Separate Recharts library into its own chunk
+          if (id.includes('node_modules/recharts')) {
+            return 'recharts';
+          }
+          // Separate React vendor libraries
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
+            return 'react-vendor';
+          }
+          // Separate the chart components
+          if (id.includes('ChartComponents')) {
+            return 'charts';
+          }
+          // Group UI components together
+          if (id.includes('/ui/') && (id.includes('card') || id.includes('button') || id.includes('tabs') || id.includes('table'))) {
+            return 'ui-components';
+          }
+        }
       }
     }
   },

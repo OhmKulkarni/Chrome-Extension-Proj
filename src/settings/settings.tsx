@@ -46,6 +46,8 @@ interface SettingsData {
     };
   };
   errorLogging: {
+    enabled: boolean; // Fix: Add missing enabled field
+    severity: Array<'log' | 'info' | 'warn' | 'error' | 'debug' | 'trace'>; // Fix: Add severity field
     severityFilter: {
       enabled: boolean;
       allowed: Array<'error' | 'warn' | 'info'>;
@@ -89,6 +91,8 @@ const defaultSettings: SettingsData = {
     }
   },
   errorLogging: {
+    enabled: true, // Fix: Add missing enabled field to match backend
+    severity: ['error', 'warn'], // Fix: Add severity field that main-world script expects
     severityFilter: {
       enabled: false,
       allowed: ['error', 'warn', 'info']
@@ -695,6 +699,51 @@ const Settings: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid gap-4">
+                {/* Main Error Logging Toggle */}
+                <Switch
+                  checked={settings.errorLogging?.enabled || false}
+                  onChange={(e) => updateSetting('errorLogging', {
+                    ...settings.errorLogging,
+                    enabled: e.target.checked
+                  })}
+                  label="Enable console error logging"
+                  description="Capture and monitor browser console errors, warnings, and other messages"
+                />
+
+                {/* Severity Selection */}
+                {settings.errorLogging?.enabled && (
+                  <div className="ml-4 space-y-4">
+                    <div>
+                      <p className="text-sm font-medium mb-3">🎯 Console Methods to Capture</p>
+                      <div className="space-y-2">
+                        {(['log', 'info', 'warn', 'error', 'debug', 'trace'] as const).map((method) => (
+                          <div key={method} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id={`console-${method}`}
+                              checked={settings.errorLogging?.severity?.includes(method) || false}
+                              onChange={(e) => {
+                                const currentSeverity = settings.errorLogging?.severity || [];
+                                const newSeverity = e.target.checked
+                                  ? [...currentSeverity, method]
+                                  : currentSeverity.filter(s => s !== method);
+                                updateSetting('errorLogging', {
+                                  ...settings.errorLogging,
+                                  severity: newSeverity
+                                });
+                              }}
+                              className="rounded border-gray-300"
+                            />
+                            <label htmlFor={`console-${method}`} className="text-sm">
+                              console.{method}()
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-4">
                   <Switch
                     checked={settings.errorLogging?.severityFilter?.enabled || false}
@@ -705,8 +754,8 @@ const Settings: React.FC = () => {
                         enabled: e.target.checked
                       }
                     })}
-                    label="Filter by severity"
-                    description="Only capture specific error levels"
+                    label="Filter by severity (legacy)"
+                    description="Only capture specific error levels (deprecated - use console methods above)"
                   />
 
                   {settings.errorLogging?.severityFilter?.enabled && (

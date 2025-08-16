@@ -17,8 +17,9 @@ import {
   TrafficByEndpointChart,
   StatusCodeBreakdownChartNew,
   PayloadSizeDistributionChart,
-  RequestsByTimeOfDayChart
-} from './ChartComponents';
+  RequestsByTimeOfDayChart,
+  LazyChartWrapper
+} from './LazyChartComponents';
 import { SimpleTestChart } from './SimpleTestChart';
 
 interface StatisticsCardProps {
@@ -344,23 +345,59 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
 
       switch (chartKey) {
         case 'requests-over-time':
-          return <RequestsOverTimeChart {...chartData} />;
+          return (
+            <LazyChartWrapper>
+              <RequestsOverTimeChart {...chartData} />
+            </LazyChartWrapper>
+          );
         case 'http-method-distribution':
-          return <HttpMethodDistributionChart {...chartData} />;
+          return (
+            <LazyChartWrapper>
+              <HttpMethodDistributionChart {...chartData} />
+            </LazyChartWrapper>
+          );
         case 'status-code-breakdown':
-          return <StatusCodeBreakdownChartNew {...chartData} />;
+          return (
+            <LazyChartWrapper>
+              <StatusCodeBreakdownChartNew {...chartData} />
+            </LazyChartWrapper>
+          );
         case 'avg-response-time-per-route':
-          return <AvgResponseTimePerRouteChart {...chartData} />;
+          return (
+            <LazyChartWrapper>
+              <AvgResponseTimePerRouteChart {...chartData} />
+            </LazyChartWrapper>
+          );
         case 'auth-failures-vs-success':
-          return <AuthFailuresVsSuccessChart {...chartData} />;
+          return (
+            <LazyChartWrapper>
+              <AuthFailuresVsSuccessChart {...chartData} />
+            </LazyChartWrapper>
+          );
         case 'top-frequent-errors':
-          return <TopFrequentErrorsChart {...chartData} />;
+          return (
+            <LazyChartWrapper>
+              <TopFrequentErrorsChart {...chartData} />
+            </LazyChartWrapper>
+          );
         case 'error-frequency-over-time':
-          return <ErrorFrequencyOverTimeChart {...chartData} />;
+          return (
+            <LazyChartWrapper>
+              <ErrorFrequencyOverTimeChart {...chartData} />
+            </LazyChartWrapper>
+          );
         case 'latency-over-time':
-          return <LatencyOverTimeChart {...chartData} />;
+          return (
+            <LazyChartWrapper>
+              <LatencyOverTimeChart {...chartData} />
+            </LazyChartWrapper>
+          );
         case 'traffic-by-endpoint':
-          return <TrafficByEndpointChart {...chartData} />;
+          return (
+            <LazyChartWrapper>
+              <TrafficByEndpointChart {...chartData} />
+            </LazyChartWrapper>
+          );
         case 'method-usage-daily':
           try {
             console.log('About to render SimpleTestChart instead of MethodUsageDailyChart');
@@ -378,9 +415,17 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
             );
           }
         case 'payload-size-distribution':
-          return <PayloadSizeDistributionChart {...chartData} />;
+          return (
+            <LazyChartWrapper>
+              <PayloadSizeDistributionChart {...chartData} />
+            </LazyChartWrapper>
+          );
         case 'requests-by-time-of-day':
-          return <RequestsByTimeOfDayChart {...chartData} />;
+          return (
+            <LazyChartWrapper>
+              <RequestsByTimeOfDayChart {...chartData} />
+            </LazyChartWrapper>
+          );
         default:
           return (
             <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
