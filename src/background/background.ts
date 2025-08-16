@@ -2064,11 +2064,71 @@ if (!listenersRegistered) {
       });
       break;
 
-    default:
-      // Unknown action - respond to avoid hanging
-      sendResponse({ success: false, error: 'Unknown action: ' + (message.action || message.type) });
-      break;
-  }
+    case 'getTimelineData':
+      // New handler for timeline data requests
+      if (sender.tab && sender.tab.id) {
+        // Extract time range from message (for future filtering)
+        const { swimlanes } = message.data;
+        
+        // Initialize response data structure
+        const responseData: any = {
+          networkRequests: [],
+          consoleErrors: [],
+          tokenEvents: []
+        };
+        
+        // Fetch data for each swimlane
+        if (swimlanes.includes('network')) {
+          const networkData = await storageManager.getApiCalls(1000, 0);
+          responseData.networkRequests = networkData || [];
+        }
+        
+        if (swimlanes.includes('console')) {
+          const consoleData = await storageManager.getConsoleErrors(1000, 0);
+          responseData.consoleErrors = consoleData || [];
+        }
+        
+        if (swimlanes.includes('token')) {
+          const tokenData = await storageManager.getTokenEvents(1000, 0);
+          responseData.tokenEvents = tokenData || [];
+        }
+        
+        // Send aggregated response
+        sendResponse({ success: true, data: responseData });
+      } else {
+        sendResponse({ success: false, error: 'No tab ID available' });
+      }
+      return true; // Keep message channel open for async response
+
+    case 'updateEventBookmark':
+      // Update event bookmark status
+      try {
+        // Update in storage based on type
+        // This would need implementation in your storage manager
+        // For now, just acknowledge
+        sendResponse({ success: true });
+      } catch (error) {
+        console.error('Failed to update bookmark:', error);
+        sendResponse({ success: false, error: (error as Error).message });
+      }
+      return true; // Keep message channel open for async response
+
+    case 'updateEventCompareSlot':
+      // Update event compare slot
+      try {
+        // Similar to bookmark, would need storage implementation
+        sendResponse({ success: true });
+      } catch (error) {
+        console.error('Failed to update compare slot:', error);
+        sendResponse({ success: false, error: (error as Error).message });
+      }
+      return true; // Keep message channel open for async response
+
+        default:
+          // // Unknown action - respond to avoid hanging
+          sendResponse({ success: false, error: 'Unknown action: ' + (message.action || message.type) });
+          break;
+      }
     } catch (error) {
       console.error('Background script message handler error:', error);
       sendResponse({ success: false, error: error instanceof Error ? error.message : 'Background script error' });
