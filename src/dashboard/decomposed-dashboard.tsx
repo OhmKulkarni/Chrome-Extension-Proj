@@ -7,6 +7,7 @@ import TokenEventsTable from './components/TokenEventsTable';
 import LazyStatisticsCard from './components/LazyStatisticsCard';
 import LeftSidebar from './components/LeftSidebar';
 import SettingsInline from './components/SettingsInline';
+import { TimelineVisualization } from './components/timeline/TimelineVisualization';
 import { RequestDetailContent, ErrorDetailContent, TokenDetailContent } from './shared/components/DetailedViews';
 
 // Chrome data clearing function
@@ -86,7 +87,7 @@ const DecomposedDashboard: React.FC = () => {
   const [sidebarMode, setSidebarMode] = useState<'logging' | 'settings' | 'base'>('base');
 
   // Main view state - controls what's displayed in the main content area
-  const [mainView, setMainView] = useState<'dataTables' | 'statisticsDashboard' | 'settings'>('dataTables');
+  const [mainView, setMainView] = useState<'dataTables' | 'statisticsDashboard' | 'settings' | 'timeline'>('dataTables');
 
   // Table carousel state
   const [activeTable, setActiveTable] = useState<'network' | 'errors' | 'tokens'>('network');
@@ -738,7 +739,7 @@ const DecomposedDashboard: React.FC = () => {
   }, [loadAllTokenEvents]);
 
   // Main view transition handler - prevents memory leaks with proper cleanup
-  const handleMainViewChange = useCallback((newView: 'dataTables' | 'statisticsDashboard' | 'settings') => {
+  const handleMainViewChange = useCallback((newView: 'dataTables' | 'statisticsDashboard' | 'settings' | 'timeline') => {
     // Prevent unnecessary re-renders if view hasn't changed
     if (newView !== mainView) {
       setMainView(newView);
@@ -1502,6 +1503,15 @@ const DecomposedDashboard: React.FC = () => {
               totalTokenEvents={data.totalTokenEvents}
               onRefreshAnalysisData={loadDashboardData}
             />
+          </div>
+        );
+
+      case 'timeline':
+        return (
+          <div className="w-full transform transition-all duration-500 ease-in-out opacity-100 translate-y-0">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 h-full">
+              <TimelineVisualization />
+            </div>
           </div>
         );
 

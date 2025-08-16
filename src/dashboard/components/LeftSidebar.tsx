@@ -27,8 +27,8 @@ interface LeftSidebarProps {
   onTabTokenLoggingToggle: (tabId: number) => void;
   onRefreshTabStatus: () => void;
   stats: SidebarStats;
-  onMainViewChange: (view: 'dataTables' | 'statisticsDashboard' | 'settings') => void;
-  currentMainView: 'dataTables' | 'statisticsDashboard' | 'settings';
+  onMainViewChange: (view: 'dataTables' | 'statisticsDashboard' | 'settings' | 'timeline') => void;
+  currentMainView: 'dataTables' | 'statisticsDashboard' | 'settings' | 'timeline';
 }
 
 const LeftSidebar: React.FC<LeftSidebarProps> = ({
@@ -173,6 +173,16 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
             📊 Data Tables
           </button>
           <button
+            onClick={() => onMainViewChange('timeline')}
+            className={`w-full px-3 py-2 text-sm rounded-md transition-colors ${
+              currentMainView === 'timeline'
+                ? 'bg-green-100 text-green-700 border border-green-200'
+                : 'bg-green-50 text-green-700 hover:bg-green-100'
+            }`}
+          >
+            📈 Timeline View
+          </button>
+          <button
             onClick={() => onMainViewChange('statisticsDashboard')}
             className={`w-full px-3 py-2 text-sm rounded-md transition-colors ${
               currentMainView === 'statisticsDashboard'
@@ -180,7 +190,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                 : 'bg-purple-50 text-purple-700 hover:bg-purple-100'
             }`}
           >
-            📈 Statistics Dashboard
+            � Statistics Dashboard
           </button>
           <button
             onClick={() => onMainViewChange('settings')}
