@@ -27,6 +27,8 @@ interface LeftSidebarProps {
   onTabTokenLoggingToggle: (tabId: number) => void;
   onRefreshTabStatus: () => void;
   stats: SidebarStats;
+  onMainViewChange: (view: 'dataTables' | 'statisticsDashboard') => void;
+  currentMainView: 'dataTables' | 'statisticsDashboard';
 }
 
 const LeftSidebar: React.FC<LeftSidebarProps> = ({
@@ -37,7 +39,9 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
   onTabErrorLoggingToggle,
   onTabTokenLoggingToggle,
   onRefreshTabStatus,
-  stats
+  stats,
+  onMainViewChange,
+  currentMainView
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [storageUsage, setStorageUsage] = useState({ used: 0, quota: 0 });
@@ -131,9 +135,9 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
   const renderBaseMode = () => (
     <div className="space-y-6">
-      {/* Quick Stats */}
+      {/* Quick Analysis Card */}
       <div className="bg-white rounded-lg p-4 shadow-sm">
-        <h3 className="text-sm font-medium text-gray-900 mb-3">Quick Stats</h3>
+        <h3 className="text-sm font-medium text-gray-900 mb-3">Quick Analysis</h3>
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-gray-600">Network Requests</span>
@@ -159,22 +163,43 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
         <h3 className="text-sm font-medium text-gray-900 mb-3">Quick Actions</h3>
         <div className="space-y-2">
           <button
-            onClick={() => onModeChange('logging')}
-            className="w-full px-3 py-2 text-sm bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors"
+            onClick={() => onMainViewChange('dataTables')}
+            className={`w-full px-3 py-2 text-sm rounded-md transition-colors ${
+              currentMainView === 'dataTables'
+                ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+            }`}
           >
-            Manage Tab Logging
+            📊 Data Tables
+          </button>
+          <button
+            onClick={() => onMainViewChange('statisticsDashboard')}
+            className={`w-full px-3 py-2 text-sm rounded-md transition-colors ${
+              currentMainView === 'statisticsDashboard'
+                ? 'bg-purple-100 text-purple-700 border border-purple-200'
+                : 'bg-purple-50 text-purple-700 hover:bg-purple-100'
+            }`}
+          >
+            📈 Statistics Dashboard
+          </button>
+          <div className="border-t border-gray-200 my-3"></div>
+          <button
+            onClick={() => onModeChange('logging')}
+            className="w-full px-3 py-2 text-sm bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+          >
+            🔧 Manage Tab Logging
           </button>
           <button
             onClick={openSettings}
             className="w-full px-3 py-2 text-sm bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
           >
-            Open Settings
+            ⚙️ Open Settings
           </button>
           <button
             onClick={onRefreshTabStatus}
             className="w-full px-3 py-2 text-sm bg-green-50 text-green-700 rounded-md hover:bg-green-100 transition-colors"
           >
-            Refresh Data
+            🔄 Refresh Data
           </button>
         </div>
       </div>

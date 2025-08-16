@@ -84,6 +84,9 @@ const DecomposedDashboard: React.FC = () => {
   const [tabsLoggingStatus, setTabsLoggingStatus] = useState<TabLoggingStatus[]>([]);
   const [sidebarMode, setSidebarMode] = useState<'logging' | 'settings' | 'base'>('base');
 
+  // Main view state - controls what's displayed in the main content area
+  const [mainView, setMainView] = useState<'dataTables' | 'statisticsDashboard'>('dataTables');
+
   // Table carousel state
   const [activeTable, setActiveTable] = useState<'network' | 'errors' | 'tokens'>('network');
 
@@ -732,6 +735,14 @@ const DecomposedDashboard: React.FC = () => {
     }
     setCurrentTokenPage(1); // Reset to first page when filtering
   }, [loadAllTokenEvents]);
+
+  // Main view transition handler - prevents memory leaks with proper cleanup
+  const handleMainViewChange = useCallback((newView: 'dataTables' | 'statisticsDashboard') => {
+    // Prevent unnecessary re-renders if view hasn't changed
+    if (newView !== mainView) {
+      setMainView(newView);
+    }
+  }, [mainView]);
 
   // Enhanced detail viewer functions for drag-up modal
   const openDetailViewer = useCallback((item: any, type: 'request' | 'error' | 'token') => {
@@ -1418,6 +1429,97 @@ const DecomposedDashboard: React.FC = () => {
     }
   };
 
+  // Main content renderer with smooth transitions - optimized to prevent memory leaks
+  const renderMainContent = useCallback(() => {
+    switch (mainView) {
+      case 'dataTables':
+        return (
+          <div className="w-full transform transition-all duration-500 ease-in-out opacity-100 translate-y-0">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+              {/* Tab Navigation */}
+              <div className="border-b border-gray-200">
+                <nav className="flex space-x-8 px-6" aria-label="Tabs">
+                  <button
+                    onClick={() => setActiveTable('network')}
+                    className={`${
+                      activeTable === 'network'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors duration-200`}
+                  >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9v-9m0-9v9" />
+                    </svg>
+                    Network Requests
+                  </button>
+                  <button
+                    onClick={() => setActiveTable('errors')}
+                    className={`${
+                      activeTable === 'errors'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors duration-200`}
+                  >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Console Errors
+                  </button>
+                  <button
+                    onClick={() => setActiveTable('tokens')}
+                    className={`${
+                      activeTable === 'tokens'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors duration-200`}
+                  >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                    Token Events
+                  </button>
+                </nav>
+              </div>
+
+              {/* Table Content */}
+              <div className="p-6">
+                {renderTableContent()}
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'statisticsDashboard':
+        return (
+          <div className="w-full transform transition-all duration-500 ease-in-out opacity-100 translate-y-0">
+            <LazyStatisticsCard
+              networkRequests={sortedNetworkRequests}
+              consoleErrors={sortedConsoleErrors}
+              tokenEvents={sortedTokenEvents}
+              totalRequests={data.totalRequests}
+              totalErrors={data.totalErrors}
+              totalTokenEvents={data.totalTokenEvents}
+              onRefreshAnalysisData={loadDashboardData}
+            />
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  }, [
+    mainView,
+    activeTable,
+    renderTableContent,
+    sortedNetworkRequests,
+    sortedConsoleErrors,
+    sortedTokenEvents,
+    data.totalRequests,
+    data.totalErrors,
+    data.totalTokenEvents,
+    loadDashboardData
+  ]);
+
   return (
     <div className="min-h-screen bg-gray-100 flex">
       {/* Left Sidebar */}
@@ -1430,6 +1532,8 @@ const DecomposedDashboard: React.FC = () => {
         onTabTokenLoggingToggle={toggleTabTokenLogging}
         onRefreshTabStatus={loadTabsLoggingStatus}
         stats={sidebarStats}
+        onMainViewChange={handleMainViewChange}
+        currentMainView={mainView}
       />
 
       {/* Main Content */}
@@ -1484,73 +1588,8 @@ const DecomposedDashboard: React.FC = () => {
 
         {/* Main Content Area */}
         <div className="flex-1 p-6 space-y-6 overflow-hidden">
-          {/* Table Navigation */}
-          <div className="w-full">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-              {/* Tab Navigation */}
-              <div className="border-b border-gray-200">
-                <nav className="flex space-x-8 px-6" aria-label="Tabs">
-                  <button
-                    onClick={() => setActiveTable('network')}
-                    className={`${
-                      activeTable === 'network'
-                        ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors duration-200`}
-                  >
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9v-9m0-9v9" />
-                    </svg>
-                    Network Requests
-                  </button>
-                  <button
-                    onClick={() => setActiveTable('errors')}
-                    className={`${
-                      activeTable === 'errors'
-                        ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors duration-200`}
-                  >
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Console Errors
-                  </button>
-                  <button
-                    onClick={() => setActiveTable('tokens')}
-                    className={`${
-                      activeTable === 'tokens'
-                        ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors duration-200`}
-                  >
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                    </svg>
-                    Token Events
-                  </button>
-                </nav>
-              </div>
-
-              {/* Table Content */}
-              <div className="p-6">
-                {renderTableContent()}
-              </div>
-            </div>
-          </div>
-
-          {/* Statistics Card - Lazy Loaded */}
-          <div className="w-full">
-            <LazyStatisticsCard
-              networkRequests={sortedNetworkRequests}
-              consoleErrors={sortedConsoleErrors}
-              tokenEvents={sortedTokenEvents}
-              totalRequests={data.totalRequests}
-              totalErrors={data.totalErrors}
-              totalTokenEvents={data.totalTokenEvents}
-              onRefreshAnalysisData={loadDashboardData}
-            />
-          </div>
+          {/* Dynamic Main Content - Data Tables or Statistics Dashboard */}
+          {renderMainContent()}
         </div>
       </div>
 
