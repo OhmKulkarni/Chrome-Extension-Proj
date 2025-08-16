@@ -1,13 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import DashboardHeader from './components/DashboardHeader';
-import TableCarousel from './components/TableCarousel';
 import NetworkRequestsTable from './components/NetworkRequestsTable';
 import ConsoleErrorsTable from './components/ConsoleErrorsTable';
 import TokenEventsTable from './components/TokenEventsTable';
 import LazyStatisticsCard from './components/LazyStatisticsCard';
 import LeftSidebar from './components/LeftSidebar';
-import { PerformanceMonitoringDashboard } from './components/PerformanceMonitoringDashboard';
 import { RequestDetailContent, ErrorDetailContent, TokenDetailContent } from './shared/components/DetailedViews';
 
 // Chrome data clearing function
@@ -87,7 +85,7 @@ const DecomposedDashboard: React.FC = () => {
   const [sidebarMode, setSidebarMode] = useState<'logging' | 'settings' | 'base'>('base');
 
   // Table carousel state
-  const [activeTable, setActiveTable] = useState<'network' | 'errors' | 'tokens' | 'performance'>('network');
+  const [activeTable, setActiveTable] = useState<'network' | 'errors' | 'tokens'>('network');
 
   // Network requests state - using same pagination as original
   const [currentPage, setCurrentPage] = useState(1);
@@ -125,6 +123,96 @@ const DecomposedDashboard: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartY, setDragStartY] = useState(0);
   const [dragStartHeight, setDragStartHeight] = useState(0);
+
+  // State for managing full datasets during sorting
+  const [fullNetworkData, setFullNetworkData] = useState<any[]>([]);
+  const [fullErrorData, setFullErrorData] = useState<any[]>([]);
+  const [fullTokenData, setFullTokenData] = useState<any[]>([]);
+  const [networkSortMode, setNetworkSortMode] = useState(false);
+  const [errorSortMode, setErrorSortMode] = useState(false);
+  const [tokenSortMode, setTokenSortMode] = useState(false);
+
+  // MEMORY LEAK FIX: Load all data for sorting purposes
+  const loadAllNetworkRequests = useCallback(async () => {
+    try {
+      console.log('🔄 Loading ALL network requests for sorting')
+      const response = await sendChromeMessage({ 
+        action: 'getNetworkRequests', 
+        limit: -1, // Request all data
+        offset: 0 
+      })
+      
+      if (response?.success && response?.requests) {
+        setFullNetworkData(response.requests)
+        setData(prevData => ({
+          ...prevData,
+          totalRequests: response.total || response.requests.length
+        }))
+        console.log(`✅ Loaded ${response.requests.length} total network requests for sorting`)
+        return response.requests
+      } else {
+        console.warn('⚠️ Failed to load all network requests:', response)
+        return []
+      }
+    } catch (error) {
+      console.error('❌ Error loading all network requests:', error)
+      return []
+    }
+  }, [])
+
+  const loadAllConsoleErrors = useCallback(async () => {
+    try {
+      console.log('🔄 Loading ALL console errors for sorting')
+      const response = await sendChromeMessage({ 
+        action: 'getConsoleErrors', 
+        limit: -1, // Request all data
+        offset: 0 
+      })
+      
+      if (response?.success && response?.errors) {
+        setFullErrorData(response.errors)
+        setData(prevData => ({
+          ...prevData,
+          totalErrors: response.total || response.errors.length
+        }))
+        console.log(`✅ Loaded ${response.errors.length} total console errors for sorting`)
+        return response.errors
+      } else {
+        console.warn('⚠️ Failed to load all console errors:', response)
+        return []
+      }
+    } catch (error) {
+      console.error('❌ Error loading all console errors:', error)
+      return []
+    }
+  }, [])
+
+  const loadAllTokenEvents = useCallback(async () => {
+    try {
+      console.log('🔄 Loading ALL token events for sorting')
+      const response = await sendChromeMessage({ 
+        action: 'getTokenEvents', 
+        limit: -1, // Request all data
+        offset: 0 
+      })
+      
+      if (response?.success && response?.events) {
+        setFullTokenData(response.events)
+        setData(prevData => ({
+          ...prevData,
+          totalTokenEvents: response.total || response.events.length
+        }))
+        console.log(`✅ Loaded ${response.events.length} total token events for sorting`)
+        return response.events
+      } else {
+        console.warn('⚠️ Failed to load all token events:', response)
+        return []
+      }
+    } catch (error) {
+      console.error('❌ Error loading all token events:', error)
+      return []
+    }
+  }, [])
 
   // MEMORY LEAK FIX: Copy exact data loading logic from original dashboard
   const loadNetworkRequestsPage = useCallback(async (page: number, limit: number = 10) => {
@@ -547,30 +635,103 @@ const DecomposedDashboard: React.FC = () => {
     }
   }, []);
 
-  // Handle sorting - using same logic as original
-  const handleNetworkSort = useCallback((key: string) => {
+  // Handle sorting - Enhanced to work across all records
+  const handleNetworkSort = useCallback(async (key: string) => {
     setSortConfig(prev => ({
       key,
       direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
     }));
-    setCurrentPage(1); // Reset to first page when sorting
-  }, []);
+    
+    // Load all data for sorting if not already in sort mode
+    if (!networkSortMode) {
+      setNetworkSortMode(true);
+      await loadAllNetworkRequests();
+    }
+    
+    // Don't reset to page 1 - maintain current page position
+    // setCurrentPage(1); // Removed to maintain current page
+  }, [networkSortMode, loadAllNetworkRequests]);
 
-  const handleErrorSort = useCallback((key: string) => {
+  const handleErrorSort = useCallback(async (key: string) => {
     setErrorSortConfig(prev => ({
       key,
       direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
     }));
-    setCurrentErrorPage(1); // Reset to first page when sorting
-  }, []);
+    
+    // Load all data for sorting if not already in sort mode  
+    if (!errorSortMode) {
+      setErrorSortMode(true);
+      await loadAllConsoleErrors();
+    }
+    
+    // Don't reset to page 1 - maintain current page position
+    // setCurrentErrorPage(1); // Removed to maintain current page
+  }, [errorSortMode, loadAllConsoleErrors]);
 
-  const handleTokenSort = useCallback((key: string) => {
+  const handleTokenSort = useCallback(async (key: string) => {
     setTokenSortConfig(prev => ({
       key,
       direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
     }));
-    setCurrentTokenPage(1); // Reset to first page when sorting
-  }, []);
+    
+    // Load all data for sorting if not already in sort mode
+    if (!tokenSortMode) {
+      setTokenSortMode(true);
+      await loadAllTokenEvents();
+    }
+    
+    // Don't reset to page 1 - maintain current page position
+    // setCurrentTokenPage(1); // Removed to maintain current page
+  }, [tokenSortMode, loadAllTokenEvents]);
+
+  // Enhanced filter handlers with automatic full data loading
+  const handleNetworkSearchChange = useCallback(async (searchTerm: string) => {
+    setNetworkSearchTerm(searchTerm);
+    if (searchTerm.trim()) {
+      await loadAllNetworkRequests();
+    }
+    setCurrentPage(1); // Reset to first page when filtering
+  }, [loadAllNetworkRequests]);
+
+  const handleNetworkFilterMethodChange = useCallback(async (method: string) => {
+    setNetworkFilterMethod(method);
+    if (method && method !== 'all') {
+      await loadAllNetworkRequests();
+    }
+    setCurrentPage(1); // Reset to first page when filtering
+  }, [loadAllNetworkRequests]);
+
+  const handleErrorSearchChange = useCallback(async (searchTerm: string) => {
+    setErrorSearchTerm(searchTerm);
+    if (searchTerm.trim()) {
+      await loadAllConsoleErrors();
+    }
+    setCurrentErrorPage(1); // Reset to first page when filtering
+  }, [loadAllConsoleErrors]);
+
+  const handleErrorFilterSeverityChange = useCallback(async (severity: string) => {
+    setErrorFilterSeverity(severity);
+    if (severity && severity !== 'all') {
+      await loadAllConsoleErrors();
+    }
+    setCurrentErrorPage(1); // Reset to first page when filtering
+  }, [loadAllConsoleErrors]);
+
+  const handleTokenSearchChange = useCallback(async (searchTerm: string) => {
+    setTokenSearchTerm(searchTerm);
+    if (searchTerm.trim()) {
+      await loadAllTokenEvents();
+    }
+    setCurrentTokenPage(1); // Reset to first page when filtering
+  }, [loadAllTokenEvents]);
+
+  const handleTokenFilterTypeChange = useCallback(async (type: string) => {
+    setTokenFilterType(type);
+    if (type && type !== 'all') {
+      await loadAllTokenEvents();
+    }
+    setCurrentTokenPage(1); // Reset to first page when filtering
+  }, [loadAllTokenEvents]);
 
   // Enhanced detail viewer functions for drag-up modal
   const openDetailViewer = useCallback((item: any, type: 'request' | 'error' | 'token') => {
@@ -634,21 +795,70 @@ const DecomposedDashboard: React.FC = () => {
     }
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
-  // Handle page changes - using same logic as original
+  // Handle page changes - Enhanced to work with sorting mode
   const handleNetworkPageChange = useCallback((page: number) => {
     setCurrentPage(page);
-    loadNetworkRequestsPage(page, requestsPerPage);
-  }, [loadNetworkRequestsPage, requestsPerPage]);
+    // Only load from backend if not in sort mode
+    if (!networkSortMode) {
+      loadNetworkRequestsPage(page, requestsPerPage);
+    }
+    // If in sort mode, the useMemo hook will handle pagination of sorted data
+  }, [loadNetworkRequestsPage, requestsPerPage, networkSortMode]);
 
   const handleErrorPageChange = useCallback((page: number) => {
     setCurrentErrorPage(page);
-    loadConsoleErrorsPage(page, errorsPerPage);
-  }, [loadConsoleErrorsPage, errorsPerPage]);
+    // Only load from backend if not in sort mode
+    if (!errorSortMode) {
+      loadConsoleErrorsPage(page, errorsPerPage);
+    }
+    // If in sort mode, the useMemo hook will handle pagination of sorted data
+  }, [loadConsoleErrorsPage, errorsPerPage, errorSortMode]);
 
   const handleTokenPageChange = useCallback((page: number) => {
     setCurrentTokenPage(page);
-    loadTokenEventsPage(page, tokenEventsPerPage);
-  }, [loadTokenEventsPage, tokenEventsPerPage]);
+    // Only load from backend if not in sort mode
+    if (!tokenSortMode) {
+      loadTokenEventsPage(page, tokenEventsPerPage);
+    }
+    // If in sort mode, the useMemo hook will handle pagination of sorted data
+  }, [loadTokenEventsPage, tokenEventsPerPage, tokenSortMode]);
+
+  // MEMORY LEAK PREVENTION: Functions to reset sort mode and clear full datasets
+  // Commented out temporarily to avoid unused variable warnings
+  /*
+  const resetNetworkSortMode = useCallback(() => {
+    setNetworkSortMode(false);
+    setFullNetworkData([]);
+    setSortConfig({ key: 'timestamp', direction: 'desc' });
+    // Reload current page with normal pagination
+    loadNetworkRequestsPage(currentPage, requestsPerPage);
+  }, [currentPage, requestsPerPage, loadNetworkRequestsPage]);
+
+  const resetErrorSortMode = useCallback(() => {
+    setErrorSortMode(false);
+    setFullErrorData([]);
+    setErrorSortConfig({ key: 'timestamp', direction: 'desc' });
+    // Reload current page with normal pagination
+    loadConsoleErrorsPage(currentErrorPage, errorsPerPage);
+  }, [currentErrorPage, errorsPerPage, loadConsoleErrorsPage]);
+
+  const resetTokenSortMode = useCallback(() => {
+    setTokenSortMode(false);
+    setFullTokenData([]);
+    setTokenSortConfig({ key: 'timestamp', direction: 'desc' });
+    // Reload current page with normal pagination
+    loadTokenEventsPage(currentTokenPage, tokenEventsPerPage);
+  }, [currentTokenPage, tokenEventsPerPage, loadTokenEventsPage]);
+  */
+
+  // MEMORY LEAK PREVENTION: Clear full datasets on component unmount
+  useEffect(() => {
+    return () => {
+      setFullNetworkData([]);
+      setFullErrorData([]);
+      setFullTokenData([]);
+    };
+  }, []);
 
   // Calculate stats for sidebar
   const sidebarStats = {
@@ -660,10 +870,315 @@ const DecomposedDashboard: React.FC = () => {
     ).length
   };
 
-  // Calculate pagination for each table
-  const networkTotalPages = Math.ceil((data.totalRequests || data.networkRequests.length) / requestsPerPage);
-  const errorsTotalPages = Math.ceil((data.totalErrors || data.consoleErrors.length) / errorsPerPage);
-  const tokensTotalPages = Math.ceil((data.totalTokenEvents || data.tokenEvents.length) / tokenEventsPerPage);
+  // Memory-efficient sorting with useMemo to prevent unnecessary re-sorts
+  // Enhanced to work with full datasets when sorting is active AND apply filtering
+  const sortedNetworkRequests = useMemo(() => {
+    // Check if we need full data for filtering or sorting
+    const hasFilters = (networkSearchTerm && networkSearchTerm.trim()) || (networkFilterMethod && networkFilterMethod !== 'all');
+    const needsFullData = networkSortMode || hasFilters;
+    
+    // Use full dataset if we need it and have it loaded, otherwise use current page data
+    const dataToSort = (needsFullData && fullNetworkData.length > 0) ? fullNetworkData : data.networkRequests;
+    
+    if (!dataToSort || dataToSort.length === 0) return [];
+    
+    // Apply filtering first, before sorting
+    let filteredData = dataToSort.filter((request: any) => {
+      // Search term filter
+      if (networkSearchTerm && networkSearchTerm.trim()) {
+        const searchLower = networkSearchTerm.toLowerCase();
+        const matchesSearch = 
+          request.url?.toLowerCase().includes(searchLower) ||
+          request.method?.toLowerCase().includes(searchLower) ||
+          request.status?.toString().includes(searchLower);
+        if (!matchesSearch) return false;
+      }
+      
+      // Method filter
+      if (networkFilterMethod && networkFilterMethod !== 'all') {
+        if (request.method?.toLowerCase() !== networkFilterMethod.toLowerCase()) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+    
+    // Apply sorting to filtered data
+    const sorted = [...filteredData].sort((a, b) => {
+      const aValue = a[sortConfig.key as keyof typeof a];
+      const bValue = b[sortConfig.key as keyof typeof b];
+      
+      // Handle different data types for sorting
+      let comparison = 0;
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        comparison = aValue.localeCompare(bValue);
+      } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+        comparison = aValue - bValue;
+      } else if (aValue instanceof Date && bValue instanceof Date) {
+        comparison = aValue.getTime() - bValue.getTime();
+      } else {
+        // Handle timestamp strings and other types
+        const aStr = String(aValue || '');
+        const bStr = String(bValue || '');
+        comparison = aStr.localeCompare(bStr);
+      }
+      
+      return sortConfig.direction === 'asc' ? comparison : -comparison;
+    });
+
+    // Apply pagination based on current mode
+    if (needsFullData && fullNetworkData.length > 0) {
+      // Full data mode: apply pagination to sorted full dataset
+      const startIndex = (currentPage - 1) * requestsPerPage;
+      const endIndex = startIndex + requestsPerPage;
+      return sorted.slice(startIndex, endIndex);
+    } else {
+      // Normal mode: data is already paginated from backend, just return sorted current page
+      return sorted;
+    }
+  }, [data.networkRequests, fullNetworkData, networkSortMode, sortConfig, currentPage, requestsPerPage, networkSearchTerm, networkFilterMethod]);
+
+  const sortedConsoleErrors = useMemo(() => {
+    // Check if we need full data for filtering or sorting
+    const hasFilters = (errorSearchTerm && errorSearchTerm.trim()) || (errorFilterSeverity && errorFilterSeverity !== 'all');
+    const needsFullData = errorSortMode || hasFilters;
+    
+    // Use full dataset if we need it and have it loaded, otherwise use current page data
+    const dataToSort = (needsFullData && fullErrorData.length > 0) ? fullErrorData : data.consoleErrors;
+    
+    if (!dataToSort || dataToSort.length === 0) return [];
+    
+    // Apply filtering first, before sorting
+    let filteredData = dataToSort.filter((error: any) => {
+      // Search term filter
+      if (errorSearchTerm && errorSearchTerm.trim()) {
+        const searchLower = errorSearchTerm.toLowerCase();
+        const matchesSearch = 
+          error.message?.toLowerCase().includes(searchLower) ||
+          error.source?.toLowerCase().includes(searchLower) ||
+          error.type?.toLowerCase().includes(searchLower);
+        if (!matchesSearch) return false;
+      }
+      
+      // Severity filter
+      if (errorFilterSeverity && errorFilterSeverity !== 'all') {
+        if (error.level?.toLowerCase() !== errorFilterSeverity.toLowerCase()) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+    
+    // Apply sorting to filtered data
+    const sorted = [...filteredData].sort((a, b) => {
+      const aValue = a[errorSortConfig.key as keyof typeof a];
+      const bValue = b[errorSortConfig.key as keyof typeof b];
+      
+      let comparison = 0;
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        comparison = aValue.localeCompare(bValue);
+      } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+        comparison = aValue - bValue;
+      } else if (aValue instanceof Date && bValue instanceof Date) {
+        comparison = aValue.getTime() - bValue.getTime();
+      } else {
+        const aStr = String(aValue || '');
+        const bStr = String(bValue || '');
+        comparison = aStr.localeCompare(bStr);
+      }
+      
+      return errorSortConfig.direction === 'asc' ? comparison : -comparison;
+    });
+
+    // Apply pagination based on current mode
+    if (needsFullData && fullErrorData.length > 0) {
+      // Full data mode: apply pagination to sorted full dataset
+      const startIndex = (currentErrorPage - 1) * errorsPerPage;
+      const endIndex = startIndex + errorsPerPage;
+      return sorted.slice(startIndex, endIndex);
+    } else {
+      // Normal mode: data is already paginated from backend, just return sorted current page
+      return sorted;
+    }
+  }, [data.consoleErrors, fullErrorData, errorSortMode, errorSortConfig, currentErrorPage, errorsPerPage, errorSearchTerm, errorFilterSeverity]);
+
+  const sortedTokenEvents = useMemo(() => {
+    // Check if we need full data for filtering or sorting
+    const hasFilters = (tokenSearchTerm && tokenSearchTerm.trim()) || (tokenFilterType && tokenFilterType !== 'all');
+    const needsFullData = tokenSortMode || hasFilters;
+    
+    // Use full dataset if we need it and have it loaded, otherwise use current page data
+    const dataToSort = (needsFullData && fullTokenData.length > 0) ? fullTokenData : data.tokenEvents;
+    
+    if (!dataToSort || dataToSort.length === 0) return [];
+    
+    // Apply filtering first, before sorting
+    let filteredData = dataToSort.filter((event: any) => {
+      // Search term filter
+      if (tokenSearchTerm && tokenSearchTerm.trim()) {
+        const searchLower = tokenSearchTerm.toLowerCase();
+        const matchesSearch = 
+          event.token_hash?.toLowerCase().includes(searchLower) ||
+          event.domain?.toLowerCase().includes(searchLower) ||
+          event.action?.toLowerCase().includes(searchLower);
+        if (!matchesSearch) return false;
+      }
+      
+      // Type filter
+      if (tokenFilterType && tokenFilterType !== 'all') {
+        if (event.action?.toLowerCase() !== tokenFilterType.toLowerCase()) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+    
+    // Apply sorting to filtered data
+    const sorted = [...filteredData].sort((a, b) => {
+      const aValue = a[tokenSortConfig.key as keyof typeof a];
+      const bValue = b[tokenSortConfig.key as keyof typeof b];
+      
+      let comparison = 0;
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        comparison = aValue.localeCompare(bValue);
+      } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+        comparison = aValue - bValue;
+      } else if (aValue instanceof Date && bValue instanceof Date) {
+        comparison = aValue.getTime() - bValue.getTime();
+      } else {
+        const aStr = String(aValue || '');
+        const bStr = String(bValue || '');
+        comparison = aStr.localeCompare(bStr);
+      }
+      
+      return tokenSortConfig.direction === 'asc' ? comparison : -comparison;
+    });
+
+    // Apply pagination based on current mode
+    if (needsFullData && fullTokenData.length > 0) {
+      // Full data mode: apply pagination to sorted full dataset
+      const startIndex = (currentTokenPage - 1) * tokenEventsPerPage;
+      const endIndex = startIndex + tokenEventsPerPage;
+      return sorted.slice(startIndex, endIndex);
+    } else {
+      // Normal mode: data is already paginated from backend, just return sorted current page
+      return sorted;
+    }
+  }, [data.tokenEvents, fullTokenData, tokenSortMode, tokenSortConfig, currentTokenPage, tokenEventsPerPage, tokenSearchTerm, tokenFilterType]);
+
+  // Calculate filtered counts for pagination (separate from display data)
+  const filteredNetworkCount = useMemo(() => {
+    // Check if we need full data for filtering or sorting
+    const hasFilters = (networkSearchTerm && networkSearchTerm.trim()) || (networkFilterMethod && networkFilterMethod !== 'all');
+    const needsFullData = networkSortMode || hasFilters;
+    
+    // Use full dataset if we need it and have it loaded, otherwise use current page data
+    const dataToFilter = (needsFullData && fullNetworkData.length > 0) ? fullNetworkData : data.networkRequests;
+    if (!dataToFilter || dataToFilter.length === 0) return 0;
+    
+    return dataToFilter.filter((request: any) => {
+      // Search term filter
+      if (networkSearchTerm && networkSearchTerm.trim()) {
+        const searchLower = networkSearchTerm.toLowerCase();
+        const matchesSearch = 
+          request.url?.toLowerCase().includes(searchLower) ||
+          request.method?.toLowerCase().includes(searchLower) ||
+          request.status?.toString().includes(searchLower);
+        if (!matchesSearch) return false;
+      }
+      
+      // Method filter
+      if (networkFilterMethod && networkFilterMethod !== 'all') {
+        if (request.method?.toLowerCase() !== networkFilterMethod.toLowerCase()) {
+          return false;
+        }
+      }
+      
+      return true;
+    }).length;
+  }, [fullNetworkData, data.networkRequests, networkSortMode, networkSearchTerm, networkFilterMethod]);
+
+  const filteredErrorCount = useMemo(() => {
+    // Check if we need full data for filtering or sorting
+    const hasFilters = (errorSearchTerm && errorSearchTerm.trim()) || (errorFilterSeverity && errorFilterSeverity !== 'all');
+    const needsFullData = errorSortMode || hasFilters;
+    
+    // Use full dataset if we need it and have it loaded, otherwise use current page data
+    const dataToFilter = (needsFullData && fullErrorData.length > 0) ? fullErrorData : data.consoleErrors;
+    if (!dataToFilter || dataToFilter.length === 0) return 0;
+    
+    return dataToFilter.filter((error: any) => {
+      // Search term filter
+      if (errorSearchTerm && errorSearchTerm.trim()) {
+        const searchLower = errorSearchTerm.toLowerCase();
+        const matchesSearch = 
+          error.message?.toLowerCase().includes(searchLower) ||
+          error.source?.toLowerCase().includes(searchLower) ||
+          error.type?.toLowerCase().includes(searchLower);
+        if (!matchesSearch) return false;
+      }
+      
+      // Severity filter
+      if (errorFilterSeverity && errorFilterSeverity !== 'all') {
+        if (error.level?.toLowerCase() !== errorFilterSeverity.toLowerCase()) {
+          return false;
+        }
+      }
+      
+      return true;
+    }).length;
+  }, [fullErrorData, data.consoleErrors, errorSortMode, errorSearchTerm, errorFilterSeverity]);
+
+  const filteredTokenCount = useMemo(() => {
+    // Check if we need full data for filtering or sorting
+    const hasFilters = (tokenSearchTerm && tokenSearchTerm.trim()) || (tokenFilterType && tokenFilterType !== 'all');
+    const needsFullData = tokenSortMode || hasFilters;
+    
+    // Use full dataset if we need it and have it loaded, otherwise use current page data
+    const dataToFilter = (needsFullData && fullTokenData.length > 0) ? fullTokenData : data.tokenEvents;
+    if (!dataToFilter || dataToFilter.length === 0) return 0;
+    
+    return dataToFilter.filter((event: any) => {
+      // Search term filter
+      if (tokenSearchTerm && tokenSearchTerm.trim()) {
+        const searchLower = tokenSearchTerm.toLowerCase();
+        const matchesSearch = 
+          event.token_hash?.toLowerCase().includes(searchLower) ||
+          event.domain?.toLowerCase().includes(searchLower) ||
+          event.action?.toLowerCase().includes(searchLower);
+        if (!matchesSearch) return false;
+      }
+      
+      // Type filter
+      if (tokenFilterType && tokenFilterType !== 'all') {
+        if (event.action?.toLowerCase() !== tokenFilterType.toLowerCase()) {
+          return false;
+        }
+      }
+      
+      return true;
+    }).length;
+  }, [fullTokenData, data.tokenEvents, tokenSortMode, tokenSearchTerm, tokenFilterType]);
+
+  // Calculate pagination for each table - Enhanced for sort mode and filtering
+  const networkTotalPages = Math.ceil(
+    ((networkSortMode || ((networkSearchTerm && networkSearchTerm.trim()) || (networkFilterMethod && networkFilterMethod !== 'all'))) && fullNetworkData.length > 0) 
+      ? filteredNetworkCount / requestsPerPage  // Sort/Filter mode: use filtered count from full dataset
+      : (data.totalRequests || data.networkRequests.length) / requestsPerPage  // Normal mode: use total from backend
+  );
+  const errorsTotalPages = Math.ceil(
+    ((errorSortMode || ((errorSearchTerm && errorSearchTerm.trim()) || (errorFilterSeverity && errorFilterSeverity !== 'all'))) && fullErrorData.length > 0) 
+      ? filteredErrorCount / errorsPerPage  // Sort/Filter mode: use filtered count from full dataset  
+      : (data.totalErrors || data.consoleErrors.length) / errorsPerPage  // Normal mode: use total from backend
+  );
+  const tokensTotalPages = Math.ceil(
+    ((tokenSortMode || ((tokenSearchTerm && tokenSearchTerm.trim()) || (tokenFilterType && tokenFilterType !== 'all'))) && fullTokenData.length > 0) 
+      ? filteredTokenCount / tokenEventsPerPage  // Sort/Filter mode: use filtered count from full dataset
+      : (data.totalTokenEvents || data.tokenEvents.length) / tokenEventsPerPage  // Normal mode: use total from backend
+  );
 
   // Initialize on mount - using same logic as original
   useEffect(() => {
@@ -839,9 +1354,9 @@ const DecomposedDashboard: React.FC = () => {
       case 'network':
         return (
           <NetworkRequestsTable
-            requests={data.networkRequests}
-            totalRequests={data.totalRequests || data.networkRequests.length}
-            totalFilteredRequests={data.totalRequests || data.networkRequests.length}
+            requests={sortedNetworkRequests}
+            totalRequests={(networkSortMode && fullNetworkData.length > 0) ? fullNetworkData.length : (data.totalRequests || data.networkRequests.length)}
+            totalFilteredRequests={filteredNetworkCount}
             currentPage={currentPage}
             totalPages={networkTotalPages}
             requestsPerPage={requestsPerPage}
@@ -849,9 +1364,9 @@ const DecomposedDashboard: React.FC = () => {
             onSort={handleNetworkSort}
             sortConfig={sortConfig}
             searchTerm={networkSearchTerm}
-            onSearchChange={setNetworkSearchTerm}
+            onSearchChange={handleNetworkSearchChange}
             filterMethod={networkFilterMethod}
-            onMethodFilterChange={setNetworkFilterMethod}
+            onMethodFilterChange={handleNetworkFilterMethodChange}
             onDetailClick={(request) => openDetailViewer(request, 'request')}
           />
         );
@@ -859,9 +1374,9 @@ const DecomposedDashboard: React.FC = () => {
       case 'errors':
         return (
           <ConsoleErrorsTable
-            errors={data.consoleErrors}
-            totalErrors={data.totalErrors || data.consoleErrors.length}
-            totalFilteredErrors={data.totalErrors || data.consoleErrors.length}
+            errors={sortedConsoleErrors}
+            totalErrors={(errorSortMode && fullErrorData.length > 0) ? fullErrorData.length : (data.totalErrors || data.consoleErrors.length)}
+            totalFilteredErrors={filteredErrorCount}
             currentPage={currentErrorPage}
             totalPages={errorsTotalPages}
             errorsPerPage={errorsPerPage}
@@ -869,9 +1384,9 @@ const DecomposedDashboard: React.FC = () => {
             onSort={handleErrorSort}
             sortConfig={errorSortConfig}
             searchTerm={errorSearchTerm}
-            onSearchChange={setErrorSearchTerm}
+            onSearchChange={handleErrorSearchChange}
             filterSeverity={errorFilterSeverity}
-            onSeverityFilterChange={setErrorFilterSeverity}
+            onSeverityFilterChange={handleErrorFilterSeverityChange}
             onDetailClick={(error) => openDetailViewer(error, 'error')}
           />
         );
@@ -879,9 +1394,9 @@ const DecomposedDashboard: React.FC = () => {
       case 'tokens':
         return (
           <TokenEventsTable
-            events={data.tokenEvents}
-            totalEvents={data.totalTokenEvents || data.tokenEvents.length}
-            totalFilteredEvents={data.totalTokenEvents || data.tokenEvents.length}
+            events={sortedTokenEvents}
+            totalEvents={(tokenSortMode && fullTokenData.length > 0) ? fullTokenData.length : (data.totalTokenEvents || data.tokenEvents.length)}
+            totalFilteredEvents={filteredTokenCount}
             currentPage={currentTokenPage}
             totalPages={tokensTotalPages}
             eventsPerPage={tokenEventsPerPage}
@@ -889,18 +1404,13 @@ const DecomposedDashboard: React.FC = () => {
             onSort={handleTokenSort}
             sortConfig={tokenSortConfig}
             searchTerm={tokenSearchTerm}
-            onSearchChange={setTokenSearchTerm}
+            onSearchChange={handleTokenSearchChange}
             filterType={tokenFilterType}
-            onTypeFilterChange={setTokenFilterType}
+            onTypeFilterChange={handleTokenFilterTypeChange}
             onDetailClick={(event) => openDetailViewer(event, 'token')}
             showFullTokenHash={showFullTokenHash}
             onToggleTokenHash={() => setShowFullTokenHash(!showFullTokenHash)}
           />
-        );
-
-      case 'performance':
-        return (
-          <PerformanceMonitoringDashboard />
         );
 
       default:
@@ -974,22 +1484,67 @@ const DecomposedDashboard: React.FC = () => {
 
         {/* Main Content Area */}
         <div className="flex-1 p-6 space-y-6 overflow-hidden">
-          {/* Table Carousel */}
+          {/* Table Navigation */}
           <div className="w-full">
-            <TableCarousel
-              activeTable={activeTable}
-              onTableChange={setActiveTable}
-            >
-              {renderTableContent()}
-            </TableCarousel>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+              {/* Tab Navigation */}
+              <div className="border-b border-gray-200">
+                <nav className="flex space-x-8 px-6" aria-label="Tabs">
+                  <button
+                    onClick={() => setActiveTable('network')}
+                    className={`${
+                      activeTable === 'network'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors duration-200`}
+                  >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9v-9m0-9v9" />
+                    </svg>
+                    Network Requests
+                  </button>
+                  <button
+                    onClick={() => setActiveTable('errors')}
+                    className={`${
+                      activeTable === 'errors'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors duration-200`}
+                  >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Console Errors
+                  </button>
+                  <button
+                    onClick={() => setActiveTable('tokens')}
+                    className={`${
+                      activeTable === 'tokens'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors duration-200`}
+                  >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                    Token Events
+                  </button>
+                </nav>
+              </div>
+
+              {/* Table Content */}
+              <div className="p-6">
+                {renderTableContent()}
+              </div>
+            </div>
           </div>
 
           {/* Statistics Card - Lazy Loaded */}
           <div className="w-full">
             <LazyStatisticsCard
-              networkRequests={data.networkRequests}
-              consoleErrors={data.consoleErrors}
-              tokenEvents={data.tokenEvents}
+              networkRequests={sortedNetworkRequests}
+              consoleErrors={sortedConsoleErrors}
+              tokenEvents={sortedTokenEvents}
               totalRequests={data.totalRequests}
               totalErrors={data.totalErrors}
               totalTokenEvents={data.totalTokenEvents}

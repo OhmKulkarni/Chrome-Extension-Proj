@@ -56,6 +56,48 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
     onTypeFilterChange('all');
   };
 
+  const generatePageNumbers = () => {
+    const pageNumbers: (number | string)[] = [];
+    const maxVisiblePages = 7;
+    
+    if (totalPages <= maxVisiblePages) {
+      // Show all pages if total is small
+      for (let i = 1; i <= totalPages; i++) {
+        pageNumbers.push(i);
+      }
+    } else {
+      // Google-style pagination logic
+      if (currentPage <= 4) {
+        // Show 1-5 ... totalPages
+        for (let i = 1; i <= 5; i++) {
+          pageNumbers.push(i);
+        }
+        if (totalPages > 5) {
+          pageNumbers.push('...');
+          pageNumbers.push(totalPages);
+        }
+      } else if (currentPage >= totalPages - 3) {
+        // Show 1 ... (totalPages-4)-totalPages
+        pageNumbers.push(1);
+        pageNumbers.push('...');
+        for (let i = totalPages - 4; i <= totalPages; i++) {
+          pageNumbers.push(i);
+        }
+      } else {
+        // Show 1 ... (currentPage-1) currentPage (currentPage+1) ... totalPages
+        pageNumbers.push(1);
+        pageNumbers.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pageNumbers.push(i);
+        }
+        pageNumbers.push('...');
+        pageNumbers.push(totalPages);
+      }
+    }
+    
+    return pageNumbers;
+  };
+
   const getEventTypeColor = (type: string) => {
     switch (type.toLowerCase()) {
       case 'acquire': return 'bg-green-100 text-green-800';
@@ -287,6 +329,24 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                 >
                   Previous
                 </button>
+
+                {/* Page Numbers */}
+                {generatePageNumbers().map((pageNumber, index) => (
+                  <button
+                    key={index}
+                    onClick={() => typeof pageNumber === 'number' ? onPageChange(pageNumber) : undefined}
+                    disabled={typeof pageNumber === 'string'}
+                    className={`px-3 py-2 text-sm font-medium rounded-md ${
+                      pageNumber === currentPage
+                        ? 'bg-blue-600 text-white'
+                        : typeof pageNumber === 'string'
+                        ? 'text-gray-400 cursor-default'
+                        : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {pageNumber}
+                  </button>
+                ))}
 
                 {/* Next Button */}
                 <button
