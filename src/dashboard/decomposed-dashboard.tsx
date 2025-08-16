@@ -6,6 +6,7 @@ import ConsoleErrorsTable from './components/ConsoleErrorsTable';
 import TokenEventsTable from './components/TokenEventsTable';
 import LazyStatisticsCard from './components/LazyStatisticsCard';
 import LeftSidebar from './components/LeftSidebar';
+import SettingsInline from './components/SettingsInline';
 import { RequestDetailContent, ErrorDetailContent, TokenDetailContent } from './shared/components/DetailedViews';
 
 // Chrome data clearing function
@@ -85,7 +86,7 @@ const DecomposedDashboard: React.FC = () => {
   const [sidebarMode, setSidebarMode] = useState<'logging' | 'settings' | 'base'>('base');
 
   // Main view state - controls what's displayed in the main content area
-  const [mainView, setMainView] = useState<'dataTables' | 'statisticsDashboard'>('dataTables');
+  const [mainView, setMainView] = useState<'dataTables' | 'statisticsDashboard' | 'settings'>('dataTables');
 
   // Table carousel state
   const [activeTable, setActiveTable] = useState<'network' | 'errors' | 'tokens'>('network');
@@ -737,7 +738,7 @@ const DecomposedDashboard: React.FC = () => {
   }, [loadAllTokenEvents]);
 
   // Main view transition handler - prevents memory leaks with proper cleanup
-  const handleMainViewChange = useCallback((newView: 'dataTables' | 'statisticsDashboard') => {
+  const handleMainViewChange = useCallback((newView: 'dataTables' | 'statisticsDashboard' | 'settings') => {
     // Prevent unnecessary re-renders if view hasn't changed
     if (newView !== mainView) {
       setMainView(newView);
@@ -1503,6 +1504,9 @@ const DecomposedDashboard: React.FC = () => {
             />
           </div>
         );
+
+      case 'settings':
+        return <SettingsInline />;
 
       default:
         return null;

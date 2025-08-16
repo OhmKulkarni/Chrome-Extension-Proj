@@ -27,8 +27,8 @@ interface LeftSidebarProps {
   onTabTokenLoggingToggle: (tabId: number) => void;
   onRefreshTabStatus: () => void;
   stats: SidebarStats;
-  onMainViewChange: (view: 'dataTables' | 'statisticsDashboard') => void;
-  currentMainView: 'dataTables' | 'statisticsDashboard';
+  onMainViewChange: (view: 'dataTables' | 'statisticsDashboard' | 'settings') => void;
+  currentMainView: 'dataTables' | 'statisticsDashboard' | 'settings';
 }
 
 const LeftSidebar: React.FC<LeftSidebarProps> = ({
@@ -182,6 +182,16 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
           >
             📈 Statistics Dashboard
           </button>
+          <button
+            onClick={() => onMainViewChange('settings')}
+            className={`w-full px-3 py-2 text-sm rounded-md transition-colors ${
+              currentMainView === 'settings'
+                ? 'bg-gray-100 text-gray-700 border border-gray-200'
+                : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            ⚙️ Settings
+          </button>
           <div className="border-t border-gray-200 my-3"></div>
           <button
             onClick={() => onModeChange('logging')}
@@ -193,7 +203,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
             onClick={openSettings}
             className="w-full px-3 py-2 text-sm bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
           >
-            ⚙️ Open Settings
+            🔗 Open Settings Page
           </button>
           <button
             onClick={onRefreshTabStatus}
