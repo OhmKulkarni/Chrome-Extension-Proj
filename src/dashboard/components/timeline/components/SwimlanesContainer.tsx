@@ -6,11 +6,13 @@ import { TimelineSidebar } from './TimelineSidebar'
 import { CompareView } from './CompareView'
 import { DensityClusterComponent } from './DensityCluster'
 import { EventListPopup } from './EventListPopup'
+import { TimeMarkers } from './TimeMarkers'
 
 interface SwimlanesContainerProps {
   events: TimelineEvent[]
   clusters: TimelineCluster[]
   visualizationData: ViewportEventData
+  viewport: any // ViewportRange from viewport hook
   shouldCluster: boolean
   onBookmarkEvent: (eventId: string, isBookmarked: boolean) => Promise<boolean>
   onSetCompareSlot: (eventId: string, slot: number | undefined) => Promise<boolean>
@@ -24,6 +26,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   events,
   clusters,
   visualizationData,
+  viewport,
   shouldCluster,
   onBookmarkEvent,
   onSetCompareSlot,
@@ -164,6 +167,9 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
       <div className="flex-1 flex flex-col" ref={containerRef}>
         {/* Swimlanes */}
         <div className="flex-1 relative">
+          {/* Time Markers */}
+          <TimeMarkers viewport={viewport} zoomLevel={zoomLevel} />
+          
           {adjustedSwimlanes().map((swimlane, index) => (
             <Swimlane
               key={swimlane.id}

@@ -45,6 +45,7 @@ export const TimelineVisualization: React.FC = () => {
         centerTime={viewport.centerTime}
         canZoomIn={viewport.canZoomIn}
         canZoomOut={viewport.canZoomOut}
+        isAnimating={viewport.isAnimating}
         hasNewUpdates={timelineData.hasNewUpdates}
         hiddenSwimlanes={hiddenSwimlanes}
         onZoomIn={viewport.zoomIn}
@@ -92,6 +93,7 @@ export const TimelineVisualization: React.FC = () => {
             events={timelineData.events}
             clusters={timelineData.clusters}
             visualizationData={visualizationData}
+            viewport={viewport.viewport}
             shouldCluster={viewport.zoomLevel <= 3}
             onBookmarkEvent={timelineData.bookmarkEvent}
             onSetCompareSlot={timelineData.setCompareSlot}

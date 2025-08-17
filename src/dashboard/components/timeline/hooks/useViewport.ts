@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useRef } from 'react'
 import { ViewportRange, TIME_SCOPES } from '../types/timeline.types'
 
 interface UseViewportProps {
@@ -7,16 +7,18 @@ interface UseViewportProps {
 }
 
 export const useViewport = ({ 
-  initialScope = '5m', 
+  initialScope = '1-hour', 
   initialCenterTime 
 }: UseViewportProps = {}) => {
   const [currentScope, setCurrentScope] = useState<string>(initialScope)
   const [centerTime, setCenterTime] = useState<number>(
     initialCenterTime || Date.now()
   )
+  const [isAnimating, setIsAnimating] = useState<boolean>(false)
+  const animationRef = useRef<number | null>(null)
 
   const scopeConfig = useMemo(() => {
-    return TIME_SCOPES.find(scope => scope.key === currentScope) || TIME_SCOPES[4] // Default to 5m
+    return TIME_SCOPES.find(scope => scope.key === currentScope) || TIME_SCOPES[5] // Default to 1-hour
   }, [currentScope])
 
   const viewport = useMemo<ViewportRange>(() => {
@@ -27,6 +29,37 @@ export const useViewport = ({
       duration: scopeConfig.duration
     }
   }, [centerTime, scopeConfig.duration])
+
+  // Smooth animation function
+  const animateCenterTime = useCallback((targetTime: number, duration = 300) => {
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current)
+    }
+
+    const startTime = centerTime
+    const startTimestamp = performance.now()
+    setIsAnimating(true)
+
+    const animate = (currentTimestamp: number) => {
+      const elapsed = currentTimestamp - startTimestamp
+      const progress = Math.min(elapsed / duration, 1)
+      
+      // Smooth easing function (ease-out)
+      const easeOut = 1 - Math.pow(1 - progress, 3)
+      
+      const currentTime = startTime + (targetTime - startTime) * easeOut
+      setCenterTime(currentTime)
+
+      if (progress < 1) {
+        animationRef.current = requestAnimationFrame(animate)
+      } else {
+        setIsAnimating(false)
+        animationRef.current = null
+      }
+    }
+
+    animationRef.current = requestAnimationFrame(animate)
+  }, [centerTime])
 
   const zoomIn = useCallback(() => {
     const currentIndex = TIME_SCOPES.findIndex(scope => scope.key === currentScope)
@@ -45,16 +78,20 @@ export const useViewport = ({
   }, [currentScope])
 
   const panLeft = useCallback(() => {
+    if (isAnimating) return
     // Move left by 50% of current viewport
     const panAmount = scopeConfig.duration * 0.5
-    setCenterTime(prev => prev - panAmount)
-  }, [scopeConfig.duration])
+    const targetTime = centerTime - panAmount
+    animateCenterTime(targetTime)
+  }, [centerTime, scopeConfig.duration, animateCenterTime, isAnimating])
 
   const panRight = useCallback(() => {
+    if (isAnimating) return
     // Move right by 50% of current viewport
     const panAmount = scopeConfig.duration * 0.5
-    setCenterTime(prev => prev + panAmount)
-  }, [scopeConfig.duration])
+    const targetTime = centerTime + panAmount
+    animateCenterTime(targetTime)
+  }, [centerTime, scopeConfig.duration, animateCenterTime, isAnimating])
 
   const jumpToPreset = useCallback((presetScope: string) => {
     // Handle the new timeline header format (e.g., 'last-1-hour', 'first-30-minutes')
@@ -79,15 +116,15 @@ export const useViewport = ({
     }
     
     setCurrentScope(targetScope)
-    setCenterTime(targetTime)
-  }, [])
+    animateCenterTime(targetTime, 500) // Longer animation for bigger jumps
+  }, [animateCenterTime])
 
   const jumpToTime = useCallback((timestamp: number, scope?: string) => {
-    setCenterTime(timestamp)
     if (scope && scope !== currentScope) {
       setCurrentScope(scope)
     }
-  }, [currentScope])
+    animateCenterTime(timestamp, 400)
+  }, [currentScope, animateCenterTime])
 
   const canZoomIn = useMemo(() => {
     const currentIndex = TIME_SCOPES.findIndex(scope => scope.key === currentScope)
@@ -105,6 +142,7 @@ export const useViewport = ({
     scopeConfig,
     centerTime,
     zoomLevel: scopeConfig.zoomLevel,
+    isAnimating,
     canZoomIn,
     canZoomOut,
     zoomIn,

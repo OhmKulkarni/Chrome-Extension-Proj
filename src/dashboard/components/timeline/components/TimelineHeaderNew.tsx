@@ -6,6 +6,7 @@ interface TimelineHeaderNewProps {
   centerTime: number
   canZoomIn: boolean
   canZoomOut: boolean
+  isAnimating?: boolean
   hasNewUpdates: boolean
   hiddenSwimlanes: string[]
   onZoomIn: () => void
@@ -23,6 +24,7 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
   currentScope,
   canZoomIn,
   canZoomOut,
+  isAnimating = false,
   hasNewUpdates,
   hiddenSwimlanes,
   onZoomIn,
@@ -181,9 +183,17 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
         {/* Current scope indicator */}
         <div className="flex items-center space-x-2">
           <div className="text-sm text-gray-500">Viewing:</div>
-          <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+          <div className={`bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium transition-all duration-200 ${
+            isAnimating ? 'animate-pulse' : ''
+          }`}>
             {timeSelectionMode === 'custom' && customLabel ? customLabel : currentScope}
           </div>
+          {isAnimating && (
+            <div className="flex items-center text-xs text-gray-400">
+              <div className="animate-spin w-3 h-3 border border-gray-300 border-t-blue-500 rounded-full mr-1"></div>
+              Moving...
+            </div>
+          )}
         </div>
 
         {/* Last Dropdown */}
@@ -328,18 +338,28 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
       <div className="flex items-center space-x-3">
         <button
           onClick={onPanLeft}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          disabled={isAnimating}
+          className={`p-2 rounded-lg transition-colors ${
+            isAnimating 
+              ? 'bg-gray-100 cursor-not-allowed opacity-50' 
+              : 'hover:bg-gray-100'
+          }`}
           title="Pan Left"
         >
-          <ChevronLeft className="w-5 h-5 text-gray-600" />
+          <ChevronLeft className={`w-5 h-5 ${isAnimating ? 'text-gray-400' : 'text-gray-600'}`} />
         </button>
         
         <button
           onClick={onPanRight}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          disabled={isAnimating}
+          className={`p-2 rounded-lg transition-colors ${
+            isAnimating 
+              ? 'bg-gray-100 cursor-not-allowed opacity-50' 
+              : 'hover:bg-gray-100'
+          }`}
           title="Pan Right"
         >
-          <ChevronRight className="w-5 h-5 text-gray-600" />
+          <ChevronRight className={`w-5 h-5 ${isAnimating ? 'text-gray-400' : 'text-gray-600'}`} />
         </button>
 
         <div className="w-px h-6 bg-gray-300" />
