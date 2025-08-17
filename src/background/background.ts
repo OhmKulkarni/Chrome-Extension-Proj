@@ -2066,7 +2066,7 @@ if (!listenersRegistered) {
 
     case 'getTimelineData':
       // New handler for timeline data requests
-      if (sender.tab && sender.tab.id) {
+      try {
         // Extract time range from message (for future filtering)
         const { swimlanes } = message.data;
         
@@ -2095,9 +2095,11 @@ if (!listenersRegistered) {
         
         // Send aggregated response
         sendResponse({ success: true, data: responseData });
-      } else {
-        sendResponse({ success: false, error: 'No tab ID available' });
+      } catch (error) {
+        console.error('Failed to get timeline data:', error);
+        sendResponse({ success: false, error: (error as Error).message });
       }
+      return true; // Keep message channel open for async response
       return true; // Keep message channel open for async response
 
     case 'updateEventBookmark':

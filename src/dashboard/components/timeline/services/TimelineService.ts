@@ -16,16 +16,23 @@ export class TimelineService {
     swimlanes: string[] = ['network', 'console', 'token']
   ): Promise<TimelineEvent[]> {
     try {
+      console.log('TimelineService: Fetching timeline events', { startTime, endTime, swimlanes })
+      
       const response = await chrome.runtime.sendMessage({
         action: 'getTimelineData',
         data: { startTime, endTime, swimlanes }
       })
 
+      console.log('TimelineService: Received response', response)
+
       if (!response?.success) {
         throw new Error(response?.error || 'Failed to fetch timeline data')
       }
 
-      return this.normalizeEvents(response.data)
+      const events = this.normalizeEvents(response.data)
+      console.log('TimelineService: Normalized events', events.length)
+      
+      return events
     } catch (error) {
       console.error('TimelineService: Failed to fetch events:', error)
       return []
@@ -35,51 +42,69 @@ export class TimelineService {
   private normalizeEvents(rawData: any): TimelineEvent[] {
     const events: TimelineEvent[] = []
 
+    console.log('TimelineService: Normalizing raw data', rawData)
+
     // Process network requests
-    if (rawData.networkRequests) {
+    if (rawData.networkRequests && Array.isArray(rawData.networkRequests)) {
       rawData.networkRequests.forEach((req: any) => {
-        events.push({
-          id: `network_${req.id}`,
-          timestamp: new Date(req.timestamp).getTime(),
-          type: 'network',
-          swimlane: 'network',
-          data: req,
-          isBookmarked: req.isBookmarked || false,
-          compareSlot: req.compareSlot
-        })
+        try {
+          const timestamp = typeof req.timestamp === 'number' ? req.timestamp : new Date(req.timestamp).getTime()
+          events.push({
+            id: `network_${req.id || Date.now()}`,
+            timestamp,
+            type: 'network',
+            swimlane: 'network',
+            data: req,
+            isBookmarked: req.isBookmarked || false,
+            compareSlot: req.compareSlot
+          })
+        } catch (error) {
+          console.warn('Failed to normalize network request:', error, req)
+        }
       })
     }
 
     // Process console errors
-    if (rawData.consoleErrors) {
+    if (rawData.consoleErrors && Array.isArray(rawData.consoleErrors)) {
       rawData.consoleErrors.forEach((error: any) => {
-        events.push({
-          id: `console_${error.id}`,
-          timestamp: new Date(error.timestamp).getTime(),
-          type: 'console',
-          swimlane: 'console',
-          data: error,
-          isBookmarked: error.isBookmarked || false,
-          compareSlot: error.compareSlot
-        })
+        try {
+          const timestamp = typeof error.timestamp === 'number' ? error.timestamp : new Date(error.timestamp).getTime()
+          events.push({
+            id: `console_${error.id || Date.now()}`,
+            timestamp,
+            type: 'console',
+            swimlane: 'console',
+            data: error,
+            isBookmarked: error.isBookmarked || false,
+            compareSlot: error.compareSlot
+          })
+        } catch (error) {
+          console.warn('Failed to normalize console error:', error, error)
+        }
       })
     }
 
     // Process token events
-    if (rawData.tokenEvents) {
+    if (rawData.tokenEvents && Array.isArray(rawData.tokenEvents)) {
       rawData.tokenEvents.forEach((token: any) => {
-        events.push({
-          id: `token_${token.id}`,
-          timestamp: new Date(token.timestamp).getTime(),
-          type: 'token',
-          swimlane: 'token',
-          data: token,
-          isBookmarked: token.isBookmarked || false,
-          compareSlot: token.compareSlot
-        })
+        try {
+          const timestamp = typeof token.timestamp === 'number' ? token.timestamp : new Date(token.timestamp).getTime()
+          events.push({
+            id: `token_${token.id || Date.now()}`,
+            timestamp,
+            type: 'token',
+            swimlane: 'token',
+            data: token,
+            isBookmarked: token.isBookmarked || false,
+            compareSlot: token.compareSlot
+          })
+        } catch (error) {
+          console.warn('Failed to normalize token event:', error, token)
+        }
       })
     }
 
+    console.log('TimelineService: Normalized events count', events.length)
     return events.sort((a, b) => a.timestamp - b.timestamp)
   }
 

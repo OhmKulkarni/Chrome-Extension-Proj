@@ -42,11 +42,31 @@ export const TimelineVisualization: React.FC = () => {
       <div className="flex-1 overflow-hidden">
         {timelineData.loading ? (
           <div className="flex items-center justify-center h-full">
-            <div className="text-gray-500">Loading timeline data...</div>
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              <div className="text-gray-500">Loading timeline data...</div>
+            </div>
           </div>
         ) : timelineData.error ? (
           <div className="flex items-center justify-center h-full">
-            <div className="text-red-500">Error: {timelineData.error}</div>
+            <div className="text-center">
+              <div className="text-red-500 mb-2">Error: {timelineData.error}</div>
+              <button 
+                onClick={() => timelineData.refreshData()}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        ) : timelineData.events.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="text-gray-400 mb-2">No events found in this time range</div>
+              <div className="text-sm text-gray-500">
+                Try adjusting the time range or check if data capture is enabled
+              </div>
+            </div>
           </div>
         ) : (
           <SwimlanesContainer

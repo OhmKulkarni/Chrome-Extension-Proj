@@ -20,7 +20,7 @@ export const useTimelineData = ({ viewport, swimlanes, zoomLevel }: UseTimelineD
   const [data, setData] = useState<TimelineDataState>({
     events: [],
     clusters: [],
-    loading: false,
+    loading: true, // Start with loading true since we load immediately
     error: null,
     hasNewUpdates: false
   })
@@ -42,6 +42,12 @@ export const useTimelineData = ({ viewport, swimlanes, zoomLevel }: UseTimelineD
       const bufferTime = viewport.duration * 0.5 // 50% buffer
       const bufferedStart = viewport.startTime - bufferTime
       const bufferedEnd = viewport.endTime + bufferTime
+
+      console.log('useTimelineData: Loading data for viewport', { 
+        startTime: new Date(viewport.startTime).toISOString(),
+        endTime: new Date(viewport.endTime).toISOString(),
+        swimlanes 
+      })
 
       const events = await service.current.fetchTimelineEvents(
         bufferedStart,
