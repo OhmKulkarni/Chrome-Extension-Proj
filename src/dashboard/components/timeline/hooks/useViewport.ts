@@ -57,8 +57,29 @@ export const useViewport = ({
   }, [scopeConfig.duration])
 
   const jumpToPreset = useCallback((presetScope: string) => {
-    setCurrentScope(presetScope)
-    setCenterTime(Date.now()) // Reset to current time
+    // Handle the new timeline header format (e.g., 'last-1-hour', 'first-30-minutes')
+    let targetScope = presetScope
+    let targetTime = Date.now()
+    
+    if (presetScope.startsWith('last-') || presetScope.startsWith('first-')) {
+      // Extract the actual scope from 'last-1-hour' or 'first-30-minutes'
+      const scopePart = presetScope.replace(/^(last-|first-)/, '')
+      targetScope = scopePart
+      
+      // For 'first-' scopes, we might want to jump to the earliest data time
+      // For now, we'll use current time for both
+      if (presetScope.startsWith('first-')) {
+        // TODO: Get earliest data timestamp from timeline data
+        targetTime = Date.now() - (24 * 60 * 60 * 1000) // Go back 24 hours as default
+      }
+    } else if (presetScope === 'all-time') {
+      targetScope = 'all-time'
+      // For all-time, center on a reasonable time point
+      targetTime = Date.now() - (30 * 24 * 60 * 60 * 1000) // Go back 30 days
+    }
+    
+    setCurrentScope(targetScope)
+    setCenterTime(targetTime)
   }, [])
 
   const jumpToTime = useCallback((timestamp: number, scope?: string) => {

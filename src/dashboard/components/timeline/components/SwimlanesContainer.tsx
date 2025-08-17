@@ -1,16 +1,20 @@
 import React, { useState, useCallback, useRef } from 'react'
-import { TimelineEvent, TimelineCluster, SwimLaneConfig } from '../types/timeline.types'
+import { TimelineEvent, TimelineCluster, SwimLaneConfig, DensityCluster, ViewportEventData } from '../types/timeline.types'
 import { Swimlane } from './Swimlane'
 import { EventPopup } from './EventPopup'
 import { TimelineSidebar } from './TimelineSidebar'
 import { CompareView } from './CompareView'
+import { DensityClusterComponent } from './DensityCluster'
+import { EventListPopup } from './EventListPopup'
 
 interface SwimlanesContainerProps {
   events: TimelineEvent[]
   clusters: TimelineCluster[]
+  visualizationData: ViewportEventData
   shouldCluster: boolean
   onBookmarkEvent: (eventId: string, isBookmarked: boolean) => Promise<boolean>
   onSetCompareSlot: (eventId: string, slot: number | undefined) => Promise<boolean>
+  onZoomIn: () => void
   zoomLevel: number
   swimlanes: SwimLaneConfig[]
   onUpdateSwimlanes: (swimlanes: SwimLaneConfig[]) => void
@@ -19,14 +23,17 @@ interface SwimlanesContainerProps {
 export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   events,
   clusters,
+  visualizationData,
   shouldCluster,
   onBookmarkEvent,
   onSetCompareSlot,
+  onZoomIn,
   zoomLevel,
   swimlanes,
   onUpdateSwimlanes
 }) => {
   const [selectedCluster, setSelectedCluster] = useState<TimelineCluster | null>(null)
+  const [selectedDensityCluster, setSelectedDensityCluster] = useState<DensityCluster | null>(null)
   const [showCompareView, setShowCompareView] = useState(false)
   const [compareQueue, setCompareQueue] = useState<TimelineEvent[]>([])
   const containerRef = useRef<HTMLDivElement>(null)
@@ -96,10 +103,26 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
         density: samePositionEvents.length,
         swimlane: event.swimlane,
         x: 0,
-        y: 0
+        y: 0,
+        size: Math.min(5, samePositionEvents.length),
+        visualType: 'card'
       })
     }
   }, [events])
+
+  const handleDensityClusterZoom = useCallback((_cluster: DensityCluster) => {
+    // Zoom in on the cluster's time range
+    onZoomIn()
+  }, [onZoomIn])
+
+  const handleDensityClusterList = useCallback((cluster: DensityCluster) => {
+    // Show event list popup for density cluster
+    setSelectedDensityCluster(cluster)
+  }, [])
+
+  const handleCloseDensityClusterList = useCallback(() => {
+    setSelectedDensityCluster(null)
+  }, [])
 
   const handleAddToCompare = useCallback(async (event: TimelineEvent) => {
     const currentCompareEvents = events.filter(e => 
@@ -145,8 +168,10 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
             <Swimlane
               key={swimlane.id}
               config={swimlane}
-              events={events.filter(e => e.swimlane === swimlane.id)}
-              clusters={clusters.filter(c => c.swimlane === swimlane.id)}
+              events={visualizationData.shouldShowCards ? 
+                events.filter(e => e.swimlane === swimlane.id) : []}
+              clusters={visualizationData.shouldShowCards ? 
+                clusters.filter(c => c.swimlane === swimlane.id) : []}
               shouldCluster={shouldCluster}
               height={swimlane.height}
               onToggle={() => handleToggleSwimlane(swimlane.id)}
@@ -157,6 +182,16 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
               onAddToCompare={handleAddToCompare}
               zoomLevel={zoomLevel}
               isLast={index === visibleSwimlanes.length - 1}
+            />
+          ))}
+
+          {/* Density Clusters Overlay - shown when event count >= 10 */}
+          {!visualizationData.shouldShowCards && visualizationData.densityClusters.map((cluster) => (
+            <DensityClusterComponent
+              key={cluster.id}
+              cluster={cluster}
+              onZoomIn={handleDensityClusterZoom}
+              onShowEventList={handleDensityClusterList}
             />
           ))}
         </div>
@@ -189,6 +224,16 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
           onClose={() => setSelectedCluster(null)}
           onBookmark={onBookmarkEvent}
           onAddToCompare={handleAddToCompare}
+        />
+      )}
+
+      {/* Density Cluster Event List Popup */}
+      {selectedDensityCluster && (
+        <EventListPopup
+          cluster={selectedDensityCluster}
+          onClose={handleCloseDensityClusterList}
+          onBookmarkEvent={onBookmarkEvent}
+          onSetCompareSlot={onSetCompareSlot}
         />
       )}
     </div>

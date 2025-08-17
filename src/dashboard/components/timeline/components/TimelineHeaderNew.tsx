@@ -45,7 +45,7 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
   // State for custom time settings
   const [customStartDate, setCustomStartDate] = useState('')
   const [customStartTime, setCustomStartTime] = useState('')
-  const [customScope, setCustomScope] = useState('30-minutes')
+  const [customScope, setCustomScope] = useState('1-hour')
   const [customLabel, setCustomLabel] = useState('')
 
   // Refs for click outside handling
@@ -82,11 +82,22 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
 
   // Dropdown options
   const timeIntervals = [
-    { value: '30-minutes', label: '30 Minutes' },
-    { value: '15-minutes', label: '15 Minutes' },
-    { value: '10-minutes', label: '10 Minutes' },
+    { value: '1-minute', label: '1 Minute' },
     { value: '5-minutes', label: '5 Minutes' },
-    { value: '1-minute', label: '1 Minute' }
+    { value: '10-minutes', label: '10 Minutes' },
+    { value: '15-minutes', label: '15 Minutes' },
+    { value: '30-minutes', label: '30 Minutes' },
+    { value: '1-hour', label: '1 Hour' },
+    { value: '2-hours', label: '2 Hours' },
+    { value: '6-hours', label: '6 Hours' },
+    { value: '12-hours', label: '12 Hours' },
+    { value: '24-hours', label: '24 Hours' },
+    { value: '2-days', label: '2 Days' },
+    { value: '3-days', label: '3 Days' },
+    { value: '4-days', label: '4 Days' },
+    { value: '5-days', label: '5 Days' },
+    { value: '6-days', label: '6 Days' },
+    { value: '1-week', label: '1 Week' }
   ]
 
   const lastOptions = timeIntervals.map(interval => ({
@@ -177,7 +188,7 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
 
         {/* Last Dropdown */}
         {timeSelectionMode === 'last' && showLastDropdown && (
-          <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[160px]">
+          <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[160px] max-h-64 overflow-y-auto">
             {lastOptions.map((option) => (
               <button
                 key={option.value}
@@ -195,7 +206,7 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
 
         {/* First Dropdown */}
         {timeSelectionMode === 'first' && showFirstDropdown && (
-          <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[160px]">
+          <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[160px] max-h-64 overflow-y-auto">
             {firstOptions.map((option) => (
               <button
                 key={option.value}
@@ -254,13 +265,13 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
                   <select 
                     value={customScope}
                     onChange={(e) => setCustomScope(e.target.value)}
-                    className="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 max-h-32"
                   >
-                    <option value="30-minutes">30 Minutes</option>
-                    <option value="15-minutes">15 Minutes</option>
-                    <option value="10-minutes">10 Minutes</option>
-                    <option value="5-minutes">5 Minutes</option>
-                    <option value="1-minute">1 Minute</option>
+                    {timeIntervals.map(interval => (
+                      <option key={interval.value} value={interval.value}>
+                        {interval.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>

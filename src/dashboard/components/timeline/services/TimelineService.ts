@@ -157,13 +157,17 @@ export class TimelineService {
           density: 0,
           swimlane: event.swimlane,
           x: this.timeToX(clusterStartTime + (clusterThreshold / 2), viewport),
-          y: 0
+          y: 0,
+          size: 1,
+          visualType: 'circle' as const
         })
       }
 
       const cluster = clusters.get(clusterKey)!
       cluster.events.push(event)
       cluster.density = cluster.events.length
+      cluster.size = Math.min(5, Math.max(1, Math.ceil(cluster.events.length / 5)))
+      cluster.visualType = cluster.events.length > 10 ? 'circle' : 'card'
       
       // Update cluster center based on actual event distribution
       const avgTime = cluster.events.reduce((sum, e) => sum + e.timestamp, 0) / cluster.events.length

@@ -3,13 +3,21 @@ import TimelineHeaderNew from './components/TimelineHeaderNew'
 import { SwimlanesContainer } from './components/SwimlanesContainer'
 import { useTimelineData } from './hooks/useTimelineData'
 import { useViewport } from './hooks/useViewport'
+import { useTimelineVisualization } from './hooks/useTimelineVisualization'
 import { SwimLaneConfig, DEFAULT_SWIMLANES } from './types/timeline.types'
 
 export const TimelineVisualization: React.FC = () => {
-  const viewport = useViewport({ initialScope: '5m' })
+  const viewport = useViewport({ initialScope: '1-hour' })
   const [swimlanes, setSwimlanes] = useState<SwimLaneConfig[]>(DEFAULT_SWIMLANES)
   const timelineData = useTimelineData({
     swimlanes: ['network', 'console', 'token'],
+    zoomLevel: viewport.zoomLevel
+  })
+
+  // Use the new density-based visualization
+  const visualizationData = useTimelineVisualization({
+    events: timelineData.events,
+    viewport: viewport.viewport,
     zoomLevel: viewport.zoomLevel
   })
 
@@ -70,7 +78,7 @@ export const TimelineVisualization: React.FC = () => {
               </button>
             </div>
           </div>
-        ) : timelineData.events.length === 0 ? (
+        ) : visualizationData.totalEventCount === 0 ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <div className="text-gray-400 mb-2">No events found in this time range</div>
@@ -83,9 +91,11 @@ export const TimelineVisualization: React.FC = () => {
           <SwimlanesContainer
             events={timelineData.events}
             clusters={timelineData.clusters}
+            visualizationData={visualizationData}
             shouldCluster={viewport.zoomLevel <= 3}
             onBookmarkEvent={timelineData.bookmarkEvent}
             onSetCompareSlot={timelineData.setCompareSlot}
+            onZoomIn={viewport.zoomIn}
             zoomLevel={viewport.zoomLevel}
             swimlanes={swimlanes}
             onUpdateSwimlanes={setSwimlanes}
