@@ -1,15 +1,25 @@
-import React, { useEffect } from 'react'
-import { TimelineHeader } from './components/TimelineHeader'
+import React, { useEffect, useState } from 'react'
+import TimelineHeaderNew from './components/TimelineHeaderNew'
 import { SwimlanesContainer } from './components/SwimlanesContainer'
 import { useTimelineData } from './hooks/useTimelineData'
 import { useViewport } from './hooks/useViewport'
+import { SwimLaneConfig, DEFAULT_SWIMLANES } from './types/timeline.types'
 
 export const TimelineVisualization: React.FC = () => {
   const viewport = useViewport({ initialScope: '5m' })
+  const [swimlanes, setSwimlanes] = useState<SwimLaneConfig[]>(DEFAULT_SWIMLANES)
   const timelineData = useTimelineData({
     swimlanes: ['network', 'console', 'token'],
     zoomLevel: viewport.zoomLevel
   })
+
+  const hiddenSwimlanes = swimlanes.filter(lane => !lane.isVisible).map(lane => lane.id)
+
+  const handleShowSwimlane = (laneId: string) => {
+    setSwimlanes(prev => prev.map(lane => 
+      lane.id === laneId ? { ...lane, isVisible: true } : lane
+    ))
+  }
 
   // Check for updates periodically - TEMPORARILY DISABLED
   useEffect(() => {
@@ -22,12 +32,13 @@ export const TimelineVisualization: React.FC = () => {
 
   return (
     <div className="h-full flex flex-col bg-gray-50">
-      <TimelineHeader
+      <TimelineHeaderNew
         currentScope={viewport.currentScope}
         centerTime={viewport.centerTime}
         canZoomIn={viewport.canZoomIn}
         canZoomOut={viewport.canZoomOut}
         hasNewUpdates={timelineData.hasNewUpdates}
+        hiddenSwimlanes={hiddenSwimlanes}
         onZoomIn={viewport.zoomIn}
         onZoomOut={viewport.zoomOut}
         onPanLeft={viewport.panLeft}
@@ -36,6 +47,7 @@ export const TimelineVisualization: React.FC = () => {
         onJumpToTime={viewport.jumpToTime}
         onRefresh={timelineData.refreshData}
         onAcknowledgeUpdates={timelineData.acknowledgeUpdates}
+        onShowSwimlane={handleShowSwimlane}
       />
 
       <div className="flex-1 overflow-hidden">
@@ -71,10 +83,12 @@ export const TimelineVisualization: React.FC = () => {
           <SwimlanesContainer
             events={timelineData.events}
             clusters={timelineData.clusters}
-            shouldCluster={timelineData.shouldCluster}
+            shouldCluster={viewport.zoomLevel <= 3}
             onBookmarkEvent={timelineData.bookmarkEvent}
             onSetCompareSlot={timelineData.setCompareSlot}
             zoomLevel={viewport.zoomLevel}
+            swimlanes={swimlanes}
+            onUpdateSwimlanes={setSwimlanes}
           />
         )}
       </div>

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react'
-import { TimelineEvent, TimelineCluster, SwimLaneConfig, DEFAULT_SWIMLANES } from '../types/timeline.types'
+import { TimelineEvent, TimelineCluster, SwimLaneConfig } from '../types/timeline.types'
 import { Swimlane } from './Swimlane'
 import { EventPopup } from './EventPopup'
 import { TimelineSidebar } from './TimelineSidebar'
@@ -12,6 +12,8 @@ interface SwimlanesContainerProps {
   onBookmarkEvent: (eventId: string, isBookmarked: boolean) => Promise<boolean>
   onSetCompareSlot: (eventId: string, slot: number | undefined) => Promise<boolean>
   zoomLevel: number
+  swimlanes: SwimLaneConfig[]
+  onUpdateSwimlanes: (swimlanes: SwimLaneConfig[]) => void
 }
 
 export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
@@ -20,9 +22,10 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   shouldCluster,
   onBookmarkEvent,
   onSetCompareSlot,
-  zoomLevel
+  zoomLevel,
+  swimlanes,
+  onUpdateSwimlanes
 }) => {
-  const [swimlanes, setSwimlanes] = useState<SwimLaneConfig[]>(DEFAULT_SWIMLANES)
   const [selectedCluster, setSelectedCluster] = useState<TimelineCluster | null>(null)
   const [showCompareView, setShowCompareView] = useState(false)
   const [compareQueue, setCompareQueue] = useState<TimelineEvent[]>([])
@@ -43,36 +46,34 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   }, [swimlanes, visibleSwimlanes.length])
 
   const handleToggleSwimlane = useCallback((laneId: string) => {
-    setSwimlanes(prev => prev.map(lane => 
+    onUpdateSwimlanes(swimlanes.map(lane => 
       lane.id === laneId ? { ...lane, isVisible: !lane.isVisible } : lane
     ))
-  }, [])
+  }, [swimlanes, onUpdateSwimlanes])
 
   const handleResizeSwimlane = useCallback((laneId: string, newHeight: number) => {
-    setSwimlanes(prev => {
-      const lanes = [...prev]
-      const laneIndex = lanes.findIndex(l => l.id === laneId)
-      if (laneIndex === -1) return prev
+    const lanes = [...swimlanes]
+    const laneIndex = lanes.findIndex(l => l.id === laneId)
+    if (laneIndex === -1) return
 
-      // Adjust this lane and redistribute remaining height
-      const oldHeight = lanes[laneIndex].height
-      const heightDiff = newHeight - oldHeight
-      lanes[laneIndex].height = newHeight
+    // Adjust this lane and redistribute remaining height
+    const oldHeight = lanes[laneIndex].height
+    const heightDiff = newHeight - oldHeight
+    lanes[laneIndex].height = newHeight
 
-      // Redistribute the difference among other visible lanes
-      const otherVisibleLanes = lanes.filter((l, i) => i !== laneIndex && l.isVisible)
-      if (otherVisibleLanes.length > 0) {
-        const adjustmentPerLane = -heightDiff / otherVisibleLanes.length
-        lanes.forEach((lane, i) => {
-          if (i !== laneIndex && lane.isVisible) {
-            lane.height = Math.max(10, lane.height + adjustmentPerLane) // Min 10% height
-          }
-        })
-      }
+    // Redistribute the difference among other visible lanes
+    const otherVisibleLanes = lanes.filter((l, i) => i !== laneIndex && l.isVisible)
+    if (otherVisibleLanes.length > 0) {
+      const adjustmentPerLane = -heightDiff / otherVisibleLanes.length
+      lanes.forEach((lane, i) => {
+        if (i !== laneIndex && lane.isVisible) {
+          lane.height = Math.max(10, lane.height + adjustmentPerLane) // Min 10% height
+        }
+      })
+    }
 
-      return lanes
-    })
-  }, [])
+    onUpdateSwimlanes(lanes)
+  }, [swimlanes, onUpdateSwimlanes])
 
   const handleClusterClick = useCallback((cluster: TimelineCluster) => {
     setSelectedCluster(cluster)
