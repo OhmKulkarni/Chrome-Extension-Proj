@@ -2065,33 +2065,72 @@ if (!listenersRegistered) {
       break;
 
     case 'getTimelineData':
-      // New handler for timeline data requests
+      // Data-driven timeline requests - start from latest records
       try {
-        // Extract time range from message (for future filtering)
         const { swimlanes } = message.data;
+        console.log('📊 Timeline Request (data-driven):', { swimlanes });
         
         // Initialize response data structure
         const responseData: any = {
           networkRequests: [],
           consoleErrors: [],
-          tokenEvents: []
+          tokenEvents: [],
+          timeRange: null,
+          latestTimestamp: null,
+          isEmpty: false
         };
         
-        // Fetch data for each swimlane
+        // Track all timestamps to determine the actual time range
+        let allTimestamps: number[] = [];
+        
+        // Fetch recent data for each swimlane (most recent first)
         if (swimlanes.includes('network')) {
-          const networkData = await storageManager.getApiCalls(1000, 0);
+          const networkData = await storageManager.getApiCalls(100, 0); // Get 100 most recent
           responseData.networkRequests = networkData || [];
+          if (networkData.length > 0) {
+            allTimestamps.push(...networkData.map(item => new Date(item.timestamp).getTime()));
+          }
         }
         
         if (swimlanes.includes('console')) {
-          const consoleData = await storageManager.getConsoleErrors(1000, 0);
+          const consoleData = await storageManager.getConsoleErrors(100, 0); // Get 100 most recent
           responseData.consoleErrors = consoleData || [];
+          if (consoleData.length > 0) {
+            allTimestamps.push(...consoleData.map(item => new Date(item.timestamp).getTime()));
+          }
         }
         
         if (swimlanes.includes('token')) {
-          const tokenData = await storageManager.getTokenEvents(1000, 0);
+          const tokenData = await storageManager.getTokenEvents(100, 0); // Get 100 most recent  
           responseData.tokenEvents = tokenData || [];
+          if (tokenData.length > 0) {
+            allTimestamps.push(...tokenData.map(item => new Date(item.timestamp).getTime()));
+          }
         }
+        
+        // Determine the actual data time range
+        if (allTimestamps.length > 0) {
+          const latestTime = Math.max(...allTimestamps);
+          const earliestTime = Math.min(...allTimestamps);
+          
+          responseData.latestTimestamp = latestTime;
+          responseData.timeRange = {
+            start: earliestTime,
+            end: latestTime,
+            startISO: new Date(earliestTime).toISOString(),
+            endISO: new Date(latestTime).toISOString()
+          };
+        } else {
+          responseData.isEmpty = true;
+        }
+        
+        console.log('📊 Timeline Response (data-driven):', {
+          network: responseData.networkRequests.length,
+          console: responseData.consoleErrors.length,
+          token: responseData.tokenEvents.length,
+          timeRange: responseData.timeRange ? `${responseData.timeRange.startISO} - ${responseData.timeRange.endISO}` : 'empty',
+          isEmpty: responseData.isEmpty
+        });
         
         // Send aggregated response
         sendResponse({ success: true, data: responseData });
@@ -2099,7 +2138,6 @@ if (!listenersRegistered) {
         console.error('Failed to get timeline data:', error);
         sendResponse({ success: false, error: (error as Error).message });
       }
-      return true; // Keep message channel open for async response
       return true; // Keep message channel open for async response
 
     case 'updateEventBookmark':

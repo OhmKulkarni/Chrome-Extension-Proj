@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { TimelineEvent, TimelineCluster, ViewportRange } from '../types/timeline.types'
+import { TimelineEvent, TimelineCluster } from '../types/timeline.types'
 import { TimelineService } from '../services/TimelineService'
 
 interface UseTimelineDataProps {
-  viewport: ViewportRange
   swimlanes: string[]
   zoomLevel: number
 }
@@ -16,7 +15,7 @@ interface TimelineDataState {
   hasNewUpdates: boolean
 }
 
-export const useTimelineData = ({ viewport, swimlanes, zoomLevel }: UseTimelineDataProps) => {
+export const useTimelineData = ({ swimlanes, zoomLevel }: UseTimelineDataProps) => {
   const [data, setData] = useState<TimelineDataState>({
     events: [],
     clusters: [],
@@ -38,45 +37,31 @@ export const useTimelineData = ({ viewport, swimlanes, zoomLevel }: UseTimelineD
     setData(prev => ({ ...prev, loading: true, error: null }))
 
     try {
-      // Add buffer to viewport for smooth scrolling
-      const bufferTime = viewport.duration * 0.5 // 50% buffer
-      const bufferedStart = viewport.startTime - bufferTime
-      const bufferedEnd = viewport.endTime + bufferTime
+      console.log('useTimelineData: Loading data (data-driven)', { swimlanes })
 
-      console.log('useTimelineData: Loading data for viewport', { 
-        startTime: new Date(viewport.startTime).toISOString(),
-        endTime: new Date(viewport.endTime).toISOString(),
-        swimlanes 
-      })
+      const result = await service.current.fetchTimelineEvents(swimlanes)
 
-      const events = await service.current.fetchTimelineEvents(
-        bufferedStart,
-        bufferedEnd,
-        swimlanes
-      )
-
-      // Filter to visible viewport for display
-      const visibleEvents = events.filter(
-        event => event.timestamp >= viewport.startTime && event.timestamp <= viewport.endTime
-      )
-
-      let clusters: TimelineCluster[] = []
-      if (shouldCluster) {
-        // Cluster threshold based on zoom level
-        const thresholds = {
-          0: 30 * 60 * 1000, // 6h view: 30min clusters
-          1: 10 * 60 * 1000, // 1h view: 10min clusters
-          2: 5 * 60 * 1000,  // 30m view: 5min clusters
-          3: 2 * 60 * 1000   // 15m view: 2min clusters
-        }
-        
-        const threshold = thresholds[zoomLevel as keyof typeof thresholds] || 60 * 1000
-        clusters = service.current.createClusters(visibleEvents, viewport, threshold)
+      // Handle empty data case
+      if (result.metadata.isEmpty) {
+        setData(prev => ({
+          ...prev,
+          events: [],
+          clusters: [],
+          loading: false,
+          error: result.metadata.message || 'No data available'
+        }))
+        return
       }
+
+      // All events are relevant - no viewport filtering needed for data-driven approach
+      const events = result.events
+
+      // Skip clustering for now in data-driven approach
+      const clusters: TimelineCluster[] = []
 
       setData(prev => ({
         ...prev,
-        events: visibleEvents,
+        events: events,
         clusters,
         loading: false,
         error: null
@@ -91,12 +76,13 @@ export const useTimelineData = ({ viewport, swimlanes, zoomLevel }: UseTimelineD
     } finally {
       loadingRef.current = false
     }
-  }, [viewport, swimlanes, zoomLevel, shouldCluster])
+  }, []) // Empty dependency array - make function stable to prevent re-renders
 
-  // Load data when dependencies change
+  // Load data when dependencies change - make dependencies stable
   useEffect(() => {
+    console.log('useTimelineData: Effect triggered, loading data...')
     loadData()
-  }, [loadData])
+  }, [swimlanes.join(','), zoomLevel]) // Use stable dependencies instead of loadData function
 
   const bookmarkEvent = useCallback(async (eventId: string, isBookmarked: boolean) => {
     const success = await service.current.bookmarkEvent(eventId, isBookmarked)
@@ -134,13 +120,9 @@ export const useTimelineData = ({ viewport, swimlanes, zoomLevel }: UseTimelineD
     if (!latestEvent) return
 
     try {
-      const recentEvents = await service.current.fetchTimelineEvents(
-        latestEvent.timestamp,
-        Date.now(),
-        swimlanes
-      )
+      const result = await service.current.fetchTimelineEvents(swimlanes)
       
-      if (recentEvents.length > 1) { // More than just the latest event
+      if (result.events.length > data.events.length) {
         setData(prev => ({ ...prev, hasNewUpdates: true }))
       }
     } catch (error) {

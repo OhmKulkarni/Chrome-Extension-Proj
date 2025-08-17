@@ -11,16 +11,14 @@ export class TimelineService {
   }
 
   async fetchTimelineEvents(
-    startTime: number,
-    endTime: number,
     swimlanes: string[] = ['network', 'console', 'token']
-  ): Promise<TimelineEvent[]> {
+  ): Promise<{ events: TimelineEvent[], metadata: any }> {
     try {
-      console.log('TimelineService: Fetching timeline events', { startTime, endTime, swimlanes })
+      console.log('TimelineService: Fetching timeline events (data-driven)', { swimlanes })
       
       const response = await chrome.runtime.sendMessage({
         action: 'getTimelineData',
-        data: { startTime, endTime, swimlanes }
+        data: { swimlanes } // Remove time parameters - let backend decide
       })
 
       console.log('TimelineService: Received response', response)
@@ -29,13 +27,43 @@ export class TimelineService {
         throw new Error(response?.error || 'Failed to fetch timeline data')
       }
 
+      // Check if no data exists
+      if (response.data.isEmpty) {
+        return {
+          events: [],
+          metadata: {
+            isEmpty: true,
+            message: 'No data available. Start browsing to capture network requests and console errors.'
+          }
+        }
+      }
+
       const events = this.normalizeEvents(response.data)
       console.log('TimelineService: Normalized events', events.length)
       
-      return events
+      return {
+        events,
+        metadata: {
+          isEmpty: false,
+          timeRange: response.data.timeRange,
+          latestTimestamp: response.data.latestTimestamp,
+          totalRecords: {
+            network: response.data.networkRequests.length,
+            console: response.data.consoleErrors.length,
+            token: response.data.tokenEvents.length
+          }
+        }
+      }
     } catch (error) {
       console.error('TimelineService: Failed to fetch events:', error)
-      return []
+      return {
+        events: [],
+        metadata: {
+          isEmpty: true,
+          message: 'Error loading data. Please try again.',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
+      }
     }
   }
 

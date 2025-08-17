@@ -130,47 +130,57 @@ function createCursorPromise<T extends any[]>(
     }
     
     const handleRequestSuccess = () => {
-      if (!resolved) {
-        const cursor = request.result
-        
-        if (!cursor) {
-          // No more records
-          resolved = true
-          cleanup()
-          console.log(`📖 Cursor: Finished - collected ${results.length} results`)
-          resolve(results as T)
-          return
-        }
-        
-        // First time: skip to the offset position using advance()
-        if (!skipCompleted && offset > 0) {
-          skipCompleted = true
-          console.log(`📖 Cursor: Skipping ${offset} records using advance()`)
-          cursor.advance(offset)
-          return
-        }
-        
-        // Now we're at the right position, collect records
-        if (collected < limit) {
-          results.push(cursor.value)
-          collected++
-          console.log(`📖 Cursor: Collected record ${collected}/${limit} (id: ${cursor.value.id})`)
-          
-          if (collected < limit) {
-            cursor.continue()
-          } else {
-            // We have enough records
-            resolved = true
-            cleanup()
-            console.log(`📖 Cursor: Completed - collected ${results.length} results`)
-            resolve(results as T)
-          }
-        } else {
-          // Should not reach here, but safety check
-          resolved = true
-          cleanup()
-          resolve(results as T)
-        }
+      if (resolved) {
+        // Already resolved, ignore this event
+        return
+      }
+      
+      const cursor = request.result
+      
+      if (!cursor) {
+        // No more records
+        resolved = true
+        cleanup()
+        console.log(`📖 Cursor: Finished - collected ${results.length} results`)
+        resolve(results as T)
+        return
+      }
+      
+      // First time: skip to the offset position using advance()
+      if (!skipCompleted && offset > 0) {
+        skipCompleted = true
+        console.log(`📖 Cursor: Skipping ${offset} records using advance()`)
+        cursor.advance(offset)
+        return
+      }
+      
+      // Check if we have enough records before processing
+      if (collected >= limit) {
+        resolved = true
+        cleanup()
+        console.log(`📖 Cursor: Limit reached - collected ${results.length} results`)
+        resolve(results as T)
+        return
+      }
+      
+      // Collect the current record
+      results.push(cursor.value)
+      collected++
+      
+      // Log progress every 50 records or at the end to reduce console spam
+      if (collected % 50 === 0 || collected === limit) {
+        console.log(`📖 Cursor: Progress ${collected}/${limit} records`)
+      }
+      
+      // Check if we need more records
+      if (collected < limit) {
+        cursor.continue()
+      } else {
+        // We have enough records
+        resolved = true
+        cleanup()
+        console.log(`📖 Cursor: Completed - collected ${results.length} results`)
+        resolve(results as T)
       }
     }
     

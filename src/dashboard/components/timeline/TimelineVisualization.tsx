@@ -7,19 +7,18 @@ import { useViewport } from './hooks/useViewport'
 export const TimelineVisualization: React.FC = () => {
   const viewport = useViewport({ initialScope: '5m' })
   const timelineData = useTimelineData({
-    viewport: viewport.viewport,
     swimlanes: ['network', 'console', 'token'],
     zoomLevel: viewport.zoomLevel
   })
 
-  // Check for updates periodically
+  // Check for updates periodically - TEMPORARILY DISABLED
   useEffect(() => {
-    const interval = setInterval(() => {
-      timelineData.checkForUpdates()
-    }, 30000) // Check every 30 seconds
+    // const interval = setInterval(() => {
+    //   timelineData.checkForUpdates()
+    // }, 30000) // Check every 30 seconds
 
-    return () => clearInterval(interval)
-  }, [timelineData.checkForUpdates])
+    // return () => clearInterval(interval)
+  }, [])
 
   return (
     <div className="h-full flex flex-col bg-gray-50">
