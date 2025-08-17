@@ -8,6 +8,37 @@ export interface TimelineEvent {
   swimlane: 'network' | 'console' | 'token'
 }
 
+// Lightweight version for overview/clustering - only timestamp and metadata
+export interface TimelineEventSummary {
+  id: string
+  timestamp: number
+  type: 'network' | 'console' | 'token'
+  swimlane: 'network' | 'console' | 'token'
+  // Minimal data for density calculations
+  hasBookmark?: boolean
+  inCompare?: boolean
+  domain?: string // For network events
+  eventCount?: number // For clustered events, how many are represented
+}
+
+// Full event data loaded on-demand
+export interface TimelineEventDetails extends TimelineEventSummary {
+  data: any
+  isBookmarked?: boolean
+  compareSlot?: number
+  // Extended network event data
+  domain?: string
+  url?: string
+  method?: string
+  statusCode?: number
+  responseTime?: number
+  requestHeaders?: Record<string, string>
+  responseHeaders?: Record<string, string>
+  requestBody?: string | null
+  responseBody?: string | null
+  stackTrace?: string[]
+}
+
 export interface TimelineCluster {
   id: string
   startTime: number
@@ -84,8 +115,8 @@ export const TIME_SCOPES: TimeScope[] = [
   { key: '6-days', label: '6 Days', duration: 6 * 24 * 60 * 60 * 1000, zoomLevel: -4 },
   { key: '1-week', label: '1 Week', duration: 7 * 24 * 60 * 60 * 1000, zoomLevel: -5 },
   
-  // Special all-time scope
-  { key: 'all-time', label: 'All Time', duration: 365 * 24 * 60 * 60 * 1000, zoomLevel: -10 }
+  // Special all-time scope - dynamic duration based on actual data range
+  { key: 'all-time', label: 'All Time', duration: 0, zoomLevel: -10 } // Duration calculated dynamically
 ]
 
 export const DEFAULT_SWIMLANES: SwimLaneConfig[] = [
@@ -93,3 +124,11 @@ export const DEFAULT_SWIMLANES: SwimLaneConfig[] = [
   { id: 'console', label: 'Console Errors', color: '#EF4444', isVisible: true, height: 33.33 },
   { id: 'token', label: 'Token Events', color: '#10B981', isVisible: true, height: 33.33 }
 ]
+
+// Viewport interface for timeline data queries
+export interface TimelineViewport {
+  startTime: number
+  endTime: number
+  centerTime: number
+  duration: number
+}

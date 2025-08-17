@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react'
-import { TimelineEvent, TimelineCluster, SwimLaneConfig, DensityCluster, ViewportEventData } from '../types/timeline.types'
+import { TimelineEvent, TimelineCluster, SwimLaneConfig, DensityCluster, ViewportEventData, TimeScope } from '../types/timeline.types'
 import { Swimlane } from './Swimlane'
 import { EventPopup } from './EventPopup'
 import { TimelineSidebar } from './TimelineSidebar'
@@ -7,12 +7,14 @@ import { CompareView } from './CompareView'
 import { DensityClusterComponent } from './DensityCluster'
 import { EventListPopup } from './EventListPopup'
 import { TimeMarkers } from './TimeMarkers'
+import { AllTimeViewDemo } from './AllTimeViewDemo'
 
 interface SwimlanesContainerProps {
   events: TimelineEvent[]
   clusters: TimelineCluster[]
   visualizationData: ViewportEventData
   viewport: any // ViewportRange from viewport hook
+  currentScope: TimeScope // For "All Time" optimization demo
   shouldCluster: boolean
   onBookmarkEvent: (eventId: string, isBookmarked: boolean) => Promise<boolean>
   onSetCompareSlot: (eventId: string, slot: number | undefined) => Promise<boolean>
@@ -27,6 +29,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   clusters,
   visualizationData,
   viewport,
+  currentScope,
   shouldCluster,
   onBookmarkEvent,
   onSetCompareSlot,
@@ -200,6 +203,9 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
               onShowEventList={handleDensityClusterList}
             />
           ))}
+          
+          {/* All Time View Performance Demo */}
+          <AllTimeViewDemo currentScope={currentScope} viewport={viewport} />
         </div>
 
         {/* Compare View Modal */}

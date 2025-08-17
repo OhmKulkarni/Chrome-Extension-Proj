@@ -94,6 +94,7 @@ export const TimelineVisualization: React.FC = () => {
             clusters={timelineData.clusters}
             visualizationData={visualizationData}
             viewport={viewport.viewport}
+            currentScope={viewport.scopeConfig}
             shouldCluster={viewport.zoomLevel <= 3}
             onBookmarkEvent={timelineData.bookmarkEvent}
             onSetCompareSlot={timelineData.setCompareSlot}
