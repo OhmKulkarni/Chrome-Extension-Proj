@@ -1,0 +1,12 @@
+{
+  "recommendations": [
+    "ms-vscode.vscode-typescript-next",
+    "github.copilot"
+  ],
+  "unwantedRecommendations": [
+    "ms-vscode.vscode-json",
+    "ms-vscode.references-view",
+    "ms-vscode.search-result",
+    "ms-vscode.outline-map"
+  ]
+}
