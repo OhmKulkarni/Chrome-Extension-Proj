@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Monitor and analyze client-side web applications.",
   "background": {
-    "service_worker": "background/background.ts"
+    "service_worker": "src/background/background.ts"
   },
   "action": {
     "default_popup": "src/popup/popup.html"
@@ -13,7 +13,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content/content-modular.ts"],
+      "js": ["src/content/content-simple.ts"],
       "run_at": "document_start"
     }
   ],

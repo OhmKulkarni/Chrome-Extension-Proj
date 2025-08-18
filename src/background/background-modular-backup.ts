@@ -2,8 +2,11 @@
  * Modular Background Script Entry Point
  *
  * This file serves as the entry point for our modular architecture.
- * We ensure service worker activation first, then load the modular system safely.
+ * It imports and initializes the BackgroundController which orchestrates
+ * all 7 specialized modules following the exact pattern from the working legacy version.
  */
+
+import { BackgroundController } from './background-controller';
 
 console.log('🚀 Modular background service worker started');
 
@@ -60,51 +63,31 @@ if (!listenersRegistered) {
 
   // MEMORY LEAK FIX: Mark all listeners as registered (FROM LEGACY)
   listenersRegistered = true;
-  
-  console.log('✅ Basic listeners registered - service worker is now active');
 }
 
-// DELAYED MODULAR INITIALIZATION: Load the complex system after service worker is confirmed active
-console.log('⏳ Preparing to load modular architecture...');
+// Initialize the modular background controller
+const backgroundController = new BackgroundController();
 
-// Use dynamic import to avoid breaking service worker activation
-setTimeout(async () => {
-  try {
-    console.log('📦 Loading BackgroundController module...');
-    const { BackgroundController } = await import('./background-controller');
-    
-    console.log('🔧 Initializing modular background controller...');
-    const backgroundController = new BackgroundController();
-    
-    // Start the initialization process
-    await backgroundController.initialize();
-    console.log('✅ Modular architecture initialized successfully');
-    
-    // Export for debugging (available in Chrome DevTools)
-    (globalThis as any).backgroundController = backgroundController;
-    
-    // Setup cleanup on service worker shutdown
-    self.addEventListener('beforeunload', () => {
-      console.log('🧹 Background service worker shutting down...');
-      backgroundController.cleanup();
+// Start the initialization process
+backgroundController.initialize().catch((error) => {
+  console.error('❌ Failed to initialize modular background:', error);
+
+  // Attempt recovery after delay
+  setTimeout(() => {
+    console.log('🔄 Attempting background script recovery...');
+    backgroundController.initialize().catch((retryError) => {
+      console.error('❌ Background script recovery failed:', retryError);
     });
-    
-  } catch (error) {
-    console.error('❌ Failed to initialize modular background:', error);
-    
-    // Attempt recovery after delay
-    setTimeout(async () => {
-      try {
-        console.log('🔄 Attempting background script recovery...');
-        const { BackgroundController } = await import('./background-controller');
-        const backgroundController = new BackgroundController();
-        await backgroundController.initialize();
-        console.log('✅ Background script recovery successful');
-      } catch (retryError) {
-        console.error('❌ Background script recovery failed:', retryError);
-      }
-    }, 5000);
-  }
-}, 1000); // 1 second delay to ensure service worker is stable
+  }, 5000);
+});
+
+// Cleanup on service worker shutdown
+self.addEventListener('beforeunload', () => {
+  console.log('🧹 Background service worker shutting down...');
+  backgroundController.cleanup();
+});
+
+// Export for debugging (available in Chrome DevTools)
+(globalThis as any).backgroundController = backgroundController;
 
 console.log('✅ Modular background entry point loaded successfully');

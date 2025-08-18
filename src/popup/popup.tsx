@@ -12,7 +12,7 @@ function createDelayPromise(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-// Use the external function  
+// Use the external function
 const delay = createDelayPromise
 
 // MEMORY LEAK FIX: Centralized Chrome message handler to prevent response accumulation
@@ -98,7 +98,7 @@ interface StorageData {
 
 const Popup: React.FC = () => {
   const [tabInfo, setTabInfo] = useState<TabInfo>({});
-  const [globalPowerEnabled, setGlobalPowerEnabled] = useState(true); // Global power button  
+  const [globalPowerEnabled, setGlobalPowerEnabled] = useState(true); // Global power button
   const [siteSpecificEnabled, setSiteSpecificEnabled] = useState(true); // Site-specific toggle
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<StorageData['extensionSettings']>({});
@@ -118,7 +118,16 @@ const Popup: React.FC = () => {
     // Get extension settings and tab-specific state
     chrome.storage.local.get(['settings'], (result) => {
       const settings = result.settings || {};
-      
+
+      // Ensure we have default networkInterception settings if they don't exist
+      const networkInterceptionDefaults = {
+        enabled: true,
+        tabSpecific: {
+          enabled: true,
+          defaultState: 'paused'  // FIXED: Match background script defaults (disabled by default)
+        }
+      };
+
       // Ensure we have default errorLogging settings if they don't exist
       const errorLoggingDefaults = {
         enabled: true,
@@ -136,13 +145,13 @@ const Popup: React.FC = () => {
           defaultState: 'paused'  // FIXED: Match background script defaults (disabled by default)
         }
       };
-      
-      setSettings({ 
-        networkInterception: settings.networkInterception,
+
+      setSettings({
+        networkInterception: settings.networkInterception || networkInterceptionDefaults,
         errorLogging: settings.errorLogging || errorLoggingDefaults,
         tokenLogging: settings.tokenLogging || tokenLoggingDefaults
       });
-      
+
       setLoading(false);
     });
 
@@ -153,7 +162,7 @@ const Popup: React.FC = () => {
         const globalResponse = await sendChromeMessage({
           action: 'GET_GLOBAL_POWER_STATE'
         });
-        
+
         if (globalResponse && 'enabled' in globalResponse) {
           setGlobalPowerEnabled(globalResponse.enabled);
         } else {
@@ -168,10 +177,10 @@ const Popup: React.FC = () => {
           if (tabs[0]?.id && tabs[0]?.url) {
             try {
               const siteResponse = await sendChromeMessage({
-                action: 'GET_SITE_SPECIFIC_STATE', 
+                action: 'GET_SITE_SPECIFIC_STATE',
                 tabId: tabs[0].id
               });
-              
+
               if (siteResponse && 'enabled' in siteResponse) {
                 setSiteSpecificEnabled(siteResponse.enabled);
               } else {
@@ -184,7 +193,7 @@ const Popup: React.FC = () => {
             }
           }
         });
-        
+
       } catch (error) {
         console.error('Error loading extension state:', error);
         // Fallback to sync storage
@@ -194,7 +203,7 @@ const Popup: React.FC = () => {
         setSiteSpecificEnabled(true);
       }
     };
-    
+
     loadExtensionState();
 
     // Get current tab's logging state (network, error, and token)
@@ -209,7 +218,7 @@ const Popup: React.FC = () => {
           const networkConfig = settings.networkInterception || {};
           const errorConfig = settings.errorLogging || {};
           const tokenConfig = settings.tokenLogging || {};
-          
+
           // Handle network logging state
           if (tabState) {
             if (typeof tabState === 'boolean') {
@@ -220,7 +229,7 @@ const Popup: React.FC = () => {
           } else {
             const defaultActive = networkConfig.tabSpecific?.defaultState === 'active';
             setTabLoggingActive(defaultActive);
-            
+
             const initialTabState = {
               active: defaultActive,
               startTime: defaultActive ? Date.now() : undefined,
@@ -239,7 +248,7 @@ const Popup: React.FC = () => {
           } else {
             const defaultErrorActive = errorConfig.tabSpecific?.defaultState === 'active';
             setTabErrorLoggingActive(defaultErrorActive);
-            
+
             const initialErrorTabState = {
               active: defaultErrorActive,
               startTime: defaultErrorActive ? Date.now() : undefined,
@@ -258,7 +267,7 @@ const Popup: React.FC = () => {
           } else {
             const defaultTokenActive = tokenConfig.tabSpecific?.defaultState === 'active';
             setTabTokenLoggingActive(defaultTokenActive);
-            
+
             const initialTokenTabState = {
               active: defaultTokenActive,
               startTime: defaultTokenActive ? Date.now() : undefined,
@@ -277,7 +286,7 @@ const Popup: React.FC = () => {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
           if (tabs[0]?.id) {
             const tabId = tabs[0].id;
-            
+
             // Check for network logging changes
             const networkLoggingKey = `tabLogging_${tabId}`;
             if (changes[networkLoggingKey]) {
@@ -286,7 +295,7 @@ const Popup: React.FC = () => {
                 setTabLoggingActive(newValue.active);
               }
             }
-            
+
             // Check for error logging changes
             const errorLoggingKey = `tabErrorLogging_${tabId}`;
             if (changes[errorLoggingKey]) {
@@ -295,7 +304,7 @@ const Popup: React.FC = () => {
                 setTabErrorLoggingActive(newValue.active);
               }
             }
-            
+
             // Check for token logging changes
             const tokenLoggingKey = `tabTokenLogging_${tabId}`;
             if (changes[tokenLoggingKey]) {
@@ -321,17 +330,17 @@ const Popup: React.FC = () => {
   const toggleGlobalPower = async () => {
     const newState = !globalPowerEnabled;
     setGlobalPowerEnabled(newState);
-    
+
     // Update Chrome storage for backward compatibility
     chrome.storage.sync.set({ extensionEnabled: newState });
-    
+
     // Update extension state controller for immediate effect
     try {
       const response = await sendChromeMessage({
         action: 'SET_EXTENSION_STATE',
         enabled: newState
       });
-      
+
       if (!response?.success) {
         console.warn('Failed to update global extension state:', response);
       }
@@ -346,14 +355,14 @@ const Popup: React.FC = () => {
       if (tabs[0]?.id && tabs[0]?.url) {
         const newState = !siteSpecificEnabled;
         setSiteSpecificEnabled(newState);
-        
+
         try {
           const response = await sendChromeMessage({
             action: 'SET_EXTENSION_STATE',
             tabId: tabs[0].id,
             enabled: newState
           });
-          
+
           if (!response?.success) {
             console.warn('Failed to update site-specific extension state:', response);
           }
@@ -370,16 +379,16 @@ const Popup: React.FC = () => {
         const tabId = tabs[0].id;
         const newState = !tabLoggingActive;
         setTabLoggingActive(newState);
-        
+
         const tabState = {
           status: newState ? 'active' : 'inactive',
           active: newState, // Keep for backward compatibility
           startTime: newState ? Date.now() : undefined,
           requestCount: 0
         };
-        
+
         chrome.storage.local.set({ [`tabLogging_${tabId}`]: tabState });
-        
+
         // Send message to content script to start/stop logging
         chrome.tabs.sendMessage(tabId, {
           action: 'toggleLogging',
@@ -395,15 +404,15 @@ const Popup: React.FC = () => {
         const tabId = tabs[0].id;
         const newState = !tabErrorLoggingActive;
         setTabErrorLoggingActive(newState);
-        
+
         const tabState = {
           active: newState,
           startTime: newState ? Date.now() : undefined,
           errorCount: 0
         };
-        
+
         chrome.storage.local.set({ [`tabErrorLogging_${tabId}`]: tabState });
-        
+
         // Send message to content script to start/stop error logging
         chrome.tabs.sendMessage(tabId, {
           action: 'toggleErrorLogging',
@@ -419,15 +428,15 @@ const Popup: React.FC = () => {
         const tabId = tabs[0].id;
         const newState = !tabTokenLoggingActive;
         setTabTokenLoggingActive(newState);
-        
+
         const tabState = {
           active: newState,
           startTime: newState ? Date.now() : undefined,
           tokenCount: 0
         };
-        
+
         chrome.storage.local.set({ [`tabTokenLogging_${tabId}`]: tabState });
-        
+
         // Note: Token logging doesn't require content script communication
         // as it's handled purely in the background script via network interception
       }

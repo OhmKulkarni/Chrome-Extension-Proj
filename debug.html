@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Extension Debug</title>
+</head>
+<body>
+    <h1>Extension Debug Test</h1>
+    <button id="testBackground">Test Background Script</button>
+    <button id="testPing">Ping Background</button>
+    <button id="checkState">Check Extension State</button>
+    <div id="results"></div>
+
+    <script>
+        const results = document.getElementById('results');
+
+        function log(message) {
+            const div = document.createElement('div');
+            div.textContent = `${new Date().toISOString()}: ${message}`;
+            results.appendChild(div);
+            console.log(message);
+        }
+
+        document.getElementById('testBackground').addEventListener('click', async () => {
+            log('🔧 Testing background script...');
+
+            try {
+                const response = await chrome.runtime.sendMessage({ action: 'ping' });
+                if (response && response.success) {
+                    log('✅ Background script is active: ' + response.message);
+                } else {
+                    log('❌ Background script response invalid: ' + JSON.stringify(response));
+                }
+            } catch (error) {
+                log('❌ Background script error: ' + error.message);
+            }
+        });
+
+        document.getElementById('testPing').addEventListener('click', async () => {
+            log('🏓 Pinging background...');
+
+            try {
+                const response = await chrome.runtime.sendMessage({ action: 'ping' });
+                log('Response: ' + JSON.stringify(response));
+            } catch (error) {
+                log('Error: ' + error.message);
+            }
+        });
+
+        document.getElementById('checkState').addEventListener('click', async () => {
+            log('🔍 Checking extension state...');
+
+            try {
+                const response = await chrome.runtime.sendMessage({ action: 'GET_EXTENSION_STATE' });
+                log('Extension State: ' + JSON.stringify(response));
+            } catch (error) {
+                log('Error: ' + error.message);
+            }
+        });
+
+        // Auto-test on load
+        setTimeout(() => {
+            document.getElementById('testBackground').click();
+        }, 1000);
+    </script>
+</body>
+</html>

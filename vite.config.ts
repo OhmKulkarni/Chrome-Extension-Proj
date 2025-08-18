@@ -33,7 +33,7 @@ export default defineConfig({
         content_scripts: [
           {
             matches: ["<all_urls>"],
-            js: ["src/content/content-modular.ts"]
+            js: ["src/content/content-simple.ts"]
           }
         ],
         options_page: "src/settings/settings.html",

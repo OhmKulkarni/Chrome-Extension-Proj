@@ -1,0 +1,423 @@
+/**
+ * Network Processor Module - Network Request Handling and Processing
+ *
+ * Handles network request processing, filtering, and storage with comprehensive
+ * validation and safety measures. Extracted from the original background script's
+ * network handling functionality.
+ */
+
+import { ChromeApiModule } from '../shared/chrome-api.module';
+import { StorageManagerModule } from '../shared/storage-manager.module';
+import { TokenTrackerModule } from './token-tracker.module';
+import {
+  NetworkRequestData,
+  SafetyConfig
+} from '../types/background-types';
+
+export class NetworkProcessorModule {
+  private readonly chromeApi: ChromeApiModule;
+  private readonly storageManager: StorageManagerModule;
+  private readonly tokenTracker: TokenTrackerModule;
+  private readonly config: SafetyConfig;
+  private readonly abortController: AbortController;
+  private isInitialized = false;
+  private processedCount = 0;
+
+  constructor(
+    chromeApi: ChromeApiModule,
+    storageManager: StorageManagerModule,
+    tokenTracker: TokenTrackerModule,
+    config: Partial<SafetyConfig> = {}
+  ) {
+    this.chromeApi = chromeApi;
+    this.storageManager = storageManager;
+    this.tokenTracker = tokenTracker;
+    this.config = {
+      enableAbortController: true,
+      maxRetries: 3,
+      timeoutMs: 5000,
+      enableRaceConditionProtection: true,
+      enableMemoryMonitoring: true,
+      ...config
+    };
+
+    this.abortController = new AbortController();
+    console.log('🌐 NetworkProcessorModule: Initialized with comprehensive processing');
+  }
+
+  /**
+   * Initialize network processor module
+   */
+  async initialize(): Promise<void> {
+    if (this.isInitialized) {
+      console.warn('NetworkProcessorModule: Already initialized');
+      return;
+    }
+
+    try {
+      // Verify dependencies are initialized
+      if (!this.chromeApi.isExtensionContextValid()) {
+        throw new Error('Chrome API module not properly initialized');
+      }
+
+      this.isInitialized = true;
+      console.log('✅ NetworkProcessorModule: Successfully initialized');
+    } catch (error) {
+      console.error('❌ NetworkProcessorModule: Initialization failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Cleanup resources to prevent memory leaks
+   */
+  cleanup(): void {
+    if (this.config.enableAbortController) {
+      this.abortController.abort('NetworkProcessorModule cleanup');
+    }
+
+    this.isInitialized = false;
+    this.processedCount = 0;
+    console.log('🧹 NetworkProcessorModule: Cleanup completed');
+  }
+
+  // ===== NETWORK REQUEST PROCESSING =====
+
+  /**
+   * Process network request data with comprehensive validation and storage
+   */
+  async processNetworkRequest(
+    requestData: any,
+    sender?: chrome.runtime.MessageSender
+  ): Promise<{ success: boolean; reason?: string; tokenEvent?: any }> {
+    return this.executeWithSafety('processNetworkRequest', async () => {
+      // Validate input data
+      if (!requestData || typeof requestData !== 'object') {
+        return { success: false, reason: 'Invalid request data' };
+      }
+
+      const { url, method, status, headers, body, timestamp } = requestData;
+
+      // Basic validation
+      if (!url || typeof url !== 'string') {
+        return { success: false, reason: 'Invalid URL' };
+      }
+
+      if (!method || typeof method !== 'string') {
+        return { success: false, reason: 'Invalid method' };
+      }
+
+      if (status === undefined || typeof status !== 'number') {
+        return { success: false, reason: 'Invalid status' };
+      }
+
+      // Get tab information from sender
+      const tabId = sender?.tab?.id;
+      const tabUrl = sender?.tab?.url;
+
+      // Check if tab logging is active (matching original background script logic)
+      if (tabId) {
+        const isTabLoggingActive = await this.storageManager.getTabNetworkState(tabId);
+        if (!isTabLoggingActive) {
+          console.log('🚫 NetworkProcessorModule: Tab network logging is paused, rejecting request');
+          return { success: false, reason: 'Tab network logging paused' };
+        }
+      }
+
+      // Get current settings for validation
+      const settings = await this.storageManager.getSettings();
+      const networkConfig = settings.networkInterception || {};
+
+      // Check if network interception is globally enabled
+      if (networkConfig.enabled === false) {
+        return { success: false, reason: 'Network interception disabled' };
+      }
+
+      // Apply noise filtering (matching original background script)
+      if (this.isNoiseRequest(url, method)) {
+        return { success: false, reason: 'Request filtered as noise' };
+      }
+
+      // Extract main domain for intelligent grouping
+      const mainDomain = tabUrl ? this.extractMainDomain(tabUrl) : this.extractMainDomain(url);
+
+      // Create validated network request data
+      const validatedRequestData: NetworkRequestData = {
+        url,
+        method: method.toUpperCase(),
+        status,
+        headers: headers || {},
+        body: this.sanitizeBody(body, networkConfig.bodyCapture?.maxBodySize || 2000),
+        timestamp: timestamp || new Date().toISOString(),
+        source_url: tabUrl || url,
+        ...(tabId && { tabId })
+      };
+
+      // Store the network request
+      await this.storageManager.storeNetworkRequest(validatedRequestData);
+
+      // Track token events if this is a token-related request
+      let tokenEvent = null;
+      try {
+        tokenEvent = await this.tokenTracker.detectTokenEvent(validatedRequestData);
+      } catch (tokenError) {
+        console.warn('NetworkProcessorModule: Token detection failed:', tokenError);
+        // Don't fail the entire operation if token detection fails
+      }
+
+      this.processedCount++;
+
+      console.log(`🌐 NetworkProcessorModule: Processed ${method} ${status} from ${mainDomain}`);
+
+      return {
+        success: true,
+        ...(tokenEvent && { tokenEvent })
+      };
+    });
+  }
+
+  // ===== DATA RETRIEVAL =====
+
+  /**
+   * Get network requests with pagination
+   */
+  async getNetworkRequests(limit = 50, offset = 0): Promise<NetworkRequestData[]> {
+    return this.executeWithSafety('getNetworkRequests', async () => {
+      return this.storageManager.getNetworkRequests(limit, offset);
+    });
+  }
+
+  // ===== TAB STATE MANAGEMENT =====
+
+  /**
+   * Toggle network logging for a specific tab
+   */
+  async toggleTabLogging(tabId: number): Promise<{ success: boolean; newState: boolean }> {
+    return this.executeWithSafety('toggleTabLogging', async () => {
+      // Get current state
+      const currentState = await this.storageManager.getTabNetworkState(tabId);
+      const newState = !currentState;
+
+      // Set new state
+      await this.storageManager.setTabNetworkState(tabId, newState);
+
+      console.log(`🌐 NetworkProcessorModule: Tab ${tabId} network logging ${newState ? 'enabled' : 'disabled'}`);
+
+      return { success: true, newState };
+    });
+  }
+
+  /**
+   * Get network interception state for a tab
+   */
+  async getInterceptionState(tabId: number): Promise<{
+    success: boolean;
+    networkLogging?: boolean;
+    settings?: any;
+  }> {
+    return this.executeWithSafety('getInterceptionState', async () => {
+      // Get current settings
+      const settings = await this.storageManager.getSettings();
+
+      // Get tab-specific network logging state
+      const networkLogging = tabId ? await this.storageManager.getTabNetworkState(tabId) : false;
+
+      return {
+        success: true,
+        networkLogging,
+        settings: settings.networkInterception || {}
+      };
+    });
+  }
+
+  // ===== UTILITY METHODS =====
+
+  /**
+   * Check if request should be filtered as noise
+   */
+  private isNoiseRequest(url: string, method: string): boolean {
+    const urlLower = url.toLowerCase();
+
+    // Filter out common noise patterns (matching original background script)
+    const noisePatterns = [
+      'favicon.ico',
+      'google-analytics',
+      'googletagmanager',
+      'doubleclick.net',
+      'googlesyndication',
+      'adsystem.google',
+      'amazon-adsystem',
+      'facebook.com/tr',
+      'connect.facebook.net',
+      'analytics.twitter.com',
+      'ping.chartbeat.net',
+      'quantserve.com',
+      'scorecardresearch.com',
+      'outbrain.com',
+      'taboola.com',
+      '.css',
+      '.js',
+      '.png',
+      '.jpg',
+      '.jpeg',
+      '.gif',
+      '.svg',
+      '.woff',
+      '.woff2',
+      '.ttf',
+      '.eot'
+    ];
+
+    // Filter GET requests to static resources
+    if (method === 'GET') {
+      if (noisePatterns.some(pattern => urlLower.includes(pattern))) {
+        return true;
+      }
+    }
+
+    // Filter HEAD and OPTIONS requests (usually preflight)
+    if (method === 'HEAD' || method === 'OPTIONS') {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Extract main domain from URL
+   */
+  private extractMainDomain(url: string): string {
+    try {
+      const urlObj = new URL(url);
+      const hostname = urlObj.hostname;
+
+      // Remove 'www.' prefix if present
+      const withoutWww = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
+
+      // For most cases, return the base domain
+      const parts = withoutWww.split('.');
+      if (parts.length >= 2) {
+        return parts.slice(-2).join('.');
+      }
+
+      return withoutWww;
+    } catch (error) {
+      console.warn('NetworkProcessorModule: Failed to extract main domain from URL:', url, error);
+      return 'unknown';
+    }
+  }
+
+  /**
+   * Sanitize request body to prevent memory issues
+   */
+  private sanitizeBody(body: any, maxSize: number): string | undefined {
+    if (!body) return undefined;
+
+    let bodyStr: string;
+
+    if (typeof body === 'string') {
+      bodyStr = body;
+    } else if (typeof body === 'object') {
+      try {
+        bodyStr = JSON.stringify(body);
+      } catch {
+        bodyStr = '[Object - JSON stringify failed]';
+      }
+    } else {
+      bodyStr = String(body);
+    }
+
+    // Truncate if too large
+    if (bodyStr.length > maxSize) {
+      return bodyStr.substring(0, maxSize) + `... [truncated, original size: ${bodyStr.length}]`;
+    }
+
+    return bodyStr;
+  }
+
+  // ===== ANALYTICS AND MONITORING =====
+
+  /**
+   * Get processing statistics
+   */
+  getProcessingStats(): {
+    processedCount: number;
+    initialized: boolean;
+    memoryUsage?: any;
+  } {
+    return {
+      processedCount: this.processedCount,
+      initialized: this.isInitialized,
+      ...(this.config.enableMemoryMonitoring && {
+        memoryUsage: this.chromeApi.getMemoryUsage()
+      })
+    };
+  }
+
+  // ===== SAFETY UTILITIES =====
+
+  /**
+   * Execute operation with comprehensive safety measures
+   */
+  private async executeWithSafety<T>(operation: string, fn: () => Promise<T>): Promise<T> {
+    if (!this.isInitialized) {
+      throw new Error(`NetworkProcessorModule: Not initialized (${operation})`);
+    }
+
+    if (this.config.enableAbortController && this.abortController.signal.aborted) {
+      throw new Error(`NetworkProcessorModule: Operation aborted (${operation})`);
+    }
+
+    const startTime = Date.now();
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt <= this.config.maxRetries; attempt++) {
+      try {
+        // Race condition protection
+        if (this.config.enableRaceConditionProtection && attempt > 0) {
+          await new Promise(resolve => setTimeout(resolve, 100 * attempt));
+        }
+
+        const result = await fn();
+
+        // Log performance for slow operations
+        const duration = Date.now() - startTime;
+        if (duration > 500 && attempt === 0) {
+          console.warn(`🐌 NetworkProcessorModule: ${operation} took ${duration}ms`);
+        }
+
+        return result;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        if (attempt === this.config.maxRetries) {
+          console.error(`❌ NetworkProcessorModule: ${operation} failed after ${this.config.maxRetries} retries:`, lastError);
+          break;
+        }
+
+        console.warn(`⚠️ NetworkProcessorModule: ${operation} failed, retrying (${attempt + 1}/${this.config.maxRetries}):`, lastError);
+      }
+    }
+
+    throw lastError || new Error(`NetworkProcessorModule: Unknown error in ${operation}`);
+  }
+
+  /**
+   * Get module status for debugging
+   */
+  getStatus(): {
+    initialized: boolean;
+    processedCount: number;
+    aborted: boolean;
+    memoryUsage?: any;
+  } {
+    return {
+      initialized: this.isInitialized,
+      processedCount: this.processedCount,
+      aborted: this.abortController.signal.aborted,
+      ...(this.config.enableMemoryMonitoring && {
+        memoryUsage: this.chromeApi.getMemoryUsage()
+      })
+    };
+  }
+}
