@@ -1,110 +1,174 @@
 /**
- * Modular Background Script Entry Point
- *
- * This file serves as the entry point for our modular architecture.
- * We ensure service worker activation first, then load the modular system safely.
+ * Zero Import Background Script
+ * 
+ * Everything inline to avoid any bundling issues
  */
 
-console.log('🚀 Modular background service worker started');
+console.log('🚀 Zero import background service worker started');
 
-// MEMORY LEAK FIX: Guard against duplicate listener registration (FROM LEGACY)
+// MEMORY LEAK FIX: Guard against duplicate listener registration
 let listenersRegistered = false;
 
-// CRITICAL: Register listeners immediately using the EXACT pattern from the working legacy version
+// Ultra-minimal inline controller
+class InlineBackgroundController {
+  private isInitialized = false;
+
+  constructor() {
+    console.log('🔧 InlineBackgroundController: Starting...');
+  }
+
+  async initialize(): Promise<void> {
+    if (this.isInitialized) {
+      console.log('⚠️ InlineBackgroundController: Already initialized');
+      return;
+    }
+
+    try {
+      // Test basic Chrome API access
+      if (!chrome || !chrome.runtime) {
+        throw new Error('Chrome runtime API not available');
+      }
+
+      console.log('✅ InlineBackgroundController: Chrome APIs available');
+      this.isInitialized = true;
+      
+    } catch (error) {
+      console.error('❌ InlineBackgroundController: Initialization failed:', error);
+      throw error;
+    }
+  }
+
+  async handleMessage(message: any): Promise<any> {
+    console.log('📨 InlineBackgroundController: Handling:', message.action || message.type);
+
+    switch (message.action || message.type) {
+      case 'ping':
+        return { success: true, message: 'Inline controller active' };
+
+      case 'getCurrentTabId':
+        return new Promise((resolve) => {
+          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (chrome.runtime.lastError) {
+              resolve({ success: false, error: chrome.runtime.lastError.message });
+            } else if (tabs && tabs.length > 0) {
+              resolve({ success: true, tabId: tabs[0].id });
+            } else {
+              resolve({ success: false, error: 'No active tab found' });
+            }
+          });
+        });
+
+      default:
+        return { success: false, error: 'Unknown message type' };
+    }
+  }
+
+  cleanup(): void {
+    console.log('🧹 InlineBackgroundController: Cleaning up...');
+    this.isInitialized = false;
+  }
+}
+
+// CRITICAL: Register listeners immediately
 if (!listenersRegistered) {
-  console.log('📬 Registering immediate listeners (legacy pattern)...');
+  console.log('📬 Registering immediate listeners...');
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    // Wrap everything in async IIFE to properly handle service worker async operations (FROM LEGACY)
-    (async () => {
-      try {
-        console.log('📬 BACKGROUND: Message received:', message.action || message.type);
+    console.log('📬 BACKGROUND: Message received:', message.action || message.type);
 
-        switch (message.action || message.type) {
-          case 'ping':
-            sendResponse({ success: true, message: 'Modular background service worker is active' });
-            break;
+    switch (message.action || message.type) {
+      case 'ping':
+        sendResponse({ success: true, message: 'Background service worker is active' });
+        break;
+        
+      case 'getCurrentTabId':
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs[0]) {
+            sendResponse({ success: true, tabId: tabs[0].id });
+          } else {
+            sendResponse({ success: false, error: 'No active tab found' });
+          }
+        });
+        break;
+        
+      case 'openDashboard':
+        chrome.tabs.create({ url: chrome.runtime.getURL('src/dashboard/dashboard.html') }, (tab) => {
+          if (tab) {
+            sendResponse({ success: true, tabId: tab.id });
+          } else {
+            sendResponse({ success: false, error: 'Failed to open dashboard' });
+          }
+        });
+        break;
+        
+      case 'getTabInfo':
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs.length > 0) {
+            const activeTab = tabs[0];
+            sendResponse({
+              success: true,
+              tabs: [{
+                id: activeTab.id,
+                url: activeTab.url,
+                title: activeTab.title,
+                active: activeTab.active
+              }]
+            });
+          } else {
+            sendResponse({ success: true, tabs: [] });
+          }
+        });
+        break;
+        
+      case 'GET_EXTENSION_STATE':
+      case 'GET_GLOBAL_POWER_STATE':  
+      case 'GET_SITE_SPECIFIC_STATE':
+        sendResponse({ success: true, enabled: true });
+        break;
 
-          default:
-            // Let the modular system handle other messages once initialized
-            sendResponse({ success: false, error: 'Message type not handled by immediate listener' });
+      default:
+        // Try inline controller if available
+        const inlineController = (globalThis as any).inlineController;
+        if (inlineController && typeof inlineController.handleMessage === 'function') {
+          inlineController.handleMessage(message)
+            .then((result: any) => sendResponse(result))
+            .catch((error: any) => sendResponse({ success: false, error: error.message }));
+        } else {
+          sendResponse({ success: false, error: 'Message type not handled' });
         }
-      } catch (error) {
-        console.error('❌ Error in immediate message handler:', error);
-        sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
-      }
-    })();
-
-    // Return true to indicate we'll respond asynchronously (FROM LEGACY)
+    }
     return true;
-  });
-
-  // Add startup ping to keep service worker active (FROM LEGACY)
-  chrome.runtime.onStartup.addListener(() => {
-    console.log('🔄 Extension startup detected');
   });
 
   chrome.runtime.onInstalled.addListener(() => {
     console.log('🎉 Extension installed/updated');
   });
 
-  // Handle service worker suspension with proper cleanup (FROM LEGACY)
-  chrome.runtime.onSuspend.addListener(() => {
-    console.log('� Service worker suspending, cleaning up resources...');
+  chrome.runtime.onStartup.addListener(() => {
+    console.log('🔄 Extension startup detected');
   });
 
-  // Handle suspension canceled (FROM LEGACY)
-  chrome.runtime.onSuspendCanceled.addListener(() => {
-    console.log('� Service worker suspension canceled');
-  });
-
-  // MEMORY LEAK FIX: Mark all listeners as registered (FROM LEGACY)
   listenersRegistered = true;
-  
   console.log('✅ Basic listeners registered - service worker is now active');
 }
 
-// DELAYED MODULAR INITIALIZATION: Load the complex system after service worker is confirmed active
-console.log('⏳ Preparing to load modular architecture...');
+// Initialize inline controller without dynamic imports
+console.log('⏳ Initializing inline controller...');
 
-// Use dynamic import to avoid breaking service worker activation
 setTimeout(async () => {
   try {
-    console.log('📦 Loading BackgroundController module...');
-    const { BackgroundController } = await import('./background-controller');
+    console.log('🔧 Creating inline background controller...');
+    const inlineController = new InlineBackgroundController();
     
-    console.log('🔧 Initializing modular background controller...');
-    const backgroundController = new BackgroundController();
+    await inlineController.initialize();
+    console.log('✅ Inline controller initialized successfully');
     
-    // Start the initialization process
-    await backgroundController.initialize();
-    console.log('✅ Modular architecture initialized successfully');
-    
-    // Export for debugging (available in Chrome DevTools)
-    (globalThis as any).backgroundController = backgroundController;
-    
-    // Setup cleanup on service worker shutdown
-    self.addEventListener('beforeunload', () => {
-      console.log('🧹 Background service worker shutting down...');
-      backgroundController.cleanup();
-    });
+    // Export for debugging
+    (globalThis as any).inlineController = inlineController;
     
   } catch (error) {
-    console.error('❌ Failed to initialize modular background:', error);
-    
-    // Attempt recovery after delay
-    setTimeout(async () => {
-      try {
-        console.log('🔄 Attempting background script recovery...');
-        const { BackgroundController } = await import('./background-controller');
-        const backgroundController = new BackgroundController();
-        await backgroundController.initialize();
-        console.log('✅ Background script recovery successful');
-      } catch (retryError) {
-        console.error('❌ Background script recovery failed:', retryError);
-      }
-    }, 5000);
+    console.error('❌ Failed to initialize inline controller:', error);
   }
-}, 1000); // 1 second delay to ensure service worker is stable
+}, 500);
 
-console.log('✅ Modular background entry point loaded successfully');
+console.log('✅ Zero import background entry point loaded successfully');
