@@ -58,7 +58,6 @@ export class ServiceWorkerBackgroundController {
     // Initialize specialized modules with IndexedDB storage
     this.tokenTracker = new TokenTrackerModule(
       this.chromeApi as any,
-      this.storageManager as any,
       this.indexedDbStorage,
       this.config
     );

@@ -202,6 +202,9 @@ export class NetworkProcessorModule {
         }
 
         console.log(`🗄️ NetworkProcessorModule: Stored network request in IndexedDB`);
+
+        // Notify dashboard about new data
+        this.sendDataUpdatedNotification('network_request');
       } catch (storageError) {
         console.error('NetworkProcessorModule: IndexedDB storage failed:', storageError);
         // Continue processing even if storage fails
@@ -230,12 +233,51 @@ export class NetworkProcessorModule {
   // ===== DATA RETRIEVAL =====
 
   /**
-   * Get network requests with pagination
+   * Get network requests with pagination (from IndexedDB)
    */
   async getNetworkRequests(limit = 50, offset = 0): Promise<NetworkRequestData[]> {
     return this.executeWithSafety('getNetworkRequests', async () => {
-      return this.storageManager.getNetworkRequests(limit, offset);
+      // Get data from IndexedDB instead of Chrome storage
+      const apiCalls = await this.indexedDbStorage.getApiCalls(limit, offset);
+
+      // Transform IndexedDB ApiCall format to NetworkRequestData format for compatibility
+      return apiCalls.map(apiCall => ({
+        url: apiCall.url,
+        method: apiCall.method,
+        status: apiCall.status,
+        headers: typeof apiCall.headers === 'string' ? JSON.parse(apiCall.headers || '{}') : apiCall.headers,
+        body: apiCall.request_body || '',
+        timestamp: new Date(apiCall.timestamp).toISOString(),
+        source_url: apiCall.tab_url || apiCall.url,
+        tabId: apiCall.tab_id
+      }));
     });
+  }
+
+  /**
+   * Get total count of network requests
+   */
+  async getNetworkRequestsCount(): Promise<number> {
+    return this.executeWithSafety('getNetworkRequestsCount', async () => {
+      const counts = await this.indexedDbStorage.getTableCounts();
+      return counts.apiCalls || 0;
+    });
+  }
+
+  /**
+   * Send DATA_UPDATED notification to dashboard
+   */
+  private sendDataUpdatedNotification(dataType: string): void {
+    try {
+      // Use chrome.runtime.sendMessage to notify dashboard
+      (globalThis as any).chrome?.runtime?.sendMessage({
+        type: 'DATA_UPDATED',
+        dataType: dataType
+      });
+    } catch (error) {
+      // Dashboard might not be open, ignore error
+      console.log('📡 NetworkProcessorModule: Could not notify dashboard (dashboard closed?):', error);
+    }
   }
 
   // ===== TAB STATE MANAGEMENT =====

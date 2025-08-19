@@ -174,6 +174,9 @@ export class ConsoleHandlerModule {
         }
 
         console.log(`🗄️ ConsoleHandlerModule: Stored console error in IndexedDB`);
+
+        // Notify dashboard about new data
+        this.sendDataUpdatedNotification('console_error');
       } catch (storageError) {
         console.error('ConsoleHandlerModule: IndexedDB storage failed:', storageError);
         // Continue processing even if storage fails
@@ -190,12 +193,50 @@ export class ConsoleHandlerModule {
   // ===== DATA RETRIEVAL =====
 
   /**
-   * Get console errors with pagination
+   * Get console errors with pagination (from IndexedDB)
    */
   async getConsoleErrors(limit = 50, offset = 0): Promise<ConsoleErrorData[]> {
     return this.executeWithSafety('getConsoleErrors', async () => {
-      return this.storageManager.getConsoleErrors(limit, offset);
+      // Get data from IndexedDB instead of Chrome storage
+      const consoleErrors = await this.indexedDbStorage.getConsoleErrors(limit, offset);
+
+      // Transform IndexedDB ConsoleError format to ConsoleErrorData format for compatibility
+      return consoleErrors.map(error => ({
+        message: error.message,
+        severity: error.severity,
+        timestamp: new Date(error.timestamp).toISOString(),
+        source_url: error.tab_url || error.url || 'unknown',
+        url: error.url,
+        stack: error.stack_trace,
+        tabId: error.tab_id
+      }));
     });
+  }
+
+  /**
+   * Get total count of console errors
+   */
+  async getConsoleErrorsCount(): Promise<number> {
+    return this.executeWithSafety('getConsoleErrorsCount', async () => {
+      const counts = await this.indexedDbStorage.getTableCounts();
+      return counts.consoleErrors || 0;
+    });
+  }
+
+  /**
+   * Send DATA_UPDATED notification to dashboard
+   */
+  private sendDataUpdatedNotification(dataType: string): void {
+    try {
+      // Use chrome.runtime.sendMessage to notify dashboard
+      (globalThis as any).chrome?.runtime?.sendMessage({
+        type: 'DATA_UPDATED',
+        dataType: dataType
+      });
+    } catch (error) {
+      // Dashboard might not be open, ignore error
+      console.log('📡 ConsoleHandlerModule: Could not notify dashboard (dashboard closed?):', error);
+    }
   }
 
   // ===== TAB STATE MANAGEMENT =====

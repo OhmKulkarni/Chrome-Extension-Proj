@@ -7,7 +7,6 @@
  */
 
 import { ChromeApiModule } from '../shared/chrome-api.module';
-import { StorageManagerModule } from '../shared/storage-manager.module';
 import { EnvironmentStorageManager } from '../environment-storage-manager';
 import {
   TokenEvent,
@@ -18,7 +17,6 @@ import {
 
 export class TokenTrackerModule {
   private readonly chromeApi: ChromeApiModule;
-  private readonly storageManager: StorageManagerModule;
   private readonly indexedDbStorage: EnvironmentStorageManager;
   private readonly config: SafetyConfig;
   private readonly abortController: AbortController;
@@ -47,12 +45,10 @@ export class TokenTrackerModule {
 
   constructor(
     chromeApi: ChromeApiModule,
-    storageManager: StorageManagerModule,
     indexedDbStorage: EnvironmentStorageManager,
     config: Partial<SafetyConfig> = {}
   ) {
     this.chromeApi = chromeApi;
-    this.storageManager = storageManager;
     this.indexedDbStorage = indexedDbStorage;
     this.config = {
       enableAbortController: true,
@@ -200,6 +196,9 @@ export class TokenTrackerModule {
         }
 
         console.log(`🗄️ TokenTrackerModule: Stored token event in IndexedDB`);
+
+        // Notify dashboard about new data
+        this.sendDataUpdatedNotification('token_event');
       } catch (storageError) {
         console.error('TokenTrackerModule: IndexedDB storage failed:', storageError);
         // Continue processing even if storage fails
@@ -552,12 +551,65 @@ export class TokenTrackerModule {
   // ===== DATA RETRIEVAL =====
 
   /**
-   * Get token events with pagination
+   * Map IndexedDB token type back to event type
+   */
+  private mapTokenTypeToEventType(tokenType: string): 'acquire' | 'refresh' | 'expired' | 'refresh_error' | 'verified' | 'validation_failed' | 'revoked' {
+    switch (tokenType) {
+      case 'jwt_token':
+        return 'acquire';
+      case 'session_token':
+        return 'expired';
+      case 'api_key':
+        return 'acquire';
+      case 'oauth_token':
+        return 'refresh';
+      default:
+        return 'acquire';
+    }
+  }
+
+  /**
+   * Get token events with pagination (from IndexedDB)
    */
   async getTokenEvents(limit = 50, offset = 0): Promise<TokenEvent[]> {
     return this.executeWithSafety('getTokenEvents', async () => {
-      return this.storageManager.getTokenEvents(limit, offset);
+      // Get data from IndexedDB instead of Chrome storage
+      const tokenEvents = await this.indexedDbStorage.getTokenEvents(limit, offset);
+
+      // Transform IndexedDB TokenEvent format to module TokenEvent format for compatibility
+      return tokenEvents.map(event => ({
+        type: this.mapTokenTypeToEventType(event.type),
+        url: event.url || '',
+        method: event.method || '',
+        status: event.status || 0,
+        timestamp: new Date(event.timestamp).toISOString(),
+        source_url: event.source_url || event.url || '',
+        expiry: event.expiry ? new Date(event.expiry).getTime() : undefined,
+        value_hash: event.valueHash
+      }));
     });
+  }
+
+  /**
+   * Get total count of token events
+   */
+  async getTokenEventsCount(): Promise<number> {
+    return this.executeWithSafety('getTokenEventsCount', async () => {
+      const counts = await this.indexedDbStorage.getTableCounts();
+      return counts.tokenEvents || 0;
+    });
+  }
+
+  /**
+   * Send notification to dashboard about data updates
+   */
+  private sendDataUpdatedNotification(type: string) {
+    try {
+      chrome.runtime.sendMessage({ action: 'DATA_UPDATED', type });
+    } catch (error) {
+      // This will fail if no dashboard is open, which is normal
+      console.debug('TokenTrackerModule: Failed to send data update notification:', error);
+    }
   }
 
   // ===== SAFETY UTILITIES =====

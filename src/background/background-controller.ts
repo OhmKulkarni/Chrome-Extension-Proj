@@ -67,7 +67,6 @@ export class BackgroundController {
     // Initialize specialized modules with IndexedDB storage
     this.tokenTracker = new TokenTrackerModule(
       this.chromeApi,
-      this.storageManager,
       this.legacyStorageManager,
       this.config
     );

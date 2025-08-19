@@ -129,8 +129,9 @@ export class MessageRouterModule {
             message.limit || 50,
             message.offset || 0
           );
-          const networkResponse = { success: true, requests: networkRequests, total: networkRequests.length };
-          console.log('🌐 MessageRouter: getNetworkRequests response:', { requestsCount: networkRequests.length, total: networkResponse.total });
+          const networkTotal = await this.networkProcessor.getNetworkRequestsCount();
+          const networkResponse = { success: true, requests: networkRequests, total: networkTotal };
+          console.log('🌐 MessageRouter: getNetworkRequests response:', { requestsCount: networkRequests.length, total: networkTotal });
           sendResponse(networkResponse);
           break;
 
@@ -154,8 +155,9 @@ export class MessageRouterModule {
             message.limit || 50,
             message.offset || 0
           );
-          const errorResponse = { success: true, errors: consoleErrors, total: consoleErrors.length };
-          console.log('📝 MessageRouter: getConsoleErrors response:', { errorsCount: consoleErrors.length, total: errorResponse.total });
+          const errorTotal = await this.consoleHandler.getConsoleErrorsCount();
+          const errorResponse = { success: true, errors: consoleErrors, total: errorTotal };
+          console.log('📝 MessageRouter: getConsoleErrors response:', { errorsCount: consoleErrors.length, total: errorTotal });
           sendResponse(errorResponse);
           break;
 
@@ -174,12 +176,36 @@ export class MessageRouterModule {
             message.limit || 50,
             message.offset || 0
           );
-          const tokenResponse = { success: true, events: tokenEvents, total: tokenEvents.length };
-          console.log('🔍 MessageRouter: getTokenEvents response:', { eventsCount: tokenEvents.length, total: tokenResponse.total });
+          const tokenTotal = await this.tokenTracker.getTokenEventsCount();
+          const tokenResponse = { success: true, events: tokenEvents, total: tokenTotal };
+          console.log('🔍 MessageRouter: getTokenEvents response:', { eventsCount: tokenEvents.length, total: tokenTotal });
           sendResponse(tokenResponse);
           break;
 
         // Data Management
+        case 'getTableCounts':
+          // Get counts from each module (which get data from IndexedDB)
+          try {
+            const [networkCount, errorCount, tokenCount] = await Promise.all([
+              this.networkProcessor.getNetworkRequestsCount(),
+              this.consoleHandler.getConsoleErrorsCount(),
+              this.tokenTracker.getTokenEventsCount()
+            ]);
+
+            sendResponse({
+              success: true,
+              data: {
+                apiCalls: networkCount,
+                consoleErrors: errorCount,
+                tokenEvents: tokenCount
+              }
+            });
+          } catch (error) {
+            console.error('MessageRouter: getTableCounts error:', error);
+            sendResponse({ success: false, error: 'Failed to get table counts' });
+          }
+          break;
+
         case 'clearAllData':
           await this.storageManager.clearAllData();
           sendResponse({ success: true });
