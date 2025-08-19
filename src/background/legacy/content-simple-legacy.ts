@@ -1,25 +1,3 @@
-// /*
-//  * LEGACY ARCHITECTURE - ORIGINAL MONOLITHIC CONTENT SCRIPT
-//  *
-//  * Original Location: src/content/content-simple.ts
-//  * Original Size: 1,259 lines
-//  * Date Archived: January 14, 2025
-//  *
-//  * STATUS: REPLACED BY MODULAR ARCHITECTURE
-//  * New Architecture Location: src/content/content-modular.ts + src/content/modules/
-//  *
-//  * IMPORTANT: This file is preserved for historical reference and potential rollback.
-//  * The build system now uses the new modular architecture (content-modular.ts).
-//  *
-//  * ARCHITECTURE COMPARISON:
-//  * - Original: All functionality in single 1,259-line file
-//  * - New: Modular architecture with separated concerns and enhanced safety
-//  *
-//  * FUNCTIONALITY STATUS: 100% PRESERVED
-//  * All original features have been migrated to the new modular architecture
-//  * with additional safety enhancements and memory leak protections.
-//  */
-
 // // === EXTENSION CONTEXT VALIDATION ===
 // // Check if extension context is still valid
 // let extensionContextValid = true;
@@ -1118,19 +1096,15 @@
 //         network: networkEnabled
 //       });
 
-//       // Set console interception state in main world
-//       window.postMessage({
-//         type: 'CONTROL_INTERCEPTION',
-//         target: 'console',
-//         enabled: consoleEnabled
-//       }, '*');
+//       // Dispatch initial state to main world script using CustomEvent
+//       window.dispatchEvent(new CustomEvent('tabLoggingStateChange', {
+//         detail: {
+//           networkEnabled: networkEnabled,
+//           consoleEnabled: consoleEnabled
+//         }
+//       }));
 
-//       // Set network interception state in main world
-//       window.postMessage({
-//         type: 'CONTROL_INTERCEPTION',
-//         target: 'network',
-//         enabled: networkEnabled
-//       }, '*');
+//       console.log('📱 CONTENT: Initial interception state dispatched to main world');
 //     }
 //   } catch (error) {
 //     console.log('📱 CONTENT: Failed to initialize interception state:', error);

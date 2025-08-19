@@ -44,7 +44,7 @@ let sharedInfrastructure: SharedInfrastructureModule | null = null
  */
 async function initializeModularArchitecture(): Promise<void> {
   console.log('🚀 Initializing modular architecture...')
-  
+
   try {
     // Check extension context validity
     if (!chrome?.runtime?.id) {
@@ -55,13 +55,28 @@ async function initializeModularArchitecture(): Promise<void> {
     // Initialize shared infrastructure
     sharedInfrastructure = new SharedInfrastructureModule(moduleConfig)
     await sharedInfrastructure.initialize()
-    
+
+    // Request main-world script injection for full website console/network interception
+    try {
+      console.log('🌍 Requesting main-world script injection...')
+      const injectionResponse = await chrome.runtime.sendMessage({
+        action: 'INJECT_MAIN_WORLD_SCRIPT'
+      })
+      if (injectionResponse?.success) {
+        console.log('✅ Main-world script injection successful')
+      } else {
+        console.warn('⚠️ Main-world script injection failed:', injectionResponse?.error)
+      }
+    } catch (error) {
+      console.error('❌ Failed to request main-world script injection:', error)
+    }
+
     console.log('✅ Modular architecture initialized successfully')
-    
+
     // Log initial statistics
     const stats = sharedInfrastructure.getStatistics()
     console.log('📊 Initial module statistics:', stats)
-    
+
     // Set up periodic memory monitoring
     setInterval(() => {
       if (sharedInfrastructure) {
@@ -72,7 +87,7 @@ async function initializeModularArchitecture(): Promise<void> {
         })
       }
     }, 30000) // Every 30 seconds
-    
+
   } catch (error) {
     console.error('❌ Failed to initialize modular architecture:', error)
   }
@@ -82,17 +97,11 @@ async function initializeModularArchitecture(): Promise<void> {
  * Test the modular architecture functionality
  */
 async function testModularArchitecture(): Promise<void> {
-  console.log('🧪 Starting modular architecture test...')
-  
   if (!sharedInfrastructure) {
     console.error('❌ Cannot test - shared infrastructure not initialized')
     return
   }
-  
-  // Test console interception
-  console.error('Test error for modular interception')
-  console.warn('Test warning for modular interception')
-  
+
   // Test network interception
   try {
     const response = await fetch('https://jsonplaceholder.typicode.com/posts/1')
@@ -101,7 +110,7 @@ async function testModularArchitecture(): Promise<void> {
   } catch (error) {
     console.log('⚠️ Network test failed (expected in some contexts):', error instanceof Error ? error.message : String(error))
   }
-  
+
   // Test XHR interception
   const xhr = new XMLHttpRequest()
   xhr.open('GET', 'https://jsonplaceholder.typicode.com/posts/2')
@@ -112,8 +121,6 @@ async function testModularArchitecture(): Promise<void> {
     console.log('⚠️ XHR test failed (expected in some contexts):', error)
   }
   xhr.send()
-  
-  console.log('🧪 Modular architecture test initiated')
 }
 
 /**
@@ -147,7 +154,7 @@ function setupCleanup(): void {
       sharedInfrastructure = null
     }
   })
-  
+
   // Also handle extension context invalidation
   chrome.runtime.onConnect.addListener(() => {
     // Connection test to detect context invalidation
@@ -159,25 +166,25 @@ function setupCleanup(): void {
  */
 async function main(): Promise<void> {
   console.log('🎯 Starting modular content script main function')
-  
+
   // Wait a bit for page to stabilize
   await new Promise(resolve => setTimeout(resolve, 1000))
-  
+
   try {
     // Initialize modular architecture
     await initializeModularArchitecture()
-    
+
     // Set up optimizations and cleanup
     setupPageVisibilityOptimization()
     setupCleanup()
-    
+
     // Run integration test after a short delay
     setTimeout(() => {
       testModularArchitecture()
     }, 2000)
-    
+
     console.log('🎉 Modular content script initialization complete')
-    
+
   } catch (error) {
     console.error('💥 Fatal error in modular content script:', error)
   }

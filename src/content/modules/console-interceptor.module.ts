@@ -37,7 +37,7 @@ export class ConsoleInterceptorModule {
       enabled: true,
       captureStack: true,
       maxMessageLength: 10000,
-      levels: ['error', 'warn']
+      levels: ['error', 'warn', 'info', 'log']
     }
     this.config = { ...defaults, ...config }
   }

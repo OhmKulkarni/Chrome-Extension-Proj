@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Console Interception Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            border-left: 4px solid #4CAF50;
+        }
+        .button {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: transform 0.2s;
+        }
+        .button:hover {
+            transform: translateY(-2px);
+        }
+        .log {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin: 10px 0;
+        }
+        .severity-error { color: #ff6b6b; }
+        .severity-warn { color: #ffd93d; }
+        .severity-info { color: #74c0fc; }
+        .severity-log { color: #51cf66; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Console Interception Test</h1>
+        <p>Test the modular console interception system with different severity levels.</p>
+
+        <div class="test-section">
+            <h3>🔧 Console Level Tests</h3>
+            <button class="button" onclick="testConsoleError()">Test console.error</button>
+            <button class="button" onclick="testConsoleWarn()">Test console.warn</button>
+            <button class="button" onclick="testConsoleInfo()">Test console.info</button>
+            <button class="button" onclick="testConsoleLog()">Test console.log</button>
+            <button class="button" onclick="testAllLevels()">Test All Levels</button>
+        </div>
+
+        <div class="test-section">
+            <h3>🚨 Error Generation Tests</h3>
+            <button class="button" onclick="testJavaScriptError()">JavaScript Error</button>
+            <button class="button" onclick="testUncaughtException()">Uncaught Exception</button>
+            <button class="button" onclick="testPromiseRejection()">Promise Rejection</button>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Complex Message Tests</h3>
+            <button class="button" onclick="testObjectLogging()">Log Objects</button>
+            <button class="button" onclick="testStackTraces()">Stack Traces</button>
+            <button class="button" onclick="testLongMessages()">Long Messages</button>
+        </div>
+
+        <div class="test-section">
+            <h3>📋 Test Log</h3>
+            <div id="testLog" class="log">Ready to test console interception...\n</div>
+            <button class="button" onclick="clearLog()">Clear Log</button>
+            <button class="button" onclick="openDashboard()">Open Dashboard</button>
+        </div>
+    </div>
+
+    <script>
+        let testCount = 0;
+
+        function log(message, severity = 'log') {
+            const logElement = document.getElementById('testLog');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}\n`;
+            logElement.innerHTML += `<span class="severity-${severity}">${logEntry}</span>`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function testConsoleError() {
+            testCount++;
+            log(`Test ${testCount}: Testing console.error`, 'error');
+            console.error(`🔴 Test Error #${testCount}`, { type: 'error', timestamp: Date.now() });
+            log(`✅ console.error called`, 'info');
+        }
+
+        function testConsoleWarn() {
+            testCount++;
+            log(`Test ${testCount}: Testing console.warn`, 'warn');
+            console.warn(`🟡 Test Warning #${testCount}`, { type: 'warning', timestamp: Date.now() });
+            log(`✅ console.warn called`, 'info');
+        }
+
+        function testConsoleInfo() {
+            testCount++;
+            log(`Test ${testCount}: Testing console.info`, 'info');
+            console.info(`🔵 Test Info #${testCount}`, { type: 'info', timestamp: Date.now() });
+            log(`✅ console.info called`, 'info');
+        }
+
+        function testConsoleLog() {
+            testCount++;
+            log(`Test ${testCount}: Testing console.log`, 'log');
+            console.log(`⚪ Test Log #${testCount}`, { type: 'log', timestamp: Date.now() });
+            log(`✅ console.log called`, 'info');
+        }
+
+        function testAllLevels() {
+            log('🚀 Testing all console levels...', 'info');
+            testConsoleError();
+            setTimeout(() => testConsoleWarn(), 100);
+            setTimeout(() => testConsoleInfo(), 200);
+            setTimeout(() => testConsoleLog(), 300);
+            log('✨ All console levels tested', 'info');
+        }
+
+        function testJavaScriptError() {
+            testCount++;
+            log(`Test ${testCount}: Testing JavaScript error`, 'error');
+            try {
+                // This will throw an error
+                nonExistentFunction();
+            } catch (error) {
+                console.error('Caught JavaScript error:', error);
+                log(`✅ JavaScript error thrown and caught`, 'info');
+            }
+        }
+
+        function testUncaughtException() {
+            testCount++;
+            log(`Test ${testCount}: Testing uncaught exception`, 'error');
+            setTimeout(() => {
+                throw new Error(`Uncaught test exception #${testCount}`);
+            }, 100);
+            log(`✅ Uncaught exception scheduled`, 'info');
+        }
+
+        function testPromiseRejection() {
+            testCount++;
+            log(`Test ${testCount}: Testing promise rejection`, 'error');
+            Promise.reject(new Error(`Promise rejection test #${testCount}`))
+                .catch(error => {
+                    console.error('Caught promise rejection:', error);
+                    log(`✅ Promise rejection handled`, 'info');
+                });
+        }
+
+        function testObjectLogging() {
+            testCount++;
+            log(`Test ${testCount}: Testing object logging`, 'info');
+            const testObj = {
+                id: testCount,
+                name: 'Test Object',
+                nested: { value: 42, array: [1, 2, 3] },
+                timestamp: new Date().toISOString()
+            };
+            console.log('Test object:', testObj);
+            console.warn('Object as warning:', testObj);
+            console.error('Object as error:', testObj);
+            log(`✅ Object logging tests completed`, 'info');
+        }
+
+        function testStackTraces() {
+            testCount++;
+            log(`Test ${testCount}: Testing stack traces`, 'info');
+
+            function deepFunction() {
+                function nestedFunction() {
+                    console.error('Deep stack trace test', new Error(`Stack trace test #${testCount}`));
+                }
+                nestedFunction();
+            }
+            deepFunction();
+            log(`✅ Stack trace test completed`, 'info');
+        }
+
+        function testLongMessages() {
+            testCount++;
+            log(`Test ${testCount}: Testing long messages`, 'info');
+            const longMessage = 'This is a very long test message that should test the message truncation functionality. '.repeat(10);
+            console.log('Long message test:', longMessage);
+            console.warn('Long warning:', longMessage);
+            console.error('Long error:', longMessage);
+            log(`✅ Long message tests completed`, 'info');
+        }
+
+        function clearLog() {
+            document.getElementById('testLog').innerHTML = 'Log cleared...\n';
+        }
+
+        function openDashboard() {
+            if (chrome && chrome.runtime) {
+                chrome.runtime.sendMessage({ action: 'openDashboard' });
+            } else {
+                log('❌ Chrome extension API not available', 'error');
+            }
+        }
+
+        // Auto-run initial test
+        window.addEventListener('load', () => {
+            log('🌟 Console Test Page Loaded', 'info');
+            log('Extension should be intercepting console messages now...', 'info');
+
+            // Run a quick test after load
+            setTimeout(() => {
+                testCount++;
+                console.log(`🎯 Auto-test #${testCount}: Page loaded successfully`);
+                console.info(`ℹ️ Auto-test #${testCount}: Info level message`);
+                console.warn(`⚠️ Auto-test #${testCount}: Warning level message`);
+                console.error(`❌ Auto-test #${testCount}: Error level message`);
+                log('🚀 Auto-tests completed - check dashboard for results', 'info');
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

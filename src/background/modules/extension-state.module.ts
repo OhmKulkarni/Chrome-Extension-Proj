@@ -242,7 +242,7 @@ export class ExtensionStateModule {
         await chrome.scripting.executeScript({
           target: { tabId },
           world: 'MAIN' as any,
-          files: ['assets/main-world-network-interceptor-BFD3WDcJ.js'] // Use the built file name
+          files: ['main-world-script.js'] // Correct main-world script file name
         });
 
         console.log(`🔌 ExtensionStateModule: Script injected into tab ${tabId}`);

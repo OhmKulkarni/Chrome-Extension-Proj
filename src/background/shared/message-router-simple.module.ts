@@ -86,6 +86,17 @@ export class MessageRouterModule {
 
       // Route messages to appropriate handlers
       switch (action) {
+        // Debug/Test Messages
+        case 'debugTest':
+          console.log('🐛 MessageRouter: Debug test called');
+          sendResponse({
+            success: true,
+            message: 'Debug test successful',
+            timestamp: Date.now(),
+            moduleStatus: 'working'
+          });
+          break;
+
         // Extension State
         case 'INJECT_MAIN_WORLD_SCRIPT':
           await this.handleScriptInjection(message, sender, sendResponse);
@@ -93,7 +104,7 @@ export class MessageRouterModule {
 
         case 'GET_EXTENSION_STATE':
           const state = await this.extensionState.getExtensionState();
-          sendResponse({ success: true, data: state });
+          sendResponse({ success: true, ...state });
           break;
 
         case 'SET_EXTENSION_STATE':
@@ -118,7 +129,9 @@ export class MessageRouterModule {
             message.limit || 50,
             message.offset || 0
           );
-          sendResponse({ success: true, data: networkRequests });
+          const networkResponse = { success: true, requests: networkRequests, total: networkRequests.length };
+          console.log('🌐 MessageRouter: getNetworkRequests response:', { requestsCount: networkRequests.length, total: networkResponse.total });
+          sendResponse(networkResponse);
           break;
 
         case 'toggleTabLogging':
@@ -141,7 +154,9 @@ export class MessageRouterModule {
             message.limit || 50,
             message.offset || 0
           );
-          sendResponse({ success: true, data: consoleErrors });
+          const errorResponse = { success: true, errors: consoleErrors, total: consoleErrors.length };
+          console.log('📝 MessageRouter: getConsoleErrors response:', { errorsCount: consoleErrors.length, total: errorResponse.total });
+          sendResponse(errorResponse);
           break;
 
         case 'toggleTabErrorLogging':
@@ -159,7 +174,9 @@ export class MessageRouterModule {
             message.limit || 50,
             message.offset || 0
           );
-          sendResponse({ success: true, data: tokenEvents });
+          const tokenResponse = { success: true, events: tokenEvents, total: tokenEvents.length };
+          console.log('🔍 MessageRouter: getTokenEvents response:', { eventsCount: tokenEvents.length, total: tokenResponse.total });
+          sendResponse(tokenResponse);
           break;
 
         // Data Management

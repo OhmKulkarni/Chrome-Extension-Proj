@@ -148,8 +148,8 @@ if (!listenersRegistered) {
 
       case 'getInterceptionState':
         // Return current interception state for the tab
-        sendResponse({ 
-          success: true, 
+        sendResponse({
+          success: true,
           networkEnabled: true, // Default enabled
           consoleEnabled: true  // Default enabled
         });
@@ -181,13 +181,19 @@ if (!listenersRegistered) {
         break;
 
       case 'GET_NETWORK_REQUESTS':
-        // Return empty network requests for now
-        sendResponse({ success: true, requests: [] });
+        // Return stored network requests
+        chrome.storage.local.get(['networkRequests'], (result) => {
+          const requests = result.networkRequests || [];
+          sendResponse({ success: true, requests });
+        });
         break;
 
       case 'GET_CONSOLE_ERRORS':
-        // Return empty console errors for now
-        sendResponse({ success: true, errors: [] });
+        // Return stored console errors
+        chrome.storage.local.get(['consoleErrors'], (result) => {
+          const errors = result.consoleErrors || [];
+          sendResponse({ success: true, errors });
+        });
         break;
 
       case 'GET_TOKEN_EVENTS':
@@ -205,6 +211,48 @@ if (!listenersRegistered) {
           totalRequests: 0,
           totalErrors: 0,
           totalTokenEvents: 0
+        });
+        break;
+
+      case 'CONSOLE_ERROR':
+        // Handle console error from content script
+        chrome.storage.local.get(['consoleErrors'], (result) => {
+          const existingErrors = result.consoleErrors || [];
+          const newError = {
+            ...message.data,
+            id: Math.random().toString(36).substr(2, 9),
+            timestamp: message.data.timestamp || new Date().toISOString()
+          };
+
+          existingErrors.push(newError);
+
+          // Keep only last 500 errors
+          const trimmedErrors = existingErrors.slice(-500);
+
+          chrome.storage.local.set({ consoleErrors: trimmedErrors }, () => {
+            sendResponse({ success: true });
+          });
+        });
+        break;
+
+      case 'storeNetworkRequest':
+        // Handle network request from content script
+        chrome.storage.local.get(['networkRequests'], (result) => {
+          const existingRequests = result.networkRequests || [];
+          const newRequest = {
+            ...message.data,
+            id: Math.random().toString(36).substr(2, 9),
+            timestamp: message.data.timestamp || new Date().toISOString()
+          };
+
+          existingRequests.push(newRequest);
+
+          // Keep only last 500 requests
+          const trimmedRequests = existingRequests.slice(-500);
+
+          chrome.storage.local.set({ networkRequests: trimmedRequests }, () => {
+            sendResponse({ success: true });
+          });
         });
         break;
 

@@ -75,7 +75,7 @@ export class SharedInfrastructureModule {
     const consoleDefaults = {
       enabled: true,
       captureStack: true,
-      levels: ['error', 'warn'] as ('error' | 'warn' | 'info' | 'log' | 'debug')[],
+      levels: ['error', 'warn', 'info', 'log'] as ('error' | 'warn' | 'info' | 'log' | 'debug')[],
       maxMessageLength: 1000,
       urlFilters: undefined
     }
@@ -158,6 +158,9 @@ export class SharedInfrastructureModule {
       if (this.config.communication.enabled && !this.isDestroying) {
         this.initializeCommunication()
       }
+
+      // Set up main-world script communication
+      this.setupMainWorldCommunication()
 
       // Set up communication batching with error handling
       this.setupCommunicationBatching()
@@ -254,7 +257,17 @@ export class SharedInfrastructureModule {
 
     // Send console events
     for (const event of batch.consoleEvents) {
-      await this.sendToBackground('CONSOLE_ERROR', event)
+      // Map console event format to background expected format
+      const consoleData = {
+        message: event.message,
+        severity: event.level, // Map level to severity
+        timestamp: new Date(event.timestamp).toISOString(),
+        url: event.url,
+        stack: event.stack,
+        // Include original event data for debugging
+        originalEvent: event
+      }
+      await this.sendToBackground('CONSOLE_ERROR', consoleData)
     }
   }
 
@@ -598,6 +611,99 @@ export class SharedInfrastructureModule {
       console.error('SharedInfrastructureModule: Error during destroy:', error)
     } finally {
       this.isDestroying = false
+    }
+  }
+
+  /**
+   * Set up communication with main-world script
+   */
+  private setupMainWorldCommunication(): void {
+    // Listen for messages from main-world script (network requests)
+    const mainWorldListener = (event: MessageEvent) => {
+      // Only handle messages from the main-world-script
+      if (event.data?.source === 'main-world-network-interceptor') {
+        this.handleMainWorldMessage({
+          type: 'networkRequest',
+          payload: event.data.data
+        })
+      }
+    }
+
+    // Listen for console events from main-world script
+    const consoleEventListener = (event: CustomEvent) => {
+      if (event.detail) {
+        this.handleMainWorldMessage({
+          type: 'consoleEvent',
+          payload: {
+            level: event.detail.severity, // main-world uses 'severity'
+            message: event.detail.message,
+            timestamp: new Date(event.detail.timestamp).getTime(),
+            url: event.detail.url,
+            stack: event.detail.stack,
+            args: []
+          }
+        })
+      }
+    }
+
+    window.addEventListener('message', mainWorldListener, {
+      signal: this.abortController.signal
+    })
+    window.addEventListener('consoleErrorIntercepted', consoleEventListener as EventListener, {
+      signal: this.abortController.signal
+    })
+
+    this.eventListeners.set('mainWorldMessage', mainWorldListener)
+    this.eventListeners.set('consoleErrorIntercepted', consoleEventListener)
+
+    console.log('SharedInfrastructureModule: Main-world communication setup complete')
+  }
+
+  /**
+   * Handle messages from main-world script
+   */
+  private handleMainWorldMessage(data: any): void {
+    try {
+      const { type, payload } = data
+
+      switch (type) {
+        case 'networkRequest':
+          if (payload && this.networkModule) {
+            console.log('🌐 SharedInfrastructure: Received network request from main-world:', payload.url)
+            this.pendingData.networkRequests.push(payload)
+            // Trigger flush if batch size reached
+            if (this.shouldFlush()) {
+              this.flushPendingData()
+            }
+          }
+          break
+
+        case 'consoleEvent':
+          if (payload) {
+            console.log(`📝 SharedInfrastructure: Received console event from main-world: ${payload.level} - ${payload.message.substring(0, 50)}...`)
+            // Convert main-world console event to our format
+            const consoleEvent = {
+              id: payload.id || `mainworld_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              level: payload.level,
+              message: payload.message,
+              timestamp: payload.timestamp || Date.now(),
+              url: payload.url || window.location.href,
+              stack: payload.stack,
+              args: payload.args || []
+            }
+            this.pendingData.consoleEvents.push(consoleEvent)
+            // Trigger flush if batch size reached
+            if (this.shouldFlush()) {
+              this.flushPendingData()
+            }
+          }
+          break
+
+        default:
+          console.warn('SharedInfrastructureModule: Unknown main-world message type:', type)
+      }
+    } catch (error) {
+      console.error('SharedInfrastructureModule: Error handling main-world message:', error)
     }
   }
 }
