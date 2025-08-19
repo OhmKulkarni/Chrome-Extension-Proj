@@ -60,15 +60,30 @@ export class BackgroundController {
     // Initialize storage manager
     this.storageManager = new StorageManagerModule(this.chromeApi, this.config);
 
-    // Initialize specialized modules
-    this.tokenTracker = new TokenTrackerModule(this.chromeApi, this.storageManager, this.config);
+    // Initialize legacy compatibility instances FIRST (needed by modules)
+    this.legacyStorageManager = new EnvironmentStorageManager();
+    this.legacyExtensionStateController = ExtensionStateController.getInstance();
+
+    // Initialize specialized modules with IndexedDB storage
+    this.tokenTracker = new TokenTrackerModule(
+      this.chromeApi,
+      this.storageManager,
+      this.legacyStorageManager,
+      this.config
+    );
     this.networkProcessor = new NetworkProcessorModule(
       this.chromeApi,
       this.storageManager,
       this.tokenTracker,
+      this.legacyStorageManager,
       this.config
     );
-    this.consoleHandler = new ConsoleHandlerModule(this.chromeApi, this.storageManager, this.config);
+    this.consoleHandler = new ConsoleHandlerModule(
+      this.chromeApi,
+      this.storageManager,
+      this.legacyStorageManager,
+      this.config
+    );
     this.extensionState = new ExtensionStateModule(this.chromeApi, this.storageManager, this.config);
 
     // Initialize message router (handles all communication)
@@ -81,11 +96,7 @@ export class BackgroundController {
       this.extensionState
     );
 
-    // Initialize legacy compatibility instances
-    this.legacyStorageManager = new EnvironmentStorageManager();
-    this.legacyExtensionStateController = ExtensionStateController.getInstance();
-
-    console.log('🔧 BackgroundController: All modules instantiated');
+    console.log('🔧 BackgroundController: All modules instantiated with IndexedDB storage');
   }
 
   /**

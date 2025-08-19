@@ -152,6 +152,17 @@ const Popup: React.FC = () => {
         tokenLogging: settings.tokenLogging || tokenLoggingDefaults
       });
 
+      // Persist default settings if they don't exist
+      if (!settings.networkInterception || !settings.errorLogging || !settings.tokenLogging) {
+        const updatedSettings = {
+          ...settings,
+          networkInterception: settings.networkInterception || networkInterceptionDefaults,
+          errorLogging: settings.errorLogging || errorLoggingDefaults,
+          tokenLogging: settings.tokenLogging || tokenLoggingDefaults
+        };
+        chrome.storage.local.set({ settings: updatedSettings });
+      }
+
       setLoading(false);
     });
 

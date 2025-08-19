@@ -8,6 +8,7 @@
 
 import { ChromeApiModule } from '../shared/chrome-api.module';
 import { StorageManagerModule } from '../shared/storage-manager.module';
+import { EnvironmentStorageManager } from '../environment-storage-manager';
 import {
   TokenEvent,
   NetworkRequestData,
@@ -18,6 +19,7 @@ import {
 export class TokenTrackerModule {
   private readonly chromeApi: ChromeApiModule;
   private readonly storageManager: StorageManagerModule;
+  private readonly indexedDbStorage: EnvironmentStorageManager;
   private readonly config: SafetyConfig;
   private readonly abortController: AbortController;
   private isInitialized = false;
@@ -46,10 +48,12 @@ export class TokenTrackerModule {
   constructor(
     chromeApi: ChromeApiModule,
     storageManager: StorageManagerModule,
+    indexedDbStorage: EnvironmentStorageManager,
     config: Partial<SafetyConfig> = {}
   ) {
     this.chromeApi = chromeApi;
     this.storageManager = storageManager;
+    this.indexedDbStorage = indexedDbStorage;
     this.config = {
       enableAbortController: true,
       maxRetries: 3,
@@ -60,7 +64,7 @@ export class TokenTrackerModule {
     };
 
     this.abortController = new AbortController();
-    console.log('🔐 TokenTrackerModule: Initialized with enhanced detection patterns');
+    console.log('🔐 TokenTrackerModule: Initialized with IndexedDB storage for token events');
   }
 
   /**
@@ -161,8 +165,45 @@ export class TokenTrackerModule {
 
       console.log(`🔐 TokenTrackerModule: Detected ${eventType} event for ${this.extractDomain(url)}`);
 
-      // Store the token event
-      await this.storageManager.storeTokenEvent(tokenEvent);
+      // Store the token event in IndexedDB using the same format as origin/main
+      try {
+        // Convert eventType to match IndexedDB TokenEvent schema
+        const tokenType = this.mapEventTypeToTokenType(eventType);
+
+        // Extract tab information (if available from requestData)
+        const tabId = requestData.tabId;
+        const tabUrl = requestData.source_url;
+        const mainDomain = tabUrl ? this.extractDomain(tabUrl) : this.extractDomain(url);
+
+        const tokenEventData = {
+          type: tokenType as 'jwt_token' | 'session_token' | 'api_key' | 'oauth_token',
+          valueHash,
+          timestamp: timestamp ? new Date(timestamp).getTime() : Date.now(),
+          source_url: requestData.source_url || url,
+          expiry: expiry ? new Date(expiry).getTime() : undefined,
+          status,
+          method,
+          url,
+          tab_id: tabId,
+          tab_url: tabUrl,
+          main_domain: mainDomain
+        };
+
+        // Use IndexedDB storage with race condition protection
+        if (this.config.enableRaceConditionProtection) {
+          await this.indexedDbStorage.insertTokenEvent(tokenEventData);
+        } else {
+          // Fire and forget for performance (not recommended)
+          this.indexedDbStorage.insertTokenEvent(tokenEventData).catch(error =>
+            console.warn('TokenTrackerModule: IndexedDB storage failed:', error)
+          );
+        }
+
+        console.log(`🗄️ TokenTrackerModule: Stored token event in IndexedDB`);
+      } catch (storageError) {
+        console.error('TokenTrackerModule: IndexedDB storage failed:', storageError);
+        // Continue processing even if storage fails
+      }
 
       return tokenEvent;
     });
@@ -489,6 +530,22 @@ export class TokenTrackerModule {
       return urlObj.hostname;
     } catch {
       return 'unknown';
+    }
+  }
+
+  /**
+   * Map event type to IndexedDB TokenEvent type format
+   */
+  private mapEventTypeToTokenType(eventType: string): string {
+    switch (eventType) {
+      case 'acquire':
+      case 'refresh':
+        return 'jwt_token'; // Most common token type
+      case 'expired':
+      case 'validation_failed':
+        return 'session_token'; // Expired tokens are often session tokens
+      default:
+        return 'api_key'; // Default fallback
     }
   }
 

@@ -29,7 +29,7 @@ export class StorageManagerModule {
     TOKEN_EVENTS: 'tokenEvents',
     SETTINGS: 'settings',
     TAB_STATES: 'tabStates',
-    TAB_NETWORK_LOGGING: 'tabNetworkLogging',
+    TAB_NETWORK_LOGGING: 'tabLogging', // Fixed to match UI
     TAB_ERROR_LOGGING: 'tabErrorLogging'
   } as const;
 
@@ -232,8 +232,10 @@ export class StorageManagerModule {
         return tabState.active || false;
       }
 
-      // Default state (matching original background script)
-      return false; // Default to paused for network logging
+      // If no specific tab state exists, check global settings for default behavior
+      const settings = await this.getSettings();
+      const defaultState = settings.networkInterception?.tabSpecific?.defaultState || 'paused';
+      return defaultState === 'active';
     });
   }
 

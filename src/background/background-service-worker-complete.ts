@@ -13,6 +13,7 @@ import { NetworkProcessorModule } from './modules/network-processor.module';
 import { ConsoleHandlerModule } from './modules/console-handler.module';
 import { TokenTrackerModule } from './modules/token-tracker.module';
 import { ExtensionStateModule } from './modules/extension-state.module';
+import { EnvironmentStorageManager } from './environment-storage-manager';
 import { SafetyConfig } from './types/background-types';
 
 export class ServiceWorkerBackgroundController {
@@ -24,6 +25,9 @@ export class ServiceWorkerBackgroundController {
   private tokenTracker: TokenTrackerModule;
   private extensionState: ExtensionStateModule;
   private messageRouter: MessageRouterModule;
+
+  // IndexedDB storage for all interception data
+  private indexedDbStorage: EnvironmentStorageManager;
 
   // Safety configuration
   private readonly config: SafetyConfig = {
@@ -48,15 +52,29 @@ export class ServiceWorkerBackgroundController {
     // Initialize service worker compatible storage manager
     this.storageManager = new ServiceWorkerStorageModule();
 
-    // Initialize specialized modules (these should be compatible)
-    this.tokenTracker = new TokenTrackerModule(this.chromeApi as any, this.storageManager as any, this.config);
+    // Initialize IndexedDB storage for all interception data
+    this.indexedDbStorage = new EnvironmentStorageManager();
+
+    // Initialize specialized modules with IndexedDB storage
+    this.tokenTracker = new TokenTrackerModule(
+      this.chromeApi as any,
+      this.storageManager as any,
+      this.indexedDbStorage,
+      this.config
+    );
     this.networkProcessor = new NetworkProcessorModule(
       this.chromeApi as any,
       this.storageManager as any,
       this.tokenTracker,
+      this.indexedDbStorage,
       this.config
     );
-    this.consoleHandler = new ConsoleHandlerModule(this.chromeApi as any, this.storageManager as any, this.config);
+    this.consoleHandler = new ConsoleHandlerModule(
+      this.chromeApi as any,
+      this.storageManager as any,
+      this.indexedDbStorage,
+      this.config
+    );
     this.extensionState = new ExtensionStateModule(this.chromeApi as any, this.storageManager as any, this.config);
 
     // Initialize message router (handles all communication)

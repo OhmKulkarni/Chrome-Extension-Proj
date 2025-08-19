@@ -8,6 +8,7 @@
 
 import { ChromeApiModule } from '../shared/chrome-api.module';
 import { StorageManagerModule } from '../shared/storage-manager.module';
+import { EnvironmentStorageManager } from '../environment-storage-manager';
 import {
   ConsoleErrorData,
   SafetyConfig
@@ -16,6 +17,7 @@ import {
 export class ConsoleHandlerModule {
   private readonly chromeApi: ChromeApiModule;
   private readonly storageManager: StorageManagerModule;
+  private readonly indexedDbStorage: EnvironmentStorageManager;
   private readonly config: SafetyConfig;
   private readonly abortController: AbortController;
   private isInitialized = false;
@@ -24,10 +26,12 @@ export class ConsoleHandlerModule {
   constructor(
     chromeApi: ChromeApiModule,
     storageManager: StorageManagerModule,
+    indexedDbStorage: EnvironmentStorageManager,
     config: Partial<SafetyConfig> = {}
   ) {
     this.chromeApi = chromeApi;
     this.storageManager = storageManager;
+    this.indexedDbStorage = indexedDbStorage;
     this.config = {
       enableAbortController: true,
       maxRetries: 3,
@@ -81,6 +85,7 @@ export class ConsoleHandlerModule {
 
   /**
    * Process console error data with comprehensive validation and storage
+   * Handles data from both main world script (via content script) and other sources
    */
   async processConsoleError(
     errorData: any,
@@ -99,9 +104,9 @@ export class ConsoleHandlerModule {
         return { success: false, reason: 'Invalid message' };
       }
 
-      // Get tab information from sender
-      const tabId = sender?.tab?.id;
-      const tabUrl = sender?.tab?.url;
+      // Get tab information - prioritize data from content script over sender
+      const tabId = errorData.tabId || sender?.tab?.id;
+      const tabUrl = errorData.tabUrl || sender?.tab?.url;
 
       // Check if tab error logging is active (matching original background script logic)
       if (tabId) {
@@ -145,8 +150,34 @@ export class ConsoleHandlerModule {
         ...(tabId && { tabId })
       };
 
-      // Store the console error
-      await this.storageManager.storeConsoleError(validatedErrorData);
+      // Store the console error in IndexedDB using the same format as origin/main
+      try {
+        const consoleErrorData = {
+          message: validatedErrorData.message,
+          stack_trace: validatedErrorData.stack || '',
+          timestamp: new Date(validatedErrorData.timestamp).getTime(),
+          severity: errorSeverity as 'error' | 'warn' | 'info',
+          url: validatedErrorData.source_url || 'unknown',
+          tab_id: tabId,
+          tab_url: tabUrl,
+          main_domain: mainDomain
+        };
+
+        // Use IndexedDB storage with race condition protection
+        if (this.config.enableRaceConditionProtection) {
+          await this.indexedDbStorage.insertConsoleError(consoleErrorData);
+        } else {
+          // Fire and forget for performance (not recommended)
+          this.indexedDbStorage.insertConsoleError(consoleErrorData).catch(error =>
+            console.warn('ConsoleHandlerModule: IndexedDB storage failed:', error)
+          );
+        }
+
+        console.log(`🗄️ ConsoleHandlerModule: Stored console error in IndexedDB`);
+      } catch (storageError) {
+        console.error('ConsoleHandlerModule: IndexedDB storage failed:', storageError);
+        // Continue processing even if storage fails
+      }
 
       this.processedCount++;
 

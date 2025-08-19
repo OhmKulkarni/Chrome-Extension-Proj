@@ -9,6 +9,7 @@
 import { ChromeApiModule } from '../shared/chrome-api.module';
 import { StorageManagerModule } from '../shared/storage-manager.module';
 import { TokenTrackerModule } from './token-tracker.module';
+import { EnvironmentStorageManager } from '../environment-storage-manager';
 import {
   NetworkRequestData,
   SafetyConfig
@@ -18,6 +19,7 @@ export class NetworkProcessorModule {
   private readonly chromeApi: ChromeApiModule;
   private readonly storageManager: StorageManagerModule;
   private readonly tokenTracker: TokenTrackerModule;
+  private readonly indexedDbStorage: EnvironmentStorageManager;
   private readonly config: SafetyConfig;
   private readonly abortController: AbortController;
   private isInitialized = false;
@@ -27,11 +29,13 @@ export class NetworkProcessorModule {
     chromeApi: ChromeApiModule,
     storageManager: StorageManagerModule,
     tokenTracker: TokenTrackerModule,
+    indexedDbStorage: EnvironmentStorageManager,
     config: Partial<SafetyConfig> = {}
   ) {
     this.chromeApi = chromeApi;
     this.storageManager = storageManager;
     this.tokenTracker = tokenTracker;
+    this.indexedDbStorage = indexedDbStorage;
     this.config = {
       enableAbortController: true,
       maxRetries: 3,
@@ -42,7 +46,7 @@ export class NetworkProcessorModule {
     };
 
     this.abortController = new AbortController();
-    console.log('🌐 NetworkProcessorModule: Initialized with comprehensive processing');
+    console.log('🌐 NetworkProcessorModule: Initialized with IndexedDB storage for all interceptions');
   }
 
   /**
@@ -85,6 +89,7 @@ export class NetworkProcessorModule {
 
   /**
    * Process network request data with comprehensive validation and storage
+   * Handles data from both main world script and other sources
    */
   async processNetworkRequest(
     requestData: any,
@@ -96,7 +101,27 @@ export class NetworkProcessorModule {
         return { success: false, reason: 'Invalid request data' };
       }
 
-      const { url, method, status, headers, body, timestamp } = requestData;
+      // Handle data from main world script (different format)
+      let url, method, status, headers, body, timestamp, tabId, tabUrl;
+
+      if (requestData.type === 'fetch' || requestData.type === 'xhr') {
+        // Data from main world script
+        url = requestData.url;
+        method = requestData.method;
+        status = requestData.status;
+        headers = requestData.requestHeaders || {};
+        body = requestData.requestBody || '';
+        timestamp = requestData.timestamp;
+
+        // For main world data, get tab info from sender
+        tabId = sender?.tab?.id;
+        tabUrl = sender?.tab?.url || requestData.url;
+      } else {
+        // Data from other sources (direct API calls)
+        ({ url, method, status, headers, body, timestamp } = requestData);
+        tabId = requestData.tabId || sender?.tab?.id;
+        tabUrl = requestData.source_url || sender?.tab?.url;
+      }
 
       // Basic validation
       if (!url || typeof url !== 'string') {
@@ -110,10 +135,6 @@ export class NetworkProcessorModule {
       if (status === undefined || typeof status !== 'number') {
         return { success: false, reason: 'Invalid status' };
       }
-
-      // Get tab information from sender
-      const tabId = sender?.tab?.id;
-      const tabUrl = sender?.tab?.url;
 
       // Check if tab logging is active (matching original background script logic)
       if (tabId) {
@@ -153,8 +174,38 @@ export class NetworkProcessorModule {
         ...(tabId && { tabId })
       };
 
-      // Store the network request
-      await this.storageManager.storeNetworkRequest(validatedRequestData);
+      // Store the network request in IndexedDB using the same format as origin/main
+      try {
+        const apiCallData = {
+          url: validatedRequestData.url,
+          method: validatedRequestData.method,
+          headers: JSON.stringify(validatedRequestData.headers || {}),
+          payload_size: validatedRequestData.body ? validatedRequestData.body.length : 0,
+          status: status,
+          response_body: '', // Response body not captured in current implementation
+          timestamp: new Date(validatedRequestData.timestamp).getTime(),
+          response_time: undefined, // Not captured in current implementation
+          tab_id: tabId,
+          tab_url: tabUrl,
+          main_domain: mainDomain,
+          request_body: validatedRequestData.body || ''
+        };
+
+        // Use IndexedDB storage with race condition protection
+        if (this.config.enableRaceConditionProtection) {
+          await this.indexedDbStorage.insertApiCall(apiCallData);
+        } else {
+          // Fire and forget for performance (not recommended)
+          this.indexedDbStorage.insertApiCall(apiCallData).catch(error =>
+            console.warn('NetworkProcessorModule: IndexedDB storage failed:', error)
+          );
+        }
+
+        console.log(`🗄️ NetworkProcessorModule: Stored network request in IndexedDB`);
+      } catch (storageError) {
+        console.error('NetworkProcessorModule: IndexedDB storage failed:', storageError);
+        // Continue processing even if storage fails
+      }
 
       // Track token events if this is a token-related request
       let tokenEvent = null;

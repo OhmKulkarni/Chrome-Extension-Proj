@@ -1,8 +1,8 @@
 // src/settings/settings.tsx
 // This file serves as the settings UI for the Chrome extension.
-// 
+//
 // STORAGE ARCHITECTURE:
-// - UI settings are saved to both chrome.storage.sync (key: 'extensionSettings') 
+// - UI settings are saved to both chrome.storage.sync (key: 'extensionSettings')
 //   and chrome.storage.local (key: 'settings')
 // - Background script reads from chrome.storage.local (key: 'settings')
 // - This dual storage ensures UI persistence and background script compatibility
@@ -87,7 +87,7 @@ const defaultSettings: SettingsData = {
       ]
     },
     tabSpecific: {
-      defaultState: 'paused'
+      defaultState: 'active' // Changed from 'paused' to 'active' for better UX
     }
   },
   errorLogging: {
@@ -119,14 +119,14 @@ const Settings: React.FC = () => {
     percentage: number;
     isLoading: boolean;
   }>({ bytes: 0, percentage: 0, isLoading: true });
-  
+
   // MEMORY LEAK FIX: Track timeouts for cleanup
   const timeoutsRef = React.useRef<Set<number>>(new Set());
 
   useEffect(() => {
     loadSettings();
     loadStorageUsage();
-    
+
     // MEMORY LEAK FIX: Cleanup timeouts on unmount
     return () => {
       timeoutsRef.current.forEach(timeoutId => clearTimeout(timeoutId));
@@ -141,11 +141,11 @@ const Settings: React.FC = () => {
       const response = await chrome.runtime.sendMessage({
         action: 'getTableCounts'
       });
-      
+
       if (response && response.success && response.data) {
         const tableCounts = response.data;
         let estimatedBytes = 0;
-        
+
         // Calculate estimated size based on table counts
         // Using the same estimation logic as the dashboard
         if (tableCounts.apiCalls) {
@@ -160,10 +160,10 @@ const Settings: React.FC = () => {
         if (tableCounts.minifiedLibraries) {
           estimatedBytes += tableCounts.minifiedLibraries * 15000; // ~15KB average
         }
-        
+
         const STORAGE_LIMIT = 100 * 1024 * 1024; // 100MB limit
         const percentage = (estimatedBytes / STORAGE_LIMIT) * 100;
-        
+
         setStorageUsage({
           bytes: estimatedBytes,
           percentage: Math.min(percentage, 100),
@@ -206,9 +206,9 @@ const Settings: React.FC = () => {
         chrome.storage.sync.get(['extensionSettings']),
         chrome.storage.local.get(['settings'])
       ]);
-      
+
       let loadedSettings = defaultSettings;
-      
+
       // Priority: local storage (used by background script) > sync storage
       if (localResult.settings) {
         // Map from background script format to UI format
@@ -228,7 +228,7 @@ const Settings: React.FC = () => {
           tokenLogging: syncSettings.tokenLogging || defaultSettings.tokenLogging,
         };
       }
-      
+
       setSettings(loadedSettings);
     } catch (error) {
       console.error('Failed to load settings:', error);
@@ -248,23 +248,23 @@ const Settings: React.FC = () => {
         errorLogging: settings.errorLogging,
         tokenLogging: settings.tokenLogging,
       };
-      
+
       await Promise.all([
         // Save to local storage for background script compatibility
         chrome.storage.local.set({ settings: backendSettings }),
         // Keep sync storage for UI persistence
         chrome.storage.sync.set({ extensionSettings: settings })
       ]);
-      
+
       setSaveMessage('Settings saved successfully!');
-      
+
       // MEMORY LEAK FIX: Track timeout for cleanup
       const timeoutId = window.setTimeout(() => {
         setSaveMessage('');
         timeoutsRef.current.delete(timeoutId);
       }, 3000);
       timeoutsRef.current.add(timeoutId);
-      
+
     } catch (error) {
       console.error('Failed to save settings:', error);
       setSaveMessage('Error saving settings. Please try again.');
@@ -305,17 +305,17 @@ const Settings: React.FC = () => {
                 Manage your extension preferences and behavior
               </p>
             </div>
-            
+
             {/* Action Buttons */}
             <div className="flex space-x-3">
-              <Button 
+              <Button
                 variant="outline"
                 onClick={resetSettings}
               >
                 Reset to Default
               </Button>
-              <Button 
-                onClick={saveSettings} 
+              <Button
+                onClick={saveSettings}
                 disabled={isSaving}
               >
                 {isSaving ? 'Saving...' : 'Save Settings'}
@@ -327,8 +327,8 @@ const Settings: React.FC = () => {
         {/* Save Message */}
         {saveMessage && (
           <div className={`mb-6 p-4 rounded-lg border ${
-            saveMessage.includes('Error') 
-              ? 'bg-destructive/10 text-destructive border-destructive/20' 
+            saveMessage.includes('Error')
+              ? 'bg-destructive/10 text-destructive border-destructive/20'
               : 'bg-green-50 text-green-700 border-green-200'
           }`}>
             {saveMessage}
@@ -354,7 +354,7 @@ const Settings: React.FC = () => {
                         onChange={(e) => {
                           const newMode = e.target.value as 'disabled' | 'partial' | 'full';
                           const updatedBodyCapture = { ...settings.networkInterception?.bodyCapture };
-                          
+
                           // Reset dependent settings based on mode
                           if (newMode === 'disabled') {
                             updatedBodyCapture.mode = 'disabled';
@@ -369,7 +369,7 @@ const Settings: React.FC = () => {
                             updatedBodyCapture.mode = 'partial';
                             // Keep existing settings for partial mode
                           }
-                          
+
                           updateSetting('networkInterception', {
                             ...settings.networkInterception,
                             bodyCapture: updatedBodyCapture
@@ -435,7 +435,7 @@ const Settings: React.FC = () => {
                         </div>
                       </>
                     )}
-                    
+
                     {/* Show explanation for full mode */}
                     {settings.networkInterception?.bodyCapture?.mode === 'full' && (
                       <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -444,7 +444,7 @@ const Settings: React.FC = () => {
                         </p>
                       </div>
                     )}
-                    
+
                     {/* Show explanation for disabled mode */}
                     {settings.networkInterception?.bodyCapture?.mode === 'disabled' && (
                       <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
@@ -510,7 +510,7 @@ const Settings: React.FC = () => {
                           <p className="text-xs text-muted-foreground mb-3">
                             Define URL patterns to capture. Use * for wildcards (e.g., https://api.example.com/*)
                           </p>
-                          
+
                           {settings.networkInterception?.urlPatterns?.patterns?.map((pattern, index) => (
                             <div key={pattern.id} className="flex items-center space-x-3 mb-2 p-2 bg-background rounded border">
                               <input
@@ -563,7 +563,7 @@ const Settings: React.FC = () => {
                               </Button>
                             </div>
                           ))}
-                          
+
                           <Button
                             variant="outline"
                             size="sm"
@@ -593,7 +593,7 @@ const Settings: React.FC = () => {
                     <div className="grid gap-4">
                       <div className="p-3 bg-muted/50 rounded-lg border border-muted">
                         <p className="text-sm font-medium mb-3">🗂️ Tab-Specific Control Settings</p>
-                        
+
                         <div className="grid gap-2">
                           <label className="setting-label">Default state for new tabs</label>
                           <Select
@@ -662,7 +662,7 @@ const Settings: React.FC = () => {
                 <div className="border-t pt-4">
                   <div className="p-3 bg-muted/50 rounded-lg border border-muted">
                     <p className="text-sm font-medium mb-3">🗂️ Tab-Specific Token Logging</p>
-                    
+
                     <div className="grid gap-2">
                       <label className="setting-label">Default state for new tabs</label>
                       <Select
@@ -772,7 +772,7 @@ const Settings: React.FC = () => {
                                 const newAllowed = e.target.checked
                                   ? [...currentAllowed, severity]
                                   : currentAllowed.filter(s => s !== severity);
-                                
+
                                 updateSetting('errorLogging', {
                                   ...settings.errorLogging,
                                   severityFilter: {
@@ -807,7 +807,7 @@ const Settings: React.FC = () => {
                   <div className="grid gap-4">
                     <div className="p-3 bg-muted/50 rounded-lg border border-muted">
                       <p className="text-sm font-medium mb-3">🗂️ Tab-Specific Error Logging</p>
-                      
+
                       <div className="grid gap-2">
                         <label className="setting-label">Default state for new tabs</label>
                         <Select
@@ -858,7 +858,7 @@ const Settings: React.FC = () => {
                         <span className="text-sm text-muted-foreground">
                           {formatBytes(storageUsage.bytes)} / 100 MB
                         </span>
-                        <div 
+                        <div
                           className="relative group cursor-help"
                           title="Once the 100MB limit is exceeded, automatic data pruning will begin to maintain performance"
                         >
@@ -868,10 +868,10 @@ const Settings: React.FC = () => {
                         </div>
                       </div>
                     </div>
-                    
+
                     {/* Progress Bar */}
                     <div className="w-full bg-muted rounded-full h-3">
-                      <div 
+                      <div
                         className={`h-3 rounded-full transition-all duration-300 ${
                           storageUsage.percentage < 50 ? 'bg-green-500' :
                           storageUsage.percentage < 80 ? 'bg-yellow-500' : 'bg-red-500'
@@ -879,7 +879,7 @@ const Settings: React.FC = () => {
                         style={{ width: `${Math.min(storageUsage.percentage, 100)}%` }}
                       ></div>
                     </div>
-                    
+
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <span className="text-muted-foreground">Usage:</span>
@@ -892,7 +892,7 @@ const Settings: React.FC = () => {
                         </span>
                       </div>
                     </div>
-                    
+
                     {storageUsage.percentage > 80 && (
                       <div className="mt-3 p-3 bg-yellow-50 text-yellow-800 rounded-lg border border-yellow-200">
                         <p className="text-sm font-medium">⚠️ High storage usage detected</p>

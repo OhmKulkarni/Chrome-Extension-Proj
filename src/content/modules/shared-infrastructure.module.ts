@@ -82,8 +82,8 @@ export class SharedInfrastructureModule {
 
     const communicationDefaults = {
       enabled: true,
-      batchSize: 10,
-      flushInterval: 5000
+      batchSize: 10, // Restored to normal batch size
+      flushInterval: 5000 // Restored to normal flush interval
     }
 
     this.config = {
