@@ -1096,19 +1096,15 @@ async function initializeInterceptionState(): Promise<void> {
         network: networkEnabled
       });
       
-      // Set console interception state in main world
-      window.postMessage({
-        type: 'CONTROL_INTERCEPTION',
-        target: 'console',
-        enabled: consoleEnabled
-      }, '*');
+      // Dispatch initial state to main world script using CustomEvent
+      window.dispatchEvent(new CustomEvent('tabLoggingStateChange', {
+        detail: {
+          networkEnabled: networkEnabled,
+          consoleEnabled: consoleEnabled
+        }
+      }));
       
-      // Set network interception state in main world
-      window.postMessage({
-        type: 'CONTROL_INTERCEPTION',
-        target: 'network',
-        enabled: networkEnabled
-      }, '*');
+      console.log('📱 CONTENT: Initial interception state dispatched to main world');
     }
   } catch (error) {
     console.log('📱 CONTENT: Failed to initialize interception state:', error);

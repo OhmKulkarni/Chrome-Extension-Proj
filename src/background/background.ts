@@ -146,6 +146,40 @@ if (!listenersRegistered) {
         sendResponse({ success: true, enabled: true });
         break;
 
+      case 'getInterceptionState':
+        // Return current interception state for the tab
+        sendResponse({ 
+          success: true, 
+          networkEnabled: true, // Default enabled
+          consoleEnabled: true  // Default enabled
+        });
+        break;
+
+      case 'STORE_NETWORK_REQUEST':
+        // Store network request data (basic in-memory storage for now)
+        console.log('📡 BACKGROUND: Storing network request:', message.data?.url);
+        sendResponse({ success: true });
+        break;
+
+      case 'STORE_NETWORK_RESPONSE':
+        // Store network response data (basic in-memory storage for now)
+        console.log('📡 BACKGROUND: Storing network response:', message.data?.url);
+        sendResponse({ success: true });
+        break;
+
+      case 'CONSOLE_ERROR':
+      case 'STORE_CONSOLE_ERROR':
+        // Store console error data (basic in-memory storage for now)
+        console.log('🔍 BACKGROUND: Storing console error:', message.data?.message);
+        sendResponse({ success: true });
+        break;
+
+      case 'STORE_TOKEN_EVENT':
+        // Store token event data (basic in-memory storage for now)
+        console.log('🔑 BACKGROUND: Storing token event:', message.data?.token);
+        sendResponse({ success: true });
+        break;
+
       case 'GET_NETWORK_REQUESTS':
         // Return empty network requests for now
         sendResponse({ success: true, requests: [] });
