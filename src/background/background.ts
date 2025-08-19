@@ -167,17 +167,25 @@ if (!listenersRegistered) {
         sendResponse({ success: true });
         break;
 
-      case 'CONSOLE_ERROR':
-      case 'STORE_CONSOLE_ERROR':
-        // Store console error data (basic in-memory storage for now)
-        console.log('🔍 BACKGROUND: Storing console error:', message.data?.message);
-        sendResponse({ success: true });
-        break;
-
       case 'STORE_TOKEN_EVENT':
-        // Store token event data (basic in-memory storage for now)
-        console.log('🔑 BACKGROUND: Storing token event:', message.data?.token);
-        sendResponse({ success: true });
+        // Handle token event from content script
+        chrome.storage.local.get(['tokenEvents'], (result) => {
+          const existingTokens = result.tokenEvents || [];
+          const newToken = {
+            ...message.data,
+            id: Math.random().toString(36).substr(2, 9),
+            timestamp: message.data.timestamp || new Date().toISOString()
+          };
+
+          existingTokens.push(newToken);
+
+          // Keep only last 200 tokens
+          const trimmedTokens = existingTokens.slice(-200);
+
+          chrome.storage.local.set({ tokenEvents: trimmedTokens }, () => {
+            sendResponse({ success: true });
+          });
+        });
         break;
 
       case 'GET_NETWORK_REQUESTS':
@@ -197,8 +205,11 @@ if (!listenersRegistered) {
         break;
 
       case 'GET_TOKEN_EVENTS':
-        // Return empty token events for now
-        sendResponse({ success: true, events: [] });
+        // Return stored token events
+        chrome.storage.local.get(['tokenEvents'], (result) => {
+          const events = result.tokenEvents || [];
+          sendResponse({ success: true, events });
+        });
         break;
 
       case 'GET_ANALYSIS_DATA':
