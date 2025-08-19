@@ -349,12 +349,12 @@ export class BackgroundController {
 
 console.log('🚀 Background service worker starting with modular architecture');
 
-// Global error handler
-window.addEventListener('error', (event) => {
+// Service worker compatible error handlers (no window references)
+self.addEventListener('error', (event) => {
   console.error('🚨 BackgroundController: Unhandled error:', event.error);
 });
 
-window.addEventListener('unhandledrejection', (event) => {
+self.addEventListener('unhandledrejection', (event) => {
   console.error('🚨 BackgroundController: Unhandled promise rejection:', event.reason);
 });
 
@@ -376,7 +376,7 @@ backgroundController.initialize().then(() => {
   }, 5000);
 });
 
-// Cleanup on service worker shutdown
+// Service worker shutdown handler
 self.addEventListener('beforeunload', () => {
   console.log('🧹 Background service worker shutting down...');
   backgroundController.cleanup();
