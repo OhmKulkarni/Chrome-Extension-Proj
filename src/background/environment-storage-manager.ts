@@ -19,7 +19,7 @@ export class EnvironmentStorageManager implements StorageOperations {
     this.enableFallback = import.meta.env.VITE_ENABLE_STORAGE_FALLBACK !== 'false'
     this.enableLogs = import.meta.env.VITE_ENABLE_STORAGE_LOGS === 'true'
     this.enableMetrics = import.meta.env.VITE_ENABLE_PERFORMANCE_METRICS === 'true'
-    
+
     this.config = {
       maxRecordsPerTable: parseInt(import.meta.env.VITE_MAX_RECORDS_PER_TABLE) || 10000,
       maxAgeInDays: parseInt(import.meta.env.VITE_MAX_AGE_DAYS) || 30,
@@ -56,12 +56,12 @@ export class EnvironmentStorageManager implements StorageOperations {
       if (this.enableLogs) {
         console.log('[EnvironmentStorageManager] Initializing IndexedDB...')
       }
-      
+
       const indexedDBStorage = new IndexedDBStorage(this.config)
       await indexedDBStorage.init()
       this.storage = indexedDBStorage
       this.storageType = 'indexeddb'
-      
+
       if (this.enableLogs) {
         console.log('[EnvironmentStorageManager] ✅ IndexedDB initialized successfully')
       }
@@ -80,7 +80,7 @@ export class EnvironmentStorageManager implements StorageOperations {
     try {
       const storageInfo = await this.storage.getStorageInfo()
       const tableCounts = await this.storage.getTableCounts()
-      
+
       console.log('[EnvironmentStorageManager] 📊 Performance Info:', {
         storageType: this.storageType,
         storageInfo,
@@ -118,8 +118,8 @@ export class EnvironmentStorageManager implements StorageOperations {
     return this.enableFallback
   }
 
-  getConfiguration(): StorageConfig & { 
-    primaryType: StorageType, 
+  getConfiguration(): StorageConfig & {
+    primaryType: StorageType,
     enableFallback: boolean,
     enableLogs: boolean,
     enableMetrics: boolean
@@ -207,6 +207,42 @@ export class EnvironmentStorageManager implements StorageOperations {
     return this.ensureInitialized().getPerformanceStats()
   }
 
+  // ===== SETTINGS OPERATIONS =====
+
+  async setSetting(key: string, value: any, type?: string): Promise<void> {
+    return this.ensureInitialized().setSetting(key, value, type)
+  }
+
+  async getSetting(key: string): Promise<any> {
+    return this.ensureInitialized().getSetting(key)
+  }
+
+  async getAllSettings(): Promise<any[]> {
+    return this.ensureInitialized().getAllSettings()
+  }
+
+  async deleteSetting(key: string): Promise<void> {
+    return this.ensureInitialized().deleteSetting(key)
+  }
+
+  // ===== TAB STATE OPERATIONS =====
+
+  async setTabState(tabId: number, state: any): Promise<void> {
+    return this.ensureInitialized().setTabState(tabId, state)
+  }
+
+  async getTabState(tabId: number): Promise<any> {
+    return this.ensureInitialized().getTabState(tabId)
+  }
+
+  async getAllTabStates(): Promise<any[]> {
+    return this.ensureInitialized().getAllTabStates()
+  }
+
+  async deleteTabState(tabId: number): Promise<void> {
+    return this.ensureInitialized().deleteTabState(tabId)
+  }
+
   // MEMORY LEAK FIX: Add cleanup method to properly close storage connections
   async cleanup(): Promise<void> {
     if (this.storage && 'cleanup' in this.storage) {
@@ -222,5 +258,14 @@ export class EnvironmentStorageManager implements StorageOperations {
       return (this.storage as any).isConnected()
     }
     return this.storage !== null
+  }
+
+  /**
+   * Debug method to verify database structure
+   */
+  async debugDatabaseStructure(): Promise<void> {
+    if (this.storage && 'debugDatabaseStructure' in this.storage) {
+      await (this.storage as any).debugDatabaseStructure()
+    }
   }
 }

@@ -92,7 +92,8 @@ export class BackgroundController {
       this.networkProcessor,
       this.consoleHandler,
       this.tokenTracker,
-      this.extensionState
+      this.extensionState,
+      this.config
     );
 
     console.log('🔧 BackgroundController: All modules instantiated with IndexedDB storage');

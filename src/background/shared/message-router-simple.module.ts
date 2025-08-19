@@ -10,6 +10,7 @@ import { NetworkProcessorModule } from '../modules/network-processor.module';
 import { ConsoleHandlerModule } from '../modules/console-handler.module';
 import { TokenTrackerModule } from '../modules/token-tracker.module';
 import { ExtensionStateModule } from '../modules/extension-state.module';
+import { SafetyConfig } from '../types/background-types';
 
 export class MessageRouterModule {
   private readonly chromeApi: ChromeApiModule;
@@ -18,6 +19,8 @@ export class MessageRouterModule {
   private readonly consoleHandler: ConsoleHandlerModule;
   private readonly tokenTracker: TokenTrackerModule;
   private readonly extensionState: ExtensionStateModule;
+  private readonly config: SafetyConfig;
+  private readonly abortController: AbortController;
   private isInitialized = false;
   private messageCount = 0;
 
@@ -27,7 +30,8 @@ export class MessageRouterModule {
     networkProcessor: NetworkProcessorModule,
     consoleHandler: ConsoleHandlerModule,
     tokenTracker: TokenTrackerModule,
-    extensionState: ExtensionStateModule
+    extensionState: ExtensionStateModule,
+    config: Partial<SafetyConfig> = {}
   ) {
     this.chromeApi = chromeApi;
     this.storageManager = storageManager;
@@ -35,8 +39,17 @@ export class MessageRouterModule {
     this.consoleHandler = consoleHandler;
     this.tokenTracker = tokenTracker;
     this.extensionState = extensionState;
+    this.config = {
+      enableAbortController: true,
+      maxRetries: 3,
+      timeoutMs: 5000,
+      enableRaceConditionProtection: true,
+      enableMemoryMonitoring: true,
+      ...config
+    };
 
-    console.log('📬 MessageRouterModule: Initialized');
+    this.abortController = new AbortController();
+    console.log('📬 MessageRouterModule: Initialized with safety configuration');
   }
 
   /**
@@ -61,6 +74,10 @@ export class MessageRouterModule {
    * Cleanup resources
    */
   cleanup(): void {
+    if (this.config.enableAbortController) {
+      this.abortController.abort();
+    }
+
     this.isInitialized = false;
     this.messageCount = 0;
     console.log('🧹 MessageRouterModule: Cleanup completed');
@@ -325,10 +342,61 @@ export class MessageRouterModule {
   getStatus(): {
     initialized: boolean;
     messageCount: number;
+    aborted: boolean;
   } {
     return {
       initialized: this.isInitialized,
-      messageCount: this.messageCount
+      messageCount: this.messageCount,
+      aborted: this.abortController.signal.aborted
     };
   }
+
+  // ===== SAFETY UTILITIES =====
+
+  /**
+   * Execute operation with comprehensive safety measures
+   * TODO: Wrap existing async methods with this pattern
+   */
+  /* private async executeWithSafety<T>(operation: string, fn: () => Promise<T>): Promise<T> {
+    if (!this.isInitialized) {
+      throw new Error(`MessageRouterModule: Not initialized (${operation})`);
+    }
+
+    if (this.config.enableAbortController && this.abortController.signal.aborted) {
+      throw new Error(`MessageRouterModule: Operation aborted (${operation})`);
+    }
+
+    const startTime = Date.now();
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt <= this.config.maxRetries; attempt++) {
+      try {
+        // Race condition protection
+        if (this.config.enableRaceConditionProtection && attempt > 0) {
+          await new Promise(resolve => setTimeout(resolve, 100 * attempt));
+        }
+
+        const result = await fn();
+
+        // Log performance for slow operations
+        const duration = Date.now() - startTime;
+        if (duration > 500 && attempt === 0) { // Log slow operations only on first attempt
+          console.warn(`🐌 MessageRouterModule: ${operation} took ${duration}ms`);
+        }
+
+        return result;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        if (attempt === this.config.maxRetries) {
+          console.error(`❌ MessageRouterModule: ${operation} failed after ${this.config.maxRetries} retries:`, lastError);
+          break;
+        }
+
+        console.warn(`⚠️ MessageRouterModule: ${operation} failed, retrying (${attempt + 1}/${this.config.maxRetries}):`, lastError);
+      }
+    }
+
+    throw lastError || new Error(`MessageRouterModule: Unknown error in ${operation}`);
+  } */
 }

@@ -89,36 +89,69 @@ export const DEFAULT_CONFIG: StorageConfig = {
 export interface StorageOperations {
   // Initialize storage
   init(): Promise<void>
-  
+
   // API Calls
   insertApiCall(data: Omit<ApiCall, 'id'>): Promise<number>
   getApiCalls(limit?: number, offset?: number): Promise<ApiCall[]>
   getApiCallsFast?(limit?: number): Promise<ApiCall[]> // Optimized for performance testing
   deleteApiCall(id: number): Promise<void>
-  
+
   // Console Errors
   insertConsoleError(data: Omit<ConsoleError, 'id'>): Promise<number>
   getConsoleErrors(limit?: number, offset?: number): Promise<ConsoleError[]>
   deleteConsoleError(id: number): Promise<void>
-  
+
   // Token Events
   insertTokenEvent(data: Omit<TokenEvent, 'id'>): Promise<number>
   getTokenEvents(limit?: number, offset?: number): Promise<TokenEvent[]>
   deleteTokenEvent(id: number): Promise<void>
-  
+
   // Minified Libraries
   insertMinifiedLibrary(data: Omit<MinifiedLibrary, 'id'>): Promise<number>
   getMinifiedLibraries(limit?: number, offset?: number): Promise<MinifiedLibrary[]>
   deleteMinifiedLibrary(id: number): Promise<void>
-  
+
   // Data pruning
   pruneOldData(): Promise<void>
   clearAllData(): Promise<void>
   getTableCounts(): Promise<{[table: string]: number}>
-  
-  // Storage info  
+
+  // Storage info
   getStorageInfo(): Promise<{type: 'indexeddb', size?: number}>
-  
+
+  // Settings operations
+  setSetting(key: string, value: any, type?: string): Promise<void>
+  getSetting(key: string): Promise<any>
+  getAllSettings(): Promise<SettingsData[]>
+  deleteSetting(key: string): Promise<void>
+
+  // Tab state operations
+  setTabState(tabId: number, state: Omit<TabState, 'tabId' | 'lastUpdated'>): Promise<void>
+  getTabState(tabId: number): Promise<TabState | null>
+  getAllTabStates(): Promise<TabState[]>
+  deleteTabState(tabId: number): Promise<void>
+
   // Performance monitoring
   getPerformanceStats(): Promise<PerformanceStats>
+}
+
+// Settings storage interface
+export interface SettingsData {
+  key: string
+  value: any
+  timestamp: number
+  type: 'extension' | 'network' | 'console' | 'tokens' | 'ui'
+}
+
+// Tab state storage interface
+export interface TabState {
+  tabId: number
+  networkActive: boolean
+  errorActive: boolean
+  networkStartTime?: number
+  errorStartTime?: number
+  networkRequestCount: number
+  errorCount: number
+  lastUpdated: number
+  url?: string
 }
