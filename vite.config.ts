@@ -27,7 +27,7 @@ export default defineConfig({
           default_popup: "src/popup/popup.html"
         },
         background: {
-          service_worker: "src/background/background.ts",
+          service_worker: "src/background/background-service-worker-complete.ts",
           type: "module"
         },
         content_scripts: [
