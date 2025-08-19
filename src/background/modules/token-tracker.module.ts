@@ -7,6 +7,7 @@
  */
 
 import { ChromeApiModule } from '../shared/chrome-api.module';
+import { StorageManagerModule } from '../shared/storage-manager.module';
 import { EnvironmentStorageManager } from '../environment-storage-manager';
 import {
   TokenEvent,
@@ -17,6 +18,7 @@ import {
 
 export class TokenTrackerModule {
   private readonly chromeApi: ChromeApiModule;
+  private readonly storageManager: StorageManagerModule;
   private readonly indexedDbStorage: EnvironmentStorageManager;
   private readonly config: SafetyConfig;
   private readonly abortController: AbortController;
@@ -45,10 +47,12 @@ export class TokenTrackerModule {
 
   constructor(
     chromeApi: ChromeApiModule,
+    storageManager: StorageManagerModule,
     indexedDbStorage: EnvironmentStorageManager,
     config: Partial<SafetyConfig> = {}
   ) {
     this.chromeApi = chromeApi;
+    this.storageManager = storageManager;
     this.indexedDbStorage = indexedDbStorage;
     this.config = {
       enableAbortController: true,
@@ -105,10 +109,37 @@ export class TokenTrackerModule {
    */
   async detectTokenEvent(requestData: NetworkRequestData): Promise<TokenEvent | null> {
     return this.executeWithSafety('detectTokenEvent', async () => {
-      const { url, method, status, headers, timestamp } = requestData;
+      const { url, method, status, headers, timestamp, tabId } = requestData;
 
       if (!url || !method || status === undefined) {
         return null;
+      }
+
+      // Check if token logging is active for this specific tab
+      if (tabId) {
+        try {
+          const isTabTokenLoggingActive = await this.storageManager.getTabTokenState(tabId);
+          if (!isTabTokenLoggingActive) {
+            // Token logging is disabled for this tab, skip processing
+            return null;
+          }
+        } catch (error) {
+          console.warn('TokenTrackerModule: Failed to get tab token state, falling back to global settings:', error);
+          // Fall through to check global settings
+        }
+      }
+
+      // Also check global settings for token logging
+      try {
+        const settings = await this.storageManager.getSettings();
+        const tokenConfig = settings?.tokenLogging || {};
+        
+        // If global token logging is disabled, skip
+        if (tokenConfig.enabled === false) {
+          return null;
+        }
+      } catch (error) {
+        console.warn('TokenTrackerModule: Failed to get global token settings:', error);
       }
 
       // Check if this is a token-related endpoint
