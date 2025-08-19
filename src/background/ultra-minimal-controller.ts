@@ -1,6 +1,6 @@
 /**
  * Ultra-Minimal Service Worker Background Controller
- * 
+ *
  * Zero external imports - only Chrome APIs and built-in JavaScript
  */
 
@@ -33,7 +33,7 @@ export class UltraMinimalBackgroundController {
 
       console.log('✅ UltraMinimalBackgroundController: All Chrome APIs available');
       this.isInitialized = true;
-      
+
     } catch (error) {
       console.error('❌ UltraMinimalBackgroundController: Initialization failed:', error);
       throw error;
@@ -87,7 +87,7 @@ export class UltraMinimalBackgroundController {
         });
 
       case 'GET_EXTENSION_STATE':
-      case 'GET_GLOBAL_POWER_STATE':  
+      case 'GET_GLOBAL_POWER_STATE':
       case 'GET_SITE_SPECIFIC_STATE':
         return { success: true, enabled: true };
 

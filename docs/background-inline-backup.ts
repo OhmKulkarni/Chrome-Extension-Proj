@@ -58,26 +58,6 @@ class InlineBackgroundController {
           });
         });
 
-      case 'GET_NETWORK_REQUESTS':
-        return { success: true, requests: [] };
-
-      case 'GET_CONSOLE_ERRORS':
-        return { success: true, errors: [] };
-
-      case 'GET_TOKEN_EVENTS':
-        return { success: true, events: [] };
-
-      case 'GET_ANALYSIS_DATA':
-        return {
-          success: true,
-          networkRequests: [],
-          consoleErrors: [],
-          tokenEvents: [],
-          totalRequests: 0,
-          totalErrors: 0,
-          totalTokenEvents: 0
-        };
-
       default:
         return { success: false, error: 'Unknown message type' };
     }
@@ -144,34 +124,6 @@ if (!listenersRegistered) {
       case 'GET_GLOBAL_POWER_STATE':
       case 'GET_SITE_SPECIFIC_STATE':
         sendResponse({ success: true, enabled: true });
-        break;
-
-      case 'GET_NETWORK_REQUESTS':
-        // Return empty network requests for now
-        sendResponse({ success: true, requests: [] });
-        break;
-
-      case 'GET_CONSOLE_ERRORS':
-        // Return empty console errors for now
-        sendResponse({ success: true, errors: [] });
-        break;
-
-      case 'GET_TOKEN_EVENTS':
-        // Return empty token events for now
-        sendResponse({ success: true, events: [] });
-        break;
-
-      case 'GET_ANALYSIS_DATA':
-        // Return basic analysis data
-        sendResponse({
-          success: true,
-          networkRequests: [],
-          consoleErrors: [],
-          tokenEvents: [],
-          totalRequests: 0,
-          totalErrors: 0,
-          totalTokenEvents: 0
-        });
         break;
 
       default:

@@ -1,6 +1,6 @@
 /**
  * Service Worker Compatible Chrome API Module
- * 
+ *
  * Minimal version without DOM/window dependencies for service worker context
  */
 
