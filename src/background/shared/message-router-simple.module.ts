@@ -187,6 +187,95 @@ export class MessageRouterModule {
           }
           break;
 
+        // Tab State Management (IndexedDB)
+        case 'setTabNetworkState':
+          if (message.tabId !== undefined && typeof message.active === 'boolean') {
+            try {
+              await this.storageManager.setTabNetworkState(message.tabId, message.active);
+              sendResponse({ success: true });
+            } catch (error) {
+              sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to set tab network state' });
+            }
+          } else {
+            sendResponse({ success: false, error: 'Tab ID and active state required' });
+          }
+          break;
+
+        case 'setTabErrorState':
+          if (message.tabId !== undefined && typeof message.active === 'boolean') {
+            try {
+              await this.storageManager.setTabErrorState(message.tabId, message.active);
+              sendResponse({ success: true });
+            } catch (error) {
+              sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to set tab error state' });
+            }
+          } else {
+            sendResponse({ success: false, error: 'Tab ID and active state required' });
+          }
+          break;
+
+        case 'setTabTokenState':
+          if (message.tabId !== undefined && typeof message.active === 'boolean') {
+            try {
+              await this.storageManager.setTabTokenState(message.tabId, message.active);
+              sendResponse({ success: true });
+            } catch (error) {
+              sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to set tab token state' });
+            }
+          } else {
+            sendResponse({ success: false, error: 'Tab ID and active state required' });
+          }
+          break;
+
+        // Get Tab States
+        case 'getTabNetworkState':
+          if (message.tabId !== undefined) {
+            try {
+              const active = await this.storageManager.getTabNetworkState(message.tabId);
+              sendResponse({ success: true, active });
+            } catch (error) {
+              sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to get tab network state' });
+            }
+          } else {
+            sendResponse({ success: false, error: 'Tab ID required' });
+          }
+          break;
+
+        case 'getTabErrorState':
+          if (message.tabId !== undefined) {
+            try {
+              const active = await this.storageManager.getTabErrorState(message.tabId);
+              sendResponse({ success: true, active });
+            } catch (error) {
+              sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to get tab error state' });
+            }
+          } else {
+            sendResponse({ success: false, error: 'Tab ID required' });
+          }
+          break;
+
+        case 'getTabTokenState':
+          if (message.tabId !== undefined) {
+            try {
+              const active = await this.storageManager.getTabTokenState(message.tabId);
+              sendResponse({ success: true, active });
+            } catch (error) {
+              sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to get tab token state' });
+            }
+          } else {
+            sendResponse({ success: false, error: 'Tab ID required' });
+          }
+          break;
+
+        case 'getSettings':
+          try {
+            const settingsData = await this.storageManager.getSettings();
+            sendResponse({ success: true, data: settingsData });
+          } catch (error) {
+            sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to get settings' });
+          }
+          break;
+
         // Token Events
         case 'getTokenEvents':
           const tokenEvents = await this.tokenTracker.getTokenEvents(

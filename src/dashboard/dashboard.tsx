@@ -306,18 +306,19 @@ const DecomposedDashboard: React.FC = () => {
     try {
       // Get all tabs and global settings
       const tabs = await chrome.tabs.query({});
-      const settingsResult = await chrome.storage.local.get(['settings']);
-      const settings = settingsResult.settings || {};
+      const settingsResponse = await sendChromeMessage({ action: 'getSettings' });
+      const settings = settingsResponse?.data || {};
 
       const tabStatuses: TabLoggingStatus[] = [];
 
       for (const tab of tabs) {
         if (tab.id && tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
-          // Get logging status for this tab
-          const result = await chrome.storage.local.get([`tabLogging_${tab.id}`, `tabErrorLogging_${tab.id}`, `tabTokenLogging_${tab.id}`]);
-          const networkState = result[`tabLogging_${tab.id}`];
-          const errorState = result[`tabErrorLogging_${tab.id}`];
-          const tokenState = result[`tabTokenLogging_${tab.id}`];
+          // Get logging status for this tab using IndexedDB via message router
+          const [networkStateResponse, errorStateResponse, tokenStateResponse] = await Promise.all([
+            sendChromeMessage({ action: 'getTabNetworkState', tabId: tab.id }),
+            sendChromeMessage({ action: 'getTabErrorState', tabId: tab.id }),
+            sendChromeMessage({ action: 'getTabTokenState', tabId: tab.id })
+          ]);
 
           // Get domain from URL
           let domain = '';
@@ -333,35 +334,30 @@ const DecomposedDashboard: React.FC = () => {
           let tokenLogging = false;
 
           // Network logging status
-          if (networkState) {
-            // Check both 'status' and 'active' properties for compatibility
-            if (networkState.status !== undefined) {
-              networkLogging = networkState.status === 'active';
-            } else {
-              networkLogging = typeof networkState === 'boolean' ? networkState : networkState.active;
-            }
+          if (networkStateResponse && networkStateResponse.success && typeof networkStateResponse.active === 'boolean') {
+            networkLogging = networkStateResponse.active;
           } else {
             // Use default from settings if no tab state exists
             const defaultActive = settings.networkInterception?.tabSpecific?.defaultState === 'active';
-            networkLogging = defaultActive;
+            networkLogging = defaultActive || false;
           }
 
           // Error logging status
-          if (errorState) {
-            errorLogging = typeof errorState === 'boolean' ? errorState : errorState.active;
+          if (errorStateResponse && errorStateResponse.success && typeof errorStateResponse.active === 'boolean') {
+            errorLogging = errorStateResponse.active;
           } else {
             // Use default from settings if no tab state exists - should be paused by default
             const defaultActive = settings.errorLogging?.tabSpecific?.defaultState === 'active';
-            errorLogging = defaultActive; // This will be false when defaultState is 'paused'
+            errorLogging = defaultActive || false;
           }
 
           // Token logging status
-          if (tokenState) {
-            tokenLogging = typeof tokenState === 'boolean' ? tokenState : tokenState.active;
+          if (tokenStateResponse && tokenStateResponse.success && typeof tokenStateResponse.active === 'boolean') {
+            tokenLogging = tokenStateResponse.active;
           } else {
             // Use default from settings if no tab state exists - should be paused by default
             const defaultActive = settings.tokenLogging?.tabSpecific?.defaultState === 'active';
-            tokenLogging = defaultActive; // This will be false when defaultState is 'paused'
+            tokenLogging = defaultActive || false;
           }
 
           tabStatuses.push({
@@ -392,35 +388,33 @@ const DecomposedDashboard: React.FC = () => {
 
       const newState = !currentTab.networkLogging;
 
-      // Get current tab state to preserve counter when disabling
-      const tabStorageData = await chrome.storage.local.get([`tabLogging_${tabId}`]);
-      const currentTabState = tabStorageData[`tabLogging_${tabId}`];
-      const currentCount = currentTabState?.requestCount || 0;
+      // Use IndexedDB via message router instead of Chrome storage
+      const response = await sendChromeMessage({
+        action: 'setTabNetworkState',
+        tabId,
+        active: newState
+      });
 
-      const tabState = {
-        active: newState,
-        startTime: newState ? Date.now() : undefined,
-        requestCount: newState ? 0 : currentCount  // Reset only when enabling, preserve when disabling
-      };
+      if (response && !response.error) {
+        // Send message to content script
+        try {
+          await chrome.tabs.sendMessage(tabId, {
+            action: 'toggleLogging',
+            enabled: newState
+          });
+        } catch (error) {
+          console.log('Could not send message to tab (may not have content script):', error);
+        }
 
-      await chrome.storage.local.set({ [`tabLogging_${tabId}`]: tabState });
-
-      // Send message to content script
-      try {
-        await chrome.tabs.sendMessage(tabId, {
-          action: 'toggleLogging',
-          enabled: newState
-        });
-      } catch (error) {
-        console.log('Could not send message to tab (may not have content script):', error);
+        // Update local state
+        setTabsLoggingStatus(prev =>
+          prev.map(tab =>
+            tab.tabId === tabId ? { ...tab, networkLogging: newState } : tab
+          )
+        );
+      } else {
+        console.error('Failed to toggle tab network state:', response?.error);
       }
-
-      // Update local state
-      setTabsLoggingStatus(prev =>
-        prev.map(tab =>
-          tab.tabId === tabId ? { ...tab, networkLogging: newState } : tab
-        )
-      );
     } catch (error) {
       console.error('Error toggling network logging:', error);
     }
@@ -434,35 +428,33 @@ const DecomposedDashboard: React.FC = () => {
 
       const newState = !currentTab.errorLogging;
 
-      // Get current tab state to preserve counter when disabling
-      const tabStorageData = await chrome.storage.local.get([`tabErrorLogging_${tabId}`]);
-      const currentTabState = tabStorageData[`tabErrorLogging_${tabId}`];
-      const currentCount = currentTabState?.errorCount || 0;
+      // Use IndexedDB via message router instead of Chrome storage
+      const response = await sendChromeMessage({
+        action: 'setTabErrorState',
+        tabId,
+        active: newState
+      });
 
-      const tabState = {
-        active: newState,
-        startTime: newState ? Date.now() : undefined,
-        errorCount: newState ? 0 : currentCount  // Reset only when enabling, preserve when disabling
-      };
+      if (response && !response.error) {
+        // Send message to content script
+        try {
+          await chrome.tabs.sendMessage(tabId, {
+            action: 'toggleErrorLogging',
+            enabled: newState
+          });
+        } catch (error) {
+          console.log('Could not send message to tab (may not have content script):', error);
+        }
 
-      await chrome.storage.local.set({ [`tabErrorLogging_${tabId}`]: tabState });
-
-      // Send message to content script
-      try {
-        await chrome.tabs.sendMessage(tabId, {
-          action: 'toggleErrorLogging',
-          enabled: newState
-        });
-      } catch (error) {
-        console.log('Could not send message to tab (may not have content script):', error);
+        // Update local state
+        setTabsLoggingStatus(prev =>
+          prev.map(tab =>
+            tab.tabId === tabId ? { ...tab, errorLogging: newState } : tab
+          )
+        );
+      } else {
+        console.error('Failed to toggle tab error state:', response?.error);
       }
-
-      // Update local state
-      setTabsLoggingStatus(prev =>
-        prev.map(tab =>
-          tab.tabId === tabId ? { ...tab, errorLogging: newState } : tab
-        )
-      );
     } catch (error) {
       console.error('Error toggling error logging:', error);
     }
@@ -476,28 +468,26 @@ const DecomposedDashboard: React.FC = () => {
 
       const newState = !currentTab.tokenLogging;
 
-      // Get current tab state to preserve counter when disabling
-      const tabStorageData = await chrome.storage.local.get([`tabTokenLogging_${tabId}`]);
-      const currentTabState = tabStorageData[`tabTokenLogging_${tabId}`];
-      const currentCount = currentTabState?.tokenCount || 0;
+      // Use IndexedDB via message router instead of Chrome storage
+      const response = await sendChromeMessage({
+        action: 'setTabTokenState',
+        tabId,
+        active: newState
+      });
 
-      const tabState = {
-        active: newState,
-        startTime: newState ? Date.now() : undefined,
-        tokenCount: newState ? 0 : currentCount  // Reset only when enabling, preserve when disabling
-      };
+      if (response && !response.error) {
+        // Note: Token logging doesn't require content script communication
+        // as it's handled purely in the background script via network interception
 
-      await chrome.storage.local.set({ [`tabTokenLogging_${tabId}`]: tabState });
-
-      // Note: Token logging doesn't require content script communication
-      // as it's handled purely in the background script via network interception
-
-      // Update local state
-      setTabsLoggingStatus(prev =>
-        prev.map(tab =>
-          tab.tabId === tabId ? { ...tab, tokenLogging: newState } : tab
-        )
-      );
+        // Update local state
+        setTabsLoggingStatus(prev =>
+          prev.map(tab =>
+            tab.tabId === tabId ? { ...tab, tokenLogging: newState } : tab
+          )
+        );
+      } else {
+        console.error('Failed to toggle tab token state:', response?.error);
+      }
     } catch (error) {
       console.error('Error toggling token logging:', error);
     }

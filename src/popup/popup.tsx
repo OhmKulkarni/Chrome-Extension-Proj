@@ -217,78 +217,62 @@ const Popup: React.FC = () => {
 
     loadExtensionState();
 
-    // Get current tab's logging state (network, error, and token)
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]?.id) {
+    // Get current tab's logging state (network, error, and token) from IndexedDB
+    const loadTabStates = async () => {
+      try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tabs[0]?.id) return;
+        
         const tabId = tabs[0].id;
-        chrome.storage.local.get([`tabLogging_${tabId}`, `tabErrorLogging_${tabId}`, `tabTokenLogging_${tabId}`, 'settings'], (result) => {
-          const tabState = result[`tabLogging_${tabId}`];
-          const errorTabState = result[`tabErrorLogging_${tabId}`];
-          const tokenTabState = result[`tabTokenLogging_${tabId}`];
-          const settings = result.settings || {};
-          const networkConfig = settings.networkInterception || {};
-          const errorConfig = settings.errorLogging || {};
-          const tokenConfig = settings.tokenLogging || {};
+        
+        // Load all states using IndexedDB via message router
+        const [networkState, errorState, tokenState, settings] = await Promise.all([
+          sendChromeMessage({ action: 'getTabNetworkState', tabId }),
+          sendChromeMessage({ action: 'getTabErrorState', tabId }),
+          sendChromeMessage({ action: 'getTabTokenState', tabId }),
+          sendChromeMessage({ action: 'getSettings' })
+        ]);
 
-          // Handle network logging state
-          if (tabState) {
-            if (typeof tabState === 'boolean') {
-              setTabLoggingActive(tabState);
-            } else if (tabState && typeof tabState === 'object' && 'active' in tabState) {
-              setTabLoggingActive(tabState.active);
-            }
-          } else {
-            const defaultActive = networkConfig.tabSpecific?.defaultState === 'active';
-            setTabLoggingActive(defaultActive);
+        // Handle network logging state
+        if (networkState && networkState.success && typeof networkState.active === 'boolean') {
+          setTabLoggingActive(networkState.active);
+        } else {
+          // Fallback to settings for default behavior
+          const networkConfig = settings?.data?.networkInterception || {};
+          const defaultActive = networkConfig.tabSpecific?.defaultState === 'active';
+          setTabLoggingActive(defaultActive);
+        }
 
-            const initialTabState = {
-              active: defaultActive,
-              startTime: defaultActive ? Date.now() : undefined,
-              requestCount: 0
-            };
-            chrome.storage.local.set({ [`tabLogging_${tabId}`]: initialTabState });
-          }
+        // Handle error logging state  
+        if (errorState && errorState.success && typeof errorState.active === 'boolean') {
+          setTabErrorLoggingActive(errorState.active);
+        } else {
+          // Fallback to settings for default behavior
+          const errorConfig = settings?.data?.errorLogging || {};
+          const defaultErrorActive = errorConfig.tabSpecific?.defaultState === 'active';
+          setTabErrorLoggingActive(defaultErrorActive);
+        }
 
-          // Handle error logging state
-          if (errorTabState) {
-            if (typeof errorTabState === 'boolean') {
-              setTabErrorLoggingActive(errorTabState);
-            } else if (errorTabState && typeof errorTabState === 'object' && 'active' in errorTabState) {
-              setTabErrorLoggingActive(errorTabState.active);
-            }
-          } else {
-            const defaultErrorActive = errorConfig.tabSpecific?.defaultState === 'active';
-            setTabErrorLoggingActive(defaultErrorActive);
+        // Handle token logging state
+        if (tokenState && tokenState.success && typeof tokenState.active === 'boolean') {
+          setTabTokenLoggingActive(tokenState.active);
+        } else {
+          // Fallback to settings for default behavior
+          const tokenConfig = settings?.data?.tokenLogging || {};
+          const defaultTokenActive = tokenConfig.tabSpecific?.defaultState === 'active';
+          setTabTokenLoggingActive(defaultTokenActive);
+        }
 
-            const initialErrorTabState = {
-              active: defaultErrorActive,
-              startTime: defaultErrorActive ? Date.now() : undefined,
-              errorCount: 0
-            };
-            chrome.storage.local.set({ [`tabErrorLogging_${tabId}`]: initialErrorTabState });
-          }
-
-          // Handle token logging state
-          if (tokenTabState) {
-            if (typeof tokenTabState === 'boolean') {
-              setTabTokenLoggingActive(tokenTabState);
-            } else if (tokenTabState && typeof tokenTabState === 'object' && 'active' in tokenTabState) {
-              setTabTokenLoggingActive(tokenTabState.active);
-            }
-          } else {
-            const defaultTokenActive = tokenConfig.tabSpecific?.defaultState === 'active';
-            setTabTokenLoggingActive(defaultTokenActive);
-
-            const initialTokenTabState = {
-              active: defaultTokenActive,
-              startTime: defaultTokenActive ? Date.now() : undefined,
-              tokenCount: 0
-            };
-            chrome.storage.local.set({ [`tabTokenLogging_${tabId}`]: initialTokenTabState });
-          }
-        });
+      } catch (error) {
+        console.error('Error loading tab states:', error);
+        // Set defaults if loading fails
+        setTabLoggingActive(false);
+        setTabErrorLoggingActive(false);
+        setTabTokenLoggingActive(false);
       }
-    });
+    };
+
+    loadTabStates();
 
     // Add storage change listeners to stay synchronized with dashboard
     const handleStorageChanges = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
@@ -384,74 +368,111 @@ const Popup: React.FC = () => {
     });
   };
 
-  const toggleTabLogging = () => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]?.id) {
-        const tabId = tabs[0].id;
-        const newState = !tabLoggingActive;
-        setTabLoggingActive(newState);
+  const toggleTabLogging = async () => {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tabs[0]?.id) return;
 
-        const tabState = {
-          status: newState ? 'active' : 'inactive',
-          active: newState, // Keep for backward compatibility
-          startTime: newState ? Date.now() : undefined,
-          requestCount: 0
-        };
+      const tabId = tabs[0].id;
+      const newState = !tabLoggingActive;
+      setTabLoggingActive(newState);
 
-        chrome.storage.local.set({ [`tabLogging_${tabId}`]: tabState });
+      // Use IndexedDB via background script
+      const response = await sendChromeMessage({
+        action: 'setTabNetworkState',
+        tabId,
+        active: newState
+      });
 
+      if (response && !response.error) {
         // Send message to content script to start/stop logging
-        chrome.tabs.sendMessage(tabId, {
-          action: 'toggleLogging',
-          enabled: newState
-        });
+        try {
+          await chrome.tabs.sendMessage(tabId, {
+            action: 'toggleLogging',
+            enabled: newState
+          });
+        } catch (error) {
+          console.log('Could not send message to tab (may not have content script):', error);
+        }
+      } else {
+        console.error('Failed to toggle tab network state:', response?.error);
+        // Revert local state if backend update failed
+        setTabLoggingActive(!newState);
       }
-    });
+    } catch (error) {
+      console.error('Error toggling network logging:', error);
+      // Revert local state on error
+      setTabLoggingActive(!tabLoggingActive);
+    }
   };
 
-  const toggleTabErrorLogging = () => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]?.id) {
-        const tabId = tabs[0].id;
-        const newState = !tabErrorLoggingActive;
-        setTabErrorLoggingActive(newState);
+  const toggleTabErrorLogging = async () => {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tabs[0]?.id) return;
 
-        const tabState = {
-          active: newState,
-          startTime: newState ? Date.now() : undefined,
-          errorCount: 0
-        };
+      const tabId = tabs[0].id;
+      const newState = !tabErrorLoggingActive;
+      setTabErrorLoggingActive(newState);
 
-        chrome.storage.local.set({ [`tabErrorLogging_${tabId}`]: tabState });
+      // Use IndexedDB via background script
+      const response = await sendChromeMessage({
+        action: 'setTabErrorState',
+        tabId,
+        active: newState
+      });
 
-        // Send message to content script to start/stop error logging
-        chrome.tabs.sendMessage(tabId, {
-          action: 'toggleErrorLogging',
-          enabled: newState
-        });
+      if (response && !response.error) {
+        // Send message to content script
+        try {
+          await chrome.tabs.sendMessage(tabId, {
+            action: 'toggleErrorLogging',
+            enabled: newState
+          });
+        } catch (error) {
+          console.log('Could not send message to tab (may not have content script):', error);
+        }
+      } else {
+        console.error('Failed to toggle tab error state:', response?.error);
+        // Revert local state if backend update failed
+        setTabErrorLoggingActive(!newState);
       }
-    });
+    } catch (error) {
+      console.error('Error toggling error logging:', error);
+      // Revert local state on error
+      setTabErrorLoggingActive(!tabErrorLoggingActive);
+    }
   };
 
-  const toggleTabTokenLogging = () => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]?.id) {
-        const tabId = tabs[0].id;
-        const newState = !tabTokenLoggingActive;
-        setTabTokenLoggingActive(newState);
+  const toggleTabTokenLogging = async () => {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tabs[0]?.id) return;
 
-        const tabState = {
-          active: newState,
-          startTime: newState ? Date.now() : undefined,
-          tokenCount: 0
-        };
+      const tabId = tabs[0].id;
+      const newState = !tabTokenLoggingActive;
+      setTabTokenLoggingActive(newState);
 
-        chrome.storage.local.set({ [`tabTokenLogging_${tabId}`]: tabState });
+      // Use IndexedDB via background script
+      const response = await sendChromeMessage({
+        action: 'setTabTokenState',
+        tabId,
+        active: newState
+      });
 
-        // Note: Token logging doesn't require content script communication
-        // as it's handled purely in the background script via network interception
+      if (!response || response.error) {
+        console.error('Failed to toggle tab token state:', response?.error);
+        // Revert local state if backend update failed
+        setTabTokenLoggingActive(!newState);
       }
-    });
+      
+      // Note: Token logging doesn't require content script communication
+      // as it's handled purely in the background script via network interception
+    } catch (error) {
+      console.error('Error toggling token logging:', error);
+      // Revert local state on error
+      setTabTokenLoggingActive(!tabTokenLoggingActive);
+    }
   };
 
   const openDashboard = () => {

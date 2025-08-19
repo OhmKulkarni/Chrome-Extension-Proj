@@ -57,12 +57,12 @@ export class BackgroundController {
     // Initialize Chrome API module first (foundation for all other modules)
     this.chromeApi = new ChromeApiModule(this.config);
 
-    // Initialize storage manager
-    this.storageManager = new StorageManagerModule(this.chromeApi, this.config);
-
     // Initialize legacy compatibility instances FIRST (needed by modules)
     this.legacyStorageManager = new EnvironmentStorageManager();
     this.legacyExtensionStateController = ExtensionStateController.getInstance();
+
+    // Initialize storage manager with IndexedDB storage
+    this.storageManager = new StorageManagerModule(this.chromeApi, this.legacyStorageManager, this.config);
 
     // Initialize specialized modules with IndexedDB storage
     this.tokenTracker = new TokenTrackerModule(
