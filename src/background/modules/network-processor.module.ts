@@ -162,7 +162,7 @@ export class NetworkProcessorModule {
       // Extract main domain for intelligent grouping
       const mainDomain = tabUrl ? this.extractMainDomain(tabUrl) : this.extractMainDomain(url);
 
-      // Create validated network request data
+      // Create validated network request data with proper field mapping
       const validatedRequestData: NetworkRequestData = {
         url,
         method: method.toUpperCase(),
@@ -174,12 +174,35 @@ export class NetworkProcessorModule {
         ...(tabId && { tabId })
       };
 
+      // Add main-world script specific fields if available
+      if (requestData.type === 'fetch' || requestData.type === 'xhr') {
+        validatedRequestData.responseBody = requestData.responseBody;
+        validatedRequestData.duration = requestData.duration;
+        validatedRequestData.response_time = requestData.duration; // Also set alternative field name
+        
+        // For main-world data, we need to properly handle headers
+        // The headers should include both request and response headers
+        const combinedHeaders = {
+          ...(requestData.requestHeaders || {}),
+          ...(requestData.responseHeaders || {})
+        };
+        validatedRequestData.headers = combinedHeaders;
+      }
+
       // Store the network request in IndexedDB using the same format as origin/main
       try {
         const apiCallData = {
           url: validatedRequestData.url,
           method: validatedRequestData.method,
-          headers: JSON.stringify(validatedRequestData.headers || {}),
+          // Store headers in the format expected by dashboard (separate request/response)
+          headers: JSON.stringify({
+            request: requestData.type === 'fetch' || requestData.type === 'xhr' ? 
+              (requestData.requestHeaders || {}) : 
+              (validatedRequestData.headers || {}),
+            response: requestData.type === 'fetch' || requestData.type === 'xhr' ? 
+              (requestData.responseHeaders || {}) : 
+              {}
+          }),
           payload_size: validatedRequestData.body ? validatedRequestData.body.length : 0,
           status: status,
           response_body: validatedRequestData.responseBody || '', // Map from content script responseBody field
