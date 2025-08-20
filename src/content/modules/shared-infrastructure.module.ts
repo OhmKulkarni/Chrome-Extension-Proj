@@ -246,6 +246,14 @@ export class SharedInfrastructureModule {
       return
     }
 
+    // Clear the flush timer if it exists
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer)
+      this.flushTimer = undefined
+    }
+
+    console.log(`🚀 SharedInfrastructure: Flushing data - Network: ${this.pendingData.networkRequests.length}, Console: ${this.pendingData.consoleEvents.length}`)
+
     const batch = { ...this.pendingData }
 
     // Reset pending data
@@ -257,6 +265,7 @@ export class SharedInfrastructureModule {
 
     // Send network requests
     for (const request of batch.networkRequests) {
+      console.log('🚀 SharedInfrastructure: Sending network request to background:', request.url)
       await this.sendToBackground('storeNetworkRequest', request)
     }
 
@@ -272,6 +281,7 @@ export class SharedInfrastructureModule {
         // Include original event data for debugging
         originalEvent: event
       }
+      console.log('🚀 SharedInfrastructure: Sending console event to background:', consoleData.message.substring(0, 50))
       await this.sendToBackground('CONSOLE_ERROR', consoleData)
     }
   }
@@ -502,7 +512,7 @@ export class SharedInfrastructureModule {
       case 'loggingStateChanged':
         // Handle logging state changes from background script
         console.log('📨 CONTENT: Received logging state change:', message)
-        
+
         // Immediately notify main-world script about the state change
         if (message.type === 'network' && message.networkEnabled !== undefined) {
           window.dispatchEvent(new CustomEvent('tabLoggingStateChange', {
@@ -525,7 +535,7 @@ export class SharedInfrastructureModule {
           // since it's handled entirely in the background script
           console.log('📨 CONTENT: Token logging state changed:', message.tokenEnabled)
         }
-        
+
         sendResponse({ success: true })
         break
 
@@ -798,7 +808,7 @@ export class SharedInfrastructureModule {
 
               const globalEnabled = result.extensionEnabled !== false
               const tabLogging = result[`tabErrorLogging_${currentTabId}`] // FIXED: Use correct key
-              // FIXED: Background saves {active: boolean}, not {status: 'active'}  
+              // FIXED: Background saves {active: boolean}, not {status: 'active'}
               const tabEnabled = !tabLogging || tabLogging.active === true
 
               console.log('📨 CONTENT: Console logging state - Global:', globalEnabled, 'Tab:', tabEnabled, 'TabData:', tabLogging)
@@ -901,12 +911,12 @@ export class SharedInfrastructureModule {
         ])
 
         const globalEnabled = result.extensionEnabled !== false
-        
+
         // Check network logging state
         const tabNetworkLogging = result[`tabLogging_${tabId}`]
         const networkEnabled = globalEnabled && (!tabNetworkLogging || tabNetworkLogging.active === true)
-        
-        // Check console logging state  
+
+        // Check console logging state
         const tabConsoleLogging = result[`tabErrorLogging_${tabId}`]
         const consoleEnabled = globalEnabled && (!tabConsoleLogging || tabConsoleLogging.active === true)
 
@@ -934,13 +944,36 @@ export class SharedInfrastructureModule {
 
       switch (type) {
         case 'networkRequest':
-          if (payload && this.networkModule) {
+          // Always handle network requests from main-world script, regardless of local network module status
+          if (payload) {
             console.log('🌐 SharedInfrastructure: Received network request from main-world:', payload.url)
+            console.log('🌐 SharedInfrastructure: Network request payload:', {
+              url: payload.url,
+              domain: payload.domain,
+              method: payload.method,
+              status: payload.status,
+              timestamp: payload.timestamp
+            })
             this.pendingData.networkRequests.push(payload)
+            console.log(`🌐 SharedInfrastructure: Pending network requests: ${this.pendingData.networkRequests.length}`)
             // Trigger flush if batch size reached
             if (this.shouldFlush()) {
+              console.log('🌐 SharedInfrastructure: Flushing network data (batch size reached)')
               this.flushPendingData()
+            } else {
+              console.log('🌐 SharedInfrastructure: Not flushing yet (batch size not reached)')
+              // Set a timer to flush after 2 seconds if not already set
+              if (!this.flushTimer) {
+                console.log('🌐 SharedInfrastructure: Setting flush timer for 2 seconds')
+                this.flushTimer = setTimeout(() => {
+                  console.log('🌐 SharedInfrastructure: Timer-triggered flush')
+                  this.flushPendingData()
+                  this.flushTimer = undefined
+                }, 2000)
+              }
             }
+          } else {
+            console.warn('🌐 SharedInfrastructure: Received empty network request payload')
           }
           break
 

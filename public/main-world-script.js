@@ -100,13 +100,23 @@ const isConsoleLoggingEnabled = async () => {
 // Helper function to safely extract domain from URL
 function getSafeDomain(url) {
   try {
-    return new URL(url).hostname;
+    // Handle relative URLs by resolving against current origin
+    const resolvedUrl = url.startsWith('/') || url.startsWith('./') || url.startsWith('../')
+      ? new URL(url, window.location.origin)
+      : new URL(url);
+    return resolvedUrl.hostname;
   } catch (error) {
-    originalConsoleLog.call(console, 'MAIN-WORLD: MAIN-WORLD: Invalid URL, using fallback domain:', url);
-    // Extract domain from URL string manually
+    originalConsoleLog.call(console, 'MAIN-WORLD: Could not parse URL, using fallback domain:', url);
+    // Extract domain from URL string manually for absolute URLs
     if (typeof url === 'string') {
       const match = url.match(/^https?:\/\/([^\/]+)/);
-      return match ? match[1] : 'unknown';
+      if (match) {
+        return match[1];
+      }
+      // For relative URLs that couldn't be resolved, use current hostname
+      if (url.startsWith('/')) {
+        return window.location.hostname;
+      }
     }
     return 'unknown';
   }
@@ -139,7 +149,16 @@ function truncateBody(text, maxSize = extensionSettings.maxBodySize) {
 // Create our main world interception
 const interceptFetch = (originalFetch, input, init) => {
   const startTime = Date.now();
-  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+  let url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+
+  // CRITICAL: Resolve relative URLs to absolute URLs for proper database storage
+  try {
+    if (url && (url.startsWith('/') || url.startsWith('./') || url.startsWith('../'))) {
+      url = new URL(url, window.location.origin).href;
+    }
+  } catch (error) {
+    originalConsoleLog.call(console, 'MAIN-WORLD: URL resolution failed:', url, error);
+  }
 
   // Log intercept (reduced for performance)
   if (Math.random() < 0.1) { // Only log 10% of requests
@@ -214,7 +233,15 @@ const interceptFetch = (originalFetch, input, init) => {
       timestamp: new Date().toISOString()
     };
 
-    // Send data to content script (no logging to reduce memory)
+    // DEBUG: Log every 10th request to track what's being sent
+    if (Math.random() < 0.1) {
+      originalConsoleLog.call(console, 'MAIN-WORLD: Sending fetch data to content script:', {
+        url: capturedData.url,
+        domain: capturedData.domain,
+        status: capturedData.status,
+        method: capturedData.method
+      });
+    }
 
     // Send to content script
     window.postMessage({
@@ -276,7 +303,17 @@ const interceptXHR = (xhr, originalXhrSend, data) => {
       timestamp: new Date().toISOString()
     };
 
-    // Send XHR data to content script (no logging to reduce memory)
+    // Debug logging for XHR requests
+    console.log(`MAIN-WORLD XHR: Sending data for ${xhr._url}:`, {
+      url: capturedData.url,
+      domain: capturedData.domain,
+      method: capturedData.method,
+      status: capturedData.status,
+      hasRequestBody: !!capturedData.requestBody,
+      hasResponseBody: !!capturedData.responseBody,
+      requestHeaders: Object.keys(capturedData.requestHeaders).length,
+      responseHeaders: Object.keys(capturedData.responseHeaders).length
+    });
 
     // Send to content script
     window.postMessage({
@@ -431,7 +468,19 @@ try {
     // Set up XHR interception
     XMLHttpRequest.prototype.open = function(method, url, async, user, password) {
       this._method = method;
-      this._url = url;
+
+      // CRITICAL: Resolve relative URLs to absolute URLs for proper database storage
+      try {
+        if (url && (url.startsWith('/') || url.startsWith('./') || url.startsWith('../'))) {
+          this._url = new URL(url, window.location.origin).href;
+        } else {
+          this._url = url;
+        }
+      } catch (error) {
+        originalConsoleLog.call(console, 'MAIN-WORLD: XHR URL resolution failed:', url, error);
+        this._url = url; // Fallback to original URL
+      }
+
       this._startTime = Date.now();
       this._requestHeaders = {};
       return originalXhrOpen.call(this, method, url, async, user, password);

@@ -19,7 +19,7 @@ UI Toggle → Background Storage ❌ Missing Link ❌ Content Script → Main-Wo
 
 ### Evidence of the Break:
 - `toggleTabNetworkLogging()` in dashboard called `setTabNetworkState` ✅
-- `setTabNetworkState` updated IndexedDB storage ✅  
+- `setTabNetworkState` updated IndexedDB storage ✅
 - **No notification sent to content script** ❌
 - Main-world script `isLoggingEnabled()` would eventually get the new state, but only on next page load ❌
 
@@ -32,7 +32,7 @@ Modified `message-router-simple.module.ts` to send tab notifications:
 // After updating storage, notify the tab
 case 'setTabNetworkState':
   await this.storageManager.setTabNetworkState(message.tabId, message.active);
-  
+
   // CRITICAL: Notify content script immediately
   await this.chromeApi.sendMessageToTab(message.tabId, {
     action: 'loggingStateChanged',
@@ -93,13 +93,13 @@ Dashboard Toggle → setTabTokenState → Background Processing (no interception
 
 To verify this works:
 
-1. **Dashboard Network Toggle**: 
+1. **Dashboard Network Toggle**:
    - ✅ Click should immediately start/stop `fetch`/`XMLHttpRequest` interception
    - ✅ Browser console should show main-world interception start/stop logs
    - ✅ Network requests should appear/disappear in dashboard in real-time
 
 2. **Dashboard Console Toggle**:
-   - ✅ Click should immediately start/stop console method interception  
+   - ✅ Click should immediately start/stop console method interception
    - ✅ Console errors should appear/disappear in dashboard in real-time
 
 3. **Dashboard Token Toggle**:
