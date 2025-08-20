@@ -1,16 +1,19 @@
 /**
- * Modular Architecture Integration
+ * Modular Architecture Integration with Smart Edge Case Detection
  * Replaces monolithic content-simple.ts with coordinated modules
+ * NOW WITH: Intelligent activation for edge cases that main-world script cannot handle
  */
 
 import { SharedInfrastructureModule } from './modules/shared-infrastructure.module'
+import { EdgeCaseActivationSystem } from './modules/edge-case-activation.module'
 
 console.log('🧩 MODULAR CONTENT SCRIPT LOADED:', new Date().toISOString())
 
 // Configuration for the modular architecture
-const moduleConfig = {
+// SMART ACTIVATION: Will be overridden by edge case detection
+const defaultModuleConfig = {
   network: {
-    enabled: false, // DISABLED: Main-world script handles network interception more effectively
+    enabled: false, // Default: DISABLED (main-world script handles most cases)
     captureHeaders: true,
     captureBody: false,
     maxBodySize: 1024,
@@ -21,7 +24,7 @@ const moduleConfig = {
     methodFilters: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']
   },
   console: {
-    enabled: false, // DISABLED: Main-world script handles console interception more effectively
+    enabled: false, // Default: DISABLED (main-world script handles most cases)
     captureStack: true,
     maxMessageLength: 1000,
     levels: ['error', 'warn'] as ('error' | 'warn' | 'info' | 'log' | 'debug')[],
@@ -30,7 +33,7 @@ const moduleConfig = {
     ]
   },
   communication: {
-    enabled: true,
+    enabled: true, // Always enabled for coordination
     batchSize: 8,
     flushInterval: 4000
   }
@@ -40,10 +43,10 @@ const moduleConfig = {
 let sharedInfrastructure: SharedInfrastructureModule | null = null
 
 /**
- * Initialize the modular architecture
+ * Initialize the modular architecture with smart edge case detection
  */
 async function initializeModularArchitecture(): Promise<void> {
-  console.log('🚀 Initializing modular architecture...')
+  console.log('🚀 Initializing modular architecture with edge case detection...')
 
   try {
     // Check extension context validity
@@ -52,7 +55,44 @@ async function initializeModularArchitecture(): Promise<void> {
       return
     }
 
-    // Initialize shared infrastructure
+    // SMART ACTIVATION: Analyze environment for edge cases
+    console.log('🔍 Analyzing environment for edge cases...')
+    const edgeCaseSystem = new EdgeCaseActivationSystem()
+    const analysis = await edgeCaseSystem.analyzeEnvironment()
+    const activationConfig = edgeCaseSystem.getActivationConfig()
+
+    console.log('📊 Edge case analysis:', {
+      analysis: analysis,
+      activation: activationConfig
+    })
+
+    // Create final configuration based on edge case detection
+    const moduleConfig = {
+      ...defaultModuleConfig,
+      network: {
+        ...defaultModuleConfig.network,
+        enabled: activationConfig.network.enabled
+      },
+      console: {
+        ...defaultModuleConfig.console,
+        enabled: activationConfig.console.enabled
+      }
+    }
+
+    // Log activation decisions
+    if (activationConfig.network.enabled) {
+      console.log('🌐 ACTIVATING content script network interception:', activationConfig.network.reason)
+    } else {
+      console.log('🌐 Content script network interception remains DISABLED (main-world sufficient)')
+    }
+
+    if (activationConfig.console.enabled) {
+      console.log('🖥️ ACTIVATING content script console interception:', activationConfig.console.reason)
+    } else {
+      console.log('🖥️ Content script console interception remains DISABLED (main-world sufficient)')
+    }
+
+    // Initialize shared infrastructure with smart configuration
     sharedInfrastructure = new SharedInfrastructureModule(moduleConfig)
     await sharedInfrastructure.initialize()
 
@@ -193,7 +233,7 @@ async function main(): Promise<void> {
 // Export for debugging
 (window as any).modularArchitecture = {
   sharedInfrastructure,
-  moduleConfig,
+  defaultModuleConfig,
   reinitialize: initializeModularArchitecture,
   test: testModularArchitecture
 }
