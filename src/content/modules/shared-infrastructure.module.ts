@@ -773,9 +773,10 @@ export class SharedInfrastructureModule {
               const result = await chrome.storage.local.get([`tabLogging_${tabId}`, 'extensionEnabled'])
               const globalEnabled = result.extensionEnabled !== false
               const tabLogging = result[`tabLogging_${tabId}`]
-              const tabEnabled = !tabLogging || tabLogging.status === 'active'
+              // FIXED: Background saves {active: boolean}, not {status: 'active'}
+              const tabEnabled = !tabLogging || tabLogging.active === true
 
-              console.log('📨 CONTENT: Network logging state - Global:', globalEnabled, 'Tab:', tabEnabled)
+              console.log('📨 CONTENT: Network logging state - Global:', globalEnabled, 'Tab:', tabEnabled, 'TabData:', tabLogging)
               response = { enabled: globalEnabled && tabEnabled }
             } else {
               console.log('📨 CONTENT: No tab ID available, returning false')
@@ -790,16 +791,17 @@ export class SharedInfrastructureModule {
 
             if (currentTabId) {
               const result = await chrome.storage.local.get([
-                `tabLogging_${currentTabId}`,
+                `tabErrorLogging_${currentTabId}`, // FIXED: Use correct key for error logging
                 'extensionEnabled',
                 'settings'
               ])
 
               const globalEnabled = result.extensionEnabled !== false
-              const tabLogging = result[`tabLogging_${currentTabId}`]
-              const tabEnabled = !tabLogging || tabLogging.status === 'active'
+              const tabLogging = result[`tabErrorLogging_${currentTabId}`] // FIXED: Use correct key
+              // FIXED: Background saves {active: boolean}, not {status: 'active'}  
+              const tabEnabled = !tabLogging || tabLogging.active === true
 
-              console.log('📨 CONTENT: Console logging state - Global:', globalEnabled, 'Tab:', tabEnabled)
+              console.log('📨 CONTENT: Console logging state - Global:', globalEnabled, 'Tab:', tabEnabled, 'TabData:', tabLogging)
               response = { enabled: globalEnabled && tabEnabled }
             } else {
               console.log('📨 CONTENT: No tab ID available for console, returning false')
@@ -892,17 +894,21 @@ export class SharedInfrastructureModule {
 
       if (tabId) {
         const result = await chrome.storage.local.get([
-          `tabLogging_${tabId}`,
+          `tabLogging_${tabId}`,       // Network logging
+          `tabErrorLogging_${tabId}`,  // Console/Error logging
           'extensionEnabled',
           'settings'
         ])
 
         const globalEnabled = result.extensionEnabled !== false
-        const tabLogging = result[`tabLogging_${tabId}`]
-        const tabEnabled = !tabLogging || tabLogging.status === 'active'
-
-        const networkEnabled = globalEnabled && tabEnabled
-        const consoleEnabled = globalEnabled && tabEnabled
+        
+        // Check network logging state
+        const tabNetworkLogging = result[`tabLogging_${tabId}`]
+        const networkEnabled = globalEnabled && (!tabNetworkLogging || tabNetworkLogging.active === true)
+        
+        // Check console logging state  
+        const tabConsoleLogging = result[`tabErrorLogging_${tabId}`]
+        const consoleEnabled = globalEnabled && (!tabConsoleLogging || tabConsoleLogging.active === true)
 
         // Notify main-world script about state changes
         window.dispatchEvent(new CustomEvent('tabLoggingStateChange', {
