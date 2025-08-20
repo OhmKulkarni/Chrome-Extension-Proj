@@ -22,7 +22,8 @@
     "activeTab",
     "tabs",
     "scripting",
-    "declarativeNetRequest"
+    "declarativeNetRequest",
+    "webRequest"
   ],
   "minimum_chrome_version": "109",
   "host_permissions": [

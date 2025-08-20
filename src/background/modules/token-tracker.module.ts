@@ -133,7 +133,7 @@ export class TokenTrackerModule {
       try {
         const settings = await this.storageManager.getSettings();
         const tokenConfig = settings?.tokenLogging || {};
-        
+
         // If global token logging is disabled, skip
         if (tokenConfig.enabled === false) {
           return null;

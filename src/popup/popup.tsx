@@ -6,6 +6,12 @@ import { createRoot } from 'react-dom/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
 import { Button } from './components/ui/button';
 import { Switch } from './components/ui/switch';
+import { StorageService } from '../utils/storage-service';
+import { ChromeSyncService } from '../services/chrome-sync-service';
+
+// Initialize services
+const storageService = new StorageService();
+const chromeSyncService = ChromeSyncService.getInstance();
 
 // MEMORY LEAK FIX: External delay function to prevent closure capture
 function createDelayPromise(ms: number): Promise<void> {
@@ -107,64 +113,75 @@ const Popup: React.FC = () => {
   const [tabTokenLoggingActive, setTabTokenLoggingActive] = useState(false);
 
   useEffect(() => {
-    // MEMORY LEAK FIX: Use pre-allocated function instead of direct chrome.runtime.sendMessage
-    getChromeTabInfo().then(response => {
-      setTabInfo(response)
-    }).catch(error => {
-      console.error('Failed to get tab info:', error)
-      setTabInfo({ title: 'Error', url: 'Failed to get tab info' })
-    })
+    const initializePopup = async () => {
+      try {
+        // Initialize Chrome sync storage with defaults
+        await chromeSyncService.initializeSyncStorage();
 
-    // Get extension settings and tab-specific state
-    chrome.storage.local.get(['settings'], (result) => {
-      const settings = result.settings || {};
+        // MEMORY LEAK FIX: Use pre-allocated function instead of direct chrome.runtime.sendMessage
+        getChromeTabInfo().then(response => {
+          setTabInfo(response)
+        }).catch(error => {
+          console.error('Failed to get tab info:', error)
+          setTabInfo({ title: 'Error', url: 'Failed to get tab info' })
+        })
 
-      // Ensure we have default networkInterception settings if they don't exist
-      const networkInterceptionDefaults = {
-        enabled: true,
-        tabSpecific: {
+        // Get extension settings and tab-specific state using StorageService (IndexedDB)
+        const result = await storageService.get(['settings']);
+        const settings = result.settings || {};
+
+        // Ensure we have default networkInterception settings if they don't exist
+        const networkInterceptionDefaults = {
           enabled: true,
-          defaultState: 'paused'  // FIXED: Match background script defaults (disabled by default)
-        }
-      };
+          tabSpecific: {
+            enabled: true,
+            defaultState: 'paused'  // FIXED: Match background script defaults (disabled by default)
+          }
+        };
 
-      // Ensure we have default errorLogging settings if they don't exist
-      const errorLoggingDefaults = {
-        enabled: true,
-        tabSpecific: {
+        // Ensure we have default errorLogging settings if they don't exist
+        const errorLoggingDefaults = {
           enabled: true,
-          defaultState: 'paused'  // FIXED: Match background script defaults (disabled by default)
-        }
-      };
+          tabSpecific: {
+            enabled: true,
+            defaultState: 'paused'  // FIXED: Match background script defaults (disabled by default)
+          }
+        };
 
-      // Ensure we have default tokenLogging settings if they don't exist
-      const tokenLoggingDefaults = {
-        enabled: true,
-        tabSpecific: {
+        // Ensure we have default tokenLogging settings if they don't exist
+        const tokenLoggingDefaults = {
           enabled: true,
-          defaultState: 'paused'  // FIXED: Match background script defaults (disabled by default)
-        }
-      };
+          tabSpecific: {
+            enabled: true,
+            defaultState: 'paused'  // FIXED: Match background script defaults (disabled by default)
+          }
+        };
 
-      setSettings({
-        networkInterception: settings.networkInterception || networkInterceptionDefaults,
-        errorLogging: settings.errorLogging || errorLoggingDefaults,
-        tokenLogging: settings.tokenLogging || tokenLoggingDefaults
-      });
-
-      // Persist default settings if they don't exist
-      if (!settings.networkInterception || !settings.errorLogging || !settings.tokenLogging) {
-        const updatedSettings = {
-          ...settings,
+        setSettings({
           networkInterception: settings.networkInterception || networkInterceptionDefaults,
           errorLogging: settings.errorLogging || errorLoggingDefaults,
           tokenLogging: settings.tokenLogging || tokenLoggingDefaults
-        };
-        chrome.storage.local.set({ settings: updatedSettings });
-      }
+        });
 
-      setLoading(false);
-    });
+        // Persist default settings if they don't exist using StorageService (IndexedDB)
+        if (!settings.networkInterception || !settings.errorLogging || !settings.tokenLogging) {
+          const updatedSettings = {
+            ...settings,
+            networkInterception: settings.networkInterception || networkInterceptionDefaults,
+            errorLogging: settings.errorLogging || errorLoggingDefaults,
+            tokenLogging: settings.tokenLogging || tokenLoggingDefaults
+          };
+          await storageService.set({ settings: updatedSettings });
+        }
+
+        setLoading(false);
+      } catch (error) {
+        console.error('Failed to load settings:', error);
+        setLoading(false);
+      }
+    };
+
+    initializePopup();
 
     // Also get extension enabled state from the new extension state controller
     const loadExtensionState = async () => {
@@ -177,10 +194,14 @@ const Popup: React.FC = () => {
         if (globalResponse && 'enabled' in globalResponse) {
           setGlobalPowerEnabled(globalResponse.enabled);
         } else {
-          // Fallback to sync storage for backward compatibility
-          chrome.storage.sync.get(['extensionEnabled'], (result) => {
+          // Fallback to storage for backward compatibility using StorageService
+          try {
+            const result = await storageService.get(['extensionEnabled']);
             setGlobalPowerEnabled(result.extensionEnabled ?? true);
-          });
+          } catch (error) {
+            console.error('Failed to get extension enabled state:', error);
+            setGlobalPowerEnabled(true);
+          }
         }
 
         // Load site-specific state for current tab
@@ -207,68 +228,74 @@ const Popup: React.FC = () => {
 
       } catch (error) {
         console.error('Error loading extension state:', error);
-        // Fallback to sync storage
-        chrome.storage.sync.get(['extensionEnabled'], (result) => {
+        // Fallback to storage using StorageService
+        try {
+          const result = await storageService.get(['extensionEnabled']);
           setGlobalPowerEnabled(result.extensionEnabled ?? true);
-        });
+        } catch (storageError) {
+          console.error('Failed to get extension enabled state from storage:', storageError);
+          setGlobalPowerEnabled(true);
+        }
         setSiteSpecificEnabled(true);
       }
     };
 
     loadExtensionState();
 
-    // Get current tab's logging state (network, error, and token) from IndexedDB
+    // Get current tab's logging state (network, error, and token)
+    // NEW: Uses Chrome sync for preferences, IndexedDB for real-time counters
     const loadTabStates = async () => {
       try {
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (!tabs[0]?.id) return;
-        
+        if (!tabs[0]?.id || !tabs[0]?.url) return;
+
         const tabId = tabs[0].id;
-        
-        // Load all states using IndexedDB via message router
-        const [networkState, errorState, tokenState, settings] = await Promise.all([
+        const tabUrl = tabs[0].url;
+
+        // Get logging preferences from Chrome sync (cross-device)
+        const syncPrefs = await chromeSyncService.getTabPreferencesForUrl(tabUrl);
+
+        // Get real-time state data from IndexedDB (device-specific counters)
+        const [networkState, errorState, tokenState] = await Promise.all([
           sendChromeMessage({ action: 'getTabNetworkState', tabId }),
           sendChromeMessage({ action: 'getTabErrorState', tabId }),
-          sendChromeMessage({ action: 'getTabTokenState', tabId }),
-          sendChromeMessage({ action: 'getSettings' })
+          sendChromeMessage({ action: 'getTabTokenState', tabId })
         ]);
 
-        // Handle network logging state
-        if (networkState && networkState.success && typeof networkState.active === 'boolean') {
-          setTabLoggingActive(networkState.active);
-        } else {
-          // Fallback to settings for default behavior
-          const networkConfig = settings?.data?.networkInterception || {};
-          const defaultActive = networkConfig.tabSpecific?.defaultState === 'active';
-          setTabLoggingActive(defaultActive);
-        }
+        // Set tab logging states based on sync preferences (with IndexedDB overrides if active)
+        setTabLoggingActive(
+          (networkState?.success && typeof networkState.active === 'boolean')
+            ? networkState.active
+            : syncPrefs.network
+        );
 
-        // Handle error logging state  
-        if (errorState && errorState.success && typeof errorState.active === 'boolean') {
-          setTabErrorLoggingActive(errorState.active);
-        } else {
-          // Fallback to settings for default behavior
-          const errorConfig = settings?.data?.errorLogging || {};
-          const defaultErrorActive = errorConfig.tabSpecific?.defaultState === 'active';
-          setTabErrorLoggingActive(defaultErrorActive);
-        }
+        setTabErrorLoggingActive(
+          (errorState?.success && typeof errorState.active === 'boolean')
+            ? errorState.active
+            : syncPrefs.errors
+        );
 
-        // Handle token logging state
-        if (tokenState && tokenState.success && typeof tokenState.active === 'boolean') {
-          setTabTokenLoggingActive(tokenState.active);
-        } else {
-          // Fallback to settings for default behavior
-          const tokenConfig = settings?.data?.tokenLogging || {};
-          const defaultTokenActive = tokenConfig.tabSpecific?.defaultState === 'active';
-          setTabTokenLoggingActive(defaultTokenActive);
-        }
+        setTabTokenLoggingActive(
+          (tokenState?.success && typeof tokenState.active === 'boolean')
+            ? tokenState.active
+            : syncPrefs.tokens
+        );
 
       } catch (error) {
         console.error('Error loading tab states:', error);
-        // Set defaults if loading fails
-        setTabLoggingActive(false);
-        setTabErrorLoggingActive(false);
-        setTabTokenLoggingActive(false);
+        // Fallback to sync defaults if everything fails
+        try {
+          const defaults = await chromeSyncService.getTabDefaults();
+          setTabLoggingActive(defaults.network);
+          setTabErrorLoggingActive(defaults.errors);
+          setTabTokenLoggingActive(defaults.tokens);
+        } catch (syncError) {
+          console.error('Error loading sync defaults:', syncError);
+          // Final fallback to hardcoded defaults
+          setTabLoggingActive(false);
+          setTabErrorLoggingActive(true);
+          setTabTokenLoggingActive(false);
+        }
       }
     };
 
@@ -326,8 +353,12 @@ const Popup: React.FC = () => {
     const newState = !globalPowerEnabled;
     setGlobalPowerEnabled(newState);
 
-    // Update Chrome storage for backward compatibility
-    chrome.storage.sync.set({ extensionEnabled: newState });
+    // Update storage using StorageService (IndexedDB)
+    try {
+      await storageService.set({ extensionEnabled: newState });
+    } catch (error) {
+      console.error('Failed to save extension enabled state:', error);
+    }
 
     // Update extension state controller for immediate effect
     try {
@@ -371,13 +402,17 @@ const Popup: React.FC = () => {
   const toggleTabLogging = async () => {
     try {
       const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tabs[0]?.id) return;
+      if (!tabs[0]?.id || !tabs[0]?.url) return;
 
       const tabId = tabs[0].id;
+      const tabUrl = tabs[0].url;
       const newState = !tabLoggingActive;
       setTabLoggingActive(newState);
 
-      // Use IndexedDB via background script
+      // Save user preference to Chrome sync (cross-device)
+      await chromeSyncService.setTabPreferencesForUrl(tabUrl, { network: newState });
+
+      // Update real-time state in IndexedDB via background script
       const response = await sendChromeMessage({
         action: 'setTabNetworkState',
         tabId,
@@ -409,13 +444,17 @@ const Popup: React.FC = () => {
   const toggleTabErrorLogging = async () => {
     try {
       const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tabs[0]?.id) return;
+      if (!tabs[0]?.id || !tabs[0]?.url) return;
 
       const tabId = tabs[0].id;
+      const tabUrl = tabs[0].url;
       const newState = !tabErrorLoggingActive;
       setTabErrorLoggingActive(newState);
 
-      // Use IndexedDB via background script
+      // Save user preference to Chrome sync (cross-device)
+      await chromeSyncService.setTabPreferencesForUrl(tabUrl, { errors: newState });
+
+      // Update real-time state in IndexedDB via background script
       const response = await sendChromeMessage({
         action: 'setTabErrorState',
         tabId,
@@ -447,13 +486,17 @@ const Popup: React.FC = () => {
   const toggleTabTokenLogging = async () => {
     try {
       const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tabs[0]?.id) return;
+      if (!tabs[0]?.id || !tabs[0]?.url) return;
 
       const tabId = tabs[0].id;
+      const tabUrl = tabs[0].url;
       const newState = !tabTokenLoggingActive;
       setTabTokenLoggingActive(newState);
 
-      // Use IndexedDB via background script
+      // Save user preference to Chrome sync (cross-device)
+      await chromeSyncService.setTabPreferencesForUrl(tabUrl, { tokens: newState });
+
+      // Update real-time state in IndexedDB via background script
       const response = await sendChromeMessage({
         action: 'setTabTokenState',
         tabId,
@@ -465,7 +508,7 @@ const Popup: React.FC = () => {
         // Revert local state if backend update failed
         setTabTokenLoggingActive(!newState);
       }
-      
+
       // Note: Token logging doesn't require content script communication
       // as it's handled purely in the background script via network interception
     } catch (error) {

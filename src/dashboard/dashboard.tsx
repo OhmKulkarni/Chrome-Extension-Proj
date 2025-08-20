@@ -9,6 +9,10 @@ import LeftSidebar from './components/LeftSidebar';
 import SettingsInline from './components/SettingsInline';
 import { TimelineVisualization } from './components/timeline/TimelineVisualization';
 import { RequestDetailContent, ErrorDetailContent, TokenDetailContent } from './shared/components/DetailedViews';
+import { StorageService } from '../utils/storage-service';
+
+// Initialize StorageService instance
+const storageService = new StorageService();
 
 // Chrome data clearing function
 const clearChromeData = async (): Promise<void> => {
@@ -571,27 +575,24 @@ const DecomposedDashboard: React.FC = () => {
     }
   };
 
-  // Load settings - using same logic as original
+  // Load settings - using StorageService for IndexedDB integration
   const loadSettings = useCallback(async () => {
     try {
-      const [syncResult, localResult] = await Promise.all([
-        chrome.storage.sync.get(['extensionSettings']),
-        chrome.storage.local.get(['settings'])
-      ]);
+      const result = await storageService.get(['extensionSettings', 'settings']);
 
       // Store the full settings for use in detail viewers
-      const fullSettings = localResult.settings || syncResult.extensionSettings || {};
+      const fullSettings = result.settings || result.extensionSettings || {};
       setSettings(fullSettings);
 
       let tokenSettings = { showFullHash: false };
 
-      if (localResult.settings?.tokenLogging) {
+      if (result.settings?.tokenLogging) {
         tokenSettings = {
-          showFullHash: localResult.settings.tokenLogging.showFullHash || false
+          showFullHash: result.settings.tokenLogging.showFullHash || false
         };
-      } else if (syncResult.extensionSettings?.tokenLogging) {
+      } else if (result.extensionSettings?.tokenLogging) {
         tokenSettings = {
-          showFullHash: syncResult.extensionSettings.tokenLogging.showFullHash || false
+          showFullHash: result.extensionSettings.tokenLogging.showFullHash || false
         };
       }
 

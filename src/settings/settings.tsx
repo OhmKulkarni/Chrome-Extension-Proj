@@ -2,10 +2,9 @@
 // This file serves as the settings UI for the Chrome extension.
 //
 // STORAGE ARCHITECTURE:
-// - UI settings are saved to both chrome.storage.sync (key: 'extensionSettings')
-//   and chrome.storage.local (key: 'settings')
-// - Background script reads from chrome.storage.local (key: 'settings')
-// - This dual storage ensures UI persistence and background script compatibility
+// - UI settings are saved to IndexedDB through StorageService
+// - Background script reads from IndexedDB through StorageManagerModule
+// - This provides unified storage with better performance and capacity
 //
 // NOISE FILTERING LOGIC:
 // - The filterNoise toggle controls networkInterception.privacy.filterNoise
@@ -18,6 +17,10 @@ import { createRoot } from 'react-dom/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
+import { StorageService } from '../utils/storage-service';
+
+// Initialize StorageService instance
+const storageService = new StorageService();
 import { Select } from './components/ui/select';
 import { Switch } from './components/ui/switch';
 
@@ -200,28 +203,24 @@ const Settings: React.FC = () => {
 
   const loadSettings = async () => {
     try {
-      // MEMORY LEAK FIX: Use minimal chrome.storage call
-      // Check both storage locations for backward compatibility
-      const [syncResult, localResult] = await Promise.all([
-        chrome.storage.sync.get(['extensionSettings']),
-        chrome.storage.local.get(['settings'])
-      ]);
+      // Load settings from IndexedDB through StorageService
+      const result = await storageService.get(['extensionSettings', 'settings']);
 
       let loadedSettings = defaultSettings;
 
-      // Priority: local storage (used by background script) > sync storage
-      if (localResult.settings) {
+      // Priority: settings (used by background script) > extensionSettings
+      if (result.settings) {
         // Map from background script format to UI format
-        const backendSettings = localResult.settings;
+        const backendSettings = result.settings;
         loadedSettings = {
           networkInterception: backendSettings.networkInterception || defaultSettings.networkInterception,
           errorLogging: backendSettings.errorLogging || defaultSettings.errorLogging,
           tokenLogging: backendSettings.tokenLogging || defaultSettings.tokenLogging,
         };
-      } else if (syncResult.extensionSettings) {
-        // Use deep merge to handle partial settings from sync storage
+      } else if (result.extensionSettings) {
+        // Use deep merge to handle partial settings from storage
         // Extract only the properties we care about
-        const syncSettings = syncResult.extensionSettings;
+        const syncSettings = result.extensionSettings;
         loadedSettings = {
           networkInterception: syncSettings.networkInterception || defaultSettings.networkInterception,
           errorLogging: syncSettings.errorLogging || defaultSettings.errorLogging,
@@ -241,8 +240,8 @@ const Settings: React.FC = () => {
   const saveSettings = async () => {
     setIsSaving(true);
     try {
-      // Save to both storage locations for compatibility
-      // Background script expects chrome.storage.local with key 'settings'
+      // Save to IndexedDB through StorageService
+      // Background script reads from IndexedDB through StorageManagerModule
       const backendSettings = {
         networkInterception: settings.networkInterception,
         errorLogging: settings.errorLogging,
@@ -250,10 +249,10 @@ const Settings: React.FC = () => {
       };
 
       await Promise.all([
-        // Save to local storage for background script compatibility
-        chrome.storage.local.set({ settings: backendSettings }),
-        // Keep sync storage for UI persistence
-        chrome.storage.sync.set({ extensionSettings: settings })
+        // Save settings for background script
+        storageService.set({ settings: backendSettings }),
+        // Keep extensionSettings for UI persistence
+        storageService.set({ extensionSettings: settings })
       ]);
 
       setSaveMessage('Settings saved successfully!');

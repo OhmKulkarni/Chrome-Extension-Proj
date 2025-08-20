@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { StorageService } from '../../utils/storage-service';
 
 // Interface definitions matching the full settings page
 interface SettingsData {
@@ -91,6 +92,9 @@ const defaultSettings: SettingsData = {
 };
 
 const SettingsInline: React.FC = () => {
+  // Storage service for IndexedDB access
+  const storageService = React.useMemo(() => new StorageService(), []);
+
   const [settings, setSettings] = useState<SettingsData>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -218,7 +222,7 @@ const SettingsInline: React.FC = () => {
       // Check both storage locations for backward compatibility
       const [syncResult, localResult] = await Promise.all([
         chrome.storage.sync.get(['extensionSettings']),
-        chrome.storage.local.get(['settings'])
+        storageService.get(['settings'])
       ]);
 
       let loadedSettings = defaultSettings;
@@ -271,7 +275,7 @@ const SettingsInline: React.FC = () => {
 
       await Promise.all([
         // Save to local storage for background script compatibility
-        chrome.storage.local.set({ settings: backendSettings }),
+        storageService.set({ settings: backendSettings }),
         // Keep sync storage for UI persistence
         chrome.storage.sync.set({ extensionSettings: settings })
       ]);

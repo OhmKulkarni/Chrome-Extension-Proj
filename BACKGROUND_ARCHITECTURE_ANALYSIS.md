@@ -22,7 +22,7 @@
    - ✅ IndexedDB storage implementation
    - ✅ Used by StorageManagerModule
 
-3. **`indexeddb-storage.ts`** - **REQUIRED**  
+3. **`indexeddb-storage.ts`** - **REQUIRED**
    - ✅ Core IndexedDB operations
    - ✅ Used by environment-storage-manager
 
@@ -33,7 +33,7 @@
 1. **`background.ts`** - **EMPTY FILE** ⚠️ Can be removed
 2. **`background-modular.ts`** - **EMPTY FILE** ⚠️ Can be removed
 3. **`background-fallback.ts`** - **LEGACY** ⚠️ Likely can be removed
-4. **`background-robust.ts`** - **LEGACY** ⚠️ Likely can be removed  
+4. **`background-robust.ts`** - **LEGACY** ⚠️ Likely can be removed
 5. **`background-modular-backup.ts`** - **BACKUP** ⚠️ Can be removed if confirmed working
 6. **`service-worker-background-controller.ts`** - **ALTERNATIVE** ⚠️ May be duplicate
 
@@ -50,8 +50,8 @@
 **StorageManagerModule Integration:**
 ```typescript
 this.storageManager = new StorageManagerModule(
-  this.chromeApi, 
-  this.legacyStorageManager, 
+  this.chromeApi,
+  this.legacyStorageManager,
   this.config
 );
 ```
@@ -59,15 +59,15 @@ this.storageManager = new StorageManagerModule(
 **All Processing Modules Connected:**
 ```typescript
 this.networkProcessor = new NetworkProcessorModule(
-  this.chromeApi, this.storageManager, this.tokenTracker, 
+  this.chromeApi, this.storageManager, this.tokenTracker,
   this.legacyStorageManager, this.config
 );
 this.consoleHandler = new ConsoleHandlerModule(
-  this.chromeApi, this.storageManager, 
+  this.chromeApi, this.storageManager,
   this.legacyStorageManager, this.config
 );
 this.tokenTracker = new TokenTrackerModule(
-  this.chromeApi, this.storageManager, 
+  this.chromeApi, this.storageManager,
   this.legacyStorageManager, this.config
 );
 ```
@@ -76,7 +76,7 @@ this.tokenTracker = new TokenTrackerModule(
 ```typescript
 this.messageRouter = new MessageRouterModule(
   this.chromeApi, this.storageManager,
-  this.networkProcessor, this.consoleHandler, 
+  this.networkProcessor, this.consoleHandler,
   this.tokenTracker, this.extensionState, this.config
 );
 ```
@@ -85,7 +85,7 @@ this.messageRouter = new MessageRouterModule(
 
 #### **✅ REQUIRED DIRECTORIES:**
 - **`modules/`** - Contains NetworkProcessor, ConsoleHandler, TokenTracker, ExtensionState
-- **`shared/`** - Contains StorageManager, MessageRouter, ChromeApi modules  
+- **`shared/`** - Contains StorageManager, MessageRouter, ChromeApi modules
 - **`types/`** - Type definitions for background functionality
 
 #### **🤔 INVESTIGATE DIRECTORIES:**

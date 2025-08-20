@@ -99,124 +99,284 @@ export class StorageManagerModule {
   // ===== NETWORK REQUEST STORAGE =====
 
   /**
-   * Store network request data
+   * Store network request data - Uses IndexedDB
    */
   async storeNetworkRequest(requestData: NetworkRequestData): Promise<void> {
     return this.executeWithSafety('storeNetworkRequest', async () => {
-      const existing = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.NETWORK_REQUESTS);
-      const requests = existing[this.STORAGE_KEYS.NETWORK_REQUESTS] || [];
-
       // Add timestamp if not present
       if (!requestData.timestamp) {
         requestData.timestamp = new Date().toISOString();
       }
 
-      requests.unshift(requestData); // Add to beginning for latest-first order
+      // Store in IndexedDB as primary storage
+      try {
+        // Convert NetworkRequestData to ApiCall format
+        const apiCallData = {
+          url: requestData.url,
+          method: requestData.method,
+          headers: JSON.stringify(requestData.headers || {}),
+          payload_size: requestData.body ? requestData.body.length : 0,
+          status: requestData.status,
+          response_body: requestData.body || '',
+          timestamp: new Date(requestData.timestamp).getTime(),
+          tab_id: requestData.tabId,
+          tab_url: requestData.source_url,
+          main_domain: new URL(requestData.url).hostname
+        };
 
-      // Limit array size to prevent memory issues (same as original)
-      const maxRequests = 1000;
-      if (requests.length > maxRequests) {
-        requests.splice(maxRequests);
+        await this.indexedDbStorage.insertApiCall(apiCallData);
+        console.log('✅ StorageManagerModule: Network request stored in IndexedDB');
+      } catch (error) {
+        console.warn('StorageManagerModule: Failed to store network request in IndexedDB, falling back to Chrome storage:', error);
+
+        // Fallback to Chrome storage for backward compatibility
+        const existing = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.NETWORK_REQUESTS);
+        const requests = existing[this.STORAGE_KEYS.NETWORK_REQUESTS] || [];
+        requests.unshift(requestData);
+
+        // Limit array size to prevent memory issues
+        const maxRequests = 1000;
+        if (requests.length > maxRequests) {
+          requests.splice(maxRequests);
+        }
+
+        await this.chromeApi.setInStorage({
+          [this.STORAGE_KEYS.NETWORK_REQUESTS]: requests
+        });
       }
-
-      await this.chromeApi.setInStorage({
-        [this.STORAGE_KEYS.NETWORK_REQUESTS]: requests
-      });
     });
   }
 
   /**
-   * Get paginated network requests
+   * Get paginated network requests - Uses IndexedDB
    */
   async getNetworkRequests(limit = 50, offset = 0): Promise<NetworkRequestData[]> {
     return this.executeWithSafety('getNetworkRequests', async () => {
-      const result = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.NETWORK_REQUESTS);
-      const requests = result[this.STORAGE_KEYS.NETWORK_REQUESTS] || [];
+      // Try IndexedDB first
+      try {
+        const apiCalls = await this.indexedDbStorage.getApiCalls(limit, offset);
 
-      return requests.slice(offset, offset + limit);
+        // Convert ApiCall format back to NetworkRequestData format
+        return apiCalls.map(apiCall => ({
+          url: apiCall.url,
+          method: apiCall.method,
+          status: apiCall.status,
+          headers: apiCall.headers ? JSON.parse(apiCall.headers) : undefined,
+          body: apiCall.response_body || apiCall.request_body,
+          timestamp: new Date(apiCall.timestamp).toISOString(),
+          tabId: apiCall.tab_id,
+          source_url: apiCall.tab_url
+        } as NetworkRequestData));
+      } catch (error) {
+        console.warn('StorageManagerModule: Failed to get network requests from IndexedDB, falling back to Chrome storage:', error);
+
+        // Fallback to Chrome storage
+        const result = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.NETWORK_REQUESTS);
+        const requests = result[this.STORAGE_KEYS.NETWORK_REQUESTS] || [];
+        return requests.slice(offset, offset + limit);
+      }
     });
   }
 
   // ===== CONSOLE ERROR STORAGE =====
 
   /**
-   * Store console error data
+   * Store console error data - Uses IndexedDB
    */
   async storeConsoleError(errorData: ConsoleErrorData): Promise<void> {
     return this.executeWithSafety('storeConsoleError', async () => {
-      const existing = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.CONSOLE_ERRORS);
-      const errors = existing[this.STORAGE_KEYS.CONSOLE_ERRORS] || [];
-
       // Add timestamp if not present
       if (!errorData.timestamp) {
         errorData.timestamp = new Date().toISOString();
       }
 
-      errors.unshift(errorData); // Add to beginning for latest-first order
+      // Store in IndexedDB as primary storage
+      try {
+        // Convert ConsoleErrorData to ConsoleError format
+        const consoleErrorData = {
+          message: errorData.message,
+          stack_trace: errorData.stack,
+          timestamp: new Date(errorData.timestamp).getTime(),
+          severity: errorData.severity as 'error' | 'warn' | 'info',
+          url: errorData.url || '',
+          tab_id: errorData.tabId,
+          tab_url: errorData.source_url,
+          main_domain: errorData.url ? new URL(errorData.url).hostname : ''
+        };
 
-      // Limit array size to prevent memory issues (same as original)
-      const maxErrors = 1000;
-      if (errors.length > maxErrors) {
-        errors.splice(maxErrors);
+        await this.indexedDbStorage.insertConsoleError(consoleErrorData);
+        console.log('✅ StorageManagerModule: Console error stored in IndexedDB');
+      } catch (error) {
+        console.warn('StorageManagerModule: Failed to store console error in IndexedDB, falling back to Chrome storage:', error);
+
+        // Fallback to Chrome storage for backward compatibility
+        const existing = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.CONSOLE_ERRORS);
+        const errors = existing[this.STORAGE_KEYS.CONSOLE_ERRORS] || [];
+        errors.unshift(errorData);
+
+        // Limit array size to prevent memory issues
+        const maxErrors = 1000;
+        if (errors.length > maxErrors) {
+          errors.splice(maxErrors);
+        }
+
+        await this.chromeApi.setInStorage({
+          [this.STORAGE_KEYS.CONSOLE_ERRORS]: errors
+        });
       }
-
-      await this.chromeApi.setInStorage({
-        [this.STORAGE_KEYS.CONSOLE_ERRORS]: errors
-      });
     });
   }
 
   /**
-   * Get paginated console errors
+   * Get paginated console errors - Uses IndexedDB
    */
   async getConsoleErrors(limit = 50, offset = 0): Promise<ConsoleErrorData[]> {
     return this.executeWithSafety('getConsoleErrors', async () => {
-      const result = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.CONSOLE_ERRORS);
-      const errors = result[this.STORAGE_KEYS.CONSOLE_ERRORS] || [];
+      // Try IndexedDB first
+      try {
+        const consoleErrors = await this.indexedDbStorage.getConsoleErrors(limit, offset);
 
-      return errors.slice(offset, offset + limit);
+        // Convert ConsoleError format back to ConsoleErrorData format
+        return consoleErrors.map(error => ({
+          message: error.message,
+          severity: error.severity,
+          timestamp: new Date(error.timestamp).toISOString(),
+          url: error.url,
+          stack: error.stack_trace,
+          source_url: error.tab_url,
+          tabId: error.tab_id
+        } as ConsoleErrorData));
+      } catch (error) {
+        console.warn('StorageManagerModule: Failed to get console errors from IndexedDB, falling back to Chrome storage:', error);
+
+        // Fallback to Chrome storage
+        const result = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.CONSOLE_ERRORS);
+        const errors = result[this.STORAGE_KEYS.CONSOLE_ERRORS] || [];
+        return errors.slice(offset, offset + limit);
+      }
     });
   }
 
   // ===== TOKEN EVENT STORAGE =====
 
   /**
-   * Store token event data
+   * Store token event data - Uses IndexedDB
    */
   async storeTokenEvent(tokenEvent: TokenEvent): Promise<void> {
     return this.executeWithSafety('storeTokenEvent', async () => {
-      const existing = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.TOKEN_EVENTS);
-      const events = existing[this.STORAGE_KEYS.TOKEN_EVENTS] || [];
-
       // Add timestamp if not present
       if (!tokenEvent.timestamp) {
         tokenEvent.timestamp = new Date().toISOString();
       }
 
-      events.unshift(tokenEvent); // Add to beginning for latest-first order
+      // Store in IndexedDB as primary storage
+      try {
+        // Convert background TokenEvent to storage TokenEvent format
+        const storageTokenEvent = {
+          type: this.mapTokenEventType(tokenEvent.type),
+          valueHash: tokenEvent.valueHash || '',
+          timestamp: new Date(tokenEvent.timestamp).getTime(),
+          source_url: tokenEvent.source_url,
+          expiry: tokenEvent.expiry,
+          status: tokenEvent.status,
+          method: tokenEvent.method,
+          url: tokenEvent.url,
+          main_domain: tokenEvent.url ? new URL(tokenEvent.url).hostname : ''
+        };
 
-      // Limit array size to prevent memory issues (same as original)
-      const maxEvents = 1000;
-      if (events.length > maxEvents) {
-        events.splice(maxEvents);
+        await this.indexedDbStorage.insertTokenEvent(storageTokenEvent);
+        console.log('✅ StorageManagerModule: Token event stored in IndexedDB');
+      } catch (error) {
+        console.warn('StorageManagerModule: Failed to store token event in IndexedDB, falling back to Chrome storage:', error);
+
+        // Fallback to Chrome storage for backward compatibility
+        const existing = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.TOKEN_EVENTS);
+        const events = existing[this.STORAGE_KEYS.TOKEN_EVENTS] || [];
+        events.unshift(tokenEvent);
+
+        // Limit array size to prevent memory issues
+        const maxEvents = 1000;
+        if (events.length > maxEvents) {
+          events.splice(maxEvents);
+        }
+
+        await this.chromeApi.setInStorage({
+          [this.STORAGE_KEYS.TOKEN_EVENTS]: events
+        });
       }
-
-      await this.chromeApi.setInStorage({
-        [this.STORAGE_KEYS.TOKEN_EVENTS]: events
-      });
     });
   }
 
   /**
-   * Get paginated token events
+   * Map background token event types to storage token event types
+   */
+  private mapTokenEventType(type: string): 'jwt_token' | 'session_token' | 'api_key' | 'oauth_token' {
+    // Simple mapping - could be improved based on actual token detection logic
+    switch (type) {
+      case 'acquire':
+      case 'refresh':
+      case 'verified':
+        return 'jwt_token';
+      case 'expired':
+      case 'refresh_error':
+        return 'session_token';
+      case 'validation_failed':
+        return 'api_key';
+      case 'revoked':
+        return 'oauth_token';
+      default:
+        return 'jwt_token';
+    }
+  }
+
+  /**
+   * Get paginated token events - Uses IndexedDB
    */
   async getTokenEvents(limit = 50, offset = 0): Promise<TokenEvent[]> {
     return this.executeWithSafety('getTokenEvents', async () => {
-      const result = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.TOKEN_EVENTS);
-      const events = result[this.STORAGE_KEYS.TOKEN_EVENTS] || [];
+      // Try IndexedDB first
+      try {
+        const storageTokenEvents = await this.indexedDbStorage.getTokenEvents(limit, offset);
 
-      return events.slice(offset, offset + limit);
+        // Convert storage TokenEvent format back to background TokenEvent format
+        return storageTokenEvents.map(event => ({
+          type: this.mapStorageTokenEventType(event.type),
+          url: event.url || '',
+          method: event.method || 'GET',
+          status: event.status || 0,
+          timestamp: new Date(event.timestamp).toISOString(),
+          source_url: event.source_url,
+          expiry: event.expiry,
+          valueHash: event.valueHash
+        } as TokenEvent));
+      } catch (error) {
+        console.warn('StorageManagerModule: Failed to get token events from IndexedDB, falling back to Chrome storage:', error);
+
+        // Fallback to Chrome storage
+        const result = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.TOKEN_EVENTS);
+        const events = result[this.STORAGE_KEYS.TOKEN_EVENTS] || [];
+        return events.slice(offset, offset + limit);
+      }
     });
+  }
+
+  /**
+   * Map storage token event types back to background token event types
+   */
+  private mapStorageTokenEventType(type: 'jwt_token' | 'session_token' | 'api_key' | 'oauth_token'): string {
+    // Simple reverse mapping
+    switch (type) {
+      case 'jwt_token':
+        return 'acquire';
+      case 'session_token':
+        return 'expired';
+      case 'api_key':
+        return 'validation_failed';
+      case 'oauth_token':
+        return 'revoked';
+      default:
+        return 'acquire';
+    }
   }
 
   // ===== TAB STATE MANAGEMENT =====
@@ -281,7 +441,7 @@ export class StorageManagerModule {
 
       // Also save to Chrome storage for backward compatibility
       const chromeKey = `${this.STORAGE_KEYS.TAB_NETWORK_LOGGING}_${tabId}`;
-      await this.chromeApi.setInStorage({ 
+      await this.chromeApi.setInStorage({
         [chromeKey]: {
           active,
           startTime: Date.now(),
@@ -351,7 +511,7 @@ export class StorageManagerModule {
 
       // Also save to Chrome storage for backward compatibility
       const chromeKey = `${this.STORAGE_KEYS.TAB_ERROR_LOGGING}_${tabId}`;
-      await this.chromeApi.setInStorage({ 
+      await this.chromeApi.setInStorage({
         [chromeKey]: {
           active,
           startTime: Date.now(),
@@ -423,7 +583,7 @@ export class StorageManagerModule {
 
       // Also save to Chrome storage for backward compatibility
       const chromeKey = `${this.STORAGE_KEYS.TAB_TOKEN_LOGGING}_${tabId}`;
-      await this.chromeApi.setInStorage({ 
+      await this.chromeApi.setInStorage({
         [chromeKey]: {
           active,
           startTime: Date.now(),
@@ -678,6 +838,49 @@ export class StorageManagerModule {
     }
 
     throw lastError || new Error(`StorageManagerModule: Unknown error in ${operation}`);
+  }
+
+  /**
+   * Get storage information
+   */
+  async getStorageInfo(): Promise<{
+    networkRequests: number;
+    consoleErrors: number;
+    tokenEvents: number;
+    tabStates: number;
+  }> {
+    try {
+      // Get counts by retrieving data and counting items
+      // We'll use a large limit to get accurate counts
+      const [networkData, errorData, tokenData] = await Promise.all([
+        this.getNetworkRequests(10000, 0),
+        this.getConsoleErrors(10000, 0),
+        this.getTokenEvents(10000, 0)
+      ]);
+
+      // Count tab states by checking settings or using a default
+      const settings = await this.getSettings();
+      const tabStatesCount = Object.keys(settings).filter(key =>
+        key.startsWith('tabLogging_') ||
+        key.startsWith('tabErrorLogging_') ||
+        key.startsWith('tabTokenLogging_')
+      ).length;
+
+      return {
+        networkRequests: networkData.length,
+        consoleErrors: errorData.length,
+        tokenEvents: tokenData.length,
+        tabStates: tabStatesCount
+      };
+    } catch (error) {
+      console.error('StorageManagerModule: Error getting storage info:', error);
+      return {
+        networkRequests: 0,
+        consoleErrors: 0,
+        tokenEvents: 0,
+        tabStates: 0
+      };
+    }
   }
 
   /**

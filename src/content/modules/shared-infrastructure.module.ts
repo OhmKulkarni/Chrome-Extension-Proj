@@ -214,9 +214,9 @@ export class SharedInfrastructureModule {
    * Handle console events from the console module
    */
   private handleConsoleEvent(event: ConsoleEvent): void {
-    if (!this.isExtensionContextValid()) return
+    console.log('SharedInfrastructureModule: Console event captured:', event.level, event.message)
 
-    // Add to pending batch
+    // Always add to pending batch - context will be checked during flush
     this.pendingData.consoleEvents.push(event)
 
     // Check if we should flush
@@ -276,8 +276,19 @@ export class SharedInfrastructureModule {
    */
   private async sendToBackground(action: string, data: any): Promise<any> {
     if (!this.isExtensionContextValid()) {
-      console.error('SharedInfrastructureModule: Extension context invalid')
-      return null
+      console.log('SharedInfrastructureModule: Extension context invalid, attempting recovery...')
+
+      // Try to recover the extension context
+      await this.attemptContextRecovery()
+
+      // If still invalid after recovery attempt, queue the data
+      if (!this.isExtensionContextValid()) {
+        console.warn('SharedInfrastructureModule: Context recovery failed, dropping data')
+        this.queueDataForLater(action, data)
+        return null
+      }
+
+      console.log('SharedInfrastructureModule: Extension context recovered successfully!')
     }
 
     try {
@@ -288,12 +299,18 @@ export class SharedInfrastructureModule {
 
       if (chrome.runtime.lastError) {
         console.error('SharedInfrastructureModule: Chrome runtime error:', chrome.runtime.lastError)
+        // Mark context as invalid and queue data
+        this.extensionContextValid = false
+        this.queueDataForLater(action, data)
         return null
       }
 
       return response
     } catch (error) {
       console.error('SharedInfrastructureModule: Message sending failed:', error)
+      // Mark context as invalid and queue data
+      this.extensionContextValid = false
+      this.queueDataForLater(action, data)
       return null
     }
   }
@@ -505,6 +522,57 @@ export class SharedInfrastructureModule {
     } catch (error) {
       this.extensionContextValid = false
       return false
+    }
+  }
+
+  /**
+   * Attempt to recover extension context
+   */
+  private async attemptContextRecovery(): Promise<void> {
+    console.log('SharedInfrastructureModule: Attempting extension context recovery...')
+
+    try {
+      // Wait a bit for potential extension reload
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      // Check if chrome runtime is available again
+      if (chrome?.runtime?.id) {
+        this.extensionContextValid = true
+        console.log('SharedInfrastructureModule: Extension context recovered successfully')
+
+        // Try to process any queued data
+        await this.processQueuedData()
+      } else {
+        console.warn('SharedInfrastructureModule: Extension context recovery failed')
+      }
+    } catch (error) {
+      console.error('SharedInfrastructureModule: Context recovery error:', error)
+      this.extensionContextValid = false
+    }
+  }
+
+  /**
+   * Queue data for later when extension context is invalid
+   */
+  private queueDataForLater(action: string, data: any): void {
+    // For simplicity, just log that data would be lost
+    // In a production system, you might want to implement local storage backup
+    console.warn(`SharedInfrastructureModule: Dropping ${action} data due to invalid extension context (${typeof data})`)
+    console.warn('SharedInfrastructureModule: Consider implementing local storage backup for reliability')
+  }
+
+  /**
+   * Process queued data when context is recovered
+   */
+  private async processQueuedData(): Promise<void> {
+    // Try to flush any existing pending data after context recovery
+    if (this.pendingData && (this.pendingData.networkRequests.length > 0 || this.pendingData.consoleEvents.length > 0)) {
+      console.log('SharedInfrastructureModule: Attempting to flush pending data after context recovery')
+      try {
+        await this.flushPendingData()
+      } catch (error) {
+        console.error('SharedInfrastructureModule: Failed to flush pending data after recovery:', error)
+      }
     }
   }
 

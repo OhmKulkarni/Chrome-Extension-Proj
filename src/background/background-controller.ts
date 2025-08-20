@@ -18,6 +18,7 @@ import { NetworkProcessorModule } from './modules/network-processor.module';
 import { ConsoleHandlerModule } from './modules/console-handler.module';
 import { TokenTrackerModule } from './modules/token-tracker.module';
 import { ExtensionStateModule } from './modules/extension-state.module';
+import { BackgroundNetworkInterceptor } from './modules/background-network-interceptor.module';
 import { EnvironmentStorageManager } from './environment-storage-manager';
 import { ExtensionStateController } from '../utils/extensionStateController';
 import { SafetyConfig } from './types/background-types';
@@ -32,6 +33,7 @@ export class BackgroundController {
   private tokenTracker: TokenTrackerModule;
   private extensionState: ExtensionStateModule;
   private messageRouter: MessageRouterModule;
+  private backgroundNetworkInterceptor: BackgroundNetworkInterceptor;
 
   // Legacy compatibility instances
   private legacyStorageManager: EnvironmentStorageManager;
@@ -85,6 +87,13 @@ export class BackgroundController {
       this.config
     );
     this.extensionState = new ExtensionStateModule(this.chromeApi, this.storageManager, this.config);
+
+    // Initialize background network interceptor for persistent capture
+    this.backgroundNetworkInterceptor = new BackgroundNetworkInterceptor(
+      this.networkProcessor,
+      this.tokenTracker,
+      this.storageManager
+    );
 
     // Initialize message router (handles all communication)
     this.messageRouter = new MessageRouterModule(
@@ -153,6 +162,11 @@ export class BackgroundController {
 
       await this.extensionState.initialize();
       console.log('  ✅ Extension state initialized');
+
+      // Phase 3.5: Initialize background network interceptor
+      console.log('📋 Phase 3.5: Background Network Interceptor');
+      await this.backgroundNetworkInterceptor.initialize();
+      console.log('  ✅ Background network interceptor initialized');
 
       // Phase 4: Initialize message router (must be last)
       console.log('📋 Phase 4: Message router');
@@ -295,6 +309,11 @@ export class BackgroundController {
       if (this.extensionState) {
         this.extensionState.cleanup();
         console.log('  ✅ Extension state cleaned up');
+      }
+
+      if (this.backgroundNetworkInterceptor) {
+        this.backgroundNetworkInterceptor.cleanup();
+        console.log('  ✅ Background network interceptor cleaned up');
       }
 
       if (this.consoleHandler) {

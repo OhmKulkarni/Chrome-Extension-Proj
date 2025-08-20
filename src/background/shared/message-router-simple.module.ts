@@ -276,6 +276,131 @@ export class MessageRouterModule {
           }
           break;
 
+        case 'updateSettings':
+          try {
+            await this.storageManager.updateSettings(message.settings);
+            sendResponse({ success: true });
+          } catch (error) {
+            sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to update settings' });
+          }
+          break;
+
+        // General Storage Operations (for StorageService)
+        case 'STORAGE_GET':
+          try {
+            const keys = message.keys || [];
+            const result: any = {};
+
+            for (const key of keys) {
+              if (key === 'settings' || key === 'extensionSettings') {
+                result[key] = await this.storageManager.getSettings();
+              } else if (key === 'extensionState') {
+                const state = await this.extensionState.getExtensionState();
+                result[key] = state;
+              } else if (key.startsWith('tabLogging_') || key.startsWith('tabErrorLogging_') || key.startsWith('tabTokenLogging_')) {
+                // Tab state keys
+                const tabId = parseInt(key.split('_')[1]);
+                if (!isNaN(tabId)) {
+                  if (key.startsWith('tabLogging_')) {
+                    result[key] = { active: await this.storageManager.getTabNetworkState(tabId) };
+                  } else if (key.startsWith('tabErrorLogging_')) {
+                    result[key] = { active: await this.storageManager.getTabErrorState(tabId) };
+                  } else if (key.startsWith('tabTokenLogging_')) {
+                    result[key] = { active: await this.storageManager.getTabTokenState(tabId) };
+                  }
+                }
+              } else {
+                // For any other keys, try to get them as generic settings
+                const setting = await this.storageManager.getSettings();
+                result[key] = setting[key] || null;
+              }
+            }
+
+            sendResponse({ success: true, data: result });
+          } catch (error) {
+            sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to get storage data' });
+          }
+          break;
+
+        case 'STORAGE_SET':
+          try {
+            const data = message.data || {};
+
+            for (const [key, value] of Object.entries(data)) {
+              if (key === 'settings' || key === 'extensionSettings') {
+                await this.storageManager.updateSettings(value);
+              } else if (key === 'extensionState') {
+                await this.extensionState.setExtensionState((value as any)?.globalEnabled ?? true);
+              } else if (key.startsWith('tabLogging_') || key.startsWith('tabErrorLogging_') || key.startsWith('tabTokenLogging_')) {
+                // Tab state keys
+                const tabId = parseInt(key.split('_')[1]);
+                const active = typeof value === 'boolean' ? value : (value as any)?.active ?? false;
+                if (!isNaN(tabId)) {
+                  if (key.startsWith('tabLogging_')) {
+                    await this.storageManager.setTabNetworkState(tabId, active);
+                  } else if (key.startsWith('tabErrorLogging_')) {
+                    await this.storageManager.setTabErrorState(tabId, active);
+                  } else if (key.startsWith('tabTokenLogging_')) {
+                    await this.storageManager.setTabTokenState(tabId, active);
+                  }
+                }
+              } else {
+                // For generic settings, merge with existing settings
+                const currentSettings = await this.storageManager.getSettings();
+                const updatedSettings = { ...currentSettings, [key]: value };
+                await this.storageManager.updateSettings(updatedSettings);
+              }
+            }
+
+            sendResponse({ success: true });
+          } catch (error) {
+            sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to set storage data' });
+          }
+          break;
+
+        case 'STORAGE_REMOVE':
+          try {
+            const keys = message.keys || [];
+
+            for (const key of keys) {
+              if (key === 'settings' || key === 'extensionSettings') {
+                await this.storageManager.updateSettings({});
+              } else if (key === 'extensionState') {
+                await this.extensionState.setExtensionState(true); // Reset to default
+              } else {
+                // For generic settings removal
+                const currentSettings = await this.storageManager.getSettings();
+                delete currentSettings[key];
+                await this.storageManager.updateSettings(currentSettings);
+              }
+            }
+
+            sendResponse({ success: true });
+          } catch (error) {
+            sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to remove storage data' });
+          }
+          break;
+
+        case 'STORAGE_CLEAR':
+          try {
+            await this.storageManager.clearAllData();
+            await this.extensionState.setExtensionState(true); // Reset to default
+            sendResponse({ success: true });
+          } catch (error) {
+            sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to clear storage data' });
+          }
+          break;
+
+        case 'STORAGE_INFO':
+          try {
+            // Get storage information
+            const info = await this.storageManager.getStorageInfo();
+            sendResponse({ success: true, data: info });
+          } catch (error) {
+            sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to get storage info' });
+          }
+          break;
+
         // Token Events
         case 'getTokenEvents':
           const tokenEvents = await this.tokenTracker.getTokenEvents(

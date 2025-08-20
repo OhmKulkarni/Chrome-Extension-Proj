@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chrome Storage Migration & Analysis</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .storage-section {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .sync-storage { background-color: #e8f5e8; border-color: #4CAF50; }
+        .local-storage { background-color: #fff3e0; border-color: #ff9800; }
+        .indexeddb-storage { background-color: #e3f2fd; border-color: #2196f3; }
+        .migration-needed { background-color: #ffebee; border-color: #f44336; }
+
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .btn-primary { background-color: #2196f3; color: white; }
+        .btn-success { background-color: #4CAF50; color: white; }
+        .btn-warning { background-color: #ff9800; color: white; }
+        .btn-danger { background-color: #f44336; color: white; }
+
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2196f3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Chrome Storage Migration & Analysis</h1>
+        <p>This tool helps migrate tab logging preferences from Chrome local storage to Chrome sync storage for cross-device synchronization.</p>
+
+        <div class="stats" id="storage-stats">
+            <!-- Stats will be populated by JavaScript -->
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>📊 Current Storage Analysis</h2>
+        <button class="btn-primary" onclick="analyzeCurrentStorage()">Analyze All Storage</button>
+        <button class="btn-success" onclick="showSyncData()">Show Chrome Sync Data</button>
+        <button class="btn-warning" onclick="showLocalData()">Show Local Storage Data</button>
+    </div>
+
+    <div class="storage-section sync-storage">
+        <h3>🌐 Chrome Sync Storage (Cross-Device)</h3>
+        <p><strong>Purpose:</strong> Tab logging preferences by domain - syncs across all your Chrome browsers</p>
+        <button class="btn-success" onclick="showSyncDetails()">Show Sync Details</button>
+        <button class="btn-primary" onclick="migrateDomainPreferences()">Migrate Domain Preferences</button>
+        <pre id="sync-storage-content">Click "Show Sync Details" to view...</pre>
+    </div>
+
+    <div class="storage-section local-storage">
+        <h3>💾 Chrome Local Storage (Device-Specific)</h3>
+        <p><strong>Purpose:</strong> Real-time counters, active states, and device-specific data</p>
+        <button class="btn-warning" onclick="showLocalDetails()">Show Local Details</button>
+        <button class="btn-danger" onclick="identifyMigrationCandidates()">Find Data to Migrate</button>
+        <pre id="local-storage-content">Click "Show Local Details" to view...</pre>
+    </div>
+
+    <div class="storage-section indexeddb-storage">
+        <h3>🗄️ IndexedDB Storage (Large Data)</h3>
+        <p><strong>Purpose:</strong> Network requests, console errors, token events - stays local for performance</p>
+        <button class="btn-primary" onclick="showIndexedDBInfo()">Show IndexedDB Info</button>
+        <pre id="indexeddb-content">Click "Show IndexedDB Info" to view...</pre>
+    </div>
+
+    <div class="container">
+        <h2>🚀 Migration Actions</h2>
+        <button class="btn-success" onclick="performMigration()">Migrate Tab Preferences to Sync</button>
+        <button class="btn-warning" onclick="cleanupOldData()">Clean Up Migrated Data</button>
+        <button class="btn-danger" onclick="resetAllData()">Reset All Storage (Caution!)</button>
+
+        <div class="storage-section migration-needed" id="migration-results" style="display:none;">
+            <h3>Migration Results</h3>
+            <pre id="migration-log">Migration results will appear here...</pre>
+        </div>
+    </div>
+
+    <script>
+        // Storage analysis and migration functions
+
+        async function analyzeCurrentStorage() {
+            try {
+                const [syncData, localData] = await Promise.all([
+                    chrome.storage.sync.get(),
+                    chrome.storage.local.get()
+                ]);
+
+                const [syncUsage, localUsage] = await Promise.all([
+                    chrome.storage.sync.getBytesInUse(),
+                    chrome.storage.local.getBytesInUse()
+                ]);
+
+                // Count different types of data
+                const tabLoggingKeys = Object.keys(localData).filter(key =>
+                    key.startsWith('tabLogging_') ||
+                    key.startsWith('tabErrorLogging_') ||
+                    key.startsWith('tabTokenLogging_')
+                );
+
+                const settingsKeys = Object.keys(localData).filter(key =>
+                    key === 'settings' || key === 'extensionSettings'
+                );
+
+                // Update stats display
+                document.getElementById('storage-stats').innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-number">${syncUsage}</div>
+                        <div>Chrome Sync Bytes</div>
+                        <div style="font-size: 12px; color: #666;">${(syncUsage/102400*100).toFixed(1)}% of 100KB limit</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${localUsage.toLocaleString()}</div>
+                        <div>Local Storage Bytes</div>
+                        <div style="font-size: 12px; color: #666;">No limit</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${tabLoggingKeys.length}</div>
+                        <div>Tab Logging Keys</div>
+                        <div style="font-size: 12px; color: #666;">Should be migrated?</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${Object.keys(syncData).length}</div>
+                        <div>Sync Storage Keys</div>
+                        <div style="font-size: 12px; color: #666;">Cross-device data</div>
+                    </div>
+                `;
+
+                console.log('Storage analysis complete', {
+                    syncData, localData, syncUsage, localUsage, tabLoggingKeys
+                });
+
+            } catch (error) {
+                console.error('Error analyzing storage:', error);
+                document.getElementById('storage-stats').innerHTML = `
+                    <div class="stat-card" style="background-color: #ffebee;">
+                        <div style="color: #f44336;">Error</div>
+                        <div>${error.message}</div>
+                    </div>
+                `;
+            }
+        }
+
+        async function showSyncDetails() {
+            try {
+                const syncData = await chrome.storage.sync.get();
+                const usage = await chrome.storage.sync.getBytesInUse();
+
+                document.getElementById('sync-storage-content').textContent =
+                    `Chrome Sync Usage: ${usage}/102,400 bytes (${(usage/102400*100).toFixed(2)}%)\n\n` +
+                    JSON.stringify(syncData, null, 2);
+            } catch (error) {
+                document.getElementById('sync-storage-content').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function showLocalDetails() {
+            try {
+                const localData = await chrome.storage.local.get();
+                const usage = await chrome.storage.local.getBytesInUse();
+
+                // Categorize the data
+                const categories = {
+                    tabLogging: {},
+                    settings: {},
+                    other: {}
+                };
+
+                Object.entries(localData).forEach(([key, value]) => {
+                    if (key.startsWith('tabLogging_') || key.startsWith('tabErrorLogging_') || key.startsWith('tabTokenLogging_')) {
+                        categories.tabLogging[key] = value;
+                    } else if (key === 'settings' || key === 'extensionSettings') {
+                        categories.settings[key] = value;
+                    } else {
+                        categories.other[key] = value;
+                    }
+                });
+
+                document.getElementById('local-storage-content').textContent =
+                    `Local Storage Usage: ${usage.toLocaleString()} bytes\n\n` +
+                    `TAB LOGGING DATA (${Object.keys(categories.tabLogging).length} keys):\n` +
+                    JSON.stringify(categories.tabLogging, null, 2) + '\n\n' +
+                    `SETTINGS DATA (${Object.keys(categories.settings).length} keys):\n` +
+                    JSON.stringify(categories.settings, null, 2) + '\n\n' +
+                    `OTHER DATA (${Object.keys(categories.other).length} keys):\n` +
+                    JSON.stringify(categories.other, null, 2);
+
+            } catch (error) {
+                document.getElementById('local-storage-content').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function identifyMigrationCandidates() {
+            try {
+                const localData = await chrome.storage.local.get();
+
+                // Find tab logging data that could be converted to domain preferences
+                const tabLoggingData = {};
+                const migrationCandidates = [];
+
+                Object.entries(localData).forEach(([key, value]) => {
+                    if (key.startsWith('tabLogging_') || key.startsWith('tabErrorLogging_') || key.startsWith('tabTokenLogging_')) {
+                        tabLoggingData[key] = value;
+
+                        // If this is a preference setting (not just a counter), it's a migration candidate
+                        if (typeof value === 'object' && value !== null && 'active' in value) {
+                            migrationCandidates.push({
+                                key: key,
+                                value: value,
+                                type: key.includes('Error') ? 'errors' : key.includes('Token') ? 'tokens' : 'network',
+                                active: value.active
+                            });
+                        }
+                    }
+                });
+
+                document.getElementById('local-storage-content').textContent =
+                    `MIGRATION ANALYSIS:\n\n` +
+                    `Total tab logging keys: ${Object.keys(tabLoggingData).length}\n` +
+                    `Migration candidates: ${migrationCandidates.length}\n\n` +
+                    `CANDIDATES FOR CHROME SYNC:\n` +
+                    JSON.stringify(migrationCandidates, null, 2) + '\n\n' +
+                    `SHOULD STAY IN LOCAL STORAGE (counters, timestamps):\n` +
+                    JSON.stringify(tabLoggingData, null, 2);
+
+            } catch (error) {
+                document.getElementById('local-storage-content').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function performMigration() {
+            document.getElementById('migration-results').style.display = 'block';
+            const log = document.getElementById('migration-log');
+            log.textContent = 'Starting migration...\n';
+
+            try {
+                // This would need to be implemented with actual domain extraction and preference migration
+                log.textContent += 'Note: Actual migration requires tab URL information to extract domains.\n';
+                log.textContent += 'The current implementation in your extension already handles this correctly.\n\n';
+
+                log.textContent += 'CURRENT HYBRID APPROACH:\n';
+                log.textContent += '✅ Chrome Sync: Domain-based preferences (network/errors/tokens)\n';
+                log.textContent += '✅ Local Storage: Real-time state and counters (active, startTime, counts)\n';
+                log.textContent += '✅ IndexedDB: Large logging data (requests, errors, tokens)\n\n';
+
+                log.textContent += 'What you see in local storage is CORRECT - it should contain:\n';
+                log.textContent += '- Real-time active/inactive states per tab\n';
+                log.textContent += '- Request/error/token counters\n';
+                log.textContent += '- Start times and session data\n\n';
+
+                log.textContent += 'Chrome Sync should contain:\n';
+                log.textContent += '- Domain preferences (github.com: {network: true, errors: false, tokens: true})\n';
+                log.textContent += '- Global defaults\n';
+                log.textContent += '- User settings\n';
+
+            } catch (error) {
+                log.textContent += 'Error during migration: ' + error.message;
+            }
+        }
+
+        async function showIndexedDBInfo() {
+            document.getElementById('indexeddb-content').textContent =
+                'IndexedDB Analysis:\n\n' +
+                'Your extension uses IndexedDB for:\n' +
+                '• Network request logs (large datasets)\n' +
+                '• Console error logs\n' +
+                '• Token event logs\n' +
+                '• Historical data and analytics\n\n' +
+                'This data should stay in IndexedDB because:\n' +
+                '• It can be very large (MBs of data)\n' +
+                '• Chrome sync has a 100KB total limit\n' +
+                '• Local storage provides better performance for large datasets\n' +
+                '• Historical data doesn\'t need cross-device sync\n\n' +
+                'To view actual IndexedDB contents, use Chrome DevTools:\n' +
+                '1. Open extension popup/dashboard\n' +
+                '2. F12 → Application → Storage → IndexedDB → WebAPILogger';
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            analyzeCurrentStorage();
+        });
+    </script>
+</body>
+</html>

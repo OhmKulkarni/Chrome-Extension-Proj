@@ -9,6 +9,8 @@ import LeftSidebar from './components/LeftSidebar';
 import SettingsInline from './components/SettingsInline';
 import { TimelineVisualization } from './components/timeline/TimelineVisualization';
 import { RequestDetailContent, ErrorDetailContent, TokenDetailContent } from './shared/components/DetailedViews';
+import { StorageService } from '../utils/storage-service';
+import { ChromeSyncService } from '../services/chrome-sync-service';
 
 // Chrome data clearing function
 const clearChromeData = async (): Promise<void> => {
@@ -68,6 +70,10 @@ interface TabLoggingStatus {
 }
 
 const DecomposedDashboard: React.FC = () => {
+  // Storage services for hybrid approach
+  const storageService = useMemo(() => new StorageService(), []);
+  const chromeSyncService = useMemo(() => ChromeSyncService.getInstance(), []);
+
   // Main state - using the same structure as original dashboard
   const [data, setData] = useState<DashboardData>({
     totalTabs: 0,
@@ -301,20 +307,25 @@ const DecomposedDashboard: React.FC = () => {
     }
   }, [])
 
-  // Load tab logging status - using same logic as original dashboard
+  // Load tab logging status - using Chrome sync for preferences, IndexedDB for counters
   const loadTabsLoggingStatus = useCallback(async () => {
     try {
-      // Get all tabs and global settings
+      // Initialize Chrome sync storage
+      await chromeSyncService.initializeSyncStorage();
+
+      // Get all tabs
       const tabs = await chrome.tabs.query({});
-      const settingsResult = await chrome.storage.local.get(['settings']);
-      const settings = settingsResult.settings || {};
 
       const tabStatuses: TabLoggingStatus[] = [];
 
       for (const tab of tabs) {
         if (tab.id && tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
-          // Get logging status for this tab
-          const result = await chrome.storage.local.get([`tabLogging_${tab.id}`, `tabErrorLogging_${tab.id}`, `tabTokenLogging_${tab.id}`]);
+
+          // Get user's synced preferences for this domain
+          const syncPrefs = await chromeSyncService.getTabPreferencesForUrl(tab.url);
+
+          // Get real-time state from IndexedDB (counters, active sessions)
+          const result = await storageService.get([`tabLogging_${tab.id}`, `tabErrorLogging_${tab.id}`, `tabTokenLogging_${tab.id}`]);
           const networkState = result[`tabLogging_${tab.id}`];
           const errorState = result[`tabErrorLogging_${tab.id}`];
           const tokenState = result[`tabTokenLogging_${tab.id}`];
@@ -327,42 +338,10 @@ const DecomposedDashboard: React.FC = () => {
             domain = 'unknown';
           }
 
-          // Determine logging status with proper defaults
-          let networkLogging = false;
-          let errorLogging = false;
-          let tokenLogging = false;
-
-          // Network logging status
-          if (networkState) {
-            // Check both 'status' and 'active' properties for compatibility
-            if (networkState.status !== undefined) {
-              networkLogging = networkState.status === 'active';
-            } else {
-              networkLogging = typeof networkState === 'boolean' ? networkState : networkState.active;
-            }
-          } else {
-            // Use default from settings if no tab state exists
-            const defaultActive = settings.networkInterception?.tabSpecific?.defaultState === 'active';
-            networkLogging = defaultActive;
-          }
-
-          // Error logging status
-          if (errorState) {
-            errorLogging = typeof errorState === 'boolean' ? errorState : errorState.active;
-          } else {
-            // Use default from settings if no tab state exists - should be paused by default
-            const defaultActive = settings.errorLogging?.tabSpecific?.defaultState === 'active';
-            errorLogging = defaultActive; // This will be false when defaultState is 'paused'
-          }
-
-          // Token logging status
-          if (tokenState) {
-            tokenLogging = typeof tokenState === 'boolean' ? tokenState : tokenState.active;
-          } else {
-            // Use default from settings if no tab state exists - should be paused by default
-            const defaultActive = settings.tokenLogging?.tabSpecific?.defaultState === 'active';
-            tokenLogging = defaultActive; // This will be false when defaultState is 'paused'
-          }
+          // Use Chrome sync preferences with IndexedDB state override if active
+          const networkLogging = (networkState?.active !== undefined) ? networkState.active : syncPrefs.network;
+          const errorLogging = (errorState?.active !== undefined) ? errorState.active : syncPrefs.errors;
+          const tokenLogging = (tokenState?.active !== undefined) ? tokenState.active : syncPrefs.tokens;
 
           tabStatuses.push({
             tabId: tab.id,
@@ -382,7 +361,7 @@ const DecomposedDashboard: React.FC = () => {
       console.error('Error loading tabs logging status:', error);
       setTabsLoggingStatus([]);
     }
-  }, []);
+  }, [chromeSyncService, storageService]);
 
   // Toggle network logging for a specific tab
   const toggleTabNetworkLogging = async (tabId: number) => {
@@ -392,8 +371,13 @@ const DecomposedDashboard: React.FC = () => {
 
       const newState = !currentTab.networkLogging;
 
+      // Save preference to Chrome sync for cross-device sync
+      await chromeSyncService.setTabPreferencesForUrl(currentTab.url, {
+        network: newState
+      });
+
       // Get current tab state to preserve counter when disabling
-      const tabStorageData = await chrome.storage.local.get([`tabLogging_${tabId}`]);
+      const tabStorageData = await storageService.get([`tabLogging_${tabId}`]);
       const currentTabState = tabStorageData[`tabLogging_${tabId}`];
       const currentCount = currentTabState?.requestCount || 0;
 
@@ -403,7 +387,7 @@ const DecomposedDashboard: React.FC = () => {
         requestCount: newState ? 0 : currentCount  // Reset only when enabling, preserve when disabling
       };
 
-      await chrome.storage.local.set({ [`tabLogging_${tabId}`]: tabState });
+      await storageService.set({ [`tabLogging_${tabId}`]: tabState });
 
       // Send message to content script
       try {
@@ -434,8 +418,13 @@ const DecomposedDashboard: React.FC = () => {
 
       const newState = !currentTab.errorLogging;
 
+      // Save preference to Chrome sync for cross-device sync
+      await chromeSyncService.setTabPreferencesForUrl(currentTab.url, {
+        errors: newState
+      });
+
       // Get current tab state to preserve counter when disabling
-      const tabStorageData = await chrome.storage.local.get([`tabErrorLogging_${tabId}`]);
+      const tabStorageData = await storageService.get([`tabErrorLogging_${tabId}`]);
       const currentTabState = tabStorageData[`tabErrorLogging_${tabId}`];
       const currentCount = currentTabState?.errorCount || 0;
 
@@ -445,7 +434,7 @@ const DecomposedDashboard: React.FC = () => {
         errorCount: newState ? 0 : currentCount  // Reset only when enabling, preserve when disabling
       };
 
-      await chrome.storage.local.set({ [`tabErrorLogging_${tabId}`]: tabState });
+      await storageService.set({ [`tabErrorLogging_${tabId}`]: tabState });
 
       // Send message to content script
       try {
@@ -476,8 +465,13 @@ const DecomposedDashboard: React.FC = () => {
 
       const newState = !currentTab.tokenLogging;
 
+      // Save preference to Chrome sync for cross-device sync
+      await chromeSyncService.setTabPreferencesForUrl(currentTab.url, {
+        tokens: newState
+      });
+
       // Get current tab state to preserve counter when disabling
-      const tabStorageData = await chrome.storage.local.get([`tabTokenLogging_${tabId}`]);
+      const tabStorageData = await storageService.get([`tabTokenLogging_${tabId}`]);
       const currentTabState = tabStorageData[`tabTokenLogging_${tabId}`];
       const currentCount = currentTabState?.tokenCount || 0;
 
@@ -487,7 +481,7 @@ const DecomposedDashboard: React.FC = () => {
         tokenCount: newState ? 0 : currentCount  // Reset only when enabling, preserve when disabling
       };
 
-      await chrome.storage.local.set({ [`tabTokenLogging_${tabId}`]: tabState });
+      await storageService.set({ [`tabTokenLogging_${tabId}`]: tabState });
 
       // Note: Token logging doesn't require content script communication
       // as it's handled purely in the background script via network interception
@@ -586,7 +580,7 @@ const DecomposedDashboard: React.FC = () => {
     try {
       const [syncResult, localResult] = await Promise.all([
         chrome.storage.sync.get(['extensionSettings']),
-        chrome.storage.local.get(['settings'])
+        storageService.get(['settings'])
       ]);
 
       // Store the full settings for use in detail viewers
