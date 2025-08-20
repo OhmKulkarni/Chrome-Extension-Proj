@@ -182,9 +182,9 @@ export class NetworkProcessorModule {
           headers: JSON.stringify(validatedRequestData.headers || {}),
           payload_size: validatedRequestData.body ? validatedRequestData.body.length : 0,
           status: status,
-          response_body: '', // Response body not captured in current implementation
+          response_body: validatedRequestData.responseBody || '', // Map from content script responseBody field
           timestamp: new Date(validatedRequestData.timestamp).getTime(),
-          response_time: undefined, // Not captured in current implementation
+          response_time: validatedRequestData.duration || validatedRequestData.response_time, // Map from duration or response_time
           tab_id: tabId,
           tab_url: tabUrl,
           main_domain: mainDomain,

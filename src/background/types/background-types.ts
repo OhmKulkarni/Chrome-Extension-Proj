@@ -34,6 +34,9 @@ export interface NetworkRequestData {
   timestamp: string;
   tabId?: number;
   source_url?: string;
+  responseBody?: string; // Response body from main-world script
+  duration?: number; // Request duration from main-world script
+  response_time?: number; // Alternative field name for response time
 }
 
 // ===== CONSOLE SYSTEM TYPES =====

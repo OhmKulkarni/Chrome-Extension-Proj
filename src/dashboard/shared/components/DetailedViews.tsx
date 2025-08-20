@@ -369,21 +369,61 @@ export const RequestDetailContent: React.FC<{
     // Get explanation for why we can't show JSON content
     const getBodyExplanation = (body: any, status?: number): string => {
       if (isStatusOnlyResponse(body)) {
-        const explanations = [
-          "🔒 Response content is encrypted or binary",
-          "📄 Server returned protected/encoded content", 
-          "📡 Content-Type indicates non-JSON response",
-          "🛡️ Response body was compressed or encrypted",
-          "🚫 Binary content cannot be displayed as text"
-        ];
-        
         if (status) {
-          if (status >= 400) {
-            return "❌ Error response - content may be encrypted or in binary format";
-          } else if (status >= 300) {
-            return "↪️ Redirect response - no readable content body";
+          // Special case for status code 0 (network/connection errors)
+          if (status === 0) {
+            return "🔌 Network Error - Connection failed, request was blocked, or network is unreachable";
+          }
+          
+          // 2xx Success responses
+          if (status >= 200 && status < 300) {
+            if (status === 200) return "✅ Success - Response body is empty or contains non-JSON data";
+            if (status === 201) return "✅ Created successfully - Response may contain status confirmation only";
+            if (status === 202) return "✅ Request accepted - Processing in background, minimal response body";
+            if (status === 204) return "✅ No Content - Request successful but no response body to display";
+            if (status === 206) return "✅ Partial Content - Response contains binary or encrypted data";
+            return "✅ Success - Response body contains non-displayable content";
+          }
+          
+          // 3xx Redirection responses
+          if (status >= 300 && status < 400) {
+            if (status === 301) return "↪️ Moved Permanently - Response body contains minimal redirect information";
+            if (status === 302) return "↪️ Found - Temporary redirect with minimal response body";
+            if (status === 304) return "📦 Not Modified - Browser used cached version, no response body";
+            return "↪️ Redirect - Response body contains location/redirect information";
+          }
+          
+          // 4xx Client Error responses  
+          if (status >= 400 && status < 500) {
+            if (status === 400) return "❌ Bad Request - Error details may be encrypted or in HTML format";
+            if (status === 401) return "� Unauthorized - Authentication error, response may contain encrypted data";
+            if (status === 403) return "🚫 Forbidden - Access denied, error details may be protected";
+            if (status === 404) return "🔍 Not Found - Resource doesn't exist, minimal error response";
+            if (status === 429) return "⏳ Too Many Requests - Rate limited, simple status response";
+            return "❌ Client Error - Error details may be in HTML/XML format rather than JSON";
+          }
+          
+          // 5xx Server Error responses
+          if (status >= 500) {
+            if (status === 500) return "💥 Internal Server Error - Server error, response may be encrypted/compressed";
+            if (status === 502) return "🔧 Bad Gateway - Proxy error, minimal response content";
+            if (status === 503) return "⚠️ Service Unavailable - Server down, simple status message";
+            if (status === 504) return "⏰ Gateway Timeout - Request timed out, minimal response";
+            return "💥 Server Error - Error response may be in non-JSON format";
           }
         }
+        
+        // Generic explanations for status-only responses without status code
+        const explanations = [
+          "🔒 Response content may be encrypted, compressed, or binary",
+          "📄 Server returned content in HTML, XML, or other non-JSON format", 
+          "📡 Content-Type indicates binary or encoded response",
+          "🛡️ Response body was compressed with gzip/deflate encoding",
+          "🚫 Binary content (images, files, etc.) cannot be displayed as text",
+          "🗜️ Response was compressed and requires decompression to view",
+          "🎭 Content is protected or obfuscated by the server",
+          "📋 Response is in a proprietary format that requires special parsing"
+        ];
         
         return explanations[Math.floor(Math.random() * explanations.length)];
       }
