@@ -499,6 +499,36 @@ export class SharedInfrastructureModule {
         sendResponse({ success: true })
         break
 
+      case 'loggingStateChanged':
+        // Handle logging state changes from background script
+        console.log('📨 CONTENT: Received logging state change:', message)
+        
+        // Immediately notify main-world script about the state change
+        if (message.type === 'network' && message.networkEnabled !== undefined) {
+          window.dispatchEvent(new CustomEvent('tabLoggingStateChange', {
+            detail: {
+              networkEnabled: message.networkEnabled,
+              consoleEnabled: undefined, // Don't change console state
+              tokenEnabled: undefined    // Don't change token state
+            }
+          }))
+        } else if (message.type === 'console' && message.consoleEnabled !== undefined) {
+          window.dispatchEvent(new CustomEvent('tabLoggingStateChange', {
+            detail: {
+              networkEnabled: undefined, // Don't change network state
+              consoleEnabled: message.consoleEnabled,
+              tokenEnabled: undefined    // Don't change token state
+            }
+          }))
+        } else if (message.type === 'token' && message.tokenEnabled !== undefined) {
+          // Token logging doesn't require main-world script notification
+          // since it's handled entirely in the background script
+          console.log('📨 CONTENT: Token logging state changed:', message.tokenEnabled)
+        }
+        
+        sendResponse({ success: true })
+        break
+
       default:
         sendResponse({ success: false, error: 'Unknown action' })
     }

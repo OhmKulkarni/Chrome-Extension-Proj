@@ -192,6 +192,20 @@ export class MessageRouterModule {
           if (message.tabId !== undefined && typeof message.active === 'boolean') {
             try {
               await this.storageManager.setTabNetworkState(message.tabId, message.active);
+              
+              // CRITICAL: Notify content script about the state change
+              try {
+                await this.chromeApi.sendMessageToTab(message.tabId, {
+                  action: 'loggingStateChanged',
+                  networkEnabled: message.active,
+                  type: 'network'
+                });
+                console.log(`📨 MESSAGE ROUTER: Notified tab ${message.tabId} of network state change: ${message.active}`);
+              } catch (notificationError) {
+                console.log(`📨 MESSAGE ROUTER: Could not notify tab ${message.tabId} (content script may not be ready):`, notificationError);
+                // Don't fail the main operation if notification fails
+              }
+              
               sendResponse({ success: true });
             } catch (error) {
               sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to set tab network state' });
@@ -205,6 +219,20 @@ export class MessageRouterModule {
           if (message.tabId !== undefined && typeof message.active === 'boolean') {
             try {
               await this.storageManager.setTabErrorState(message.tabId, message.active);
+              
+              // CRITICAL: Notify content script about the state change
+              try {
+                await this.chromeApi.sendMessageToTab(message.tabId, {
+                  action: 'loggingStateChanged',
+                  consoleEnabled: message.active,
+                  type: 'console'
+                });
+                console.log(`📨 MESSAGE ROUTER: Notified tab ${message.tabId} of console state change: ${message.active}`);
+              } catch (notificationError) {
+                console.log(`📨 MESSAGE ROUTER: Could not notify tab ${message.tabId} (content script may not be ready):`, notificationError);
+                // Don't fail the main operation if notification fails
+              }
+              
               sendResponse({ success: true });
             } catch (error) {
               sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to set tab error state' });
@@ -218,6 +246,20 @@ export class MessageRouterModule {
           if (message.tabId !== undefined && typeof message.active === 'boolean') {
             try {
               await this.storageManager.setTabTokenState(message.tabId, message.active);
+              
+              // CRITICAL: Notify content script about the token state change
+              try {
+                await this.chromeApi.sendMessageToTab(message.tabId, {
+                  action: 'loggingStateChanged',
+                  tokenEnabled: message.active,
+                  type: 'token'
+                });
+                console.log(`📨 MESSAGE ROUTER: Notified tab ${message.tabId} of token state change: ${message.active}`);
+              } catch (notificationError) {
+                console.log(`📨 MESSAGE ROUTER: Could not notify tab ${message.tabId} (content script may not be ready):`, notificationError);
+                // Don't fail the main operation if notification fails
+              }
+              
               sendResponse({ success: true });
             } catch (error) {
               sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to set tab token state' });
