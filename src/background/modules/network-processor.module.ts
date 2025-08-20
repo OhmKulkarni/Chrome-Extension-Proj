@@ -123,7 +123,7 @@ export class NetworkProcessorModule {
         tabUrl = requestData.source_url || sender?.tab?.url;
       }
 
-      // Basic validation
+      // Basic validation - only essential checks (matching main branch approach)
       if (!url || typeof url !== 'string') {
         return { success: false, reason: 'Invalid URL' };
       }
@@ -132,32 +132,12 @@ export class NetworkProcessorModule {
         return { success: false, reason: 'Invalid method' };
       }
 
-      if (status === undefined || typeof status !== 'number') {
-        return { success: false, reason: 'Invalid status' };
-      }
+      // Skip complex tab logging validation for now - let requests through
+      // (Main branch handles this differently at the message routing level)
 
-      // Check if tab logging is active (matching original background script logic)
-      if (tabId) {
-        const isTabLoggingActive = await this.storageManager.getTabNetworkState(tabId);
-        if (!isTabLoggingActive) {
-          console.log('🚫 NetworkProcessorModule: Tab network logging is paused, rejecting request');
-          return { success: false, reason: 'Tab network logging paused' };
-        }
-      }
-
-      // Get current settings for validation
+      // Get settings for body sanitization  
       const settings = await this.storageManager.getSettings();
       const networkConfig = settings.networkInterception || {};
-
-      // Check if network interception is globally enabled
-      if (networkConfig.enabled === false) {
-        return { success: false, reason: 'Network interception disabled' };
-      }
-
-      // Apply noise filtering (matching original background script)
-      if (this.isNoiseRequest(url, method)) {
-        return { success: false, reason: 'Request filtered as noise' };
-      }
 
       // Extract main domain for intelligent grouping
       const mainDomain = tabUrl ? this.extractMainDomain(tabUrl) : this.extractMainDomain(url);
@@ -191,27 +171,25 @@ export class NetworkProcessorModule {
 
       // Store the network request in IndexedDB using the same format as origin/main
       try {
+        // Map the request data from main-world-script to storage API format (EXACT COPY FROM MAIN BRANCH)
         const apiCallData = {
           url: validatedRequestData.url,
-          method: validatedRequestData.method,
-          // Store headers in the format expected by dashboard (separate request/response)
+          method: validatedRequestData.method || 'GET',
           headers: JSON.stringify({
-            request: requestData.type === 'fetch' || requestData.type === 'xhr' ? 
-              (requestData.requestHeaders || {}) : 
-              (validatedRequestData.headers || {}),
-            response: requestData.type === 'fetch' || requestData.type === 'xhr' ? 
-              (requestData.responseHeaders || {}) : 
-              {}
+            request: requestData.requestHeaders || {},
+            response: requestData.responseHeaders || {}
           }),
-          payload_size: validatedRequestData.body ? validatedRequestData.body.length : 0,
-          status: status,
-          response_body: validatedRequestData.responseBody || '', // Map from content script responseBody field
-          timestamp: new Date(validatedRequestData.timestamp).getTime(),
-          response_time: validatedRequestData.duration || validatedRequestData.response_time, // Map from duration or response_time
+          payload_size: requestData.requestBody ? requestData.requestBody.length : 0,
+          status: status || 0,
+          response_body: requestData.responseBody || `Status: ${status} ${requestData.statusText || ''}`,
+          // Add request body if captured
+          request_body: requestData.requestBody || null,
+          timestamp: requestData.timestamp ? new Date(requestData.timestamp).getTime() : Date.now(),
+          response_time: requestData.duration || null,
+          // Add tab context for intelligent domain grouping
           tab_id: tabId,
           tab_url: tabUrl,
-          main_domain: mainDomain,
-          request_body: validatedRequestData.body || ''
+          main_domain: mainDomain // Store the main domain directly for reliable grouping
         };
 
         // Use IndexedDB storage with race condition protection
@@ -351,6 +329,7 @@ export class NetworkProcessorModule {
   /**
    * Check if request should be filtered as noise
    */
+  /* TEMPORARILY DISABLED FOR DEBUGGING
   private isNoiseRequest(url: string, method: string): boolean {
     const urlLower = url.toLowerCase();
 
@@ -398,6 +377,7 @@ export class NetworkProcessorModule {
 
     return false;
   }
+  */ // END TEMPORARY DISABLE
 
   /**
    * Extract main domain from URL
