@@ -10,7 +10,7 @@ console.log('🧩 MODULAR CONTENT SCRIPT LOADED:', new Date().toISOString())
 // Configuration for the modular architecture
 const moduleConfig = {
   network: {
-    enabled: true,
+    enabled: false, // DISABLED: Main-world script handles network interception more effectively
     captureHeaders: true,
     captureBody: false,
     maxBodySize: 1024,
@@ -21,7 +21,7 @@ const moduleConfig = {
     methodFilters: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']
   },
   console: {
-    enabled: true,
+    enabled: false, // DISABLED: Main-world script handles console interception more effectively
     captureStack: true,
     maxMessageLength: 1000,
     levels: ['error', 'warn'] as ('error' | 'warn' | 'info' | 'log' | 'debug')[],

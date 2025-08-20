@@ -819,7 +819,7 @@ export class SharedInfrastructureModule {
     // Listen for storage changes to notify main-world script
     const storageChangeListener = async (changes: { [key: string]: chrome.storage.StorageChange }) => {
       if (this.isDestroying) return
-      
+
       // Check if extension enabled state or tab logging changed
       if (changes.extensionEnabled || Object.keys(changes).some(key => key.startsWith('tabLogging_'))) {
         console.log('📨 CONTENT: Storage change detected, notifying main-world script')
