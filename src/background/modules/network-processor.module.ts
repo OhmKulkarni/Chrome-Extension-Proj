@@ -135,7 +135,7 @@ export class NetworkProcessorModule {
       // Skip complex tab logging validation for now - let requests through
       // (Main branch handles this differently at the message routing level)
 
-      // Get settings for body sanitization  
+      // Get settings for body sanitization
       const settings = await this.storageManager.getSettings();
       const networkConfig = settings.networkInterception || {};
 
@@ -159,7 +159,7 @@ export class NetworkProcessorModule {
         validatedRequestData.responseBody = requestData.responseBody;
         validatedRequestData.duration = requestData.duration;
         validatedRequestData.response_time = requestData.duration; // Also set alternative field name
-        
+
         // For main-world data, we need to properly handle headers
         // The headers should include both request and response headers
         const combinedHeaders = {

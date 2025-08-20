@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 
 // Detail Content Components
-export const RequestDetailContent: React.FC<{ 
-  request: any; 
+export const RequestDetailContent: React.FC<{
+  request: any;
   selectedField: string;
   settings?: any;
 }> = ({ request, selectedField, settings }) => {
@@ -10,11 +10,11 @@ export const RequestDetailContent: React.FC<{
     // Use settings-based limit or fallback to 10KB
     const maxClipboardSize = settings?.networkInterception?.bodyCapture?.maxBodySize || 10000;
     const safeSize = maxClipboardSize === 0 ? 50000 : maxClipboardSize; // 0 means no limit, but use 50KB safety
-    
-    const copyText = text.length > safeSize ? 
-      text.substring(0, safeSize) + '\n[Truncated for clipboard - check settings to adjust limit]' : 
+
+    const copyText = text.length > safeSize ?
+      text.substring(0, safeSize) + '\n[Truncated for clipboard - check settings to adjust limit]' :
       text;
-    
+
     navigator.clipboard.writeText(copyText).catch(error => {
       console.warn('Failed to copy to clipboard:', error);
     });
@@ -25,7 +25,7 @@ export const RequestDetailContent: React.FC<{
       // Use settings-based safety limits
       const maxDisplaySize = settings?.networkInterception?.bodyCapture?.maxBodySize || 5000;
       const safeSize = maxDisplaySize === 0 ? 50000 : maxDisplaySize; // 0 means no limit, but use 50KB safety
-      
+
       const seen = new WeakSet();
       const safeStringify = (_key: string, value: any) => {
         if (typeof value === 'object' && value !== null) {
@@ -36,7 +36,7 @@ export const RequestDetailContent: React.FC<{
         }
         return value;
       };
-      
+
       // Enhanced JSON formatting with proper indentation
       const jsonString = JSON.stringify(obj, safeStringify, 2);
       return jsonString.length > safeSize ? jsonString.substring(0, safeSize) + '...\n[Truncated - check settings to adjust limit]' : jsonString;
@@ -110,7 +110,7 @@ export const RequestDetailContent: React.FC<{
   if (selectedField === 'headers') {
     let requestHeaders = {};
     let responseHeaders = {};
-    
+
     try {
       // Try the new unified format first
       if (request.headers) {
@@ -138,7 +138,7 @@ export const RequestDetailContent: React.FC<{
       const [expanded, setExpanded] = useState(false);
       const stringValue = String(value);
       const shouldTruncate = stringValue.length > 50;
-      
+
       return (
         <div className="space-y-1">
           <div className="text-sm text-gray-600">
@@ -169,7 +169,7 @@ export const RequestDetailContent: React.FC<{
         </div>
       );
     };
-    
+
     return (
       <div className="space-y-6">
         {/* Request Headers */}
@@ -296,7 +296,7 @@ export const RequestDetailContent: React.FC<{
           return String(str);
         }
       }
-      
+
       // If it's a string, try to parse and reformat it
       try {
         const obj = JSON.parse(str);
@@ -320,14 +320,14 @@ export const RequestDetailContent: React.FC<{
     // Check if response body looks like a status-only response (encrypted/non-JSON content)
     const isStatusOnlyResponse = (body: any): boolean => {
       if (!body || typeof body !== 'string') return false;
-      
+
       const trimmedBody = body.trim();
-      
+
       // If it's empty or very short, it might be a status response
       if (trimmedBody.length === 0 || trimmedBody.length > 200) {
         return false; // Empty or very long content is probably not a simple status
       }
-      
+
       // First check if it's valid JSON - if so, it's not a status-only response
       try {
         JSON.parse(trimmedBody);
@@ -336,7 +336,7 @@ export const RequestDetailContent: React.FC<{
       } catch {
         // Not valid JSON, continue with status pattern checks
       }
-      
+
       // Check if the entire body is just a status message (no additional content)
       const statusOnlyPatterns = [
         // Exact status format matches (entire string)
@@ -352,16 +352,16 @@ export const RequestDetailContent: React.FC<{
         // Browser/network generated messages
         /^(net::|ERR_|NETWORK_|Connection)/i
       ];
-      
+
       // More specific JSON indicator check - look for actual JSON structure, not just colons
-      const hasActualJsonStructure = /^[\s]*[{\[].*[}\]][\s]*$/.test(trimmedBody) || 
+      const hasActualJsonStructure = /^[\s]*[{\[].*[}\]][\s]*$/.test(trimmedBody) ||
                                    /^[\s]*".*"[\s]*$/.test(trimmedBody) ||
                                    /[{}\[\]]/.test(trimmedBody);
-      
+
       if (hasActualJsonStructure) {
         return false; // Contains actual JSON structure, not a status-only response
       }
-      
+
       // Check if it matches our strict status-only patterns
       return statusOnlyPatterns.some(pattern => pattern.test(trimmedBody));
     };
@@ -374,7 +374,7 @@ export const RequestDetailContent: React.FC<{
           if (status === 0) {
             return "🔌 Network Error - Connection failed, request was blocked, or network is unreachable";
           }
-          
+
           // 2xx Success responses
           if (status >= 200 && status < 300) {
             if (status === 200) return "✅ Success - Response body is empty or contains non-JSON data";
@@ -384,7 +384,7 @@ export const RequestDetailContent: React.FC<{
             if (status === 206) return "✅ Partial Content - Response contains binary or encrypted data";
             return "✅ Success - Response body contains non-displayable content";
           }
-          
+
           // 3xx Redirection responses
           if (status >= 300 && status < 400) {
             if (status === 301) return "↪️ Moved Permanently - Response body contains minimal redirect information";
@@ -392,8 +392,8 @@ export const RequestDetailContent: React.FC<{
             if (status === 304) return "📦 Not Modified - Browser used cached version, no response body";
             return "↪️ Redirect - Response body contains location/redirect information";
           }
-          
-          // 4xx Client Error responses  
+
+          // 4xx Client Error responses
           if (status >= 400 && status < 500) {
             if (status === 400) return "❌ Bad Request - Error details may be encrypted or in HTML format";
             if (status === 401) return "� Unauthorized - Authentication error, response may contain encrypted data";
@@ -402,7 +402,7 @@ export const RequestDetailContent: React.FC<{
             if (status === 429) return "⏳ Too Many Requests - Rate limited, simple status response";
             return "❌ Client Error - Error details may be in HTML/XML format rather than JSON";
           }
-          
+
           // 5xx Server Error responses
           if (status >= 500) {
             if (status === 500) return "💥 Internal Server Error - Server error, response may be encrypted/compressed";
@@ -412,11 +412,11 @@ export const RequestDetailContent: React.FC<{
             return "💥 Server Error - Error response may be in non-JSON format";
           }
         }
-        
+
         // Generic explanations for status-only responses without status code
         const explanations = [
           "🔒 Response content may be encrypted, compressed, or binary",
-          "📄 Server returned content in HTML, XML, or other non-JSON format", 
+          "📄 Server returned content in HTML, XML, or other non-JSON format",
           "📡 Content-Type indicates binary or encoded response",
           "🛡️ Response body was compressed with gzip/deflate encoding",
           "🚫 Binary content (images, files, etc.) cannot be displayed as text",
@@ -424,7 +424,7 @@ export const RequestDetailContent: React.FC<{
           "🎭 Content is protected or obfuscated by the server",
           "📋 Response is in a proprietary format that requires special parsing"
         ];
-        
+
         return explanations[Math.floor(Math.random() * explanations.length)];
       }
       return "";
@@ -510,7 +510,7 @@ export const RequestDetailContent: React.FC<{
                 )}
               </div>
             </div>
-            
+
             {/* Enhanced response body display with status explanation */}
             {isStatusOnlyResponse(responseBody) ? (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -546,7 +546,7 @@ export const RequestDetailContent: React.FC<{
             )}
           </div>
         )}
-        
+
         {/* Show message if no body data */}
         {!requestBody && !responseBody && (
           <div className="text-center py-8">
@@ -595,10 +595,10 @@ export const ErrorDetailContent: React.FC<{
   const copyToClipboard = (text: string) => {
     // For errors, use smaller limits since raw JSON is not as useful
     const maxClipboardSize = 5000;
-    const copyText = text.length > maxClipboardSize ? 
-      text.substring(0, maxClipboardSize) + '\n[Truncated for clipboard]' : 
+    const copyText = text.length > maxClipboardSize ?
+      text.substring(0, maxClipboardSize) + '\n[Truncated for clipboard]' :
       text;
-    
+
     navigator.clipboard.writeText(copyText).catch(error => {
       console.warn('Failed to copy to clipboard:', error);
     });
@@ -674,7 +674,7 @@ export const ErrorDetailContent: React.FC<{
             Copy
           </button>
         </div>
-        
+
         {(error.stack_trace || error.stack) ? (
           <div className="text-sm text-gray-500">
             <details className="cursor-pointer" open>
@@ -712,14 +712,14 @@ export const analyzeTokenEvent = (event: any) => {
       return {};
     }
   })();
-  
+
   // Enhanced event type detection based on comprehensive analysis
   const getEventType = (): string => {
     const method = (event.method || event.request_method || '').toUpperCase();
     const status = event.status || event.response_status;
     const responseBody = event.response_body || event.responseBody || '';
     const requestBody = event.request_body || event.requestBody || '';
-    
+
     // Check for Login events
     if (method === 'POST' && (url.includes('/auth/login') || url.includes('/login') || url.includes('/signin'))) {
       // Successful login (200) or token acquisition
@@ -727,12 +727,12 @@ export const analyzeTokenEvent = (event: any) => {
         return 'Login';
       }
     }
-    
+
     // Check for Logout events
     if ((method === 'POST' || method === 'DELETE') && (url.includes('/auth/logout') || url.includes('/logout') || url.includes('/signout'))) {
       return 'Logout';
     }
-    
+
     // Check for Token Refresh events
     if (method === 'POST' && (url.includes('/auth/refresh') || url.includes('/refresh') || url.includes('/token'))) {
       // Check if request body contains refresh_token grant type
@@ -744,7 +744,7 @@ export const analyzeTokenEvent = (event: any) => {
         return 'Token Refresh';
       }
     }
-    
+
     // Check for Expiry Check events
     if (status === 401) {
       // If there's a token present but request failed with 401
@@ -752,12 +752,12 @@ export const analyzeTokenEvent = (event: any) => {
         return 'Expiry Check';
       }
     }
-    
+
     // Check for silent token validation endpoints
     if (method === 'GET' && (url.includes('/auth/validate') || url.includes('/auth/verify') || url.includes('/token/verify'))) {
       return 'Expiry Check';
     }
-    
+
     // Check for token acquisition (successful auth responses with tokens)
     if (event.type === 'acquire' || (status >= 200 && status < 300 && (
       url.includes('/auth') || url.includes('/login') || url.includes('/token')
@@ -768,7 +768,7 @@ export const analyzeTokenEvent = (event: any) => {
       }
       return 'Login';
     }
-    
+
     // Check for Access events (using token to access protected routes)
     if (hasToken(headers) && status >= 200 && status < 300) {
       // If it's not an auth endpoint, it's likely accessing a protected resource
@@ -776,13 +776,13 @@ export const analyzeTokenEvent = (event: any) => {
         return 'Access';
       }
     }
-    
+
     // Legacy fallbacks for backward compatibility
     if (event.type === 'refresh_error') return 'Token Refresh';
     if (url.includes('/auth/login') || url.includes('/login')) return 'Login';
     if (url.includes('/auth/logout') || url.includes('/logout')) return 'Logout';
     if (url.includes('/auth/refresh') || url.includes('/refresh')) return 'Token Refresh';
-    
+
     // Default to Access if token is present, otherwise generic
     return hasToken(headers) ? 'Access' : 'Token Event';
   };
@@ -794,10 +794,10 @@ export const analyzeTokenEvent = (event: any) => {
     const csrfHeader = headers['x-csrf-token'] || headers['X-CSRF-Token'] || '';
     const apiKeyHeader = headers['x-api-key'] || headers['X-API-Key'] || headers['api-key'] || '';
     const contentType = headers['content-type'] || headers['Content-Type'] || '';
-    
+
     // Helper function to check if token is JWT format
     const isJwt = (token: string): boolean => token.split('.').length === 3;
-    
+
     // Helper function to decode JWT header for additional analysis
     const getJwtInfo = (token: string): any => {
       try {
@@ -809,24 +809,24 @@ export const analyzeTokenEvent = (event: any) => {
         return null;
       }
     };
-    
+
     // 0. Token Acquisition Analysis (for events where tokens are being acquired/issued)
     if (event.type === 'acquire' || url.includes('/auth') || url.includes('/login') || url.includes('/signin') || url.includes('/token')) {
       // Check for refresh token acquisition
       if (url.includes('/refresh') || url.includes('/renew')) {
         return 'Refresh Token (Acquired)';
       }
-      
+
       // Check for OAuth/OIDC endpoints
       if (url.includes('/oauth') || url.includes('/oidc') || url.includes('/openid')) {
         return 'OAuth Token (Acquired)';
       }
-      
+
       // Check for API key endpoints
       if (url.includes('/api-key') || url.includes('/apikey') || url.includes('/key')) {
         return 'API Key (Acquired)';
       }
-      
+
       // General authentication endpoint - likely access token
       if (url.includes('/auth') || url.includes('/login') || url.includes('/signin')) {
         // If response is JSON, likely JWT or structured token
@@ -835,30 +835,30 @@ export const analyzeTokenEvent = (event: any) => {
         }
         return 'Auth Token (Acquired)';
       }
-      
+
       // Generic token endpoint
       if (url.includes('/token')) {
         return 'Access Token (Acquired)';
       }
     }
-    
+
     // 1. Bearer Token Analysis (for existing tokens in requests)
     if (authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
-      
+
       if (isJwt(token)) {
         const jwtInfo = getJwtInfo(token);
-        
+
         // ID Token detection (OIDC)
         if (jwtInfo?.payload && ('sub' in jwtInfo.payload && 'email' in jwtInfo.payload || 'aud' in jwtInfo.payload)) {
           return 'ID Token (JWT)';
         }
-        
+
         // Refresh Token (JWT format but used for refresh)
         if (url.includes('/refresh') || url.includes('/token') || url.includes('/renew')) {
           return 'Refresh Token (JWT)';
         }
-        
+
         // Access Token (JWT)
         return 'Access Token (JWT)';
       } else {
@@ -869,17 +869,17 @@ export const analyzeTokenEvent = (event: any) => {
         return 'Access Token (Opaque)';
       }
     }
-    
+
     // 2. Basic Authentication
     if (authHeader.startsWith('Basic ')) {
       return 'Basic Auth';
     }
-    
+
     // 3. API Key Authentication
     if (authHeader.startsWith('ApiKey ') || authHeader.startsWith('API-Key ')) {
       return 'API Key';
     }
-    
+
     // 4. Custom API Key Headers
     if (apiKeyHeader) {
       const key = apiKeyHeader;
@@ -888,44 +888,44 @@ export const analyzeTokenEvent = (event: any) => {
       }
       return 'API Key';
     }
-    
+
     // 5. CSRF Token Detection
     if (csrfHeader) {
       return 'CSRF Token';
     }
-    
+
     // 6. Session Token Detection (Cookies)
     if (cookieHeader) {
-      if (cookieHeader.includes('sessionid=') || 
-          cookieHeader.includes('session=') || 
+      if (cookieHeader.includes('sessionid=') ||
+          cookieHeader.includes('session=') ||
           cookieHeader.includes('JSESSIONID=') ||
           cookieHeader.includes('PHPSESSID=') ||
           cookieHeader.includes('ASP.NET_SessionId=')) {
         return 'Session Token';
       }
-      
+
       // Access token in cookie
       if (cookieHeader.includes('access_token=')) {
         return 'Access Token (Cookie)';
       }
     }
-    
+
     // 7. State Token Detection (usually in OAuth flows)
     if (url.includes('state=') || headers['x-state-token']) {
       return 'State Token';
     }
-    
+
     // 8. Custom Authorization schemes
     if (authHeader && !authHeader.startsWith('Bearer ') && !authHeader.startsWith('Basic ')) {
       const scheme = authHeader.split(' ')[0];
       return `${scheme} Token`;
     }
-    
+
     // 9. Fallback for acquisition events without clear patterns
     if (event.type === 'acquire') {
       return 'Token (Acquired)';
     }
-    
+
     // Final fallback to event type or unknown
     return event.token_type || 'Unknown';
   };
@@ -950,8 +950,8 @@ export const analyzeTokenEvent = (event: any) => {
   };
 };
 
-export const TokenDetailContent: React.FC<{ 
-  tokenEvent: any; 
+export const TokenDetailContent: React.FC<{
+  tokenEvent: any;
   selectedField: string;
   showFullTokenHash?: boolean;
   settings?: any;
@@ -960,11 +960,11 @@ export const TokenDetailContent: React.FC<{
     // Use settings-based limit for tokens
     const maxClipboardSize = settings?.networkInterception?.bodyCapture?.maxBodySize || 10000;
     const safeSize = maxClipboardSize === 0 ? 50000 : maxClipboardSize;
-    
-    const copyText = text.length > safeSize ? 
-      text.substring(0, safeSize) + '\n[Truncated for clipboard - check settings]' : 
+
+    const copyText = text.length > safeSize ?
+      text.substring(0, safeSize) + '\n[Truncated for clipboard - check settings]' :
       text;
-    
+
     navigator.clipboard.writeText(copyText).catch(error => {
       console.warn('Failed to copy to clipboard:', error);
     });
@@ -974,7 +974,7 @@ export const TokenDetailContent: React.FC<{
     try {
       const maxDisplaySize = settings?.networkInterception?.bodyCapture?.maxBodySize || 5000;
       const safeSize = maxDisplaySize === 0 ? 50000 : maxDisplaySize;
-      
+
       const seen = new WeakSet();
       const safeStringify = (_key: string, value: any) => {
         if (typeof value === 'object' && value !== null) {
@@ -985,10 +985,10 @@ export const TokenDetailContent: React.FC<{
         }
         return value;
       };
-      
+
       const jsonString = JSON.stringify(obj, safeStringify, 2);
-      return jsonString.length > safeSize ? 
-        jsonString.substring(0, safeSize) + '...[Truncated - check settings]' : 
+      return jsonString.length > safeSize ?
+        jsonString.substring(0, safeSize) + '...[Truncated - check settings]' :
         jsonString;
     } catch {
       return String(obj);
@@ -998,19 +998,19 @@ export const TokenDetailContent: React.FC<{
   // Helper function to format hash values in git-style
   const formatHashValue = (hash: string | null | undefined): string => {
     if (!hash) return 'N/A';
-    
+
     // Handle special status cases - keep them as-is
     if (hash === 'expired' || hash === 'redacted' || hash === 'N/A') {
       return hash;
     }
-    
+
     // For actual hash values (typically long hex strings), use git-style format
     // Only apply git-style formatting if it looks like a hash (long string, mostly hex characters)
     if (hash.length > 16 && /^[a-fA-F0-9]+$/.test(hash)) {
       // Use showFullTokenHash setting to determine display format
       return showFullTokenHash ? hash : formatGitStyleHash(hash);
     }
-    
+
     // For other values, return as-is
     return hash;
   };
@@ -1079,11 +1079,11 @@ export const TokenDetailContent: React.FC<{
 
   if (selectedField === 'headers') {
     // Get headers from various possible locations in the token event
-    const headers = tokenEvent.headers || 
-                   tokenEvent.request_headers || 
-                   tokenEvent.response_headers || 
+    const headers = tokenEvent.headers ||
+                   tokenEvent.request_headers ||
+                   tokenEvent.response_headers ||
                    {};
-    
+
     return (
       <div className="space-y-6">
         {Object.keys(headers).length > 0 ? (

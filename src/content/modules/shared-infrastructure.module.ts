@@ -171,6 +171,11 @@ export class SharedInfrastructureModule {
       this.isInitialized = true
       console.log('SharedInfrastructureModule: Initialization complete')
 
+      // Notify main-world script about current logging state
+      setTimeout(() => {
+        this.notifyMainWorldStateChange()
+      }, 1000) // Small delay to ensure main-world script is ready
+
     } catch (error) {
       console.error('SharedInfrastructureModule: Initialization failed:', error)
       // Clean up any partial initialization
@@ -331,7 +336,7 @@ export class SharedInfrastructureModule {
     this.chromeListeners.set('runtimeMessage', messageListener)
 
     // Listen for extension state changes
-    const stateChangeListener = (event: any) => {
+    const stateChangeListener = async (event: any) => {
       if (this.isDestroying) return
       const { enabled } = event.detail
       if (!enabled) {
@@ -341,6 +346,8 @@ export class SharedInfrastructureModule {
         console.log('SharedInfrastructureModule: Extension enabled, resuming interception')
         this.resumeInterception()
       }
+      // Notify main-world script about the state change
+      await this.notifyMainWorldStateChange()
     }
     window.addEventListener('extensionStateChange', stateChangeListener, { signal })
     this.eventListeners.set('extensionStateChange', stateChangeListener)
@@ -390,6 +397,8 @@ export class SharedInfrastructureModule {
       try {
         if (type === 'runtimeMessage') {
           chrome.runtime.onMessage.removeListener(listener)
+        } else if (type === 'storageChange') {
+          chrome.storage.onChanged.removeListener(listener)
         }
       } catch (error) {
         console.error('SharedInfrastructureModule: Error removing Chrome listener:', error)
@@ -714,17 +723,170 @@ export class SharedInfrastructureModule {
       }
     }
 
+    // CRITICAL: Handle logging state requests from main-world script
+    const contentScriptRequestListener = async (event: Event) => {
+      const customEvent = event as CustomEvent
+      const { action, requestId } = customEvent.detail
+      let response = null
+
+      console.log('📨 CONTENT: Received request from main-world:', action, 'ID:', requestId)
+
+      try {
+        switch (action) {
+          case 'checkNetworkLogging':
+            console.log('📨 CONTENT: Processing checkNetworkLogging request...')
+            const tabResponse = await this.sendToBackground('getCurrentTabId', {})
+            const tabId = tabResponse?.tabId
+
+            if (tabId) {
+              // Get extension and tab logging state from storage
+              const result = await chrome.storage.local.get([`tabLogging_${tabId}`, 'extensionEnabled'])
+              const globalEnabled = result.extensionEnabled !== false
+              const tabLogging = result[`tabLogging_${tabId}`]
+              const tabEnabled = !tabLogging || tabLogging.status === 'active'
+
+              console.log('📨 CONTENT: Network logging state - Global:', globalEnabled, 'Tab:', tabEnabled)
+              response = { enabled: globalEnabled && tabEnabled }
+            } else {
+              console.log('📨 CONTENT: No tab ID available, returning false')
+              response = { enabled: false }
+            }
+            break
+
+          case 'checkConsoleLogging':
+            console.log('📨 CONTENT: Processing checkConsoleLogging request...')
+            const currentTabResponse = await this.sendToBackground('getCurrentTabId', {})
+            const currentTabId = currentTabResponse?.tabId
+
+            if (currentTabId) {
+              const result = await chrome.storage.local.get([
+                `tabLogging_${currentTabId}`,
+                'extensionEnabled',
+                'settings'
+              ])
+
+              const globalEnabled = result.extensionEnabled !== false
+              const tabLogging = result[`tabLogging_${currentTabId}`]
+              const tabEnabled = !tabLogging || tabLogging.status === 'active'
+
+              console.log('📨 CONTENT: Console logging state - Global:', globalEnabled, 'Tab:', tabEnabled)
+              response = { enabled: globalEnabled && tabEnabled }
+            } else {
+              console.log('📨 CONTENT: No tab ID available for console, returning false')
+              response = { enabled: false }
+            }
+            break
+
+          default:
+            console.log('📨 CONTENT: Unknown action:', action)
+        }
+      } catch (error) {
+        console.error('📨 CONTENT: Error processing request:', error)
+        response = { enabled: false }
+      }
+
+      // Send response back to main-world script
+      window.dispatchEvent(new CustomEvent('contentScriptResponse', {
+        detail: { requestId, response }
+      }))
+    }
+
+    // Handle settings requests from main-world script
+    const settingsRequestListener = async (_event: Event) => {
+      console.log('📨 CONTENT: Settings request from main-world script')
+      try {
+        // Get settings from background script
+        const settingsResponse = await this.sendToBackground('getSettings', {})
+        if (settingsResponse) {
+          window.dispatchEvent(new CustomEvent('extensionSettingsResponse', {
+            detail: settingsResponse
+          }))
+        } else {
+          // Send default settings if can't get from background
+          window.dispatchEvent(new CustomEvent('extensionSettingsResponse', {
+            detail: { networkInterception: { bodyCapture: { maxBodySize: 2000 } } }
+          }))
+        }
+      } catch (error) {
+        console.error('📨 CONTENT: Error getting settings:', error)
+        // Send default settings
+        window.dispatchEvent(new CustomEvent('extensionSettingsResponse', {
+          detail: { networkInterception: { bodyCapture: { maxBodySize: 2000 } } }
+        }))
+      }
+    }
+
+    // Listen for storage changes to notify main-world script
+    const storageChangeListener = async (changes: { [key: string]: chrome.storage.StorageChange }) => {
+      if (this.isDestroying) return
+      
+      // Check if extension enabled state or tab logging changed
+      if (changes.extensionEnabled || Object.keys(changes).some(key => key.startsWith('tabLogging_'))) {
+        console.log('📨 CONTENT: Storage change detected, notifying main-world script')
+        await this.notifyMainWorldStateChange()
+      }
+    }
+
+    chrome.storage.onChanged.addListener(storageChangeListener)
+    this.chromeListeners.set('storageChange', storageChangeListener)
+
     window.addEventListener('message', mainWorldListener, {
       signal: this.abortController.signal
     })
     window.addEventListener('consoleErrorIntercepted', consoleEventListener as EventListener, {
       signal: this.abortController.signal
     })
+    window.addEventListener('contentScriptRequest', contentScriptRequestListener, {
+      signal: this.abortController.signal
+    })
+    window.addEventListener('extensionRequestSettings', settingsRequestListener, {
+      signal: this.abortController.signal
+    })
 
     this.eventListeners.set('mainWorldMessage', mainWorldListener)
     this.eventListeners.set('consoleErrorIntercepted', consoleEventListener)
+    this.eventListeners.set('contentScriptRequest', contentScriptRequestListener)
+    this.eventListeners.set('extensionRequestSettings', settingsRequestListener)
 
     console.log('SharedInfrastructureModule: Main-world communication setup complete')
+  }
+
+  /**
+   * Notify main-world script about logging state changes
+   */
+  private async notifyMainWorldStateChange(): Promise<void> {
+    try {
+      // Get current tab ID and logging states
+      const tabResponse = await this.sendToBackground('getCurrentTabId', {})
+      const tabId = tabResponse?.tabId
+
+      if (tabId) {
+        const result = await chrome.storage.local.get([
+          `tabLogging_${tabId}`,
+          'extensionEnabled',
+          'settings'
+        ])
+
+        const globalEnabled = result.extensionEnabled !== false
+        const tabLogging = result[`tabLogging_${tabId}`]
+        const tabEnabled = !tabLogging || tabLogging.status === 'active'
+
+        const networkEnabled = globalEnabled && tabEnabled
+        const consoleEnabled = globalEnabled && tabEnabled
+
+        // Notify main-world script about state changes
+        window.dispatchEvent(new CustomEvent('tabLoggingStateChange', {
+          detail: {
+            networkEnabled,
+            consoleEnabled
+          }
+        }))
+
+        console.log('📨 CONTENT: Notified main-world of state change - Network:', networkEnabled, 'Console:', consoleEnabled)
+      }
+    } catch (error) {
+      console.error('📨 CONTENT: Error notifying main-world of state change:', error)
+    }
   }
 
   /**

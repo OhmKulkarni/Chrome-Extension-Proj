@@ -5,7 +5,7 @@
 ### 1. Missing Response Bodies ✅
 **Problem**: Network requests detailed view was not showing response bodies
 **Root Cause**: NetworkProcessorModule was not mapping the `responseBody` field from main-world script
-**Solution**: 
+**Solution**:
 - Updated `NetworkRequestData` interface to include `responseBody?: string`
 - Fixed NetworkProcessorModule to map `validatedRequestData.responseBody` to storage format
 - Response bodies from both fetch and XHR requests now properly captured
@@ -19,7 +19,7 @@
 - Response time column now shows actual millisecond values
 
 ### 3. Missing Headers Preview ✅
-**Problem**: Headers preview column not displaying headers properly  
+**Problem**: Headers preview column not displaying headers properly
 **Status**: Headers preview was already working in current implementation
 **Verification**: Table includes robust header parsing with priority header display
 
@@ -45,7 +45,7 @@ duration          →   duration     →  response_time → response_time → Re
 ### Files Modified
 1. **`src/background/types/background-types.ts`**
    - Added `responseBody?: string` to NetworkRequestData
-   - Added `duration?: number` to NetworkRequestData  
+   - Added `duration?: number` to NetworkRequestData
    - Added `response_time?: number` to NetworkRequestData
 
 2. **`src/background/modules/network-processor.module.ts`**
