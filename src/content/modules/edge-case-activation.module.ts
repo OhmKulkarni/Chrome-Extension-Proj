@@ -1,9 +1,9 @@
 /**
  * Edge Case Detection and Activation System
- * 
+ *
  * Analyzes the current page environment and activates content script interceptors
  * only when they can handle edge cases that the main-world script cannot.
- * 
+ *
  * EDGE CASES WHERE CONTENT SCRIPT INTERCEPTORS ARE SUPERIOR:
  * 1. Cross-origin iframe requests (different origin than main frame)
  * 2. Service worker/web worker contexts
@@ -33,7 +33,7 @@ export class EdgeCaseActivationSystem {
    */
   async analyzeEnvironment(): Promise<EdgeCaseAnalysis> {
     const reasons: string[] = [];
-    
+
     // Check for cross-origin iframes
     const hasIframes = this.detectCrossOriginIframes();
     if (hasIframes) {
@@ -70,8 +70,8 @@ export class EdgeCaseActivationSystem {
       reasons.push('Dynamic script injection detected - content script provides better coverage');
     }
 
-    const recommendContentInterception = 
-      hasIframes || hasServiceWorkers || hasWebWorkers || 
+    const recommendContentInterception =
+      hasIframes || hasServiceWorkers || hasWebWorkers ||
       isExtensionPage || hasStrictCSP || hasDynamicScripts;
 
     this.analysis = {
@@ -122,7 +122,7 @@ export class EdgeCaseActivationSystem {
   private detectCrossOriginIframes(): boolean {
     const iframes = document.querySelectorAll('iframe');
     const currentOrigin = window.location.origin;
-    
+
     for (const iframe of iframes) {
       try {
         const src = iframe.src;

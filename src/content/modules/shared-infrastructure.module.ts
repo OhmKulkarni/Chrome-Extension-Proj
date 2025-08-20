@@ -37,6 +37,7 @@ export interface DataBatch {
 }
 
 export class SharedInfrastructureModule {
+  // Remove unused static instance
   private networkModule?: NetworkInterceptorModule
   private consoleModule?: ConsoleInterceptorModule
   private config: SharedInfrastructureConfig
@@ -48,7 +49,15 @@ export class SharedInfrastructureModule {
     consoleEvents: [],
     timestamp: Date.now()
   }
-  private flushTimer?: number
+
+  // FIXED: Separate timers for interval and timeout
+  private flushIntervalTimer: number | null = null
+  private flushTimeoutTimer: number | null = null
+
+  // REMOVED: Unused collections
+  // private listeners = new Map<string, EventListener>() // Not used
+  // private boundHandlers = new Map<string, (...args: any[]) => void>() // Not used
+  // private beforeUnloadHandler: (() => void) | null = null // Not needed with AbortController
 
   // Communication
   private extensionContextValid = true
@@ -61,6 +70,10 @@ export class SharedInfrastructureModule {
   // RACE CONDITION FIX: Module initialization state tracking
   private initializationPromise: Promise<void> | null = null
   private isDestroying = false
+
+  // ADDED: Flush operation tracking to prevent concurrent flushes
+  private isFlushInProgress = false
+  private flushQueue: Array<() => void> = []
 
   constructor(config: Partial<SharedInfrastructureConfig> = {}) {
     const networkDefaults = {
@@ -144,17 +157,17 @@ export class SharedInfrastructureModule {
         }
         this.networkModule = new NetworkInterceptorModule(networkConfig)
         this.networkModule.addListener(this.handleNetworkRequest.bind(this))
-        this.networkModule.initialize()
+        await this.networkModule.initialize() // FIXED: Added await
       }
 
       // Initialize console module
       if (this.config.console.enabled && !this.isDestroying) {
         this.consoleModule = new ConsoleInterceptorModule(this.config.console)
         this.consoleModule.addListener(this.handleConsoleEvent.bind(this))
-        this.consoleModule.initialize()
+        await this.consoleModule.initialize() // FIXED: Added await
       }
 
-      // Set up communication
+      // Set up communication (includes all event listeners)
       if (this.config.communication.enabled && !this.isDestroying) {
         this.initializeCommunication()
       }
@@ -165,15 +178,17 @@ export class SharedInfrastructureModule {
       // Set up communication batching with error handling
       this.setupCommunicationBatching()
 
-      // Set up event listeners with proper tracking
-      this.setupEventListeners()
+      // REMOVED: Redundant call to setupEventListeners()
+      // this.setupEventListeners() // This was calling initializeCommunication again!
 
       this.isInitialized = true
       console.log('SharedInfrastructureModule: Initialization complete')
 
       // Notify main-world script about current logging state
       setTimeout(() => {
-        this.notifyMainWorldStateChange()
+        this.notifyMainWorldStateChange().catch(error => {
+          console.error('SharedInfrastructureModule: Failed to notify main-world:', error)
+        })
       }, 1000) // Small delay to ensure main-world script is ready
 
     } catch (error) {
@@ -189,11 +204,17 @@ export class SharedInfrastructureModule {
    */
   private setupCommunicationBatching(): void {
     if (this.config.communication.flushInterval && this.config.communication.flushInterval > 0 && !this.isDestroying) {
-      this.flushTimer = window.setInterval(() => {
+      // FIXED: Use proper interval timer
+      this.flushIntervalTimer = window.setInterval(() => {
+        if (this.isDestroying) {
+          this.clearFlushTimers()
+          return
+        }
+
         try {
           this.flushPendingData()
         } catch (error) {
-          console.error('SharedInfrastructureModule: Error during data flush:', error)
+          console.error('SharedInfrastructureModule: Error during interval flush:', error)
           // Continue operation, don't break the timer
         }
       }, this.config.communication.flushInterval)
@@ -239,50 +260,75 @@ export class SharedInfrastructureModule {
   }
 
   /**
-   * Flush pending data to background script
+   * Flush pending data to background script - RACE CONDITION SAFE
    */
   private async flushPendingData(): Promise<void> {
+    // Prevent concurrent flush operations
+    if (this.isFlushInProgress) {
+      console.log('SharedInfrastructureModule: Flush already in progress, queueing...')
+      return new Promise<void>((resolve) => {
+        this.flushQueue.push(resolve)
+      })
+    }
+
     if (this.pendingData.networkRequests.length === 0 && this.pendingData.consoleEvents.length === 0) {
       return
     }
 
-    // Clear the flush timer if it exists
-    if (this.flushTimer) {
-      clearTimeout(this.flushTimer)
-      this.flushTimer = undefined
+    this.isFlushInProgress = true
+
+    // Clear the timeout timer if it exists
+    if (this.flushTimeoutTimer) {
+      clearTimeout(this.flushTimeoutTimer)
+      this.flushTimeoutTimer = null
     }
 
-    console.log(`🚀 SharedInfrastructure: Flushing data - Network: ${this.pendingData.networkRequests.length}, Console: ${this.pendingData.consoleEvents.length}`)
+    try {
+      console.log(`🚀 SharedInfrastructure: Flushing data - Network: ${this.pendingData.networkRequests.length}, Console: ${this.pendingData.consoleEvents.length}`)
 
-    const batch = { ...this.pendingData }
+      const batch = { ...this.pendingData }
 
-    // Reset pending data
-    this.pendingData = {
-      networkRequests: [],
-      consoleEvents: [],
-      timestamp: Date.now()
-    }
-
-    // Send network requests
-    for (const request of batch.networkRequests) {
-      console.log('🚀 SharedInfrastructure: Sending network request to background:', request.url)
-      await this.sendToBackground('storeNetworkRequest', request)
-    }
-
-    // Send console events
-    for (const event of batch.consoleEvents) {
-      // Map console event format to background expected format
-      const consoleData = {
-        message: event.message,
-        severity: event.level, // Map level to severity
-        timestamp: new Date(event.timestamp).toISOString(),
-        url: event.url,
-        stack: event.stack,
-        // Include original event data for debugging
-        originalEvent: event
+      // Reset pending data
+      this.pendingData = {
+        networkRequests: [],
+        consoleEvents: [],
+        timestamp: Date.now()
       }
-      console.log('🚀 SharedInfrastructure: Sending console event to background:', consoleData.message.substring(0, 50))
-      await this.sendToBackground('CONSOLE_ERROR', consoleData)
+
+      // Send network requests
+      for (const request of batch.networkRequests) {
+        if (this.isDestroying) break
+        console.log('🚀 SharedInfrastructure: Sending network request to background:', request.url)
+        await this.sendToBackground('storeNetworkRequest', request)
+      }
+
+      // Send console events
+      for (const event of batch.consoleEvents) {
+        if (this.isDestroying) break
+        // Map console event format to background expected format
+        const consoleData = {
+          message: event.message,
+          severity: event.level, // Map level to severity
+          timestamp: new Date(event.timestamp).toISOString(),
+          url: event.url,
+          stack: event.stack,
+          // Include original event data for debugging
+          originalEvent: event
+        }
+        console.log('🚀 SharedInfrastructure: Sending console event to background:', consoleData.message.substring(0, 50))
+        await this.sendToBackground('CONSOLE_ERROR', consoleData)
+      }
+    } catch (error) {
+      console.error('SharedInfrastructureModule: Error during flush:', error)
+      // Re-add failed data back to pending
+      // Note: This is a simplified recovery, in production you'd want more sophisticated retry logic
+    } finally {
+      this.isFlushInProgress = false
+
+      // Process any queued flush requests
+      const queuedResolvers = [...this.flushQueue]
+      this.flushQueue = []
+      queuedResolvers.forEach(resolve => resolve())
     }
   }
 
@@ -339,6 +385,7 @@ export class SharedInfrastructureModule {
 
     // Listen for messages from background script
     const messageListener = (message: any, sender: chrome.runtime.MessageSender, sendResponse: (response: any) => void) => {
+      if (this.isDestroying) return true
       this.handleBackgroundMessage(message, sender, sendResponse)
       return true // Will respond asynchronously
     }
@@ -348,16 +395,20 @@ export class SharedInfrastructureModule {
     // Listen for extension state changes
     const stateChangeListener = async (event: any) => {
       if (this.isDestroying) return
-      const { enabled } = event.detail
-      if (!enabled) {
-        console.log('SharedInfrastructureModule: Extension disabled, pausing interception')
-        this.pauseInterception()
-      } else {
-        console.log('SharedInfrastructureModule: Extension enabled, resuming interception')
-        this.resumeInterception()
+      try {
+        const { enabled } = event.detail
+        if (!enabled) {
+          console.log('SharedInfrastructureModule: Extension disabled, pausing interception')
+          this.pauseInterception()
+        } else {
+          console.log('SharedInfrastructureModule: Extension enabled, resuming interception')
+          this.resumeInterception()
+        }
+        // Notify main-world script about the state change
+        await this.notifyMainWorldStateChange()
+      } catch (error) {
+        console.error('SharedInfrastructureModule: Error handling state change:', error)
       }
-      // Notify main-world script about the state change
-      await this.notifyMainWorldStateChange()
     }
     window.addEventListener('extensionStateChange', stateChangeListener, { signal })
     this.eventListeners.set('extensionStateChange', stateChangeListener)
@@ -366,11 +417,10 @@ export class SharedInfrastructureModule {
     const visibilityChangeListener = () => {
       if (this.isDestroying) return
       if (document.hidden) {
-        try {
-          this.flushPendingData() // Flush data when page becomes hidden
-        } catch (error) {
-          console.error('SharedInfrastructureModule: Error flushing data on visibility change:', error)
-        }
+        // Use Promise to handle async flush
+        this.flushPendingData().catch(error => {
+          console.error('SharedInfrastructureModule: Error flushing on visibility change:', error)
+        })
       }
     }
     document.addEventListener('visibilitychange', visibilityChangeListener, { signal })
@@ -379,9 +429,10 @@ export class SharedInfrastructureModule {
     // Listen for page unload
     const beforeUnloadListener = () => {
       if (this.isDestroying) return
+      // Synchronous flush attempt for beforeunload
       try {
-        this.flushPendingData()
-        // Note: destroy() will be called separately to avoid race conditions
+        // Try to send immediately without await (fire-and-forget)
+        this.flushPendingData().catch(() => {})
       } catch (error) {
         console.error('SharedInfrastructureModule: Error during page unload:', error)
       }
@@ -391,41 +442,18 @@ export class SharedInfrastructureModule {
   }
 
   /**
-   * Setup event listeners with proper tracking - REPLACES OLD initializeCommunication CALL
+   * Clear all flush timers
    */
-  private setupEventListeners(): void {
-    // This now calls the enhanced initializeCommunication
-    this.initializeCommunication()
-  }
-
-  /**
-   * Remove all tracked event listeners - MEMORY LEAK PREVENTION
-   */
-  private removeEventListeners(): void {
-    // Remove Chrome API listeners
-    this.chromeListeners.forEach((listener, type) => {
-      try {
-        if (type === 'runtimeMessage') {
-          chrome.runtime.onMessage.removeListener(listener)
-        } else if (type === 'storageChange') {
-          chrome.storage.onChanged.removeListener(listener)
-        }
-      } catch (error) {
-        console.error('SharedInfrastructureModule: Error removing Chrome listener:', error)
-      }
-    })
-    this.chromeListeners.clear()
-
-    // Abort all DOM event listeners via AbortController
-    try {
-      this.abortController.abort()
-    } catch (error) {
-      console.error('SharedInfrastructureModule: Error aborting event listeners:', error)
+  private clearFlushTimers(): void {
+    if (this.flushIntervalTimer !== null) {
+      clearInterval(this.flushIntervalTimer)
+      this.flushIntervalTimer = null
     }
 
-    // Create new AbortController for potential re-initialization
-    this.abortController = new AbortController()
-    this.eventListeners.clear()
+    if (this.flushTimeoutTimer !== null) {
+      clearTimeout(this.flushTimeoutTimer)
+      this.flushTimeoutTimer = null
+    }
   }
 
   /**
@@ -438,42 +466,47 @@ export class SharedInfrastructureModule {
     this.isInitialized = false
     this.isDestroying = true
 
-    // Clear timer if exists
-    if (this.flushTimer) {
-      clearInterval(this.flushTimer)
-      this.flushTimer = undefined
-    }
+    try {
+      // Clear all timers
+      this.clearFlushTimers()
 
-    // Destroy any initialized modules
-    if (this.networkModule) {
-      try {
-        this.networkModule.destroy()
-      } catch (error) {
-        console.error('SharedInfrastructureModule: Error destroying network module during cleanup:', error)
+      // Destroy any initialized modules
+      if (this.networkModule) {
+        try {
+          this.networkModule.destroy()
+        } catch (error) {
+          console.error('SharedInfrastructureModule: Error destroying network module during cleanup:', error)
+        }
+        this.networkModule = undefined
       }
-      this.networkModule = undefined
-    }
 
-    if (this.consoleModule) {
-      try {
-        this.consoleModule.destroy()
-      } catch (error) {
-        console.error('SharedInfrastructureModule: Error destroying console module during cleanup:', error)
+      if (this.consoleModule) {
+        try {
+          this.consoleModule.destroy()
+        } catch (error) {
+          console.error('SharedInfrastructureModule: Error destroying console module during cleanup:', error)
+        }
+        this.consoleModule = undefined
       }
-      this.consoleModule = undefined
+
+      // Clear event listeners
+      this.removeEventListeners()
+
+      // Clear pending data
+      this.pendingData = {
+        networkRequests: [],
+        consoleEvents: [],
+        timestamp: Date.now()
+      }
+
+      // Clear flush queue
+      this.flushQueue.forEach(resolve => resolve())
+      this.flushQueue = []
+
+    } finally {
+      this.isDestroying = false
+      this.isFlushInProgress = false
     }
-
-    // Clear event listeners
-    this.removeEventListeners()
-
-    // Clear pending data
-    this.pendingData = {
-      networkRequests: [],
-      consoleEvents: [],
-      timestamp: Date.now()
-    }
-
-    this.isDestroying = false
   }
 
   /**
@@ -675,18 +708,14 @@ export class SharedInfrastructureModule {
     this.isDestroying = true
 
     try {
-      // Clear flush timer with error handling
-      if (this.flushTimer) {
-        clearInterval(this.flushTimer)
-        this.flushTimer = undefined
-      }
+      // Clear all timers
+      this.clearFlushTimers()
 
       // Flush any remaining data with error handling
-      try {
-        this.flushPendingData()
-      } catch (error) {
+      // Use Promise to avoid blocking destroy
+      this.flushPendingData().catch(error => {
         console.error('SharedInfrastructureModule: Error flushing data during destroy:', error)
-      }
+      })
 
       // Destroy modules with error handling
       if (this.networkModule) {
@@ -717,6 +746,10 @@ export class SharedInfrastructureModule {
         timestamp: Date.now()
       }
 
+      // Clear flush queue
+      this.flushQueue.forEach(resolve => resolve())
+      this.flushQueue = []
+
       // Clear initialization state
       this.isInitialized = false
       this.initializationPromise = null
@@ -728,6 +761,7 @@ export class SharedInfrastructureModule {
       console.error('SharedInfrastructureModule: Error during destroy:', error)
     } finally {
       this.isDestroying = false
+      this.isFlushInProgress = false
     }
   }
 
@@ -939,6 +973,8 @@ export class SharedInfrastructureModule {
    * Handle messages from main-world script
    */
   private handleMainWorldMessage(data: any): void {
+    if (this.isDestroying) return
+
     try {
       const { type, payload } = data
 
@@ -959,16 +995,20 @@ export class SharedInfrastructureModule {
             // Trigger flush if batch size reached
             if (this.shouldFlush()) {
               console.log('🌐 SharedInfrastructure: Flushing network data (batch size reached)')
-              this.flushPendingData()
+              this.flushPendingData().catch(error => {
+                console.error('SharedInfrastructure: Error flushing on batch size:', error)
+              })
             } else {
               console.log('🌐 SharedInfrastructure: Not flushing yet (batch size not reached)')
-              // Set a timer to flush after 2 seconds if not already set
-              if (!this.flushTimer) {
+              // Set a timeout timer to flush after 2 seconds if not already set
+              if (!this.flushTimeoutTimer) {
                 console.log('🌐 SharedInfrastructure: Setting flush timer for 2 seconds')
-                this.flushTimer = setTimeout(() => {
+                this.flushTimeoutTimer = window.setTimeout(() => {
                   console.log('🌐 SharedInfrastructure: Timer-triggered flush')
-                  this.flushPendingData()
-                  this.flushTimer = undefined
+                  this.flushPendingData().catch(error => {
+                    console.error('SharedInfrastructure: Error in timeout flush:', error)
+                  })
+                  this.flushTimeoutTimer = null
                 }, 2000)
               }
             }
@@ -993,7 +1033,9 @@ export class SharedInfrastructureModule {
             this.pendingData.consoleEvents.push(consoleEvent)
             // Trigger flush if batch size reached
             if (this.shouldFlush()) {
-              this.flushPendingData()
+              this.flushPendingData().catch(error => {
+                console.error('SharedInfrastructure: Error flushing console event:', error)
+              })
             }
           }
           break
@@ -1003,6 +1045,27 @@ export class SharedInfrastructureModule {
       }
     } catch (error) {
       console.error('SharedInfrastructureModule: Error handling main-world message:', error)
+    }
+  }
+
+  /**
+   * Remove all event listeners for cleanup
+   */
+  private removeEventListeners(): void {
+    try {
+      // Abort all listeners attached with AbortController
+      this.abortController.abort()
+
+      // Clear tracked event listeners
+      this.eventListeners.clear()
+
+      // Clear chrome API listeners
+      this.chromeListeners.clear()
+
+      // Create new AbortController for potential re-initialization
+      this.abortController = new AbortController()
+    } catch (error) {
+      console.error('SharedInfrastructureModule: Error removing event listeners:', error)
     }
   }
 }

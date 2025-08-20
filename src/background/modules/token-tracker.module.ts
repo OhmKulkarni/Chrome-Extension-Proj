@@ -228,8 +228,8 @@ export class TokenTrackerModule {
 
         console.log(`🗄️ TokenTrackerModule: Stored token event in IndexedDB`);
 
-        // Notify dashboard about new data
-        this.sendDataUpdatedNotification('token_event');
+        // Notify dashboard about new token event
+        this.sendTokenEventNotification(tokenEvent);
       } catch (storageError) {
         console.error('TokenTrackerModule: IndexedDB storage failed:', storageError);
         // Continue processing even if storage fails
@@ -632,14 +632,17 @@ export class TokenTrackerModule {
   }
 
   /**
-   * Send notification to dashboard about data updates
+   * Send token event to dashboard
    */
-  private sendDataUpdatedNotification(type: string) {
+  private sendTokenEventNotification(tokenEvent: any) {
     try {
-      chrome.runtime.sendMessage({ action: 'DATA_UPDATED', type });
+      chrome.runtime.sendMessage({
+        type: 'TOKEN_EVENT',
+        data: tokenEvent
+      });
     } catch (error) {
       // This will fail if no dashboard is open, which is normal
-      console.debug('TokenTrackerModule: Failed to send data update notification:', error);
+      console.debug('TokenTrackerModule: Failed to send token event notification:', error);
     }
   }
 
