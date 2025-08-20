@@ -527,6 +527,39 @@ const DecomposedDashboard: React.FC = () => {
     }
   }, [currentPage, requestsPerPage, currentErrorPage, errorsPerPage, currentTokenPage, tokenEventsPerPage, loadNetworkRequestsPage, loadConsoleErrorsPage, loadTokenEventsPage, loadTabsLoggingStatus]);
 
+  // MEMORY LEAK FIX: Optimized analysis data loader for charts with low overhead
+  const loadAnalysisData = useCallback(async () => {
+    try {
+      console.log('🔄 Dashboard: Loading analysis data for charts (low overhead mode)');
+
+      // Use the new getAnalysisData endpoint for efficient chart data loading
+      const response = await sendChromeMessage({
+        action: 'getAnalysisData',
+        limit: 200 // Reasonable limit for chart visualization
+      });
+
+      if (response?.success && response?.data) {
+        console.log('✅ Dashboard: Analysis data loaded for charts', {
+          networkRequests: response.data.networkRequests?.length || 0,
+          consoleErrors: response.data.consoleErrors?.length || 0,
+          tokenEvents: response.data.tokenEvents?.length || 0,
+          totals: {
+            requests: response.data.totalRequests,
+            errors: response.data.totalErrors,
+            tokens: response.data.totalTokenEvents
+          }
+        });
+        return response.data;
+      } else {
+        console.warn('⚠️ Dashboard: Failed to load analysis data:', response);
+        return null;
+      }
+    } catch (error) {
+      console.error('❌ Dashboard: Error loading analysis data:', error);
+      return null;
+    }
+  }, []);
+
   // Clear data function with proper error handling
   const clearData = async () => {
     const confirmed = window.confirm(
@@ -1492,7 +1525,7 @@ const DecomposedDashboard: React.FC = () => {
               totalRequests={data.totalRequests}
               totalErrors={data.totalErrors}
               totalTokenEvents={data.totalTokenEvents}
-              onRefreshAnalysisData={loadDashboardData}
+              onRefreshAnalysisData={loadAnalysisData}
             />
           </div>
         );

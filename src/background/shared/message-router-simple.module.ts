@@ -437,6 +437,53 @@ export class MessageRouterModule {
           }
           break;
 
+        case 'getAnalysisData':
+          // Get larger datasets for dashboard charts and statistics (memory-optimized)
+          try {
+            const limit = message.limit || 200;
+            console.log(`📊 MessageRouter: Getting ${limit} records for dashboard analysis`);
+
+            // Get data from each module with IndexedDB storage
+            const [networkRequests, consoleErrors, tokenEvents] = await Promise.all([
+              this.networkProcessor.getNetworkRequests(limit, 0),
+              this.consoleHandler.getConsoleErrors(limit, 0),
+              this.tokenTracker.getTokenEvents(limit, 0)
+            ]);
+
+            // Get total counts for statistics
+            const [networkCount, errorCount, tokenCount] = await Promise.all([
+              this.networkProcessor.getNetworkRequestsCount(),
+              this.consoleHandler.getConsoleErrorsCount(),
+              this.tokenTracker.getTokenEventsCount()
+            ]);
+
+            console.log(`✅ MessageRouter: Retrieved analysis data`, {
+              networkRequests: networkRequests?.length || 0,
+              consoleErrors: consoleErrors?.length || 0,
+              tokenEvents: tokenEvents?.length || 0,
+              totalCounts: { networkCount, errorCount, tokenCount }
+            });
+
+            sendResponse({
+              success: true,
+              data: {
+                networkRequests: networkRequests || [],
+                consoleErrors: consoleErrors || [],
+                tokenEvents: tokenEvents || [],
+                totalRequests: networkCount || 0,
+                totalErrors: errorCount || 0,
+                totalTokenEvents: tokenCount || 0
+              }
+            });
+          } catch (error) {
+            console.error('MessageRouter: getAnalysisData error:', error);
+            sendResponse({
+              success: false,
+              error: error instanceof Error ? error.message : 'Failed to get analysis data'
+            });
+          }
+          break;
+
         case 'clearAllData':
           await this.storageManager.clearAllData();
           sendResponse({ success: true });

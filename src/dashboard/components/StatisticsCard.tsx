@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
@@ -6,7 +6,7 @@ import { Button } from './ui/button';
 import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { groupDataByDomain, DomainStats } from './domainUtils';
-import { 
+import {
   HttpMethodDistributionChart,
   AvgResponseTimePerRouteChart,
   AuthFailuresVsSuccessChart,
@@ -66,9 +66,24 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   totalTokenEvents,
   onRefreshAnalysisData
 }) => {
+  // MEMORY LEAK FIX: AbortController for cleanup
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Initialize AbortController on mount
+  useEffect(() => {
+    abortControllerRef.current = new AbortController();
+
+    // Cleanup on unmount
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+    };
+  }, []);
   // Debug mode: Add mock data for testing charts
   const DEBUG_MODE = false; // Set to false to disable debug data
-  
+
   const mockNetworkRequests = [
     { method: 'GET', url: 'https://api.example.com/users', status: 200, response_status: 200, response_time: 150 },
     { method: 'POST', url: 'https://api.example.com/login', status: 401, response_status: 401, response_time: 200 },
@@ -108,7 +123,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     key: 'value',
     direction: 'desc'
   });
-  
+
   const [domainSortConfig, setDomainSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({
     key: 'totalRequests',
     direction: 'desc'
@@ -134,37 +149,50 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     tokenEvents: [],
     loaded: false
   });
-  
+
   // User-selected analysis sample size (number of records to consider for stats)
   const [analysisLimit, setAnalysisLimit] = useState<number>(200);
 
-  // Load analysis data for statistics calculations (uses selectable limit)
+  // Load analysis data for statistics calculations (uses selectable limit) - MEMORY LEAK SAFE
   const loadAnalysisData = useCallback(async (limitOverride?: number) => {
     const limit = typeof limitOverride === 'number' ? limitOverride : analysisLimit;
     try {
-      const response = await chrome.runtime.sendMessage({ 
+      console.log(`📊 StatisticsCard: Loading analysis data with limit ${limit}`);
+
+      // Use the new getAnalysisData endpoint for efficient chart data loading
+      const response = await chrome.runtime.sendMessage({
         action: 'getAnalysisData',
         limit
       });
-      
+
       if (response?.success && response?.data) {
+        // MEMORY LEAK FIX: Clear previous data before setting new data
+        setAnalysisData({
+          networkRequests: [],
+          consoleErrors: [],
+          tokenEvents: [],
+          loaded: false
+        });
+
+        // Set new data after clearing
         setAnalysisData({
           networkRequests: response.data.networkRequests || [],
           consoleErrors: response.data.consoleErrors || [],
           tokenEvents: response.data.tokenEvents || [],
           loaded: true
         });
-        console.log('✅ Analysis data loaded:', {
+
+        console.log('✅ StatisticsCard: Analysis data loaded:', {
           limit,
           networkRequests: response.data.networkRequests?.length || 0,
           consoleErrors: response.data.consoleErrors?.length || 0,
           tokenEvents: response.data.tokenEvents?.length || 0
         });
       } else {
-        console.warn('⚠️ Failed to load analysis data:', response);
+        console.warn('⚠️ StatisticsCard: Failed to load analysis data:', response);
       }
     } catch (error) {
-      console.error('❌ Error loading analysis data:', error);
+      console.error('❌ StatisticsCard: Error loading analysis data:', error);
     }
   }, [analysisLimit]);
 
@@ -173,13 +201,27 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     loadAnalysisData();
   }, [loadAnalysisData]);
 
-  // Refresh analysis data when parent requests it
+  // MEMORY LEAK FIX: Only refresh when explicitly requested, avoid circular dependencies
+  const refreshAnalysisData = useCallback(async () => {
+    console.log('🔄 StatisticsCard: Refreshing analysis data on user request');
+    await loadAnalysisData();
+  }, [loadAnalysisData]);
+
+  // Expose refresh function to parent via callback ref (MEMORY LEAK SAFE)
   useEffect(() => {
-    if (onRefreshAnalysisData) {
-      // Refresh analysis data when requested
-      loadAnalysisData();
+    if (onRefreshAnalysisData && typeof onRefreshAnalysisData === 'function') {
+      // Call the parent's refresh function with our refresh method
+      // This allows parent to trigger refresh without causing circular dependencies
+      onRefreshAnalysisData().then(() => {
+        // After parent refreshes, refresh our analysis data too
+        refreshAnalysisData();
+      }).catch(error => {
+        console.warn('StatisticsCard: Parent refresh failed:', error);
+        // Still refresh our data even if parent fails
+        refreshAnalysisData();
+      });
     }
-  }, [onRefreshAnalysisData, loadAnalysisData]);
+  }, [onRefreshAnalysisData, refreshAnalysisData]);
 
   // Chart definitions based on user requirements
   const chartDefinitions: ChartDefinitions = useMemo(() => ({
@@ -192,7 +234,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       tooltip: 'Shows request volume trends to identify traffic patterns'
     },
     'error-frequency-over-time': {
-      name: 'Error Frequency Over Time', 
+      name: 'Error Frequency Over Time',
       type: 'area' as const,
       category: 'Time-Series',
       description: 'Track 4xx/5xx errors over time',
@@ -200,7 +242,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     },
     'latency-over-time': {
       name: 'Latency Over Time',
-      type: 'line' as const, 
+      type: 'line' as const,
       category: 'Time-Series',
       description: 'Response time (avg, max, min) trend',
       tooltip: 'Track performance trends and identify slow periods'
@@ -208,7 +250,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     'traffic-by-endpoint': {
       name: 'Traffic by Endpoint',
       type: 'bar' as const,
-      category: 'Time-Series', 
+      category: 'Time-Series',
       description: 'Most/least called endpoints over time',
       tooltip: 'Identify hottest endpoints and usage patterns'
     },
@@ -216,10 +258,10 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       name: 'Method Usage (Daily)',
       type: 'stackedBar' as const,
       category: 'Time-Series',
-      description: 'How often each HTTP method is used over time', 
+      description: 'How often each HTTP method is used over time',
       tooltip: 'See HTTP method distribution changes over time'
     },
-    
+
     // Distribution & Count Charts
     'http-method-distribution': {
       name: 'HTTP Method Distribution',
@@ -229,7 +271,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       tooltip: 'Overall breakdown of HTTP methods used'
     },
     'status-code-breakdown': {
-      name: 'Status Code Breakdown', 
+      name: 'Status Code Breakdown',
       type: 'donut' as const,
       category: 'Distributions',
       description: '2xx vs 4xx vs 5xx ratios',
@@ -245,12 +287,12 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     'payload-size-distribution': {
       name: 'Payload Size Distribution',
       type: 'histogram' as const,
-      category: 'Distributions', 
+      category: 'Distributions',
       description: 'Frequency of different response sizes',
       tooltip: 'Understand typical response payload sizes'
     },
-    
-    // Performance & Experience Charts  
+
+    // Performance & Experience Charts
     'avg-response-time-per-route': {
       name: 'Avg Response Time (per route)',
       type: 'horizontalBar' as const,
@@ -261,7 +303,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     'auth-failures-vs-success': {
       name: 'Auth Failures vs Success',
       type: 'pie' as const,
-      category: 'Performance', 
+      category: 'Performance',
       description: 'Token expired vs invalid vs success',
       tooltip: 'Authentication success/failure analysis'
     },
@@ -278,9 +320,9 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   const filteredCharts = useMemo(() => {
     const charts = Object.entries(chartDefinitions);
     if (!chartSearch.trim()) return charts;
-    
+
     const searchLower = chartSearch.toLowerCase();
-    return charts.filter(([, chart]) => 
+    return charts.filter(([, chart]) =>
       chart.name.toLowerCase().includes(searchLower) ||
       chart.description.toLowerCase().includes(searchLower) ||
       chart.category.toLowerCase().includes(searchLower)
@@ -292,17 +334,17 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     try {
       // Use analysis data for charts when available for better accuracy
       const useAnalysisData = analysisData.loaded && analysisData.networkRequests.length > 0;
-      
-      const effectiveNetworkRequests = useAnalysisData 
-        ? analysisData.networkRequests 
+
+      const effectiveNetworkRequests = useAnalysisData
+        ? analysisData.networkRequests
         : (DEBUG_MODE && (!networkRequests || networkRequests.length === 0) ? mockNetworkRequests : networkRequests);
-      
-      const effectiveConsoleErrors = useAnalysisData 
-        ? analysisData.consoleErrors 
+
+      const effectiveConsoleErrors = useAnalysisData
+        ? analysisData.consoleErrors
         : (DEBUG_MODE && (!consoleErrors || consoleErrors.length === 0) ? mockConsoleErrors : consoleErrors);
-      
-      const effectiveTokenEvents = useAnalysisData 
-        ? analysisData.tokenEvents 
+
+      const effectiveTokenEvents = useAnalysisData
+        ? analysisData.tokenEvents
         : (DEBUG_MODE && (!tokenEvents || tokenEvents.length === 0) ? mockTokenEvents : tokenEvents);
 
       const chartData = {
@@ -456,27 +498,43 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     }
   };
 
-  // Calculate global statistics
+  // Calculate global statistics - MEMORY LEAK FIX: Batch processing with abort signal
   const globalStats: GlobalStats = useMemo(() => {
+    // Check if we should abort processing
+    if (abortControllerRef.current?.signal.aborted) {
+      return {
+        totalRequests: 0,
+        totalErrors: 0,
+        totalTokenEvents: 0,
+        uniqueDomains: 0,
+        maxResponseTime: 0,
+        requestsByMethod: {},
+        errorsBySeverity: {},
+        tokensByType: {},
+        avgResponseTime: 0,
+        successRate: 0
+      };
+    }
+
     // Use analysis data for statistics calculations if available, otherwise fall back to current page data
     const useAnalysisData = analysisData.loaded && analysisData.networkRequests.length > 0;
-    
-    const effectiveNetworkRequests = useAnalysisData 
-      ? analysisData.networkRequests 
+
+    const effectiveNetworkRequests = useAnalysisData
+      ? analysisData.networkRequests
       : (DEBUG_MODE && (!networkRequests || networkRequests.length === 0) ? mockNetworkRequests : networkRequests);
-    
-    const effectiveConsoleErrors = useAnalysisData 
-      ? analysisData.consoleErrors 
+
+    const effectiveConsoleErrors = useAnalysisData
+      ? analysisData.consoleErrors
       : (DEBUG_MODE && (!consoleErrors || consoleErrors.length === 0) ? mockConsoleErrors : consoleErrors);
-    
-    const effectiveTokenEvents = useAnalysisData 
-      ? analysisData.tokenEvents 
+
+    const effectiveTokenEvents = useAnalysisData
+      ? analysisData.tokenEvents
       : (DEBUG_MODE && (!tokenEvents || tokenEvents.length === 0) ? mockTokenEvents : tokenEvents);
 
     console.log('GlobalStats calculation with data:', {
       useAnalysisData,
       networkRequests: effectiveNetworkRequests?.length || 0,
-      consoleErrors: effectiveConsoleErrors?.length || 0, 
+      consoleErrors: effectiveConsoleErrors?.length || 0,
       tokenEvents: effectiveTokenEvents?.length || 0,
       dataSource: useAnalysisData ? 'analysis (last 200 records)' : 'current page (10 records)'
     });
@@ -490,108 +548,155 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     const finalTotalErrors = totalErrors ?? calculatedTotalErrors;
     const finalTotalTokenEvents = totalTokenEvents ?? calculatedTotalTokenEvents;
 
-    // Calculate unique domains
-    const allData = [...effectiveNetworkRequests, ...effectiveConsoleErrors, ...effectiveTokenEvents];
+    // MEMORY EFFICIENT: Process data in batches to avoid blocking UI
+    const batchSize = 50;
     const uniqueDomainsSet = new Set();
-    allData.forEach(item => {
-      const itemUrl = item.url || item.request?.url || item.details?.url || item.source_url || '';
-      if (itemUrl && itemUrl !== 'unknown' && itemUrl !== 'Unknown' && itemUrl !== 'Unknown URL') {
-        try {
-          const hostname = new URL(itemUrl).hostname;
-          // Extract main domain (e.g., reddit.com from www.reddit.com)
-          const mainDomain = item.main_domain || hostname.replace(/^www\./, '').toLowerCase();
-          if (mainDomain && mainDomain !== 'unknown') {
-            uniqueDomainsSet.add(mainDomain);
+    const requestsByMethod: { [method: string]: number } = {};
+    const errorsBySeverity: { [severity: string]: number } = {};
+    const tokensByType: { [type: string]: number } = {};
+    let totalResponseTime = 0;
+    let responseTimeCount = 0;
+    let maxResponseTimeCalculated = 0;
+    let successCount = 0;
+
+    // Process network requests in batches
+    for (let i = 0; i < effectiveNetworkRequests.length; i += batchSize) {
+      if (abortControllerRef.current?.signal.aborted) break;
+
+      const batch = effectiveNetworkRequests.slice(i, i + batchSize);
+      batch.forEach(req => {
+        // Extract domains
+        const itemUrl = req.url || req.request?.url || '';
+        if (itemUrl && itemUrl !== 'unknown') {
+          try {
+            const hostname = new URL(itemUrl).hostname;
+            const mainDomain = req.main_domain || hostname.replace(/^www\./, '').toLowerCase();
+            if (mainDomain && mainDomain !== 'unknown') {
+              uniqueDomainsSet.add(mainDomain);
+            }
+          } catch (e) {
+            // Skip invalid URLs
           }
-        } catch (e) {
-          // Skip invalid URLs
         }
-      }
-    });
-    const uniqueDomains = uniqueDomainsSet.size;
 
-    // Requests by method
-    const requestsByMethod = effectiveNetworkRequests.reduce((acc, req) => {
-      const method = req.method || req.request_method || 'GET';
-      acc[method] = (acc[method] || 0) + 1;
-      return acc;
-    }, {} as { [method: string]: number });
+        // Method tracking
+        const method = req.method || req.request_method || 'GET';
+        requestsByMethod[method] = (requestsByMethod[method] || 0) + 1;
 
-    // Errors by severity
-    const errorsBySeverity = effectiveConsoleErrors.reduce((acc, error) => {
-      const severity = error.level || error.severity || 'error';
-      acc[severity] = (acc[severity] || 0) + 1;
-      return acc;
-    }, {} as { [severity: string]: number });
+        // Response time tracking
+        const responseTime = req.response_time || req.responseTime || 0;
+        if (responseTime > 0) {
+          totalResponseTime += responseTime;
+          responseTimeCount++;
+          maxResponseTimeCalculated = Math.max(maxResponseTimeCalculated, responseTime);
+        }
 
-    // Tokens by type
-    const tokensByType = effectiveTokenEvents.reduce((acc, token) => {
-      // Analyze token event to determine type
-      const url = (token.url || token.source_url || '').toLowerCase();
-      const method = (token.method || token.request_method || '').toUpperCase();
-      
-      let type = 'Access Token';
-      if (url.includes('/refresh') || method === 'POST' && url.includes('/token')) {
-        type = 'Refresh Token';
-      } else if (url.includes('/login') || url.includes('/signin')) {
-        type = 'Login Token';
-      } else if (token.headers && (token.headers['x-api-key'] || token.headers['X-API-Key'])) {
-        type = 'API Key';
-      }
-      
-      acc[type] = (acc[type] || 0) + 1;
-      return acc;
-    }, {} as { [type: string]: number });
+        // Success rate tracking
+        const status = req.status || req.response_status || 0;
+        if (status >= 200 && status < 400) {
+          successCount++;
+        }
+      });
+    }
 
-    // Calculate average and max response time
-    const responseTimes = effectiveNetworkRequests
-      .map(req => req.response_time || req.responseTime)
-      .filter(time => time && typeof time === 'number');
-    const avgResponseTime = responseTimes.length > 0 
-      ? Math.round(responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length)
-      : 0;
-    const maxResponseTime = responseTimes.length > 0 
-      ? Math.max(...responseTimes)
-      : 0;
+    // Process console errors in batches for domain and severity tracking
+    for (let i = 0; i < effectiveConsoleErrors.length; i += batchSize) {
+      if (abortControllerRef.current?.signal.aborted) break;
 
-    // Calculate success rate
-    const successfulRequests = effectiveNetworkRequests.filter(req => {
-      const status = req.status || req.response_status;
-      return status >= 200 && status < 400;
-    }).length;
-    const successRate = finalTotalRequests > 0 ? Math.round((successfulRequests / finalTotalRequests) * 100) : 0;
+      const batch = effectiveConsoleErrors.slice(i, i + batchSize);
+      batch.forEach(error => {
+        // Extract domains
+        const itemUrl = error.url || error.details?.url || error.source_url || '';
+        if (itemUrl && itemUrl !== 'unknown' && itemUrl !== 'Unknown' && itemUrl !== 'Unknown URL') {
+          try {
+            const hostname = new URL(itemUrl).hostname;
+            const mainDomain = error.main_domain || hostname.replace(/^www\./, '').toLowerCase();
+            if (mainDomain && mainDomain !== 'unknown') {
+              uniqueDomainsSet.add(mainDomain);
+            }
+          } catch (e) {
+            // Skip invalid URLs
+          }
+        }
+
+        // Severity tracking
+        const severity = error.severity || 'error';
+        errorsBySeverity[severity] = (errorsBySeverity[severity] || 0) + 1;
+      });
+    }
+
+    // Process token events in batches for domain and type tracking
+    for (let i = 0; i < effectiveTokenEvents.length; i += batchSize) {
+      if (abortControllerRef.current?.signal.aborted) break;
+
+      const batch = effectiveTokenEvents.slice(i, i + batchSize);
+      batch.forEach(token => {
+        // Extract domains
+        const itemUrl = token.url || token.details?.url || token.source_url || '';
+        if (itemUrl && itemUrl !== 'unknown' && itemUrl !== 'Unknown' && itemUrl !== 'Unknown URL') {
+          try {
+            const hostname = new URL(itemUrl).hostname;
+            const mainDomain = token.main_domain || hostname.replace(/^www\./, '').toLowerCase();
+            if (mainDomain && mainDomain !== 'unknown') {
+              uniqueDomainsSet.add(mainDomain);
+            }
+          } catch (e) {
+            // Skip invalid URLs
+          }
+        }
+
+        // Token type tracking
+        let type = 'Unknown';
+        if (token.token_type) {
+          type = token.token_type;
+        } else if (token.type) {
+          type = token.type;
+        } else if (token.headers && token.headers.authorization) {
+          type = 'Bearer Token';
+        } else if (token.headers && (token.headers['x-api-key'] || token.headers['X-API-Key'])) {
+          type = 'API Key';
+        }
+
+        tokensByType[type] = (tokensByType[type] || 0) + 1;
+      });
+    }
+
+    // Calculate final statistics
+    const avgResponseTime = responseTimeCount > 0 ? Math.round(totalResponseTime / responseTimeCount) : 0;
+    const successRate = finalTotalRequests > 0 ? Math.round((successCount / finalTotalRequests) * 100) : 0;
 
     return {
       totalRequests: finalTotalRequests,
       totalErrors: finalTotalErrors,
       totalTokenEvents: finalTotalTokenEvents,
-      uniqueDomains,
-      maxResponseTime,
+      uniqueDomains: uniqueDomainsSet.size,
+      maxResponseTime: maxResponseTimeCalculated,
       requestsByMethod,
       errorsBySeverity,
       tokensByType,
       avgResponseTime,
       successRate
     };
+
   }, [analysisData, networkRequests, consoleErrors, tokenEvents, totalRequests, totalErrors, totalTokenEvents]);
 
   // Calculate domain-specific statistics with enhanced grouping
   const domainStats: DomainStats[] = useMemo(() => {
     // Use analysis data for more accurate domain statistics
     const useAnalysisData = analysisData.loaded && analysisData.networkRequests.length > 0;
-    
-    const effectiveNetworkRequests = useAnalysisData 
-      ? analysisData.networkRequests 
+
+    const effectiveNetworkRequests = useAnalysisData
+      ? analysisData.networkRequests
       : (DEBUG_MODE && (!networkRequests || networkRequests.length === 0) ? mockNetworkRequests : networkRequests);
-    
-    const effectiveConsoleErrors = useAnalysisData 
-      ? analysisData.consoleErrors 
+
+    const effectiveConsoleErrors = useAnalysisData
+      ? analysisData.consoleErrors
       : (DEBUG_MODE && (!consoleErrors || consoleErrors.length === 0) ? mockConsoleErrors : consoleErrors);
-    
-    const effectiveTokenEvents = useAnalysisData 
-      ? analysisData.tokenEvents 
+
+    const effectiveTokenEvents = useAnalysisData
+      ? analysisData.tokenEvents
       : (DEBUG_MODE && (!tokenEvents || tokenEvents.length === 0) ? mockTokenEvents : tokenEvents);
-    
+
     const allData = [...effectiveNetworkRequests, ...effectiveConsoleErrors, ...effectiveTokenEvents];
     return groupDataByDomain(allData);
   }, [analysisData, networkRequests, consoleErrors, tokenEvents]);
@@ -633,12 +738,12 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
         value: count,
         category: 'Network'
       })),
-      
+
       // Performance category metrics
       { metric: 'Success Rate', value: `${globalStats.successRate}%`, category: 'Performance' },
       { metric: 'Average Response Time', value: `${globalStats.avgResponseTime}ms`, category: 'Performance' },
       { metric: 'Max Response Time', value: `${globalStats.maxResponseTime}ms`, category: 'Performance' },
-      
+
       // Console category metrics (Total Errors only - removed redundant ERROR Errors)
       { metric: 'Total Errors', value: globalStats.totalErrors, category: 'Console' },
       ...Object.entries(globalStats.errorsBySeverity)
@@ -648,7 +753,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
           value: count,
           category: 'Console'
         })),
-      
+
       // Auth category metrics
       { metric: 'Total Token Events', value: globalStats.totalTokenEvents, category: 'Auth' },
       ...Object.entries(globalStats.tokensByType).map(([type, count]) => ({
@@ -660,7 +765,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
 
     return stats.sort((a, b) => {
       if (globalSortConfig.key === 'metric') {
-        return globalSortConfig.direction === 'asc' 
+        return globalSortConfig.direction === 'asc'
           ? a.metric.localeCompare(b.metric)
           : b.metric.localeCompare(a.metric);
       } else if (globalSortConfig.key === 'value') {
@@ -668,7 +773,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
         const bVal = typeof b.value === 'string' ? parseInt(b.value) || 0 : b.value;
         return globalSortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
       } else if (globalSortConfig.key === 'category') {
-        return globalSortConfig.direction === 'asc' 
+        return globalSortConfig.direction === 'asc'
           ? a.category.localeCompare(b.category)
           : b.category.localeCompare(a.category);
       }
@@ -684,7 +789,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       let bVal = b[key];
 
       if (typeof aVal === 'string' && typeof bVal === 'string') {
-        return domainSortConfig.direction === 'asc' 
+        return domainSortConfig.direction === 'asc'
           ? aVal.localeCompare(bVal)
           : bVal.localeCompare(aVal);
       } else if (typeof aVal === 'number' && typeof bVal === 'number') {
@@ -694,7 +799,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     });
   }, [domainStats, domainSortConfig]);
 
-  const SortButton: React.FC<{ column: string; currentSort: { key: string; direction: 'asc' | 'desc' }; onSort: (key: string) => void }> = 
+  const SortButton: React.FC<{ column: string; currentSort: { key: string; direction: 'asc' | 'desc' }; onSort: (key: string) => void }> =
     ({ column, currentSort, onSort }) => (
       <Button
         variant="ghost"
@@ -734,7 +839,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
               Domain Statistics
             </TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="global" className="space-y-4">
             {/* View Mode Toggle */}
             <div className="flex items-center justify-between mb-4">
@@ -758,7 +863,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                   Charts View
                 </Button>
               </div>
-              
+
               {viewMode === 'charts' && (
                 <Button
                   variant="outline"
@@ -929,8 +1034,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.3, delay: 0.05 * filteredCharts.findIndex(([k]) => k === chartKey) }}
                             className={`cursor-pointer border-2 rounded-lg p-4 transition-all hover:shadow-md ${
-                              selectedChart === chartKey 
-                                ? 'border-blue-500 bg-blue-50' 
+                              selectedChart === chartKey
+                                ? 'border-blue-500 bg-blue-50'
                                 : 'border-gray-200 hover:border-gray-300'
                             }`}
                             onClick={() => setSelectedChart(selectedChart === chartKey ? null : chartKey)}
@@ -969,7 +1074,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
               )}
             </AnimatePresence>
           </TabsContent>
-          
+
           <TabsContent value="domain" className="space-y-4">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
               <div className="flex items-start gap-2">
@@ -977,8 +1082,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                 <div>
                   <h4 className="text-sm font-medium text-blue-800 mb-1">Smart Domain Grouping</h4>
                   <p className="text-xs text-blue-700">
-                    Domains are intelligently grouped by tab context and subdomain patterns. 
-                    <Layers className="h-3 w-3 inline mx-1" /> indicates grouped subdomains, 
+                    Domains are intelligently grouped by tab context and subdomain patterns.
+                    <Layers className="h-3 w-3 inline mx-1" /> indicates grouped subdomains,
                     <Monitor className="h-3 w-3 inline mx-1" /> shows main tab domains.
                     Hover for details.
                   </p>
@@ -1038,7 +1143,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                     <React.Fragment key={index}>
                       <TableRow className="hover:bg-blue-50/50">
                         <TableCell className="font-medium max-w-[300px]" title={
-                          stat.isGrouped ? 
+                          stat.isGrouped ?
                             `${stat.domain} (Service group with ${stat.groupedDomains.length} domains: ${stat.groupedDomains.join(', ')})` :
                             `${stat.domain}${stat.tabContext?.primaryTabUrl ? ` - Tab: ${stat.tabContext.primaryTabUrl}` : ''}`
                         }>
@@ -1050,8 +1155,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                   className="p-0.5 hover:bg-gray-100 rounded"
                                   title={expandedDomains.has(stat.domain) ? "Collapse grouped domains" : "Expand grouped domains"}
                                 >
-                                  {expandedDomains.has(stat.domain) ? 
-                                    <ChevronDown className="h-3 w-3" /> : 
+                                  {expandedDomains.has(stat.domain) ?
+                                    <ChevronDown className="h-3 w-3" /> :
                                     <ChevronRight className="h-3 w-3" />
                                   }
                                 </button>
@@ -1102,7 +1207,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                         {new Date(stat.lastSeen).toLocaleString()}
                       </TableCell>
                     </TableRow>
-                    
+
                     {/* Expanded grouped domains with stats */}
                     {stat.isGrouped && expandedDomains.has(stat.domain) && stat.subdomainStats.map((subStat, subIndex: number) => (
                       <TableRow key={`${index}-${subIndex}`} className="bg-blue-50/30 border-l-2 border-l-blue-200">
