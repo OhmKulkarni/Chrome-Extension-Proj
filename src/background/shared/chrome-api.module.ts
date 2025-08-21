@@ -160,13 +160,31 @@ export class ChromeApiModule {
    */
   async sendMessageToTab(tabId: number, message: any): Promise<any> {
     return this.executeWithSafety('tabs.sendMessage', async () => {
-      const response = await chrome.tabs.sendMessage(tabId, message);
+      try {
+        const response = await chrome.tabs.sendMessage(tabId, message);
 
-      if (chrome.runtime.lastError) {
-        throw new Error(`Tab message error: ${chrome.runtime.lastError.message}`);
+        if (chrome.runtime.lastError) {
+          const errorMessage = chrome.runtime.lastError.message;
+
+          // Handle specific connection errors gracefully
+          if (errorMessage?.includes('Could not establish connection')) {
+            // This is expected when content scripts are not loaded or tabs are inactive
+            console.debug(`ChromeApiModule: No content script available for tab ${tabId}`);
+            return null;
+          }
+
+          throw new Error(`Tab message error: ${errorMessage}`);
+        }
+
+        return response;
+      } catch (error) {
+        // Check if it's a connection error
+        if (error instanceof Error && error.message.includes('Could not establish connection')) {
+          console.debug(`ChromeApiModule: No content script available for tab ${tabId}`);
+          return null;
+        }
+        throw error;
       }
-
-      return response;
     });
   }
 

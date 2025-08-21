@@ -373,19 +373,37 @@ self.addEventListener('unhandledrejection', (event) => {
 // Create and initialize the background controller
 const backgroundController = new BackgroundController();
 
+// Add ready state tracking
+let isBackgroundReady = false;
+
+// Make isBackgroundReady available to message router
+(globalThis as any).isBackgroundReady = () => isBackgroundReady;
+
 // Initialize with comprehensive error handling
 backgroundController.initialize().then(() => {
+  isBackgroundReady = true;
   console.log('✅ Background script fully operational with modular architecture');
+
+  // Notify any waiting clients that we're ready
+  chrome.runtime.sendMessage({ action: 'BACKGROUND_READY' }).catch(() => {
+    // Ignore errors - no listeners might be available yet
+  });
+
 }).catch((error) => {
   console.error('❌ Background script initialization failed:', error);
+  isBackgroundReady = false;
 
   // Attempt recovery after delay
   setTimeout(() => {
     console.log('🔄 Attempting background script recovery...');
-    backgroundController.initialize().catch((retryError) => {
+    backgroundController.initialize().then(() => {
+      isBackgroundReady = true;
+      console.log('✅ Background script recovered successfully');
+    }).catch((retryError) => {
       console.error('❌ Background script recovery failed:', retryError);
+      isBackgroundReady = false;
     });
-  }, 5000);
+  }, 2000);
 });
 
 // Service worker shutdown handler
@@ -396,5 +414,6 @@ self.addEventListener('beforeunload', () => {
 
 // Export for debugging (available in Chrome DevTools)
 (globalThis as any).backgroundController = backgroundController;
+(globalThis as any).isBackgroundReady = () => isBackgroundReady;
 
 console.log('🔧 Background script modular architecture loaded and initializing...');

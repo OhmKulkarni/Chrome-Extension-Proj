@@ -78,6 +78,56 @@ export class SharedInfrastructureModule {
   // ADDED: Configuration update tracking
   private configUpdateInProgress = false
 
+  // ADDED: Periodic context recovery timer
+  private recoveryTimer: number | null = null
+  private recoveryAttempts = 0
+  private maxRecoveryAttempts = 10
+
+  // ADDED: Local storage backup system for extension context failures
+  private localStorageBackup = {
+    key: 'chrome-ext-network-backup',
+    maxItems: 100, // Prevent unlimited growth
+
+    store: (data: any) => {
+      try {
+        const existing = JSON.parse(localStorage.getItem(this.localStorageBackup.key) || '[]')
+        existing.push({
+          timestamp: Date.now(),
+          data: data
+        })
+
+        // Keep only the most recent items
+        if (existing.length > this.localStorageBackup.maxItems) {
+          existing.splice(0, existing.length - this.localStorageBackup.maxItems)
+        }
+
+        localStorage.setItem(this.localStorageBackup.key, JSON.stringify(existing))
+        console.log('SharedInfrastructureModule: Data backed up to localStorage')
+      } catch (error) {
+        console.warn('SharedInfrastructureModule: Failed to backup to localStorage:', error)
+      }
+    },
+
+    retrieve: (): any[] => {
+      try {
+        const data = JSON.parse(localStorage.getItem(this.localStorageBackup.key) || '[]')
+        return data
+      } catch (error) {
+        console.warn('SharedInfrastructureModule: Failed to retrieve from localStorage:', error)
+        return []
+      }
+    },
+
+    clear: () => {
+      try {
+        localStorage.removeItem(this.localStorageBackup.key)
+        console.log('SharedInfrastructureModule: localStorage backup cleared')
+      } catch (error) {
+        console.warn('SharedInfrastructureModule: Failed to clear localStorage:', error)
+      }
+    }
+  }
+
   constructor(config: Partial<SharedInfrastructureConfig> = {}) {
     const networkDefaults = {
       enabled: true, // CHANGED: Enable by default to capture network requests
@@ -186,6 +236,9 @@ export class SharedInfrastructureModule {
 
       this.isInitialized = true
       console.log('SharedInfrastructureModule: Initialization complete')
+
+      // ADDED: Set up periodic context recovery check
+      this.startPeriodicRecoveryCheck()
 
       // Notify main-world script about current logging state
       setTimeout(() => {
@@ -386,14 +439,26 @@ export class SharedInfrastructureModule {
     // MEMORY LEAK FIX: Track listeners with AbortController
     const signal = this.abortController.signal
 
-    // Listen for messages from background script
-    const messageListener = (message: any, sender: chrome.runtime.MessageSender, sendResponse: (response: any) => void) => {
-      if (this.isDestroying) return true
-      this.handleBackgroundMessage(message, sender, sendResponse)
-      return true // Will respond asynchronously
+    // ENHANCED: Add error handling for extension context issues
+    try {
+      // Listen for messages from background script
+      const messageListener = (message: any, sender: chrome.runtime.MessageSender, sendResponse: (response: any) => void) => {
+        if (this.isDestroying) return true
+        this.handleBackgroundMessage(message, sender, sendResponse)
+        return true // Will respond asynchronously
+      }
+
+      if (chrome?.runtime?.onMessage) {
+        chrome.runtime.onMessage.addListener(messageListener)
+        this.chromeListeners.set('runtimeMessage', messageListener)
+      } else {
+        console.warn('SharedInfrastructureModule: chrome.runtime.onMessage not available')
+        this.extensionContextValid = false
+      }
+    } catch (error) {
+      console.error('SharedInfrastructureModule: Failed to set up message listener:', error)
+      this.extensionContextValid = false
     }
-    chrome.runtime.onMessage.addListener(messageListener)
-    this.chromeListeners.set('runtimeMessage', messageListener)
 
     // Listen for extension state changes
     const stateChangeListener = async (event: any) => {
@@ -616,25 +681,97 @@ export class SharedInfrastructureModule {
   }
 
   /**
+   * Start periodic context recovery checks
+   */
+  private startPeriodicRecoveryCheck(): void {
+    // Only start if we don't already have a timer
+    if (this.recoveryTimer) return
+
+    // Check every 30 seconds for context recovery opportunities
+    this.recoveryTimer = window.setInterval(() => {
+      if (this.isDestroying) {
+        this.stopPeriodicRecoveryCheck()
+        return
+      }
+
+      // Only try recovery if context is invalid and we haven't exceeded max attempts
+      if (!this.extensionContextValid && this.recoveryAttempts < this.maxRecoveryAttempts) {
+        const backupData = this.localStorageBackup.retrieve()
+        if (backupData.length > 0) {
+          console.log(`SharedInfrastructureModule: Attempting periodic recovery (${this.recoveryAttempts + 1}/${this.maxRecoveryAttempts})`)
+          this.recoveryAttempts++
+
+          this.attemptContextRecovery().catch(() => {
+            // Recovery failed, but timer will try again
+          })
+        }
+      }
+    }, 30000) // Check every 30 seconds
+  }
+
+  /**
+   * Stop periodic context recovery checks
+   */
+  private stopPeriodicRecoveryCheck(): void {
+    if (this.recoveryTimer) {
+      window.clearInterval(this.recoveryTimer)
+      this.recoveryTimer = null
+    }
+  }
+
+  /**
    * Attempt to recover extension context
    */
   private async attemptContextRecovery(): Promise<void> {
     console.log('SharedInfrastructureModule: Attempting extension context recovery...')
 
     try {
-      // Wait a bit for potential extension reload
+      // Strategy 1: Wait and retry - extension might be reloading
       await new Promise(resolve => setTimeout(resolve, 1000))
 
-      // Check if chrome runtime is available again
+      // Strategy 2: Test chrome runtime availability
       if (chrome?.runtime?.id) {
-        this.extensionContextValid = true
-        console.log('SharedInfrastructureModule: Extension context recovered successfully')
+        console.log('SharedInfrastructureModule: Chrome runtime detected, testing connection...')
 
-        // Try to process any queued data
-        await this.processQueuedData()
-      } else {
-        console.warn('SharedInfrastructureModule: Extension context recovery failed')
+        // Strategy 3: Test actual communication with background script
+        try {
+          const response = await chrome.runtime.sendMessage({ action: 'ping' })
+          if (response?.success) {
+            this.extensionContextValid = true
+            this.recoveryAttempts = 0 // Reset counter on successful recovery
+            console.log('SharedInfrastructureModule: Extension context recovered successfully!')
+
+            // Process any backup data
+            await this.processQueuedData()
+            return
+          }
+        } catch (error) {
+          console.warn('SharedInfrastructureModule: Background script ping failed:', error)
+        }
       }
+
+      // Strategy 4: Try longer wait for extension reload
+      console.log('SharedInfrastructureModule: Initial recovery failed, waiting longer...')
+      await new Promise(resolve => setTimeout(resolve, 3000))
+
+      if (chrome?.runtime?.id) {
+        try {
+          const response = await chrome.runtime.sendMessage({ action: 'ping' })
+          if (response?.success) {
+            this.extensionContextValid = true
+            this.recoveryAttempts = 0 // Reset counter on successful recovery
+            console.log('SharedInfrastructureModule: Extension context recovered after longer wait!')
+            await this.processQueuedData()
+            return
+          }
+        } catch (error) {
+          console.warn('SharedInfrastructureModule: Second recovery attempt failed:', error)
+        }
+      }
+
+      console.error('SharedInfrastructureModule: Extension context recovery failed')
+      this.extensionContextValid = false
+
     } catch (error) {
       console.error('SharedInfrastructureModule: Context recovery error:', error)
       this.extensionContextValid = false
@@ -645,10 +782,20 @@ export class SharedInfrastructureModule {
    * Queue data for later when extension context is invalid
    */
   private queueDataForLater(action: string, data: any): void {
-    // For simplicity, just log that data would be lost
-    // In a production system, you might want to implement local storage backup
-    console.warn(`SharedInfrastructureModule: Dropping ${action} data due to invalid extension context (${typeof data})`)
-    console.warn('SharedInfrastructureModule: Consider implementing local storage backup for reliability')
+    console.warn(`SharedInfrastructureModule: Extension context invalid, backing up ${action} data`)
+
+    // Store data in localStorage as backup
+    this.localStorageBackup.store({
+      action: action,
+      data: data,
+      url: window.location.href,
+      userAgent: navigator.userAgent
+    })
+
+    // Also try context recovery in case it's just a temporary issue
+    this.attemptContextRecovery().catch(() => {
+      console.warn('SharedInfrastructureModule: Context recovery failed, data remains in backup')
+    })
   }
 
   /**
@@ -663,6 +810,35 @@ export class SharedInfrastructureModule {
       } catch (error) {
         console.error('SharedInfrastructureModule: Failed to flush pending data after recovery:', error)
       }
+    }
+
+    // ADDED: Process localStorage backup data
+    try {
+      const backupData = this.localStorageBackup.retrieve()
+      if (backupData.length > 0) {
+        console.log(`SharedInfrastructureModule: Found ${backupData.length} items in localStorage backup, attempting to send...`)
+
+        let successCount = 0
+        for (const item of backupData) {
+          try {
+            const response = await this.sendToBackground(item.data.action || 'storeNetworkRequest', item.data.data || item.data)
+            if (response?.success) {
+              successCount++
+            }
+          } catch (error) {
+            console.warn('SharedInfrastructureModule: Failed to send backup item:', error)
+          }
+        }
+
+        if (successCount > 0) {
+          console.log(`SharedInfrastructureModule: Successfully sent ${successCount}/${backupData.length} backup items`)
+          this.localStorageBackup.clear()
+        } else {
+          console.warn('SharedInfrastructureModule: No backup items could be sent, keeping in storage')
+        }
+      }
+    } catch (error) {
+      console.error('SharedInfrastructureModule: Error processing localStorage backup:', error)
     }
   }
 
@@ -687,17 +863,34 @@ export class SharedInfrastructureModule {
    * Get current statistics
    */
   public getStatistics(): any {
+    const backupCount = this.localStorageBackup.retrieve().length
+
     return {
       initialized: this.isInitialized,
+      destroying: this.isDestroying,
+      extensionContext: {
+        valid: this.extensionContextValid,
+        recoveryAttempts: this.recoveryAttempts,
+        maxRecoveryAttempts: this.maxRecoveryAttempts
+      },
       pendingData: {
         networkRequests: this.pendingData.networkRequests.length,
-        consoleEvents: this.pendingData.consoleEvents.length
+        consoleEvents: this.pendingData.consoleEvents.length,
+        timestamp: this.pendingData.timestamp
+      },
+      localStorageBackup: {
+        count: backupCount,
+        key: this.localStorageBackup.key
       },
       modules: {
         network: !!this.networkModule,
         console: !!this.consoleModule
       },
-      config: this.config
+      config: this.config,
+      communication: {
+        flushInProgress: this.isFlushInProgress,
+        flushQueueLength: this.flushQueue.length
+      }
     }
   }
 
@@ -718,6 +911,7 @@ export class SharedInfrastructureModule {
     try {
       // Clear all timers
       this.clearFlushTimers()
+      this.stopPeriodicRecoveryCheck()
 
       // Flush any remaining data with error handling
       // Use Promise to avoid blocking destroy

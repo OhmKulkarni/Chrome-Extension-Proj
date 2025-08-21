@@ -49,9 +49,17 @@ async function initializeModularArchitecture(): Promise<void> {
   console.log('🚀 Initializing modular architecture with edge case detection...')
 
   try {
-    // Check extension context validity
+    // ENHANCED: Check extension context validity more thoroughly
     if (!chrome?.runtime?.id) {
       console.error('❌ Extension context invalid - cannot initialize modules')
+      return
+    }
+
+    // ADDED: Test extension context with a simple operation
+    try {
+      await chrome.runtime.sendMessage({ action: 'ping' })
+    } catch (error) {
+      console.error('❌ Extension context test failed - background script unreachable:', error)
       return
     }
 
@@ -184,7 +192,7 @@ function setupPageVisibilityOptimization(): void {
 }
 
 /**
- * Cleanup on page unload
+ * Setup cleanup and error handling
  */
 function setupCleanup(): void {
   window.addEventListener('beforeunload', () => {
@@ -195,10 +203,28 @@ function setupCleanup(): void {
     }
   })
 
-  // Also handle extension context invalidation
-  chrome.runtime.onConnect.addListener(() => {
-    // Connection test to detect context invalidation
+  // ADDED: Global error handler for extension context errors
+  window.addEventListener('error', (event) => {
+    if (event.error?.message?.includes('Extension context invalidated')) {
+      console.warn('🔄 Extension context invalidated, attempting cleanup and recovery...')
+      if (sharedInfrastructure) {
+        sharedInfrastructure.destroy()
+        sharedInfrastructure = null
+      }
+      // Could attempt reinitialization here if needed
+    }
   })
+
+  // Also handle extension context invalidation - FIXED: Add context validation
+  try {
+    if (chrome?.runtime?.onConnect) {
+      chrome.runtime.onConnect.addListener(() => {
+        // Connection test to detect context invalidation
+      })
+    }
+  } catch (error) {
+    console.warn('Failed to set up extension context monitoring:', error)
+  }
 }
 
 /**

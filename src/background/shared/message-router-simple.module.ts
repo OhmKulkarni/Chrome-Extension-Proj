@@ -94,6 +94,26 @@ export class MessageRouterModule {
     this.messageCount++;
 
     try {
+      // Handle ping requests immediately (for background readiness check)
+      if (message.action === 'ping') {
+        const isReady = (globalThis as any).isBackgroundReady?.() ?? true;
+        sendResponse({ success: isReady, initializing: !isReady });
+        return;
+      }
+
+      // Handle getTabInfo requests with fallback during initialization
+      if (message.action === 'getTabInfo') {
+        const isReady = (globalThis as any).isBackgroundReady?.() ?? true;
+        if (!isReady) {
+          sendResponse({
+            title: 'Extension Loading...',
+            url: 'Background script initializing...',
+            loading: true
+          });
+          return;
+        }
+      }
+
       if (!message?.action && !message?.type) {
         sendResponse({ success: false, error: 'Missing action' });
         return;
@@ -327,24 +347,29 @@ export class MessageRouterModule {
               const tabs = await chrome.tabs.query({});
               const networkConfig = this.extractNetworkConfig(message.settings);
 
-              // Send updated configuration to all tabs
+              // Send updated configuration to all tabs with better error handling
               const configUpdatePromises = tabs.map(async (tab) => {
                 if (tab.id) {
                   try {
-                    await chrome.tabs.sendMessage(tab.id, {
+                    const result = await this.chromeApi.sendMessageToTab(tab.id, {
                       action: 'updateConfig',
                       config: {
                         network: networkConfig
                       }
                     });
+                    // Only log successful deliveries
+                    if (result !== null) {
+                      console.debug(`📡 Config sent to tab ${tab.id}: ${tab.url?.substring(0, 50)}`);
+                    }
                   } catch (error) {
-                    // Ignore errors for tabs without content scripts
+                    // Ignore connection errors - content scripts may not be loaded
+                    console.debug(`📡 Skipping tab ${tab.id} (no content script): ${tab.url?.substring(0, 50)}`);
                   }
                 }
               });
 
               await Promise.allSettled(configUpdatePromises);
-              console.log('📡 MessageRouter: Configuration updates sent to all content scripts');
+              console.log('📡 MessageRouter: Configuration updates sent to available content scripts');
             } catch (error) {
               console.warn('📡 MessageRouter: Error broadcasting config updates:', error);
             }
@@ -580,8 +605,33 @@ export class MessageRouterModule {
           break;
 
         case 'getTabInfo':
-          const tabs = await this.chromeApi.queryTabs({});
-          sendResponse({ success: true, tabs });
+          try {
+            // Get active tab info (what popup expects)
+            const tabs = await this.chromeApi.queryTabs({ active: true, currentWindow: true });
+            if (tabs.length > 0) {
+              const activeTab = tabs[0];
+              sendResponse({
+                success: true,
+                title: activeTab.title || 'Unknown',
+                url: activeTab.url || 'Unknown',
+                id: activeTab.id
+              });
+            } else {
+              sendResponse({
+                success: true,
+                title: 'No Active Tab',
+                url: 'Unable to get tab info'
+              });
+            }
+          } catch (error) {
+            console.error('Error getting tab info:', error);
+            sendResponse({
+              success: false,
+              title: 'Error',
+              url: 'Failed to get tab info',
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
+          }
           break;
 
         // System Operations

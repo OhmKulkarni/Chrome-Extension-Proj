@@ -21,7 +21,7 @@ function createDelayPromise(ms: number): Promise<void> {
 // Use the external function
 const delay = createDelayPromise
 
-// MEMORY LEAK FIX: Centralized Chrome message handler to prevent response accumulation
+// MEMORY LEAK FIX: Centralized Chrome message handler with enhanced background script detection
 const sendChromeMessage = async (message: any): Promise<any> => {
   try {
     const response = await chrome.runtime.sendMessage(message)
@@ -31,14 +31,35 @@ const sendChromeMessage = async (message: any): Promise<any> => {
   } catch (error) {
     if (error instanceof Error && error.message.includes('Could not establish connection')) {
       console.warn('Background script not ready yet, retrying...', error.message)
-      // Retry once after a short delay
+
+      // Try to ping the background script first
+      try {
+        const pingResponse = await chrome.runtime.sendMessage({ action: 'ping' })
+        if (pingResponse && pingResponse.initializing) {
+          console.log('Background script is initializing, waiting...')
+          // Wait a bit longer for initialization
+          await delay(1000)
+          try {
+            const retryResponse = await chrome.runtime.sendMessage(message)
+            return retryResponse ? { ...retryResponse } : null
+          } catch (finalError) {
+            console.error('Chrome message failed after initialization wait:', finalError)
+            return { error: 'Background script still initializing' }
+          }
+        }
+      } catch (pingError) {
+        // Ping failed, background script might be completely unavailable
+        console.error('Background script ping failed:', pingError)
+      }
+
+      // Original retry logic as fallback
       await delay(100)
       try {
         const response = await chrome.runtime.sendMessage(message)
         return response ? { ...response } : null
       } catch (retryError) {
         console.error('Chrome message failed after retry:', retryError)
-        return null
+        return { error: 'Could not establish connection with background script' }
       }
     } else {
       console.error('Chrome message failed:', error)
@@ -47,13 +68,16 @@ const sendChromeMessage = async (message: any): Promise<any> => {
   }
 }
 
-// MEMORY LEAK FIX: Pre-allocated Chrome message functions with Promise constructor elimination
+// MEMORY LEAK FIX: Pre-allocated Chrome message functions with enhanced initialization detection
 const getChromeTabInfo = async (): Promise<any> => {
   try {
     const response = await chrome.runtime.sendMessage({ action: 'getTabInfo' })
     if (response && !response.error) {
       console.log('Tab info received:', response)
       return response
+    } else if (response && response.loading) {
+      console.log('Background script still loading:', response)
+      return response // Return the loading state
     } else {
       console.warn('Invalid response for tab info:', response)
       return { title: 'Unknown', url: 'Unknown' }
@@ -61,6 +85,16 @@ const getChromeTabInfo = async (): Promise<any> => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     console.warn('Error getting tab info (background script may not be ready):', errorMessage)
+
+    // Check if it's a connection error and provide better feedback
+    if (errorMessage.includes('Could not establish connection')) {
+      return {
+        title: 'Extension Loading...',
+        url: 'Background script starting up...',
+        loading: true
+      }
+    }
+
     return { title: 'Loading...', url: 'Extension starting up...' }
   }
 }
@@ -342,9 +376,22 @@ const Popup: React.FC = () => {
 
     chrome.storage.onChanged.addListener(handleStorageChanges);
 
+    // Listen for background ready signal
+    const handleBackgroundReady = (message: any) => {
+      if (message.action === 'BACKGROUND_READY') {
+        console.log('Background script is now ready, refreshing popup state...');
+        // Refresh all states when background becomes ready
+        loadExtensionState();
+        loadTabStates();
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(handleBackgroundReady);
+
     // Cleanup listener on unmount
     return () => {
       chrome.storage.onChanged.removeListener(handleStorageChanges);
+      chrome.runtime.onMessage.removeListener(handleBackgroundReady);
     };
   }, []);
 

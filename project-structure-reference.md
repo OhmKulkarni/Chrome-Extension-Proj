@@ -8,7 +8,7 @@
 ## 🚨 Current Development Status (August 21, 2025)
 **Network Issues Still Outstanding:**
 - ❌ Network request bodies not getting captured (despite implementation fixes)
-- ❌ Request/response sizes not displaying in dashboard  
+- ❌ Request/response sizes not displaying in dashboard
 - ❌ Response time measurements not accurate
 
 **Recent Fixes Attempted:**
@@ -26,7 +26,7 @@
 ### Files Modified for Network Request Fixes
 1. **src/content/modules/network-interceptor.module.ts**
    - Added requestSize and responseSize field calculations using Blob API
-   - Enhanced XMLHttpRequest and Fetch API interception 
+   - Enhanced XMLHttpRequest and Fetch API interception
    - Implemented high-precision timing with performance.now()
    - Changed default configuration: captureBody: true (was false)
 
@@ -36,7 +36,7 @@
    - Enhanced response time display to prioritize duration field
    - Added backward compatibility for old field names
 
-3. **src/background/modules/network-processor.module.ts**  
+3. **src/background/modules/network-processor.module.ts**
    - Updated field mapping to handle new size fields (requestSize, responseSize)
    - Enhanced duration field handling from network interceptor
    - Added support for both old and new field names in data processing
@@ -49,7 +49,7 @@
    - Updated getNetworkRequests mapping to include new size and duration fields
    - Added proper fallback logic for old vs new field names
 
-6. **src/settings/settings.tsx**  
+6. **src/settings/settings.tsx**
    - Changed default settings: captureRequests: true, captureResponses: true
    - Previously defaulted to false, preventing any network capture
 
