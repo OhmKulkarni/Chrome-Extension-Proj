@@ -11,6 +11,8 @@ interface NetworkRequest {
   headers?: any;
   request_headers?: any;
   response_headers?: any;
+  requestBody?: string;
+  responseBody?: string;
   response_time?: number;
   time_taken?: number;
   duration?: number;

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Body Capture Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            background: #f9f9f9;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+        button {
+            background: #4CAF50;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .results {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Network Body Capture Test</h1>
+    <p>This page tests if request/response bodies are being captured by the extension's network interceptor.</p>
+
+    <div class="test-section">
+        <h2>📤 POST Request with Body Test</h2>
+        <p>Tests capturing of request body data</p>
+        <button onclick="testPostRequest()">Send POST Request</button>
+        <div id="post-results" class="results" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📥 GET Request with Response Body</h2>
+        <p>Tests capturing of response body data</p>
+        <button onclick="testGetRequest()">Send GET Request</button>
+        <div id="get-results" class="results" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔄 Large JSON Request/Response</h2>
+        <p>Tests body capture with larger payloads</p>
+        <button onclick="testLargeRequest()">Send Large Request</button>
+        <div id="large-results" class="results" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Instructions</h2>
+        <p>After running the tests:</p>
+        <ol>
+            <li>Open the Chrome Extension Dashboard</li>
+            <li>Go to the Network Requests table</li>
+            <li>Double-click on any of the test requests</li>
+            <li>Click the "Body" tab in the detail viewer</li>
+            <li>You should see both request and response body content</li>
+        </ol>
+        <p><strong>Expected Results:</strong></p>
+        <ul>
+            <li>POST requests should show the JSON request body</li>
+            <li>All requests should show the JSON response body</li>
+            <li>Bodies should be properly formatted and copyable</li>
+        </ul>
+    </div>
+
+    <script>
+        const API_BASE = 'https://jsonplaceholder.typicode.com';
+
+        async function testPostRequest() {
+            console.log('📤 Testing POST request with body...');
+            const results = document.getElementById('post-results');
+            results.style.display = 'block';
+            results.textContent = 'Sending POST request with JSON body...\n';
+
+            const requestData = {
+                title: 'Test Post for Body Capture',
+                body: 'This is a test post to verify that request bodies are being captured by the network interceptor module.',
+                userId: 123,
+                metadata: {
+                    testType: 'body-capture',
+                    timestamp: new Date().toISOString(),
+                    features: ['request-body', 'response-body']
+                }
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/posts`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Test-Header': 'body-capture-test'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                const responseData = await response.json();
+
+                results.textContent += `✅ POST Request completed successfully!\n`;
+                results.textContent += `Status: ${response.status}\n`;
+                results.textContent += `Response ID: ${responseData.id}\n`;
+                results.textContent += `\nRequest Body Size: ~${JSON.stringify(requestData).length} characters\n`;
+                results.textContent += `Response Body Size: ~${JSON.stringify(responseData).length} characters\n`;
+                results.textContent += `\n🔍 Check the extension dashboard to see captured bodies!`;
+
+            } catch (error) {
+                results.textContent += `❌ Error: ${error.message}\n`;
+            }
+        }
+
+        async function testGetRequest() {
+            console.log('📥 Testing GET request for response body...');
+            const results = document.getElementById('get-results');
+            results.style.display = 'block';
+            results.textContent = 'Sending GET request to capture response body...\n';
+
+            try {
+                const response = await fetch(`${API_BASE}/posts/1`, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Test-Header': 'response-body-test'
+                    }
+                });
+
+                const responseData = await response.json();
+
+                results.textContent += `✅ GET Request completed successfully!\n`;
+                results.textContent += `Status: ${response.status}\n`;
+                results.textContent += `Post Title: "${responseData.title}"\n`;
+                results.textContent += `Response Body Size: ~${JSON.stringify(responseData).length} characters\n`;
+                results.textContent += `\n🔍 Check the extension dashboard to see the response body!`;
+
+            } catch (error) {
+                results.textContent += `❌ Error: ${error.message}\n`;
+            }
+        }
+
+        async function testLargeRequest() {
+            console.log('🔄 Testing large request/response...');
+            const results = document.getElementById('large-results');
+            results.style.display = 'block';
+            results.textContent = 'Sending large request to test body truncation...\n';
+
+            // Create a large request body
+            const largeRequestData = {
+                title: 'Large Test Post',
+                body: 'This is a large test post. '.repeat(100), // Repeat 100 times
+                userId: 456,
+                metadata: {
+                    testType: 'large-body-capture',
+                    timestamp: new Date().toISOString(),
+                    features: ['large-request-body', 'large-response-body'],
+                    data: Array.from({length: 50}, (_, i) => ({
+                        id: i,
+                        name: `test-item-${i}`,
+                        description: `This is test item number ${i} for testing large payloads`,
+                        tags: [`tag-${i}`, `category-${i % 5}`, 'test-data']
+                    }))
+                }
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/posts`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Test-Header': 'large-body-test'
+                    },
+                    body: JSON.stringify(largeRequestData)
+                });
+
+                const responseData = await response.json();
+
+                results.textContent += `✅ Large Request completed successfully!\n`;
+                results.textContent += `Status: ${response.status}\n`;
+                results.textContent += `Request Body Size: ~${Math.round(JSON.stringify(largeRequestData).length / 1024)}KB\n`;
+                results.textContent += `Response Body Size: ~${JSON.stringify(responseData).length} characters\n`;
+                results.textContent += `\n📏 This tests the body truncation at the maxBodySize limit (default 2048 chars)\n`;
+                results.textContent += `🔍 Check the extension dashboard to see truncated bodies!`;
+
+            } catch (error) {
+                results.textContent += `❌ Error: ${error.message}\n`;
+            }
+        }
+
+        // Log when page loads
+        window.addEventListener('load', () => {
+            console.log('🔍 Body capture test page loaded');
+            console.log('Extension should now be intercepting network requests');
+        });
+    </script>
+</body>
+</html>

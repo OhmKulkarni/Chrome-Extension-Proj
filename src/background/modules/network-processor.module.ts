@@ -254,9 +254,16 @@ export class NetworkProcessorModule {
         status: apiCall.status,
         headers: typeof apiCall.headers === 'string' ? JSON.parse(apiCall.headers || '{}') : apiCall.headers,
         body: apiCall.request_body || '',
+        responseBody: apiCall.response_body || '',
+        // Also include frontend-expected field names
+        request_body: apiCall.request_body || '',
+        response_body: apiCall.response_body || '',
+        requestBody: apiCall.request_body || '',
         timestamp: new Date(apiCall.timestamp).toISOString(),
         source_url: apiCall.tab_url || apiCall.url,
-        tabId: apiCall.tab_id
+        tabId: apiCall.tab_id,
+        duration: apiCall.response_time,
+        response_time: apiCall.response_time
       }));
     });
   }

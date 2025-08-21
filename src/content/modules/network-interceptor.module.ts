@@ -79,6 +79,12 @@ export class NetworkInterceptorModule {
     }
 
     console.log('NetworkInterceptorModule: Initializing network interception...')
+    console.log('NetworkInterceptorModule: Config:', {
+      enabled: this.config.enabled,
+      captureHeaders: this.config.captureHeaders,
+      captureBody: this.config.captureBody,
+      maxBodySize: this.config.maxBodySize
+    })
 
     try {
       // Set up XMLHttpRequest interception
@@ -275,6 +281,16 @@ export class NetworkInterceptorModule {
             responseSize
           }
 
+          console.log('🌐 NetworkInterceptor: Created XHR request:', {
+            url: networkRequest.url,
+            method: networkRequest.method,
+            status: networkRequest.status,
+            hasRequestBody: !!networkRequest.requestBody,
+            hasResponseBody: !!networkRequest.responseBody,
+            requestBodySize: networkRequest.requestBody?.length,
+            responseBodySize: networkRequest.responseBody?.length
+          })
+
           // Notify listeners
           if (!moduleInstance.shouldFilter(networkRequest)) {
             moduleInstance.notifyListeners(networkRequest)
@@ -379,7 +395,9 @@ export class NetworkInterceptorModule {
             const text = await responseClone.text()
             responseBody = text.length <= module.config.maxBodySize ? text : text.substring(0, module.config.maxBodySize)
             responseSize = new Blob([text]).size
+            console.log('🌐 NetworkInterceptor: Captured response body:', text.length, 'chars, truncated to:', responseBody.length)
           } catch (error) {
+            console.warn('🌐 NetworkInterceptor: Failed to capture response body:', error)
             // If reading response body fails, try to get content-length header
             const contentLength = response.headers.get('content-length')
             if (contentLength) {
@@ -409,6 +427,16 @@ export class NetworkInterceptorModule {
           requestSize,
           responseSize
         }
+
+        console.log('🌐 NetworkInterceptor: Created fetch request:', {
+          url: networkRequest.url,
+          method: networkRequest.method,
+          status: networkRequest.status,
+          hasRequestBody: !!networkRequest.requestBody,
+          hasResponseBody: !!networkRequest.responseBody,
+          requestBodySize: networkRequest.requestBody?.length,
+          responseBodySize: networkRequest.responseBody?.length
+        })
 
         // Notify listeners
         if (!module.shouldFilter(networkRequest)) {
