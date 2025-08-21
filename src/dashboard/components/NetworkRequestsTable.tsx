@@ -5,12 +5,15 @@ interface NetworkRequest {
   url: string;
   status: number;
   payload_size?: number;
+  requestSize?: number;
+  responseSize?: number;
   timestamp: string;
   headers?: any;
   request_headers?: any;
   response_headers?: any;
   response_time?: number;
   time_taken?: number;
+  duration?: number;
 }
 
 interface NetworkRequestsTableProps {
@@ -58,7 +61,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
     try {
       let requestHeaders: any = {};
       let responseHeaders: any = {};
-      
+
       // Use same robust header parsing logic as detail view
       if (request.headers) {
         const headerData = typeof request.headers === 'string' ? JSON.parse(request.headers) : request.headers;
@@ -74,27 +77,27 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
           responseHeaders = typeof request.response_headers === 'string' ? JSON.parse(request.response_headers) : request.response_headers;
         }
       }
-      
+
       // Combine both request and response headers for preview
       const allHeaders: any = { ...requestHeaders, ...responseHeaders };
-      
+
       // Priority headers to show in preview
       const priorityHeaders = ['content-type', 'authorization', 'accept', 'user-agent', 'x-api-key'];
-      
+
       for (const priority of priorityHeaders) {
         if (allHeaders[priority]) {
           const value = String(allHeaders[priority]);
           return `${priority}: ${value.substring(0, 30)}${value.length > 30 ? '...' : ''}`;
         }
       }
-      
+
       // If no priority headers, show first available header
       const firstHeader = Object.entries(allHeaders)[0];
       if (firstHeader) {
         const value = String(firstHeader[1]);
         return `${firstHeader[0]}: ${value.substring(0, 30)}${value.length > 30 ? '...' : ''}`;
       }
-      
+
       return 'No headers';
     } catch (e) {
       console.error('Error parsing headers for preview:', e);
@@ -105,7 +108,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
   const generatePageNumbers = () => {
     const pageNumbers: (number | string)[] = [];
     const maxVisiblePages = 7;
-    
+
     if (totalPages <= maxVisiblePages) {
       // Show all pages if total is small
       for (let i = 1; i <= totalPages; i++) {
@@ -140,7 +143,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
         pageNumbers.push(totalPages);
       }
     }
-    
+
     return pageNumbers;
   };
 
@@ -186,7 +189,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
             />
           </div>
         </div>
-        
+
         {/* Method Filter */}
         <div className="flex items-center space-x-3">
           <label className="text-sm font-medium text-gray-700">Method:</label>
@@ -204,7 +207,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
             <option value="OPTIONS">OPTIONS</option>
           </select>
         </div>
-        
+
         {/* Clear Filters */}
         {(searchTerm || filterMethod !== 'all') && (
           <button
@@ -215,7 +218,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
           </button>
         )}
       </div>
-      
+
       {/* Table */}
       {requests.length > 0 ? (
         <div className="overflow-hidden">
@@ -223,7 +226,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
             <table className="w-full table-fixed divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th 
+                  <th
                     className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-20"
                     onClick={() => onSort('method')}
                   >
@@ -236,7 +239,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                       )}
                     </div>
                   </th>
-                  <th 
+                  <th
                     className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-1/3"
                     onClick={() => onSort('url')}
                   >
@@ -249,7 +252,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                       )}
                     </div>
                   </th>
-                  <th 
+                  <th
                     className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-16"
                     onClick={() => onSort('status')}
                   >
@@ -262,20 +265,20 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                       )}
                     </div>
                   </th>
-                  <th 
+                  <th
                     className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-16"
-                    onClick={() => onSort('payload_size')}
+                    onClick={() => onSort('requestSize')}
                   >
                     <div className="flex items-center">
                       Size
-                      {sortConfig.key === 'payload_size' && (
+                      {(sortConfig.key === 'requestSize' || sortConfig.key === 'payload_size') && (
                         <span className="ml-1">
                           {sortConfig.direction === 'asc' ? '↑' : '↓'}
                         </span>
                       )}
                     </div>
                   </th>
-                  <th 
+                  <th
                     className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-20"
                     onClick={() => onSort('timestamp')}
                   >
@@ -291,13 +294,13 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
                     Headers Preview
                   </th>
-                  <th 
+                  <th
                     className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-20"
-                    onClick={() => onSort('response_time')}
+                    onClick={() => onSort('duration')}
                   >
                     <div className="flex items-center">
                       Response Time
-                      {sortConfig.key === 'response_time' && (
+                      {(sortConfig.key === 'duration' || sortConfig.key === 'response_time') && (
                         <span className="ml-1">
                           {sortConfig.direction === 'asc' ? '↑' : '↓'}
                         </span>
@@ -308,9 +311,9 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {requests.map((request, index) => (
-                  <tr 
-                    key={index} 
-                    className="hover:bg-gray-50 cursor-pointer" 
+                  <tr
+                    key={index}
+                    className="hover:bg-gray-50 cursor-pointer"
                     onDoubleClick={() => onDetailClick(request)}
                     title="Double-click to view detailed information"
                   >
@@ -341,7 +344,12 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                       </span>
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-16">
-                      {request.payload_size ? `${Math.round(request.payload_size / 1024)}KB` : '-'}
+                      {(() => {
+                        const totalSize = (request.requestSize || 0) + (request.responseSize || 0);
+                        const fallbackSize = request.payload_size || 0;
+                        const sizeToShow = totalSize > 0 ? totalSize : fallbackSize;
+                        return sizeToShow > 0 ? `${Math.round(sizeToShow / 1024)}KB` : '-';
+                      })()}
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-20">
                       {new Date(request.timestamp).toLocaleTimeString()}
@@ -352,7 +360,8 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                       </div>
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-20">
-                      {request.response_time ? `${request.response_time}ms` : 
+                      {request.duration ? `${request.duration}ms` :
+                       request.response_time ? `${request.response_time}ms` :
                        request.time_taken ? `${request.time_taken}ms` : 'N/A'}
                     </td>
                   </tr>
@@ -360,7 +369,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
               </tbody>
             </table>
           </div>
-          
+
           {/* Pagination Controls */}
           {totalPages > 1 && (
             <div className="mt-6 flex items-center justify-between">
@@ -429,7 +438,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
           </svg>
           <h3 className="mt-2 text-sm font-medium text-gray-900">No requests found</h3>
           <p className="mt-1 text-sm text-gray-500">
-            {searchTerm || filterMethod !== 'all' 
+            {searchTerm || filterMethod !== 'all'
               ? 'Try adjusting your search criteria or filters'
               : 'Network requests will appear here when they are captured'
             }

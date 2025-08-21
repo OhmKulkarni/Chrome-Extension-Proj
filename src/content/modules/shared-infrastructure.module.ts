@@ -75,12 +75,15 @@ export class SharedInfrastructureModule {
   private isFlushInProgress = false
   private flushQueue: Array<() => void> = []
 
+  // ADDED: Configuration update tracking
+  private configUpdateInProgress = false
+
   constructor(config: Partial<SharedInfrastructureConfig> = {}) {
     const networkDefaults = {
-      enabled: true,
+      enabled: true, // CHANGED: Enable by default to capture network requests
       captureHeaders: true,
-      captureBody: false,
-      maxBodySize: 1024,
+      captureBody: true, // CHANGED: Enable body capture by default
+      maxBodySize: 2048, // CHANGED: Increased default size to 2KB
       urlFilters: undefined,
       methodFilters: undefined
     }
@@ -538,8 +541,13 @@ export class SharedInfrastructureModule {
         break
 
       case 'updateConfig':
-        this.updateConfig(message.config)
-        sendResponse({ success: true })
+        // Use the async updateConfiguration method for proper module reconfiguration
+        this.updateConfiguration(message.config).then(() => {
+          sendResponse({ success: true })
+        }).catch(error => {
+          console.error('SharedInfrastructureModule: Failed to update configuration:', error)
+          sendResponse({ success: false, error: error.message })
+        })
         break
 
       case 'loggingStateChanged':
@@ -1045,6 +1053,114 @@ export class SharedInfrastructureModule {
       }
     } catch (error) {
       console.error('SharedInfrastructureModule: Error handling main-world message:', error)
+    }
+  }
+
+  /**
+   * Update configuration dynamically - handles settings changes
+   */
+  async updateConfiguration(newConfig: Partial<SharedInfrastructureConfig>): Promise<void> {
+    if (this.configUpdateInProgress) {
+      console.warn('SharedInfrastructureModule: Configuration update already in progress')
+      return
+    }
+
+    this.configUpdateInProgress = true
+
+    try {
+      console.log('📝 SharedInfrastructureModule: Updating configuration...', newConfig)
+
+      // Deep merge the new configuration
+      const updatedConfig = {
+        network: { ...this.config.network, ...newConfig.network },
+        console: { ...this.config.console, ...newConfig.console },
+        communication: { ...this.config.communication, ...newConfig.communication }
+      }
+
+      // Store the old config for potential rollback (future use)
+      // const oldConfig = this.config
+      this.config = updatedConfig
+
+      // Update network module if configuration changed
+      if (newConfig.network && this.networkModule) {
+        console.log('🌐 Updating network interceptor configuration...')
+
+        // Destroy old module
+        this.networkModule.destroy()
+
+        // Create new module with updated config (ensure maxBodySize is set)
+        const networkConfig = {
+          ...this.config.network,
+          maxBodySize: this.config.network.maxBodySize || 2048
+        }
+        this.networkModule = new NetworkInterceptorModule(networkConfig)
+        this.networkModule.addListener(this.handleNetworkRequest.bind(this))
+        await this.networkModule.initialize()
+
+        console.log('✅ Network interceptor reconfigured')
+      } else if (newConfig.network?.enabled && !this.networkModule) {
+        // Enable network module if it wasn't enabled before
+        console.log('🌐 Enabling network interceptor...')
+
+        const networkConfig = {
+          ...this.config.network,
+          maxBodySize: this.config.network.maxBodySize || 2048
+        }
+        this.networkModule = new NetworkInterceptorModule(networkConfig)
+        this.networkModule.addListener(this.handleNetworkRequest.bind(this))
+        await this.networkModule.initialize()
+
+        console.log('✅ Network interceptor enabled')
+      } else if (newConfig.network?.enabled === false && this.networkModule) {
+        // Disable network module
+        console.log('🌐 Disabling network interceptor...')
+
+        this.networkModule.destroy()
+        this.networkModule = undefined
+
+        console.log('✅ Network interceptor disabled')
+      }
+
+      // Update console module if configuration changed
+      if (newConfig.console && this.consoleModule) {
+        console.log('🔍 Updating console interceptor configuration...')
+
+        // Destroy old module
+        this.consoleModule.destroy()
+
+        // Create new module with updated config
+        this.consoleModule = new ConsoleInterceptorModule(this.config.console)
+        this.consoleModule.addListener(this.handleConsoleEvent.bind(this))
+        await this.consoleModule.initialize()
+
+        console.log('✅ Console interceptor reconfigured')
+      } else if (newConfig.console?.enabled && !this.consoleModule) {
+        // Enable console module if it wasn't enabled before
+        console.log('🔍 Enabling console interceptor...')
+
+        this.consoleModule = new ConsoleInterceptorModule(this.config.console)
+        this.consoleModule.addListener(this.handleConsoleEvent.bind(this))
+        await this.consoleModule.initialize()
+
+        console.log('✅ Console interceptor enabled')
+      } else if (newConfig.console?.enabled === false && this.consoleModule) {
+        // Disable console module
+        console.log('🔍 Disabling console interceptor...')
+
+        this.consoleModule.destroy()
+        this.consoleModule = undefined
+
+        console.log('✅ Console interceptor disabled')
+      }
+
+      console.log('✅ SharedInfrastructureModule: Configuration updated successfully')
+
+    } catch (error) {
+      console.error('❌ SharedInfrastructureModule: Configuration update failed:', error)
+      // Could implement rollback logic here if needed
+      throw error
+    } finally {
+      this.configUpdateInProgress = false
     }
   }
 

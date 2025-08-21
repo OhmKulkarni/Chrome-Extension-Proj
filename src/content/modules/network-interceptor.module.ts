@@ -15,6 +15,8 @@ export interface NetworkRequest {
   responseHeaders?: Record<string, string>
   requestBody?: string
   responseBody?: string
+  requestSize?: number // ADDED: Accurate request size in bytes
+  responseSize?: number // ADDED: Accurate response size in bytes
   tabId?: number
   frameId?: number
 }
@@ -48,8 +50,8 @@ export class NetworkInterceptorModule {
     const defaults: NetworkInterceptorConfig = {
       enabled: true,
       captureHeaders: true,
-      captureBody: false,
-      maxBodySize: 1024 * 1024, // 1MB
+      captureBody: true, // CHANGED: Enable body capture by default
+      maxBodySize: 2048, // CHANGED: Increased from 1MB to 2KB for better performance
       urlFilters: undefined,
       methodFilters: undefined
     }
@@ -141,7 +143,8 @@ export class NetworkInterceptorModule {
       ;(this as any)._networkInterceptor = {
         method,
         url,
-        startTime: Date.now(),
+        startTime: performance.now(), // CHANGED: Use high-precision timing
+        realStartTime: Date.now(), // Keep real timestamp for storage
         requestHeaders: {}
       }
       return originalXHROpen.call(this, method, url, async ?? true, user, password)
@@ -153,10 +156,73 @@ export class NetworkInterceptorModule {
         return originalXHRSend.call(this, body)
       }
 
-      // Store request body
-      if (body && typeof body === 'string') {
-        interceptor.requestBody = body.length <= 1024 * 1024 ? body : body.substring(0, 1024 * 1024)
+      // Store request body and calculate size
+      let requestBody: string | undefined = undefined
+      let requestSize = 0
+
+      if (body && moduleInstance.config.captureBody) {
+        if (typeof body === 'string') {
+          const bodyStr = body.length <= moduleInstance.config.maxBodySize ? body : body.substring(0, moduleInstance.config.maxBodySize)
+          requestBody = bodyStr
+          requestSize = new Blob([body]).size // Accurate size calculation
+        } else if (body instanceof FormData) {
+          requestBody = '[FormData]'
+          // Approximate FormData size calculation
+          let formDataSize = 0
+          try {
+            body.forEach((value) => {
+              if (typeof value === 'string') {
+                formDataSize += new Blob([value]).size
+              } else if (value instanceof File) {
+                formDataSize += value.size
+              }
+            })
+          } catch (e) {
+            // Fallback if forEach fails
+            formDataSize = 0
+          }
+          requestSize = formDataSize
+        } else if (body instanceof Blob) {
+          requestBody = `[Blob: ${body.type || 'unknown'} - ${body.size} bytes]`
+          requestSize = body.size
+        } else if (body instanceof ArrayBuffer) {
+          requestBody = `[ArrayBuffer: ${body.byteLength} bytes]`
+          requestSize = body.byteLength
+        } else {
+          const bodyStr = String(body)
+          requestBody = bodyStr.length <= moduleInstance.config.maxBodySize ? bodyStr : bodyStr.substring(0, moduleInstance.config.maxBodySize)
+          requestSize = new Blob([bodyStr]).size
+        }
+      } else if (body) {
+        // Calculate size even if not capturing body
+        if (typeof body === 'string') {
+          requestSize = new Blob([body]).size
+        } else if (body instanceof Blob) {
+          requestSize = body.size
+        } else if (body instanceof ArrayBuffer) {
+          requestSize = body.byteLength
+        } else if (body instanceof FormData) {
+          // Approximate FormData size
+          let formDataSize = 0
+          try {
+            body.forEach((value) => {
+              if (typeof value === 'string') {
+                formDataSize += new Blob([value]).size
+              } else if (value instanceof File) {
+                formDataSize += value.size
+              }
+            })
+          } catch (e) {
+            formDataSize = 0
+          }
+          requestSize = formDataSize
+        } else {
+          requestSize = new Blob([String(body)]).size
+        }
       }
+
+      interceptor.requestBody = requestBody
+      interceptor.requestSize = requestSize
 
       // Capture request headers
       const setRequestHeader = this.setRequestHeader
@@ -168,19 +234,45 @@ export class NetworkInterceptorModule {
       // Set up response handler
       this.addEventListener('readystatechange', () => {
         if (this.readyState === XMLHttpRequest.DONE) {
-          const endTime = Date.now()
+          const endTime = performance.now() // High-precision end time
+
+          // Calculate response size and body
+          let responseBody: string | undefined = undefined
+          let responseSize = 0
+
+          if (moduleInstance.config.captureBody && this.responseText) {
+            responseBody = this.responseText.length <= moduleInstance.config.maxBodySize
+              ? this.responseText
+              : this.responseText.substring(0, moduleInstance.config.maxBodySize)
+          }
+
+          // Calculate accurate response size
+          if (this.responseText) {
+            responseSize = new Blob([this.responseText]).size
+          } else if (this.response) {
+            if (this.response instanceof ArrayBuffer) {
+              responseSize = this.response.byteLength
+            } else if (this.response instanceof Blob) {
+              responseSize = this.response.size
+            } else {
+              responseSize = new Blob([String(this.response)]).size
+            }
+          }
+
           const networkRequest: NetworkRequest = {
-            id: `xhr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            id: `xhr_${interceptor.realStartTime}_${Math.random().toString(36).substr(2, 9)}`,
             url: interceptor.url,
             method: interceptor.method,
             status: this.status,
             statusText: this.statusText,
-            timestamp: interceptor.startTime,
-            duration: endTime - interceptor.startTime,
+            timestamp: interceptor.realStartTime,
+            duration: Math.round((endTime - interceptor.startTime) * 100) / 100, // Round to 2 decimal places for ms precision
             requestHeaders: interceptor.requestHeaders,
             responseHeaders: this.getAllResponseHeaders() ? moduleInstance.parseHeaders(this.getAllResponseHeaders()) : {},
             requestBody: interceptor.requestBody,
-            responseBody: this.responseText && this.responseText.length <= 1024 * 1024 ? this.responseText : undefined
+            responseBody,
+            requestSize: interceptor.requestSize || 0,
+            responseSize
           }
 
           // Notify listeners
@@ -207,37 +299,115 @@ export class NetworkInterceptorModule {
     const module = this
 
     window.fetch = async function(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-      const startTime = Date.now()
+      const startTime = performance.now() // High-precision timing
+      const realStartTime = Date.now() // Real timestamp for storage
       const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
       const method = init?.method || 'GET'
 
+      // Calculate request size and body
+      let requestBody: string | undefined = undefined
+      let requestSize = 0
+
+      if (init?.body && module.config.captureBody) {
+        if (typeof init.body === 'string') {
+          requestBody = init.body.length <= module.config.maxBodySize ? init.body : init.body.substring(0, module.config.maxBodySize)
+          requestSize = new Blob([init.body]).size
+        } else if (init.body instanceof FormData) {
+          requestBody = '[FormData]'
+          let formDataSize = 0
+          try {
+            init.body.forEach((value) => {
+              if (typeof value === 'string') {
+                formDataSize += new Blob([value]).size
+              } else if (value instanceof File) {
+                formDataSize += value.size
+              }
+            })
+          } catch (e) {
+            formDataSize = 0
+          }
+          requestSize = formDataSize
+        } else if (init.body instanceof Blob) {
+          requestBody = `[Blob: ${init.body.type || 'unknown'} - ${init.body.size} bytes]`
+          requestSize = init.body.size
+        } else if (init.body instanceof ArrayBuffer) {
+          requestBody = `[ArrayBuffer: ${init.body.byteLength} bytes]`
+          requestSize = init.body.byteLength
+        } else {
+          const bodyStr = String(init.body)
+          requestBody = bodyStr.length <= module.config.maxBodySize ? bodyStr : bodyStr.substring(0, module.config.maxBodySize)
+          requestSize = new Blob([bodyStr]).size
+        }
+      } else if (init?.body) {
+        // Calculate size even if not capturing body
+        if (typeof init.body === 'string') {
+          requestSize = new Blob([init.body]).size
+        } else if (init.body instanceof Blob) {
+          requestSize = init.body.size
+        } else if (init.body instanceof ArrayBuffer) {
+          requestSize = init.body.byteLength
+        } else if (init.body instanceof FormData) {
+          let formDataSize = 0
+          try {
+            init.body.forEach((value) => {
+              if (typeof value === 'string') {
+                formDataSize += new Blob([value]).size
+              } else if (value instanceof File) {
+                formDataSize += value.size
+              }
+            })
+          } catch (e) {
+            formDataSize = 0
+          }
+          requestSize = formDataSize
+        } else {
+          requestSize = new Blob([String(init.body)]).size
+        }
+      }
+
       try {
         const response = await originalFetch(input, init)
-        const endTime = Date.now()
+        const endTime = performance.now() // High-precision end time
 
-        // Clone response to read body if needed
-        const responseClone = response.clone()
-        let responseBody: string | undefined
+        // Calculate response size and body
+        let responseBody: string | undefined = undefined
+        let responseSize = 0
 
-        try {
-          const text = await responseClone.text()
-          responseBody = text.length <= 1024 * 1024 ? text : undefined
-        } catch (error) {
-          // Ignore body reading errors
+        if (module.config.captureBody) {
+          try {
+            const responseClone = response.clone()
+            const text = await responseClone.text()
+            responseBody = text.length <= module.config.maxBodySize ? text : text.substring(0, module.config.maxBodySize)
+            responseSize = new Blob([text]).size
+          } catch (error) {
+            // If reading response body fails, try to get content-length header
+            const contentLength = response.headers.get('content-length')
+            if (contentLength) {
+              responseSize = parseInt(contentLength, 10) || 0
+            }
+          }
+        } else {
+          // Get size from content-length header if available
+          const contentLength = response.headers.get('content-length')
+          if (contentLength) {
+            responseSize = parseInt(contentLength, 10) || 0
+          }
         }
 
         const networkRequest: NetworkRequest = {
-          id: `fetch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          id: `fetch_${realStartTime}_${Math.random().toString(36).substr(2, 9)}`,
           url,
           method,
           status: response.status,
           statusText: response.statusText,
-          timestamp: startTime,
-          duration: endTime - startTime,
+          timestamp: realStartTime,
+          duration: Math.round((endTime - startTime) * 100) / 100, // Round to 2 decimal places
           requestHeaders: init?.headers ? module.headersToObject(init.headers) : {},
           responseHeaders: module.headersToObject(response.headers),
-          requestBody: init?.body ? String(init.body).substring(0, 1024 * 1024) : undefined,
-          responseBody
+          requestBody,
+          responseBody,
+          requestSize,
+          responseSize
         }
 
         // Notify listeners
@@ -247,20 +417,22 @@ export class NetworkInterceptorModule {
 
         return response
       } catch (error) {
-        const endTime = Date.now()
+        const endTime = performance.now()
 
         const networkRequest: NetworkRequest = {
-          id: `fetch_error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          id: `fetch_error_${realStartTime}_${Math.random().toString(36).substr(2, 9)}`,
           url,
           method,
           status: 0,
           statusText: 'Network Error',
-          timestamp: startTime,
-          duration: endTime - startTime,
+          timestamp: realStartTime,
+          duration: Math.round((endTime - startTime) * 100) / 100,
           requestHeaders: init?.headers ? module.headersToObject(init.headers) : {},
           responseHeaders: {},
-          requestBody: init?.body ? String(init.body).substring(0, 1024 * 1024) : undefined,
-          responseBody: error instanceof Error ? error.message : 'Unknown error'
+          requestBody,
+          responseBody: error instanceof Error ? error.message : 'Unknown error',
+          requestSize,
+          responseSize: 0
         }
 
         if (!module.shouldFilter(networkRequest)) {

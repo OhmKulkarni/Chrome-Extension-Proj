@@ -321,6 +321,34 @@ export class MessageRouterModule {
         case 'updateSettings':
           try {
             await this.storageManager.updateSettings(message.settings);
+
+            // ADDED: Broadcast configuration changes to all content scripts
+            try {
+              const tabs = await chrome.tabs.query({});
+              const networkConfig = this.extractNetworkConfig(message.settings);
+
+              // Send updated configuration to all tabs
+              const configUpdatePromises = tabs.map(async (tab) => {
+                if (tab.id) {
+                  try {
+                    await chrome.tabs.sendMessage(tab.id, {
+                      action: 'updateConfig',
+                      config: {
+                        network: networkConfig
+                      }
+                    });
+                  } catch (error) {
+                    // Ignore errors for tabs without content scripts
+                  }
+                }
+              });
+
+              await Promise.allSettled(configUpdatePromises);
+              console.log('📡 MessageRouter: Configuration updates sent to all content scripts');
+            } catch (error) {
+              console.warn('📡 MessageRouter: Error broadcasting config updates:', error);
+            }
+
             sendResponse({ success: true });
           } catch (error) {
             sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to update settings' });
@@ -651,6 +679,26 @@ export class MessageRouterModule {
       initialized: this.isInitialized,
       messageCount: this.messageCount,
       aborted: this.abortController.signal.aborted
+    };
+  }
+
+  // ===== CONFIGURATION UTILITIES =====
+
+  /**
+   * Extract network configuration from settings for content script
+   */
+  private extractNetworkConfig(settings: any): any {
+    const networkInterception = settings?.networkInterception || {};
+
+    return {
+      enabled: networkInterception.enabled !== false, // Default to true
+      captureHeaders: networkInterception.captureHeaders !== false, // Default to true
+      captureBody: networkInterception.bodyCapture?.enabled === true ||
+                   networkInterception.bodyCapture?.mode === 'full' ||
+                   networkInterception.bodyCapture?.mode === 'partial',
+      maxBodySize: networkInterception.bodyCapture?.maxBodySize || 2048,
+      urlFilters: networkInterception.urlFilters || undefined,
+      methodFilters: networkInterception.methodFilters || undefined
     };
   }
 

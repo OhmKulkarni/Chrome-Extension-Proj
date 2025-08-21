@@ -1,9 +1,65 @@
 # Chrome Extension Project - Complete File Structure Documentation
 
 > **Purpose**: This file serves as a corruption detection reference and complete project inventory.
-> **Generated**: August 20, 2025 (Updated after cleanup)
+> **Generated**: August 20, 2025 (Updated August 21, 2025 after network fixes)
 > **Total Files**: 152 files (cleaned - removed all empty placeholders)
-> **Total Size**: ~1,234 KB source code (excluding node_modules, dist, .git)## 🏗️ Project Architecture Overview
+> **Total Size**: ~1,234 KB source code (excluding node_modules, dist, .git)
+
+## 🚨 Current Development Status (August 21, 2025)
+**Network Issues Still Outstanding:**
+- ❌ Network request bodies not getting captured (despite implementation fixes)
+- ❌ Request/response sizes not displaying in dashboard  
+- ❌ Response time measurements not accurate
+
+**Recent Fixes Attempted:**
+- Enhanced network-interceptor.module.ts with requestSize/responseSize fields
+- Updated NetworkRequestsTable.tsx interface and display logic
+- Modified network-processor.module.ts field mapping
+- Added new fields to ApiCall interface in storage-types.ts
+- Implemented settings broadcast system for dynamic configuration
+
+**Build Status**: ✅ Successfully building (no TypeScript errors)
+**Architecture Status**: ✅ Modular structure maintained
+
+## 🛠️ Network Fixes Implementation Details (August 21, 2025)
+
+### Files Modified for Network Request Fixes
+1. **src/content/modules/network-interceptor.module.ts**
+   - Added requestSize and responseSize field calculations using Blob API
+   - Enhanced XMLHttpRequest and Fetch API interception 
+   - Implemented high-precision timing with performance.now()
+   - Changed default configuration: captureBody: true (was false)
+
+2. **src/dashboard/components/NetworkRequestsTable.tsx**
+   - Updated NetworkRequest interface with requestSize, responseSize, duration fields
+   - Modified size display logic to show combined request+response size
+   - Enhanced response time display to prioritize duration field
+   - Added backward compatibility for old field names
+
+3. **src/background/modules/network-processor.module.ts**  
+   - Updated field mapping to handle new size fields (requestSize, responseSize)
+   - Enhanced duration field handling from network interceptor
+   - Added support for both old and new field names in data processing
+
+4. **src/background/storage-types.ts**
+   - Extended ApiCall interface with request_size and response_size fields
+   - Maintained backward compatibility with existing payload_size field
+
+5. **src/background/shared/storage-manager.module.ts**
+   - Updated getNetworkRequests mapping to include new size and duration fields
+   - Added proper fallback logic for old vs new field names
+
+6. **src/settings/settings.tsx**  
+   - Changed default settings: captureRequests: true, captureResponses: true
+   - Previously defaulted to false, preventing any network capture
+
+### Root Cause Analysis
+The network issues persist despite implementation because:
+- Settings may not be properly broadcasting to content scripts
+- Content script initialization timing with settings loading
+- Possible race conditions between interceptor setup and settings application
+
+## 🏗️ Project Architecture Overview
 
 ### Core Modular Architecture
 - **Background Modules**: 8 TypeScript modules (95.2 KB total)
@@ -34,6 +90,7 @@
 📄 project-structure-reference.md (19.2 KB) # This file - structure reference
 📄 README.md (1.3 KB)                      # Project documentation
 📄 tailwind.config.js (2.6 KB)             # Tailwind configuration
+📄 test-network.html (2.1 KB)              # Network interceptor testing page (NEW)
 📄 test-results.md (4.7 KB)                # Test execution results
 📄 tsconfig.json (0.9 KB)                  # TypeScript configuration
 📄 vite.config.ts (2.9 KB)                 # Vite build configuration

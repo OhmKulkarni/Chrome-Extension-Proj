@@ -71,8 +71,8 @@ const defaultSettings: SettingsData = {
   networkInterception: {
     bodyCapture: {
       mode: 'partial',
-      captureRequests: false,
-      captureResponses: false,
+      captureRequests: true, // CHANGED: Enable request capture by default
+      captureResponses: true, // CHANGED: Enable response capture by default
       maxBodySize: 2000,
     },
     privacy: {

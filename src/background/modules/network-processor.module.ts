@@ -179,17 +179,23 @@ export class NetworkProcessorModule {
             request: requestData.requestHeaders || {},
             response: requestData.responseHeaders || {}
           }),
-          payload_size: requestData.requestBody ? requestData.requestBody.length : 0,
+          // Handle both new and old size field names
+          payload_size: requestData.requestSize || requestData.responseSize ||
+                       (requestData.requestBody ? requestData.requestBody.length : 0),
           status: status || 0,
           response_body: requestData.responseBody || `Status: ${status} ${requestData.statusText || ''}`,
           // Add request body if captured
           request_body: requestData.requestBody || null,
           timestamp: requestData.timestamp ? new Date(requestData.timestamp).getTime() : Date.now(),
-          response_time: requestData.duration || null,
+          // Handle both new and old duration field names
+          response_time: requestData.duration || requestData.response_time || null,
           // Add tab context for intelligent domain grouping
           tab_id: tabId,
           tab_url: tabUrl,
-          main_domain: mainDomain // Store the main domain directly for reliable grouping
+          main_domain: mainDomain, // Store the main domain directly for reliable grouping
+          // Store new size fields for better data analysis
+          request_size: requestData.requestSize || 0,
+          response_size: requestData.responseSize || 0
         };
 
         // Use IndexedDB storage with race condition protection

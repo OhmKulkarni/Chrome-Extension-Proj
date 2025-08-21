@@ -163,9 +163,21 @@ export class StorageManagerModule {
           status: apiCall.status,
           headers: apiCall.headers ? JSON.parse(apiCall.headers) : undefined,
           body: apiCall.response_body || apiCall.request_body,
+          requestBody: apiCall.request_body,
+          responseBody: apiCall.response_body,
           timestamp: new Date(apiCall.timestamp).toISOString(),
           tabId: apiCall.tab_id,
-          source_url: apiCall.tab_url
+          source_url: apiCall.tab_url,
+          // Map size fields (both old and new format support)
+          payload_size: apiCall.payload_size || ((apiCall.request_size || 0) + (apiCall.response_size || 0)),
+          requestSize: apiCall.request_size || 0,
+          responseSize: apiCall.response_size || 0,
+          // Map duration fields (both old and new format support)
+          response_time: apiCall.response_time,
+          duration: apiCall.response_time,
+          // Include additional fields
+          request_headers: typeof apiCall.headers === 'string' && apiCall.headers ? JSON.parse(apiCall.headers).request : undefined,
+          response_headers: typeof apiCall.headers === 'string' && apiCall.headers ? JSON.parse(apiCall.headers).response : undefined
         } as NetworkRequestData));
       } catch (error) {
         console.warn('StorageManagerModule: Failed to get network requests from IndexedDB, falling back to Chrome storage:', error);

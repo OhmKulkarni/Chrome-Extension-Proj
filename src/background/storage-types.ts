@@ -15,6 +15,8 @@ export interface ApiCall {
   tab_url?: string // Track the main tab URL for context
   main_domain?: string // The main domain this request is associated with
   request_body?: string // Request body for analysis
+  request_size?: number // Request size in bytes
+  response_size?: number // Response size in bytes
 }
 
 export interface ConsoleError {

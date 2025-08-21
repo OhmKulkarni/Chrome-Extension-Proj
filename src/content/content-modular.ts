@@ -10,13 +10,13 @@ import { EdgeCaseActivationSystem } from './modules/edge-case-activation.module'
 console.log('🧩 MODULAR CONTENT SCRIPT LOADED:', new Date().toISOString())
 
 // Configuration for the modular architecture
-// SMART ACTIVATION: Will be overridden by edge case detection
+// SMART ACTIVATION: Will be overridden by edge case detection and settings
 const defaultModuleConfig = {
   network: {
-    enabled: false, // Default: DISABLED (main-world script handles most cases)
+    enabled: true, // CHANGED: Enable network capture by default
     captureHeaders: true,
-    captureBody: false,
-    maxBodySize: 1024,
+    captureBody: true, // CHANGED: Enable body capture by default
+    maxBodySize: 2048, // CHANGED: Increased default size
     urlFilters: [
       /^https?:\/\/(?!chrome-extension:)/i, // Exclude extension URLs
       /^https?:\/\/(?!moz-extension:)/i     // Exclude Firefox extension URLs
