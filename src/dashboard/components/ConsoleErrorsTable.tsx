@@ -25,6 +25,7 @@ interface ConsoleErrorsTableProps {
   filterSeverity: string;
   onSeverityFilterChange: (severity: string) => void;
   onDetailClick: (error: ConsoleError) => void;
+  selectedError?: ConsoleError | null;
 }
 
 export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
@@ -41,7 +42,8 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
   onSearchChange,
   filterSeverity,
   onSeverityFilterChange,
-  onDetailClick
+  onDetailClick,
+  selectedError
 }) => {
   const indexOfLastError = currentPage * errorsPerPage;
   const indexOfFirstError = indexOfLastError - errorsPerPage;
@@ -49,6 +51,19 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
   const clearFilters = () => {
     onSearchChange('');
     onSeverityFilterChange('all');
+  };
+
+  // Helper function to check if an error is selected
+  const isErrorSelected = (error: ConsoleError): boolean => {
+    if (!selectedError) return false;
+    
+    // Compare key properties to determine if it's the same error
+    return (
+      error.message === selectedError.message &&
+      error.timestamp === selectedError.timestamp &&
+      error.url === selectedError.url &&
+      error.line === selectedError.line
+    );
   };
 
   const generatePageNumbers = () => {
@@ -234,20 +249,29 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {errors.map((error, index) => (
-                  <tr 
-                    key={index} 
-                    className="hover:bg-gray-50 cursor-pointer" 
-                    onDoubleClick={() => onDetailClick(error)}
-                    title="Double-click to view detailed information"
-                  >
+                {errors.map((error, index) => {
+                  const isSelected = isErrorSelected(error);
+                  return (
+                    <tr 
+                      key={index} 
+                      className={`cursor-pointer transition-all duration-200 ${
+                        isSelected 
+                          ? 'bg-red-50 border-l-4 border-red-500 hover:bg-red-100 shadow-sm' 
+                          : 'hover:bg-gray-50'
+                      }`} 
+                      onDoubleClick={() => onDetailClick(error)}
+                      title={isSelected ? "Currently viewing in detail panel - Double-click to refresh" : "Double-click to view detailed information"}
+                    >
                     <td className="w-24 px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getSeverityColor(error.severity)}`}>
                         {error.severity || 'unknown'}
                       </span>
                     </td>
                     <td className="w-2/5 px-6 py-4">
-                      <div className="text-sm text-gray-900 truncate" title={error.message}>
+                      <div className={`text-sm truncate flex items-center ${isSelected ? 'text-red-900 font-medium' : 'text-gray-900'}`} title={error.message}>
+                        {isSelected && (
+                          <div className="w-2 h-2 bg-red-500 rounded-full mr-2 flex-shrink-0"></div>
+                        )}
                         {error.message}
                       </div>
                     </td>
@@ -260,7 +284,8 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                       {new Date(error.timestamp).toLocaleTimeString()}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

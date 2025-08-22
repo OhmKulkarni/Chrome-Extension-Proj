@@ -33,6 +33,7 @@ interface NetworkRequestsTableProps {
   filterMethod: string;
   onMethodFilterChange: (method: string) => void;
   onDetailClick: (request: NetworkRequest) => void;
+  selectedRequest?: NetworkRequest | null;
 }
 
 export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
@@ -49,7 +50,8 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
   onSearchChange,
   filterMethod,
   onMethodFilterChange,
-  onDetailClick
+  onDetailClick,
+  selectedRequest
 }) => {
   const indexOfLastRequest = currentPage * requestsPerPage;
   const indexOfFirstRequest = indexOfLastRequest - requestsPerPage;
@@ -57,6 +59,19 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
   const clearFilters = () => {
     onSearchChange('');
     onMethodFilterChange('all');
+  };
+
+  // Helper function to check if a request is selected
+  const isRequestSelected = (request: NetworkRequest): boolean => {
+    if (!selectedRequest) return false;
+    
+    // Compare key properties to determine if it's the same request
+    return (
+      request.url === selectedRequest.url &&
+      request.method === selectedRequest.method &&
+      request.timestamp === selectedRequest.timestamp &&
+      request.status === selectedRequest.status
+    );
   };
 
   const getHeaderPreview = (request: NetworkRequest): string => {
@@ -312,13 +327,19 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {requests.map((request, index) => (
-                  <tr
-                    key={index}
-                    className="hover:bg-gray-50 cursor-pointer"
-                    onDoubleClick={() => onDetailClick(request)}
-                    title="Double-click to view detailed information"
-                  >
+                {requests.map((request, index) => {
+                  const isSelected = isRequestSelected(request);
+                  return (
+                    <tr
+                      key={index}
+                      className={`cursor-pointer transition-all duration-200 ${
+                        isSelected 
+                          ? 'bg-blue-50 border-l-4 border-blue-500 hover:bg-blue-100 shadow-sm' 
+                          : 'hover:bg-gray-50'
+                      }`}
+                      onDoubleClick={() => onDetailClick(request)}
+                      title={isSelected ? "Currently viewing in detail panel - Double-click to refresh" : "Double-click to view detailed information"}
+                    >
                     <td className="px-3 py-3 whitespace-nowrap w-20">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                         request.method === 'GET' ? 'bg-blue-100 text-blue-800' :
@@ -331,7 +352,10 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                       </span>
                     </td>
                     <td className="px-3 py-3 w-1/3">
-                      <div className="text-sm text-gray-900 truncate max-w-sm" title={request.url}>
+                      <div className={`text-sm truncate max-w-sm flex items-center ${isSelected ? 'text-blue-900 font-medium' : 'text-gray-900'}`} title={request.url}>
+                        {isSelected && (
+                          <div className="w-2 h-2 bg-blue-500 rounded-full mr-2 flex-shrink-0"></div>
+                        )}
                         {request.url}
                       </div>
                     </td>
@@ -390,7 +414,8 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                        request.time_taken ? `${request.time_taken}ms` : 'N/A'}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

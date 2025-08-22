@@ -28,6 +28,7 @@ interface TokenEventsTableProps {
   onDetailClick: (event: TokenEvent) => void;
   showFullTokenHash: boolean;
   onToggleTokenHash: () => void;
+  selectedToken?: TokenEvent | null;
 }
 
 export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
@@ -46,7 +47,8 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
   onTypeFilterChange,
   onDetailClick,
   showFullTokenHash,
-  onToggleTokenHash
+  onToggleTokenHash,
+  selectedToken
 }) => {
   const indexOfLastEvent = currentPage * eventsPerPage;
   const indexOfFirstEvent = indexOfLastEvent - eventsPerPage;
@@ -54,6 +56,19 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
   const clearFilters = () => {
     onSearchChange('');
     onTypeFilterChange('all');
+  };
+
+  // Helper function to check if a token event is selected
+  const isTokenSelected = (event: TokenEvent): boolean => {
+    if (!selectedToken) return false;
+    
+    // Compare key properties to determine if it's the same token event
+    return (
+      event.url === selectedToken.url &&
+      event.type === selectedToken.type &&
+      event.timestamp === selectedToken.timestamp &&
+      event.valueHash === selectedToken.valueHash
+    );
   };
 
   const generatePageNumbers = () => {
@@ -268,13 +283,19 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {events.map((event, index) => (
-                  <tr 
-                    key={index} 
-                    className="hover:bg-gray-50 cursor-pointer" 
-                    onDoubleClick={() => onDetailClick(event)}
-                    title="Double-click to view detailed information"
-                  >
+                {events.map((event, index) => {
+                  const isSelected = isTokenSelected(event);
+                  return (
+                    <tr 
+                      key={index} 
+                      className={`cursor-pointer transition-all duration-200 ${
+                        isSelected 
+                          ? 'bg-yellow-50 border-l-4 border-yellow-500 hover:bg-yellow-100 shadow-sm' 
+                          : 'hover:bg-gray-50'
+                      }`} 
+                      onDoubleClick={() => onDetailClick(event)}
+                      title={isSelected ? "Currently viewing in detail panel - Double-click to refresh" : "Double-click to view detailed information"}
+                    >
                     <td className="px-3 py-3 whitespace-nowrap w-24">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEventTypeColor(event.type)}`}>
                         {event.type.toUpperCase()}
@@ -284,7 +305,10 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                       {event.tokenType || 'Unknown'}
                     </td>
                     <td className="px-3 py-3 w-1/3">
-                      <div className="text-sm text-gray-900 truncate max-w-sm" title={event.url}>
+                      <div className={`text-sm truncate max-w-sm flex items-center ${isSelected ? 'text-yellow-900 font-medium' : 'text-gray-900'}`} title={event.url}>
+                        {isSelected && (
+                          <div className="w-2 h-2 bg-yellow-500 rounded-full mr-2 flex-shrink-0"></div>
+                        )}
                         {event.url || 'N/A'}
                       </div>
                     </td>
@@ -298,7 +322,8 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                       {new Date(event.timestamp).toLocaleTimeString()}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

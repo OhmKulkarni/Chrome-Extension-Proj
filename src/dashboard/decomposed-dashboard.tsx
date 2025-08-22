@@ -1375,6 +1375,7 @@ const DecomposedDashboard: React.FC = () => {
             filterMethod={networkFilterMethod}
             onMethodFilterChange={handleNetworkFilterMethodChange}
             onDetailClick={(request) => openDetailViewer(request, 'request')}
+            selectedRequest={expandedItemType === 'request' ? expandedItem : null}
           />
         );
 
@@ -1395,6 +1396,7 @@ const DecomposedDashboard: React.FC = () => {
             filterSeverity={errorFilterSeverity}
             onSeverityFilterChange={handleErrorFilterSeverityChange}
             onDetailClick={(error) => openDetailViewer(error, 'error')}
+            selectedError={expandedItemType === 'error' ? expandedItem : null}
           />
         );
 
@@ -1417,6 +1419,7 @@ const DecomposedDashboard: React.FC = () => {
             onDetailClick={(event) => openDetailViewer(event, 'token')}
             showFullTokenHash={showFullTokenHash}
             onToggleTokenHash={() => setShowFullTokenHash(!showFullTokenHash)}
+            selectedToken={expandedItemType === 'token' ? expandedItem : null}
           />
         );
 
