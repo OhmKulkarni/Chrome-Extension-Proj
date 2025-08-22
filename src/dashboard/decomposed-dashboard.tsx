@@ -1636,7 +1636,7 @@ const DecomposedDashboard: React.FC = () => {
 
               {/* Side-by-side Field Selector */}
               <div className="flex bg-gray-100 rounded-lg p-1">
-                {(expandedItemType === 'request' ? ['details', 'headers', 'body', 'rawjson'] :
+                {(expandedItemType === 'request' ? ['details', 'headers', 'body', 'performance', 'rawjson'] :
                   expandedItemType === 'error' ? ['details', 'stack'] :
                   ['details', 'rawjson']).map((field) => (
                   <button
@@ -1651,6 +1651,7 @@ const DecomposedDashboard: React.FC = () => {
                     {field === 'rawjson' ? 'Raw JSON' :
                      field === 'body' ? 'Body' :
                      field === 'headers' ? 'Headers' :
+                     field === 'performance' ? 'Performance' :
                      field === 'stack' ? 'Stack' :
                      field === 'analysis' ? 'Analysis' :
                      'Details'}

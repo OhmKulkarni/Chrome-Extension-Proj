@@ -557,6 +557,135 @@ export const RequestDetailContent: React.FC<{
     );
   }
 
+  if (selectedField === 'performance') {
+    const metrics = request.performanceMetrics;
+
+    if (!metrics) {
+      return (
+        <div className="text-center py-8">
+          <div className="text-gray-500">No performance timing data available for this request</div>
+          <div className="text-sm text-gray-400 mt-2">
+            Performance metrics are captured from the Resource Timing API and may not be available for all requests.
+          </div>
+        </div>
+      );
+    }
+
+    // Calculate percentages for visualization
+    const total = metrics.totalTime || (metrics.dnsLookup + metrics.tcpConnect + metrics.sslHandshake + metrics.timeToFirstByte + metrics.contentDownload);
+
+    // Helper to format size with proper units
+    const formatSize = (bytes: number): string => {
+      if (bytes === 0) return '0 B';
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    };
+
+    // Helper to create progress bars
+    const ProgressBar: React.FC<{ value: number; total: number; color: string; label: string }> = ({ value, total, color, label }) => {
+      const percentage = total > 0 ? (value / total) * 100 : 0;
+      return (
+        <div className="flex items-center space-x-3">
+          <div className="w-32 text-sm font-medium text-gray-700">{label}:</div>
+          <div className="flex-1 bg-gray-200 rounded-full h-4 relative overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-300 ${color}`}
+              style={{ width: `${Math.max(percentage, 2)}%` }}
+            ></div>
+          </div>
+          <div className="w-16 text-sm text-gray-600 text-right">
+            {value > 0 ? `${value}ms` : '-'}
+          </div>
+          <div className="w-12 text-xs text-gray-500 text-right">
+            {percentage > 0 ? `${Math.round(percentage)}%` : '-'}
+          </div>
+        </div>
+      );
+    };
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-900">Performance Timing Breakdown</h3>
+            <button
+              onClick={() => copyToClipboard(formatJSON(metrics))}
+              className="copy-button text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+            >
+              Copy Metrics
+            </button>
+          </div>
+
+          <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+            <ProgressBar value={metrics.dnsLookup} total={total} color="bg-blue-500" label="DNS Lookup" />
+            <ProgressBar value={metrics.tcpConnect} total={total} color="bg-green-500" label="TCP Connect" />
+            <ProgressBar value={metrics.sslHandshake} total={total} color="bg-yellow-500" label="SSL Handshake" />
+            <ProgressBar value={metrics.timeToFirstByte} total={total} color="bg-orange-500" label="Time to First Byte" />
+            <ProgressBar value={metrics.contentDownload} total={total} color="bg-purple-500" label="Content Download" />
+            <ProgressBar value={metrics.redirectTime} total={total} color="bg-gray-500" label="Redirect Time" />
+
+            <div className="border-t border-gray-300 pt-3 mt-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-32 text-sm font-bold text-gray-900">Total Time:</div>
+                <div className="flex-1 bg-gray-300 rounded-full h-5 relative overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-blue-500 via-green-500 via-yellow-500 via-orange-500 to-purple-500 rounded-full"></div>
+                </div>
+                <div className="w-16 text-sm font-bold text-gray-900 text-right">
+                  {total > 0 ? `${total}ms` : '-'}
+                </div>
+                <div className="w-12 text-xs text-gray-500 text-right">100%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">Transfer Information</h3>
+          <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <span className="text-sm font-medium text-gray-700">Transfer Size:</span>
+              <p className="text-sm text-gray-900 mt-1">{formatSize(metrics.transferSize)}</p>
+            </div>
+            <div>
+              <span className="text-sm font-medium text-gray-700">Encoded Body Size:</span>
+              <p className="text-sm text-gray-900 mt-1">{formatSize(metrics.encodedBodySize)}</p>
+            </div>
+            <div>
+              <span className="text-sm font-medium text-gray-700">Decoded Body Size:</span>
+              <p className="text-sm text-gray-900 mt-1">{formatSize(metrics.decodedBodySize)}</p>
+            </div>
+            <div>
+              <span className="text-sm font-medium text-gray-700">Cache Status:</span>
+              <span className={`inline-block px-2 py-1 text-xs rounded-full ml-2 ${
+                metrics.cacheStatus === 'hit' ? 'bg-green-100 text-green-800' :
+                metrics.cacheStatus === 'miss' ? 'bg-red-100 text-red-800' :
+                'bg-gray-100 text-gray-800'
+              }`}>
+                {metrics.cacheStatus}
+              </span>
+            </div>
+            {metrics.encodedBodySize > 0 && metrics.decodedBodySize > 0 && (
+              <div>
+                <span className="text-sm font-medium text-gray-700">Compression Ratio:</span>
+                <p className="text-sm text-gray-900 mt-1">
+                  {metrics.encodedBodySize < metrics.decodedBodySize ?
+                    `${Math.round((1 - metrics.encodedBodySize / metrics.decodedBodySize) * 100)}% saved` :
+                    'No compression'}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="text-xs text-gray-500">
+          <p><strong>Note:</strong> Performance metrics are captured using the Resource Timing API.</p>
+          <p>Some values may be zero for cross-origin requests without proper CORS timing headers.</p>
+        </div>
+      </div>
+    );
+  }
+
   // Raw JSON field
   if (selectedField === 'rawjson') {
     return (

@@ -37,6 +37,24 @@ export interface NetworkRequestData {
   responseBody?: string; // Response body from main-world script
   duration?: number; // Request duration from main-world script
   response_time?: number; // Alternative field name for response time
+  performanceMetrics?: PerformanceTimingMetrics; // NEW: Performance timing data
+}
+
+// ===== PERFORMANCE METRICS TYPES =====
+
+export interface PerformanceTimingMetrics {
+  dnsLookup: number;      // DNS Lookup Time (ms)
+  tcpConnect: number;     // TCP Connect Time (ms)
+  sslHandshake: number;   // SSL Handshake Time (ms)
+  timeToFirstByte: number;// Time to First Byte (ms)
+  contentDownload: number;// Content Download Time (ms)
+  totalTime: number;      // Total Time (ms)
+  redirectTime: number;   // Redirect Time (ms)
+  requestTime: number;    // Request Time (ms)
+  transferSize: number;   // Transfer Size (bytes)
+  encodedBodySize: number;// Encoded Body Size (bytes)
+  decodedBodySize: number;// Decoded Body Size (bytes)
+  cacheStatus: 'hit' | 'miss' | 'unknown'; // Cache Status
 }
 
 // ===== CONSOLE SYSTEM TYPES =====

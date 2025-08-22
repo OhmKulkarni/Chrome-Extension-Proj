@@ -8,6 +8,17 @@ if (typeof window._extensionInjected !== 'undefined') {
   // Mark as injected and continue initialization
   window._extensionInjected = true;
 
+// Performance monitoring state (prevent duplicate declarations)
+if (typeof performanceMetricsState === 'undefined') {
+  var performanceMetricsState = {
+    observer: null,
+    pendingRequests: new Map(),
+    isObserving: false,
+    maxPendingRequests: 1000, // Memory leak protection
+    cleanupInterval: null
+  };
+}
+
 // Prevent duplicate variable declarations
 if (typeof extensionSettings === 'undefined') {
   // Default settings
@@ -146,9 +157,175 @@ function truncateBody(text, maxSize = extensionSettings.maxBodySize) {
   return text;
 }
 
+// Performance Metrics Collection Functions
+const extractPerformanceMetrics = (url, requestStartTime) => {
+  try {
+    // Get all resource entries for this URL
+    const entries = performance.getEntriesByName(url, 'resource');
+    if (entries.length === 0) return null;
+
+    // Find the entry closest to our request start time
+    const targetEntry = entries.find(entry => {
+      const timeDiff = Math.abs(entry.startTime - (requestStartTime - performance.timeOrigin));
+      return timeDiff < 100; // Within 100ms tolerance
+    }) || entries[entries.length - 1]; // Fallback to latest entry
+
+    // Extract timing metrics with safety checks
+    const metrics = {
+      dnsLookup: targetEntry.domainLookupEnd && targetEntry.domainLookupStart ?
+        Math.max(0, targetEntry.domainLookupEnd - targetEntry.domainLookupStart) : 0,
+
+      tcpConnect: targetEntry.connectEnd && targetEntry.connectStart ?
+        Math.max(0, targetEntry.connectEnd - targetEntry.connectStart) : 0,
+
+      sslHandshake: targetEntry.secureConnectionStart > 0 && targetEntry.connectEnd ?
+        Math.max(0, targetEntry.connectEnd - targetEntry.secureConnectionStart) : 0,
+
+      timeToFirstByte: targetEntry.responseStart && targetEntry.requestStart ?
+        Math.max(0, targetEntry.responseStart - targetEntry.requestStart) : 0,
+
+      contentDownload: targetEntry.responseEnd && targetEntry.responseStart ?
+        Math.max(0, targetEntry.responseEnd - targetEntry.responseStart) : 0,
+
+      totalTime: targetEntry.responseEnd && targetEntry.startTime ?
+        Math.max(0, targetEntry.responseEnd - targetEntry.startTime) : 0,
+
+      redirectTime: targetEntry.redirectEnd && targetEntry.redirectStart ?
+        Math.max(0, targetEntry.redirectEnd - targetEntry.redirectStart) : 0,
+
+      requestTime: targetEntry.responseStart && targetEntry.requestStart ?
+        Math.max(0, targetEntry.responseStart - targetEntry.requestStart) : 0,
+
+      // Additional useful metrics
+      transferSize: targetEntry.transferSize || 0,
+      encodedBodySize: targetEntry.encodedBodySize || 0,
+      decodedBodySize: targetEntry.decodedBodySize || 0,
+
+      // Derive cache status from transfer size
+      cacheStatus: targetEntry.transferSize === 0 && targetEntry.encodedBodySize > 0 ?
+        'hit' : targetEntry.transferSize > 0 ? 'miss' : 'unknown'
+    };
+
+    // Round to 2 decimal places for cleaner data
+    Object.keys(metrics).forEach(key => {
+      if (typeof metrics[key] === 'number' && key !== 'transferSize' && key !== 'encodedBodySize' && key !== 'decodedBodySize') {
+        metrics[key] = Math.round(metrics[key] * 100) / 100;
+      }
+    });
+
+    return metrics;
+  } catch (error) {
+    originalConsoleWarn.call(console, 'MAIN-WORLD: Performance metrics extraction failed:', error);
+    return null;
+  }
+};
+
+const initializePerformanceMonitoring = () => {
+  if (!window.PerformanceObserver || performanceMetricsState.isObserving) return;
+
+  try {
+    // Set up PerformanceObserver for real-time resource timing
+    performanceMetricsState.observer = new PerformanceObserver((list) => {
+      try {
+        for (const entry of list.getEntries()) {
+          if (entry.entryType === 'resource') {
+            // Check if we have pending requests for this URL
+            const pendingKey = `${entry.name}:${Math.floor(entry.startTime)}`;
+            const approximateKeys = Array.from(performanceMetricsState.pendingRequests.keys())
+              .filter(key => key.startsWith(entry.name));
+
+            // If we have pending requests, extract metrics for the closest match
+            approximateKeys.forEach(key => {
+              const pendingData = performanceMetricsState.pendingRequests.get(key);
+              if (pendingData && Math.abs(entry.startTime - pendingData.startTime) < 200) {
+                const metrics = extractPerformanceMetrics(entry.name, pendingData.startTime);
+                if (metrics) {
+                  pendingData.performanceMetrics = metrics;
+                }
+                // Don't remove yet - let the cleanup handle it
+              }
+            });
+          }
+        }
+      } catch (error) {
+        originalConsoleWarn.call(console, 'MAIN-WORLD: PerformanceObserver error:', error);
+      }
+    });
+
+    performanceMetricsState.observer.observe({ entryTypes: ['resource'] });
+    performanceMetricsState.isObserving = true;
+
+    // Set up cleanup interval to prevent memory leaks
+    performanceMetricsState.cleanupInterval = setInterval(() => {
+      const now = Date.now();
+      const pendingRequests = performanceMetricsState.pendingRequests;
+
+      // Remove entries older than 30 seconds
+      for (const [key, data] of pendingRequests.entries()) {
+        if (now - data.timestamp > 30000) {
+          pendingRequests.delete(key);
+        }
+      }
+
+      // If we have too many pending requests, clean up oldest ones
+      if (pendingRequests.size > performanceMetricsState.maxPendingRequests) {
+        const sortedEntries = Array.from(pendingRequests.entries())
+          .sort((a, b) => a[1].timestamp - b[1].timestamp);
+
+        const toRemove = sortedEntries.slice(0, pendingRequests.size - performanceMetricsState.maxPendingRequests);
+        toRemove.forEach(([key]) => pendingRequests.delete(key));
+
+        originalConsoleWarn.call(console, 'MAIN-WORLD: Cleaned up', toRemove.length, 'old performance requests');
+      }
+
+      // Clean up performance buffer periodically
+      if (performance.getEntriesByType('resource').length > 500) {
+        try {
+          performance.clearResourceTimings();
+        } catch (error) {
+          originalConsoleWarn.call(console, 'MAIN-WORLD: Performance buffer cleanup failed:', error);
+        }
+      }
+    }, 10000); // Cleanup every 10 seconds
+
+    originalConsoleLog.call(console, 'MAIN-WORLD: Performance monitoring initialized');
+  } catch (error) {
+    originalConsoleWarn.call(console, 'MAIN-WORLD: Performance monitoring initialization failed:', error);
+  }
+};
+
+const addRequestToPendingMetrics = (url, startTime) => {
+  if (!performanceMetricsState.isObserving) return;
+
+  const key = `${url}:${Math.floor(startTime)}`;
+  performanceMetricsState.pendingRequests.set(key, {
+    url,
+    startTime,
+    timestamp: Date.now()
+  });
+};
+
+const getAndRemovePendingMetrics = (url, startTime) => {
+  if (!performanceMetricsState.isObserving) return null;
+
+  const key = `${url}:${Math.floor(startTime)}`;
+  const pendingData = performanceMetricsState.pendingRequests.get(key);
+
+  if (pendingData && pendingData.performanceMetrics) {
+    performanceMetricsState.pendingRequests.delete(key);
+    return pendingData.performanceMetrics;
+  }
+
+  // Fallback: try to extract metrics directly
+  const metrics = extractPerformanceMetrics(url, startTime);
+  performanceMetricsState.pendingRequests.delete(key); // Clean up even if no metrics
+  return metrics;
+};
+
 // Create our main world interception
 const interceptFetch = (originalFetch, input, init) => {
   const startTime = Date.now();
+  const performanceStartTime = performance.now() + performance.timeOrigin;
   let url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
 
   // CRITICAL: Resolve relative URLs to absolute URLs for proper database storage
@@ -159,6 +336,9 @@ const interceptFetch = (originalFetch, input, init) => {
   } catch (error) {
     originalConsoleLog.call(console, 'MAIN-WORLD: URL resolution failed:', url, error);
   }
+
+  // Add request to pending performance metrics tracking
+  addRequestToPendingMetrics(url, performanceStartTime);
 
   // Log intercept (reduced for performance)
   if (Math.random() < 0.1) { // Only log 10% of requests
@@ -217,37 +397,45 @@ const interceptFetch = (originalFetch, input, init) => {
       responseHeaders[key] = value;
     }
 
-    // Send captured data
-    const capturedData = {
-      type: 'fetch',
-      method: (init?.method || 'GET').toUpperCase(),
-      url: url,
-      domain: getSafeDomain(url),
-      status: response.status,
-      statusText: response.statusText,
-      duration: endTime - startTime,
-      requestHeaders,
-      responseHeaders,
-      requestBody,
-      responseBody,
-      timestamp: new Date().toISOString()
-    };
+    // Extract performance metrics with a small delay to allow metrics to be available
+    let performanceMetrics = null;
+    setTimeout(() => {
+      performanceMetrics = getAndRemovePendingMetrics(url, performanceStartTime);
 
-    // DEBUG: Log every 10th request to track what's being sent
-    if (Math.random() < 0.1) {
-      originalConsoleLog.call(console, 'MAIN-WORLD: Sending fetch data to content script:', {
-        url: capturedData.url,
-        domain: capturedData.domain,
-        status: capturedData.status,
-        method: capturedData.method
-      });
-    }
+      // Send captured data including performance metrics
+      const capturedData = {
+        type: 'fetch',
+        method: (init?.method || 'GET').toUpperCase(),
+        url: url,
+        domain: getSafeDomain(url),
+        status: response.status,
+        statusText: response.statusText,
+        duration: endTime - startTime,
+        requestHeaders,
+        responseHeaders,
+        requestBody,
+        responseBody,
+        performanceMetrics, // NEW: Include performance timing metrics
+        timestamp: new Date().toISOString()
+      };
 
-    // Send to content script
-    window.postMessage({
-      source: 'main-world-network-interceptor',
-      data: capturedData
-    }, '*');
+      // DEBUG: Log every 10th request to track what's being sent
+      if (Math.random() < 0.1) {
+        originalConsoleLog.call(console, 'MAIN-WORLD: Sending fetch data to content script:', {
+          url: capturedData.url,
+          domain: capturedData.domain,
+          status: capturedData.status,
+          method: capturedData.method,
+          hasPerformanceMetrics: !!capturedData.performanceMetrics
+        });
+      }
+
+      // Send to content script
+      window.postMessage({
+        source: 'main-world-network-interceptor',
+        data: capturedData
+      }, '*');
+    }, 50); // Small delay to allow Performance API entries to be available
 
     return response;
   }).catch(error => {
@@ -287,39 +475,46 @@ const interceptXHR = (xhr, originalXhrSend, data) => {
       originalConsoleLog.call(console, 'MAIN-WORLD: MAIN-WORLD: Could not get XHR response body:', e);
     }
 
-    // Send captured data
-    const capturedData = {
-      type: 'xhr',
-      method: xhr._method || 'GET',
-      url: xhr._url,
-      domain: getSafeDomain(xhr._url),
-      status: xhr.status,
-      statusText: xhr.statusText,
-      duration: endTime - xhr._startTime,
-      requestHeaders: xhr._requestHeaders || {},
-      responseHeaders,
-      requestBody: data ? truncateBody(String(data), extensionSettings.maxBodySize) : '',
-      responseBody,
-      timestamp: new Date().toISOString()
-    };
+    // Extract performance metrics with a small delay
+    setTimeout(() => {
+      const performanceMetrics = getAndRemovePendingMetrics(xhr._url, xhr._performanceStartTime);
 
-    // Debug logging for XHR requests
-    console.log(`MAIN-WORLD XHR: Sending data for ${xhr._url}:`, {
-      url: capturedData.url,
-      domain: capturedData.domain,
-      method: capturedData.method,
-      status: capturedData.status,
-      hasRequestBody: !!capturedData.requestBody,
-      hasResponseBody: !!capturedData.responseBody,
-      requestHeaders: Object.keys(capturedData.requestHeaders).length,
-      responseHeaders: Object.keys(capturedData.responseHeaders).length
-    });
+      // Send captured data
+      const capturedData = {
+        type: 'xhr',
+        method: xhr._method || 'GET',
+        url: xhr._url,
+        domain: getSafeDomain(xhr._url),
+        status: xhr.status,
+        statusText: xhr.statusText,
+        duration: endTime - xhr._startTime,
+        requestHeaders: xhr._requestHeaders || {},
+        responseHeaders,
+        requestBody: data ? truncateBody(String(data), extensionSettings.maxBodySize) : '',
+        responseBody,
+        performanceMetrics, // NEW: Include performance timing metrics
+        timestamp: new Date().toISOString()
+      };
 
-    // Send to content script
-    window.postMessage({
-      source: 'main-world-network-interceptor',
-      data: capturedData
-    }, '*');
+      // Debug logging for XHR requests
+      console.log(`MAIN-WORLD XHR: Sending data for ${xhr._url}:`, {
+        url: capturedData.url,
+        domain: capturedData.domain,
+        method: capturedData.method,
+        status: capturedData.status,
+        hasRequestBody: !!capturedData.requestBody,
+        hasResponseBody: !!capturedData.responseBody,
+        hasPerformanceMetrics: !!capturedData.performanceMetrics,
+        requestHeaders: Object.keys(capturedData.requestHeaders).length,
+        responseHeaders: Object.keys(capturedData.responseHeaders).length
+      });
+
+      // Send to content script
+      window.postMessage({
+        source: 'main-world-network-interceptor',
+        data: capturedData
+      }, '*');
+    }, 50); // Small delay for performance metrics
   });
 
   return originalXhrSend.call(xhr, data);
@@ -460,6 +655,9 @@ try {
     originalConsoleLog.call(console, 'MAIN-WORLD: Starting network interception...');
     isIntercepting = true;
 
+    // Initialize performance monitoring
+    initializePerformanceMonitoring();
+
     // Set up fetch interception
     window.fetch = function(input, init) {
       return interceptFetch(originalFetch, input, init);
@@ -482,7 +680,12 @@ try {
       }
 
       this._startTime = Date.now();
+      this._performanceStartTime = performance.now() + performance.timeOrigin;
       this._requestHeaders = {};
+
+      // Add to pending performance metrics tracking
+      addRequestToPendingMetrics(this._url, this._performanceStartTime);
+
       return originalXhrOpen.call(this, method, url, async, user, password);
     };
 
@@ -645,6 +848,32 @@ try {
 } catch (error) {
   originalConsoleLog.call(console, 'MAIN-WORLD: MAIN-WORLD: Could not get settings, using defaults:', error);
 }
+
+// Performance monitoring cleanup on page unload
+window.addEventListener('beforeunload', () => {
+  if (performanceMetricsState.observer) {
+    try {
+      performanceMetricsState.observer.disconnect();
+      performanceMetricsState.isObserving = false;
+      originalConsoleLog.call(console, 'MAIN-WORLD: Performance observer disconnected');
+    } catch (error) {
+      originalConsoleWarn.call(console, 'MAIN-WORLD: Error disconnecting performance observer:', error);
+    }
+  }
+
+  if (performanceMetricsState.cleanupInterval) {
+    try {
+      clearInterval(performanceMetricsState.cleanupInterval);
+      performanceMetricsState.cleanupInterval = null;
+      originalConsoleLog.call(console, 'MAIN-WORLD: Performance cleanup interval cleared');
+    } catch (error) {
+      originalConsoleWarn.call(console, 'MAIN-WORLD: Error clearing performance cleanup interval:', error);
+    }
+  }
+
+  // Final cleanup of pending requests
+  performanceMetricsState.pendingRequests.clear();
+});
 
 // Add activity check response handler
 window.addEventListener('checkMainWorldActive', (event) => {
