@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Performance Metrics Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .debug-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        .raw-data {
+            background: #000;
+            color: #0f0;
+            padding: 10px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            border-radius: 3px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        button {
+            background-color: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔬 Performance Metrics Debug</h1>
+    <p>This page will show you the raw Resource Timing API data to understand why DNS/SSL might be showing zeros.</p>
+
+    <div class="debug-section">
+        <h2>🧪 Debug Tests</h2>
+        <button onclick="debugHTTPBin()">Debug HTTPBin Request</button>
+        <button onclick="debugNewDomain()">Debug New Domain (DNS)</button>
+        <button onclick="debugHTTPS()">Debug HTTPS (SSL)</button>
+        <button onclick="clearResourceTimings()">Clear Resource Timings</button>
+        <button onclick="showAllResourceTimings()">Show All Resource Timings</button>
+    </div>
+
+    <div class="debug-section">
+        <h2>📊 Raw Resource Timing Data</h2>
+        <div id="rawData" class="raw-data">Click a debug button to see raw Resource Timing API data...</div>
+    </div>
+
+    <div class="debug-section">
+        <h2>🎯 Expected vs Actual</h2>
+        <div id="analysis" class="raw-data">Analysis will appear here...</div>
+    </div>
+
+    <script>
+        function log(message) {
+            const rawData = document.getElementById('rawData');
+            rawData.textContent += new Date().toISOString() + ': ' + message + '\n';
+            rawData.scrollTop = rawData.scrollHeight;
+        }
+
+        function analyze(message) {
+            const analysis = document.getElementById('analysis');
+            analysis.textContent += new Date().toISOString() + ': ' + message + '\n';
+            analysis.scrollTop = analysis.scrollHeight;
+        }
+
+        function showResourceTimingDetails(url) {
+            // Wait for Resource Timing to be available
+            setTimeout(() => {
+                const entries = performance.getEntriesByName(url, 'resource');
+                if (entries.length === 0) {
+                    log(`❌ No Resource Timing entry found for: ${url}`);
+                    analyze(`No timing data available - this could be why your extension shows dashes`);
+                    return;
+                }
+
+                const entry = entries[entries.length - 1];
+                log(`\n🔍 Resource Timing Analysis for: ${url}`);
+                log(`==================================================`);
+
+                // Show all raw values
+                log(`Raw Resource Timing Values:`);
+                log(`  startTime: ${entry.startTime}`);
+                log(`  domainLookupStart: ${entry.domainLookupStart}`);
+                log(`  domainLookupEnd: ${entry.domainLookupEnd}`);
+                log(`  connectStart: ${entry.connectStart}`);
+                log(`  connectEnd: ${entry.connectEnd}`);
+                log(`  secureConnectionStart: ${entry.secureConnectionStart}`);
+                log(`  requestStart: ${entry.requestStart}`);
+                log(`  responseStart: ${entry.responseStart}`);
+                log(`  responseEnd: ${entry.responseEnd}`);
+
+                // Check detailed timing availability
+                const hasDetailedTiming = entry.domainLookupStart > 0 &&
+                                         entry.connectStart > 0 &&
+                                         entry.requestStart > 0 &&
+                                         entry.responseStart > 0;
+
+                log(`\nDetailed Timing Available: ${hasDetailedTiming ? 'YES ✅' : 'NO ❌'}`);
+
+                if (hasDetailedTiming) {
+                    // Calculate exactly like the extension does
+                    const dnsLookup = entry.domainLookupEnd && entry.domainLookupStart ?
+                        Math.max(0, entry.domainLookupEnd - entry.domainLookupStart) : 0;
+
+                    const tcpConnect = entry.connectEnd && entry.connectStart ?
+                        Math.max(0, entry.connectEnd - entry.connectStart) : 0;
+
+                    const sslHandshake = entry.secureConnectionStart > 0 && entry.connectEnd ?
+                        Math.max(0, entry.connectEnd - entry.secureConnectionStart) : 0;
+
+                    const ttfb = entry.responseStart && entry.requestStart ?
+                        Math.max(0, entry.responseStart - entry.requestStart) : 0;
+
+                    const download = entry.responseEnd && entry.responseStart ?
+                        Math.max(0, entry.responseEnd - entry.responseStart) : 0;
+
+                    log(`\nCalculated Metrics (Extension Logic):`);
+                    log(`  DNS Lookup: ${dnsLookup.toFixed(2)}ms`);
+                    log(`  TCP Connect: ${tcpConnect.toFixed(2)}ms`);
+                    log(`  SSL Handshake: ${sslHandshake.toFixed(2)}ms`);
+                    log(`  Time to First Byte: ${ttfb.toFixed(2)}ms`);
+                    log(`  Content Download: ${download.toFixed(2)}ms`);
+
+                    // Analysis
+                    analyze(`\n📊 Why DNS/SSL might be zero:`);
+                    if (dnsLookup === 0) {
+                        analyze(`🌐 DNS Lookup = 0ms: Domain was already cached`);
+                        analyze(`   Solution: Clear browser cache or use new subdomain`);
+                    }
+                    if (sslHandshake === 0 && url.startsWith('https:')) {
+                        analyze(`🔒 SSL Handshake = 0ms: SSL session was reused`);
+                        analyze(`   Solution: Wait longer between requests or use different domain`);
+                    }
+                    if (tcpConnect === 0) {
+                        analyze(`🔗 TCP Connect = 0ms: Connection was kept alive and reused`);
+                        analyze(`   Solution: Wait for connection timeout or use different domain`);
+                    }
+                } else {
+                    log(`\n❌ Limited Timing Data (Cross-Origin Restriction)`);
+                    log(`This explains why your extension shows dashes - no detailed timing available`);
+
+                    analyze(`\n⚠️ Cross-Origin Timing Restriction Detected:`);
+                    analyze(`This site doesn't send Timing-Allow-Origin header`);
+                    analyze(`Your extension can only see total time, not components`);
+                    analyze(`This is normal browser security behavior`);
+                }
+
+                log(`\n`);
+            }, 200);
+        }
+
+        async function debugHTTPBin() {
+            log('🔄 Testing HTTPBin.org (should have detailed timing)...');
+
+            try {
+                const url = `https://httpbin.org/get?debug=timing&timestamp=${Date.now()}`;
+                await fetch(url);
+                log('✅ HTTPBin request completed');
+                showResourceTimingDetails(url);
+            } catch (error) {
+                log('❌ HTTPBin request failed: ' + error.message);
+            }
+        }
+
+        async function debugNewDomain() {
+            log('🔄 Testing new subdomain to force DNS lookup...');
+
+            try {
+                // Use a unique subdomain that likely isn't cached
+                const timestamp = Date.now();
+                const url = `https://httpbin.org/get?force_dns=true&unique=${timestamp}`;
+                await fetch(url);
+                log('✅ New domain request completed');
+                showResourceTimingDetails(url);
+
+                // Try to force a truly new DNS lookup
+                analyze(`\n💡 To see DNS timing:`);
+                analyze(`1. Clear browser DNS cache: chrome://net-internals/#dns`);
+                analyze(`2. Or use a completely different domain`);
+                analyze(`3. Or wait several minutes for cache expiry`);
+            } catch (error) {
+                log('❌ New domain request failed: ' + error.message);
+            }
+        }
+
+        async function debugHTTPS() {
+            log('🔄 Testing HTTPS to check SSL timing...');
+
+            try {
+                const url = `https://httpbin.org/get?ssl_test=true&timestamp=${Date.now()}`;
+                await fetch(url);
+                log('✅ HTTPS request completed');
+                showResourceTimingDetails(url);
+
+                analyze(`\n💡 To see SSL timing:`);
+                analyze(`1. Wait 5+ minutes for SSL session timeout`);
+                analyze(`2. Or use a different HTTPS domain`);
+                analyze(`3. Or restart browser to clear SSL cache`);
+            } catch (error) {
+                log('❌ HTTPS request failed: ' + error.message);
+            }
+        }
+
+        function clearResourceTimings() {
+            performance.clearResourceTimings();
+            log('🧹 Cleared all Resource Timing entries');
+            analyze('Resource timings cleared - next requests should show fresh timing data');
+        }
+
+        function showAllResourceTimings() {
+            log('📊 All Current Resource Timing Entries:');
+            log('=====================================');
+
+            const entries = performance.getEntriesByType('resource');
+
+            if (entries.length === 0) {
+                log('No resource timing entries found');
+                return;
+            }
+
+            entries.slice(-10).forEach((entry, index) => {
+                const hasDetailedTiming = entry.domainLookupStart > 0;
+                log(`${index + 1}. ${entry.name}`);
+                log(`   Detailed timing: ${hasDetailedTiming ? 'YES' : 'NO'}`);
+
+                if (hasDetailedTiming) {
+                    const dns = entry.domainLookupEnd - entry.domainLookupStart;
+                    const ssl = entry.secureConnectionStart > 0 ? entry.connectEnd - entry.secureConnectionStart : 0;
+                    log(`   DNS: ${dns.toFixed(2)}ms, SSL: ${ssl.toFixed(2)}ms`);
+                }
+                log('');
+            });
+        }
+
+        // Initial message
+        log('Performance Metrics Debug Tool Ready');
+        log('This will show you exactly what the Resource Timing API returns');
+        analyze('This debug tool will help identify why DNS/SSL show as dashes in your extension');
+    </script>
+</body>
+</html>

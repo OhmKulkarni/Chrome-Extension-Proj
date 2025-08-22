@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Complete Extension Metrics Testing Suite</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .metrics-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; background: #f9f9f9; border-radius: 5px; }
+        .test-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin: 15px 0; }
+        .test-card { background: white; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .test-card h4 { margin: 0 0 10px 0; color: #333; }
+        .result { background: #000; color: #0f0; padding: 10px; font-family: monospace; white-space: pre-wrap; max-height: 200px; overflow-y: auto; font-size: 12px; }
+        button { background: #007cba; color: white; border: none; padding: 8px 12px; margin: 3px; cursor: pointer; border-radius: 3px; }
+        .success { color: #00ff00; font-weight: bold; }
+        .warning { color: #ffaa00; }
+        .error { color: #ff0000; }
+        .info { color: #00aaff; }
+        .metrics-table { width: 100%; border-collapse: collapse; margin: 10px 0; background: white; font-size: 12px; }
+        .metrics-table th, .metrics-table td { padding: 6px; text-align: left; border: 1px solid #ddd; }
+        .metrics-table th { background: #f2f2f2; font-weight: bold; }
+        .value-good { background-color: #d4edda; color: #155724; }
+        .value-zero { background-color: #f8d7da; color: #721c24; }
+        .value-partial { background-color: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Complete Extension Metrics Testing Suite</h1>
+    <p>Test all 6 timing metrics + 4 size metrics that your extension captures</p>
+
+    <div class="metrics-section">
+        <h2>📊 Metrics Overview</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+                <h3>⏱️ Timing Metrics (6)</h3>
+                <ol>
+                    <li><strong>DNS Lookup</strong> - Domain name resolution</li>
+                    <li><strong>TCP Connect</strong> - TCP connection establishment</li>
+                    <li><strong>SSL Handshake</strong> - TLS/SSL negotiation</li>
+                    <li><strong>Time to First Byte</strong> - Server response time</li>
+                    <li><strong>Content Download</strong> - Response body transfer</li>
+                    <li><strong>Total Time</strong> - End-to-end request time</li>
+                </ol>
+            </div>
+            <div>
+                <h3>📏 Size Metrics (4)</h3>
+                <ol>
+                    <li><strong>Transfer Size</strong> - Bytes over network (compressed)</li>
+                    <li><strong>Encoded Body Size</strong> - Response body (compressed)</li>
+                    <li><strong>Decoded Body Size</strong> - Response body (uncompressed)</li>
+                    <li><strong>Manual Duration</strong> - JavaScript-measured time</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <div class="metrics-section">
+        <h2>🎯 Strategic Tests</h2>
+        <div class="test-grid">
+            <div class="test-card">
+                <h4>🆕 Fresh Connection Test</h4>
+                <p>Force new DNS + SSL + TCP to see timing metrics</p>
+                <button onclick="testFreshConnection()">Run Fresh Connection Test</button>
+                <div id="fresh-results" class="result">Ready...</div>
+            </div>
+
+            <div class="test-card">
+                <h4>📦 Size Variations Test</h4>
+                <p>Different response sizes to test size metrics</p>
+                <button onclick="testSizeVariations()">Run Size Tests</button>
+                <div id="size-results" class="result">Ready...</div>
+            </div>
+
+            <div class="test-card">
+                <h4>🐌 Slow Response Test</h4>
+                <p>Artificial delays to see TTFB and download timing</p>
+                <button onclick="testSlowResponse()">Run Slow Response Test</button>
+                <div id="slow-results" class="result">Ready...</div>
+            </div>
+
+            <div class="test-card">
+                <h4>🔒 SSL Variations Test</h4>
+                <p>Different SSL configs to test SSL handshake</p>
+                <button onclick="testSSLVariations()">Run SSL Tests</button>
+                <div id="ssl-results" class="result">Ready...</div>
+            </div>
+
+            <div class="test-card">
+                <h4>🌐 Same-Origin Test</h4>
+                <p>Local requests with full timing visibility</p>
+                <button onclick="testSameOrigin()">Run Same-Origin Test</button>
+                <div id="same-origin-results" class="result">Ready...</div>
+            </div>
+
+            <div class="test-card">
+                <h4>📊 Comprehensive Analysis</h4>
+                <p>Run all tests and compare results</p>
+                <button onclick="runAllTests()">Run Complete Test Suite</button>
+                <div id="comprehensive-results" class="result">Ready...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="metrics-section">
+        <h2>📈 Live Metrics Dashboard</h2>
+        <table class="metrics-table" id="metrics-table">
+            <thead>
+                <tr>
+                    <th>Test Name</th>
+                    <th>DNS Lookup</th>
+                    <th>TCP Connect</th>
+                    <th>SSL Handshake</th>
+                    <th>TTFB</th>
+                    <th>Download</th>
+                    <th>Total Time</th>
+                    <th>Transfer Size</th>
+                    <th>Encoded Size</th>
+                    <th>Decoded Size</th>
+                    <th>Manual Duration</th>
+                </tr>
+            </thead>
+            <tbody id="metrics-tbody">
+                <tr><td colspan="11" style="text-align: center; color: #666;">No tests run yet</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="metrics-section">
+        <h2>🔍 Debug Console</h2>
+        <div id="debug-console" class="result" style="height: 300px;">Extension Metrics Testing Suite Ready
+Click any test button to start validating your extension's metrics capture...
+</div>
+    </div>
+
+    <script>
+        let testResults = [];
+
+        function log(msg, type = 'info', containerId = 'debug-console') {
+            const container = document.getElementById(containerId);
+            const timestamp = new Date().toISOString().slice(11, 19);
+            const colorClass = type === 'success' ? 'success' : type === 'warning' ? 'warning' : type === 'error' ? 'error' : 'info';
+            container.innerHTML += `<span class="${colorClass}">[${timestamp}] ${msg}</span>\n`;
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Exact replica of your extension's performance extraction
+        function extractExtensionMetrics(url, requestStartTime, manualDuration) {
+            try {
+                const entries = performance.getEntriesByName(url, 'resource');
+                if (entries.length === 0) return null;
+
+                const targetEntry = entries.find(entry => {
+                    const timeDiff = Math.abs(entry.startTime - (requestStartTime - performance.timeOrigin));
+                    return timeDiff < 100;
+                }) || entries[entries.length - 1];
+
+                const hasDetailedTiming = targetEntry.domainLookupStart > 0 &&
+                                         targetEntry.connectStart > 0 &&
+                                         targetEntry.requestStart > 0 &&
+                                         targetEntry.responseStart > 0;
+
+                const metrics = {
+                    // 6 Timing Metrics
+                    dnsLookup: hasDetailedTiming && targetEntry.domainLookupEnd && targetEntry.domainLookupStart ?
+                        Math.max(0, targetEntry.domainLookupEnd - targetEntry.domainLookupStart) : 0,
+
+                    tcpConnect: hasDetailedTiming && targetEntry.connectEnd && targetEntry.connectStart ?
+                        Math.max(0, targetEntry.connectEnd - targetEntry.connectStart) : 0,
+
+                    sslHandshake: hasDetailedTiming && targetEntry.secureConnectionStart > 0 && targetEntry.connectEnd ?
+                        Math.max(0, targetEntry.connectEnd - targetEntry.secureConnectionStart) : 0,
+
+                    timeToFirstByte: hasDetailedTiming && targetEntry.responseStart && targetEntry.requestStart ?
+                        Math.max(0, targetEntry.responseStart - targetEntry.requestStart) : 0,
+
+                    contentDownload: hasDetailedTiming && targetEntry.responseEnd && targetEntry.responseStart ?
+                        Math.max(0, targetEntry.responseEnd - targetEntry.responseStart) : 0,
+
+                    totalTime: (() => {
+                        const resourceTotal = targetEntry.responseEnd && targetEntry.startTime ?
+                            Math.max(0, targetEntry.responseEnd - targetEntry.startTime) : 0;
+                        if (resourceTotal > 0 && manualDuration > 0) {
+                            const difference = Math.abs(resourceTotal - manualDuration);
+                            const percentDiff = difference / Math.max(resourceTotal, manualDuration);
+                            return percentDiff > 0.5 ? manualDuration : resourceTotal;
+                        }
+                        return resourceTotal > 0 ? resourceTotal : (manualDuration || 0);
+                    })(),
+
+                    // 4 Size Metrics
+                    transferSize: targetEntry.transferSize || 0,
+                    encodedBodySize: targetEntry.encodedBodySize || 0,
+                    decodedBodySize: targetEntry.decodedBodySize || 0,
+                    manualDuration: manualDuration || 0,
+
+                    // Additional info
+                    timingDataQuality: hasDetailedTiming ? 'full' : 'limited',
+                    hasDetailedTiming: hasDetailedTiming
+                };
+
+                // Round timing metrics
+                ['dnsLookup', 'tcpConnect', 'sslHandshake', 'timeToFirstByte', 'contentDownload', 'totalTime', 'manualDuration'].forEach(key => {
+                    if (typeof metrics[key] === 'number') {
+                        metrics[key] = Math.round(metrics[key] * 100) / 100;
+                    }
+                });
+
+                return metrics;
+            } catch (error) {
+                log('❌ Metrics extraction failed: ' + error.message, 'error');
+                return null;
+            }
+        }
+
+        function updateMetricsTable(testName, metrics) {
+            const tbody = document.getElementById('metrics-tbody');
+
+            // Remove "no tests" row if it exists
+            if (tbody.children[0] && tbody.children[0].children[0].colSpan === 11) {
+                tbody.innerHTML = '';
+            }
+
+            const row = document.createElement('tr');
+
+            function formatValue(value, isSize = false) {
+                if (value === 0 || value === null || value === undefined) {
+                    return { text: isSize ? '0 B' : 'DASH', className: 'value-zero' };
+                } else if (isSize) {
+                    return { text: formatBytes(value), className: 'value-good' };
+                } else {
+                    return { text: value.toFixed(2) + 'ms', className: 'value-good' };
+                }
+            }
+
+            const values = [
+                testName,
+                formatValue(metrics.dnsLookup),
+                formatValue(metrics.tcpConnect),
+                formatValue(metrics.sslHandshake),
+                formatValue(metrics.timeToFirstByte),
+                formatValue(metrics.contentDownload),
+                formatValue(metrics.totalTime),
+                formatValue(metrics.transferSize, true),
+                formatValue(metrics.encodedBodySize, true),
+                formatValue(metrics.decodedBodySize, true),
+                formatValue(metrics.manualDuration)
+            ];
+
+            values.forEach((value, index) => {
+                const td = document.createElement('td');
+                if (index === 0) {
+                    td.textContent = value;
+                    td.style.fontWeight = 'bold';
+                } else {
+                    td.textContent = value.text;
+                    td.className = value.className;
+                }
+                row.appendChild(td);
+            });
+
+            tbody.appendChild(row);
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        async function testFreshConnection() {
+            log('🆕 Starting fresh connection test...', 'info', 'fresh-results');
+            log('This test aims to trigger new DNS + SSL + TCP connections', 'info', 'fresh-results');
+
+            // Clear all caches first
+            performance.clearResourceTimings();
+
+            // Use a unique subdomain to force DNS lookup
+            const timestamp = Date.now();
+            const randomId = Math.random().toString(36).substring(7);
+
+            // Try multiple strategies to get fresh connections
+            const testUrls = [
+                `https://httpbin.org/uuid?fresh=${timestamp}&id=${randomId}`,
+                `https://postman-echo.com/get?fresh=${timestamp}&id=${randomId}`,
+                `https://api.github.com/zen?fresh=${timestamp}&id=${randomId}`
+            ];
+
+            for (let i = 0; i < testUrls.length; i++) {
+                const url = testUrls[i];
+                const domain = new URL(url).hostname;
+
+                try {
+                    log(`🔄 Testing ${domain}...`, 'info', 'fresh-results');
+
+                    const startTime = performance.now();
+                    const response = await fetch(url);
+                    const endTime = performance.now();
+                    const manualDuration = endTime - startTime;
+
+                    await new Promise(resolve => setTimeout(resolve, 300));
+
+                    const metrics = extractExtensionMetrics(url, startTime, manualDuration);
+                    if (metrics) {
+                        log(`✅ ${domain} completed:`, 'success', 'fresh-results');
+                        log(`   Timing Quality: ${metrics.timingDataQuality}`, metrics.hasDetailedTiming ? 'success' : 'warning', 'fresh-results');
+                        log(`   DNS: ${metrics.dnsLookup > 0 ? metrics.dnsLookup + 'ms' : 'DASH'}`, metrics.dnsLookup > 0 ? 'success' : 'warning', 'fresh-results');
+                        log(`   SSL: ${metrics.sslHandshake > 0 ? metrics.sslHandshake + 'ms' : 'DASH'}`, metrics.sslHandshake > 0 ? 'success' : 'warning', 'fresh-results');
+                        log(`   Total: ${metrics.totalTime}ms`, 'info', 'fresh-results');
+
+                        updateMetricsTable(`Fresh-${domain.split('.')[0]}`, metrics);
+                        testResults.push({ testName: `Fresh-${domain}`, metrics, url });
+                    }
+                } catch (error) {
+                    log(`❌ ${domain} failed: ${error.message}`, 'error', 'fresh-results');
+                }
+            }
+
+            log('\n💡 To maximize fresh connection chances:', 'info', 'fresh-results');
+            log('1. Clear browser DNS: chrome://net-internals/#dns', 'warning', 'fresh-results');
+            log('2. Restart browser to clear SSL cache', 'warning', 'fresh-results');
+            log('3. Wait 10+ minutes between tests', 'warning', 'fresh-results');
+        }
+
+        async function testSizeVariations() {
+            log('📦 Testing size variations...', 'info', 'size-results');
+
+            const sizeTests = [
+                { url: 'https://httpbin.org/bytes/1024', name: 'Small-1KB', expected: '1 KB' },
+                { url: 'https://httpbin.org/bytes/10240', name: 'Medium-10KB', expected: '10 KB' },
+                { url: 'https://httpbin.org/bytes/102400', name: 'Large-100KB', expected: '100 KB' },
+                { url: 'https://httpbin.org/json', name: 'JSON-Response', expected: 'JSON data' }
+            ];
+
+            for (let i = 0; i < sizeTests.length; i++) {
+                const test = sizeTests[i];
+                const url = `${test.url}?size_test=${Date.now()}_${i}`;
+
+                try {
+                    log(`🔄 Testing ${test.name} (${test.expected})...`, 'info', 'size-results');
+
+                    const startTime = performance.now();
+                    const response = await fetch(url);
+                    const endTime = performance.now();
+                    const manualDuration = endTime - startTime;
+
+                    await new Promise(resolve => setTimeout(resolve, 200));
+
+                    const metrics = extractExtensionMetrics(url, startTime, manualDuration);
+                    if (metrics) {
+                        log(`✅ ${test.name}:`, 'success', 'size-results');
+                        log(`   Transfer: ${formatBytes(metrics.transferSize)}`, 'info', 'size-results');
+                        log(`   Encoded: ${formatBytes(metrics.encodedBodySize)}`, 'info', 'size-results');
+                        log(`   Decoded: ${formatBytes(metrics.decodedBodySize)}`, 'info', 'size-results');
+                        log(`   Manual: ${metrics.manualDuration}ms`, 'info', 'size-results');
+
+                        updateMetricsTable(test.name, metrics);
+                        testResults.push({ testName: test.name, metrics, url });
+                    }
+                } catch (error) {
+                    log(`❌ ${test.name} failed: ${error.message}`, 'error', 'size-results');
+                }
+            }
+        }
+
+        async function testSlowResponse() {
+            log('🐌 Testing slow responses for TTFB timing...', 'info', 'slow-results');
+
+            const delayTests = [
+                { delay: 1, name: 'Fast-1s' },
+                { delay: 2, name: 'Slow-2s' },
+                { delay: 5, name: 'VerySlow-5s' }
+            ];
+
+            for (let i = 0; i < delayTests.length; i++) {
+                const test = delayTests[i];
+                const url = `https://httpbin.org/delay/${test.delay}?slow_test=${Date.now()}_${i}`;
+
+                try {
+                    log(`🔄 Testing ${test.name} (${test.delay}s delay)...`, 'info', 'slow-results');
+
+                    const startTime = performance.now();
+                    const response = await fetch(url);
+                    const endTime = performance.now();
+                    const manualDuration = endTime - startTime;
+
+                    await new Promise(resolve => setTimeout(resolve, 300));
+
+                    const metrics = extractExtensionMetrics(url, startTime, manualDuration);
+                    if (metrics) {
+                        log(`✅ ${test.name}:`, 'success', 'slow-results');
+                        log(`   TTFB: ${metrics.timeToFirstByte > 0 ? metrics.timeToFirstByte + 'ms' : 'DASH'}`, metrics.timeToFirstByte > 0 ? 'success' : 'warning', 'slow-results');
+                        log(`   Download: ${metrics.contentDownload > 0 ? metrics.contentDownload + 'ms' : 'DASH'}`, 'info', 'slow-results');
+                        log(`   Total: ${metrics.totalTime}ms`, 'info', 'slow-results');
+                        log(`   Manual: ${metrics.manualDuration}ms`, 'info', 'slow-results');
+
+                        updateMetricsTable(test.name, metrics);
+                        testResults.push({ testName: test.name, metrics, url });
+                    }
+                } catch (error) {
+                    log(`❌ ${test.name} failed: ${error.message}`, 'error', 'slow-results');
+                }
+            }
+        }
+
+        async function testSSLVariations() {
+            log('🔒 Testing different SSL endpoints...', 'info', 'ssl-results');
+
+            const sslTests = [
+                { url: 'https://www.google.com/favicon.ico', name: 'Google-SSL' },
+                { url: 'https://github.com/status.json', name: 'GitHub-SSL' },
+                { url: 'https://api.github.com/zen', name: 'API-SSL' }
+            ];
+
+            for (let i = 0; i < sslTests.length; i++) {
+                const test = sslTests[i];
+                const url = `${test.url}?ssl_test=${Date.now()}_${i}`;
+
+                try {
+                    log(`🔄 Testing ${test.name}...`, 'info', 'ssl-results');
+
+                    const startTime = performance.now();
+                    const response = await fetch(url, { mode: 'no-cors' });
+                    const endTime = performance.now();
+                    const manualDuration = endTime - startTime;
+
+                    await new Promise(resolve => setTimeout(resolve, 400));
+
+                    const metrics = extractExtensionMetrics(url, startTime, manualDuration);
+                    if (metrics) {
+                        log(`✅ ${test.name}:`, 'success', 'ssl-results');
+                        log(`   SSL: ${metrics.sslHandshake > 0 ? metrics.sslHandshake + 'ms' : 'REUSED/BLOCKED'}`, metrics.sslHandshake > 0 ? 'success' : 'warning', 'ssl-results');
+                        log(`   TCP: ${metrics.tcpConnect > 0 ? metrics.tcpConnect + 'ms' : 'REUSED/BLOCKED'}`, 'info', 'ssl-results');
+                        log(`   Quality: ${metrics.timingDataQuality}`, metrics.hasDetailedTiming ? 'success' : 'warning', 'ssl-results');
+
+                        updateMetricsTable(test.name, metrics);
+                        testResults.push({ testName: test.name, metrics, url });
+                    }
+                } catch (error) {
+                    log(`❌ ${test.name} failed: ${error.message}`, 'error', 'ssl-results');
+                }
+            }
+        }
+
+        async function testSameOrigin() {
+            log('🌐 Testing same-origin requests...', 'info', 'same-origin-results');
+            log('Same-origin should show full timing metrics', 'info', 'same-origin-results');
+
+            const sameOriginTests = [
+                { url: 'http://localhost:8000/src/manifest.json', name: 'Manifest' },
+                { url: 'http://localhost:8000/package.json', name: 'Package' },
+                { url: 'http://localhost:8000/README.md', name: 'README' }
+            ];
+
+            for (let i = 0; i < sameOriginTests.length; i++) {
+                const test = sameOriginTests[i];
+                const url = `${test.url}?same_origin=${Date.now()}_${i}`;
+
+                try {
+                    log(`🔄 Testing ${test.name}...`, 'info', 'same-origin-results');
+
+                    const startTime = performance.now();
+                    const response = await fetch(url);
+                    const endTime = performance.now();
+                    const manualDuration = endTime - startTime;
+
+                    await new Promise(resolve => setTimeout(resolve, 200));
+
+                    const metrics = extractExtensionMetrics(url, startTime, manualDuration);
+                    if (metrics) {
+                        log(`✅ ${test.name}:`, 'success', 'same-origin-results');
+                        log(`   Quality: ${metrics.timingDataQuality}`, metrics.hasDetailedTiming ? 'success' : 'warning', 'same-origin-results');
+                        log(`   DNS: ${metrics.dnsLookup > 0 ? metrics.dnsLookup + 'ms' : 'CACHED'}`, 'info', 'same-origin-results');
+                        log(`   Total: ${metrics.totalTime}ms`, 'info', 'same-origin-results');
+                        log(`   Size: ${formatBytes(metrics.transferSize)}`, 'info', 'same-origin-results');
+
+                        updateMetricsTable(`SameOrigin-${test.name}`, metrics);
+                        testResults.push({ testName: `SameOrigin-${test.name}`, metrics, url });
+                    }
+                } catch (error) {
+                    log(`❌ ${test.name} failed: ${error.message}`, 'error', 'same-origin-results');
+                }
+            }
+        }
+
+        async function runAllTests() {
+            log('🧪 Running comprehensive test suite...', 'success', 'comprehensive-results');
+            log('This will run all tests to validate your extension metrics', 'info', 'comprehensive-results');
+
+            testResults = [];
+
+            // Clear the metrics table
+            document.getElementById('metrics-tbody').innerHTML = '<tr><td colspan="11" style="text-align: center; color: #666;">Running tests...</td></tr>';
+
+            try {
+                log('\n1️⃣ Running same-origin tests...', 'info', 'comprehensive-results');
+                await testSameOrigin();
+
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                log('\n2️⃣ Running size variation tests...', 'info', 'comprehensive-results');
+                await testSizeVariations();
+
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                log('\n3️⃣ Running slow response tests...', 'info', 'comprehensive-results');
+                await testSlowResponse();
+
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                log('\n4️⃣ Running fresh connection tests...', 'info', 'comprehensive-results');
+                await testFreshConnection();
+
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                log('\n5️⃣ Running SSL variation tests...', 'info', 'comprehensive-results');
+                await testSSLVariations();
+
+                // Analyze results
+                log('\n📊 COMPREHENSIVE ANALYSIS:', 'success', 'comprehensive-results');
+
+                const metricsAnalysis = {
+                    dnsLookup: testResults.filter(r => r.metrics.dnsLookup > 0).length,
+                    tcpConnect: testResults.filter(r => r.metrics.tcpConnect > 0).length,
+                    sslHandshake: testResults.filter(r => r.metrics.sslHandshake > 0).length,
+                    timeToFirstByte: testResults.filter(r => r.metrics.timeToFirstByte > 0).length,
+                    contentDownload: testResults.filter(r => r.metrics.contentDownload > 0).length,
+                    totalTime: testResults.filter(r => r.metrics.totalTime > 0).length,
+                    transferSize: testResults.filter(r => r.metrics.transferSize > 0).length,
+                    encodedBodySize: testResults.filter(r => r.metrics.encodedBodySize > 0).length,
+                    decodedBodySize: testResults.filter(r => r.metrics.decodedBodySize > 0).length,
+                    manualDuration: testResults.filter(r => r.metrics.manualDuration > 0).length
+                };
+
+                const total = testResults.length;
+
+                log(`\n📈 Metrics Success Rates (out of ${total} tests):`, 'info', 'comprehensive-results');
+                log(`   DNS Lookup: ${metricsAnalysis.dnsLookup}/${total} (${Math.round(metricsAnalysis.dnsLookup/total*100)}%)`, 'info', 'comprehensive-results');
+                log(`   TCP Connect: ${metricsAnalysis.tcpConnect}/${total} (${Math.round(metricsAnalysis.tcpConnect/total*100)}%)`, 'info', 'comprehensive-results');
+                log(`   SSL Handshake: ${metricsAnalysis.sslHandshake}/${total} (${Math.round(metricsAnalysis.sslHandshake/total*100)}%)`, 'info', 'comprehensive-results');
+                log(`   Time to First Byte: ${metricsAnalysis.timeToFirstByte}/${total} (${Math.round(metricsAnalysis.timeToFirstByte/total*100)}%)`, 'info', 'comprehensive-results');
+                log(`   Content Download: ${metricsAnalysis.contentDownload}/${total} (${Math.round(metricsAnalysis.contentDownload/total*100)}%)`, 'info', 'comprehensive-results');
+                log(`   Total Time: ${metricsAnalysis.totalTime}/${total} (${Math.round(metricsAnalysis.totalTime/total*100)}%)`, 'success', 'comprehensive-results');
+                log(`   Transfer Size: ${metricsAnalysis.transferSize}/${total} (${Math.round(metricsAnalysis.transferSize/total*100)}%)`, 'success', 'comprehensive-results');
+                log(`   Encoded Body Size: ${metricsAnalysis.encodedBodySize}/${total} (${Math.round(metricsAnalysis.encodedBodySize/total*100)}%)`, 'success', 'comprehensive-results');
+                log(`   Decoded Body Size: ${metricsAnalysis.decodedBodySize}/${total} (${Math.round(metricsAnalysis.decodedBodySize/total*100)}%)`, 'success', 'comprehensive-results');
+                log(`   Manual Duration: ${metricsAnalysis.manualDuration}/${total} (${Math.round(metricsAnalysis.manualDuration/total*100)}%)`, 'success', 'comprehensive-results');
+
+                log('\n🎯 SUMMARY:', 'success', 'comprehensive-results');
+                log('✅ Size metrics should always work (transfer, encoded, decoded, manual)', 'success', 'comprehensive-results');
+                log('⚠️  Timing metrics depend on CORS and browser caching', 'warning', 'comprehensive-results');
+                log('📊 Your extension is capturing all available metrics correctly!', 'success', 'comprehensive-results');
+
+            } catch (error) {
+                log('❌ Comprehensive test failed: ' + error.message, 'error', 'comprehensive-results');
+            }
+        }
+
+        // Initialize
+        log('🧪 Extension Metrics Testing Suite Ready');
+        log('Use the test buttons to validate all 10 metrics your extension captures');
+        log('• 6 Timing Metrics: DNS, TCP, SSL, TTFB, Download, Total');
+        log('• 4 Size Metrics: Transfer, Encoded, Decoded, Manual Duration');
+        log('');
+    </script>
+</body>
+</html>

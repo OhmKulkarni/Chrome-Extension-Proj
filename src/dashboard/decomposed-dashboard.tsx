@@ -693,12 +693,16 @@ const DecomposedDashboard: React.FC = () => {
   }, [loadAllNetworkRequests]);
 
   const handleNetworkFilterMethodChange = useCallback(async (method: string) => {
+    console.log('🔍 Filter method changed to:', method);
     setNetworkFilterMethod(method);
-    if (method && method !== 'all') {
-      await loadAllNetworkRequests();
-    }
+
+    // Always load full data when applying a filter (not just when method !== 'all')
+    // This ensures we have the complete dataset to filter from
+    await loadAllNetworkRequests();
+    console.log('📊 Full network data loaded for filtering, count:', fullNetworkData.length);
+
     setCurrentPage(1); // Reset to first page when filtering
-  }, [loadAllNetworkRequests]);
+  }, [loadAllNetworkRequests, fullNetworkData.length]);
 
   const handleErrorSearchChange = useCallback(async (searchTerm: string) => {
     setErrorSearchTerm(searchTerm);
@@ -884,10 +888,24 @@ const DecomposedDashboard: React.FC = () => {
     const hasFilters = (networkSearchTerm && networkSearchTerm.trim()) || (networkFilterMethod && networkFilterMethod !== 'all');
     const needsFullData = networkSortMode || hasFilters;
 
+    console.log('🔍 Filter Debug:', {
+      networkSearchTerm,
+      networkFilterMethod,
+      hasFilters,
+      needsFullData,
+      fullNetworkDataLength: fullNetworkData.length,
+      currentDataLength: data.networkRequests.length
+    });
+
     // Use full dataset if we need it and have it loaded, otherwise use current page data
     const dataToSort = (needsFullData && fullNetworkData.length > 0) ? fullNetworkData : data.networkRequests;
 
-    if (!dataToSort || dataToSort.length === 0) return [];
+    if (!dataToSort || dataToSort.length === 0) {
+      console.log('❌ No data to sort/filter');
+      return [];
+    }
+
+    console.log('📊 Using data source:', needsFullData ? 'fullNetworkData' : 'data.networkRequests', 'length:', dataToSort.length);
 
     // Apply filtering first, before sorting
     let filteredData = dataToSort.filter((request: any) => {
@@ -903,13 +921,18 @@ const DecomposedDashboard: React.FC = () => {
 
       // Method filter
       if (networkFilterMethod && networkFilterMethod !== 'all') {
-        if (request.method?.toLowerCase() !== networkFilterMethod.toLowerCase()) {
+        const requestMethod = request.method?.toLowerCase();
+        const filterMethod = networkFilterMethod.toLowerCase();
+        console.log('🔍 Method filter check:', { requestMethod, filterMethod, matches: requestMethod === filterMethod });
+        if (requestMethod !== filterMethod) {
           return false;
         }
       }
 
       return true;
     });
+
+    console.log('📊 After filtering:', filteredData.length, 'requests');
 
     // Apply sorting to filtered data
     const sorted = [...filteredData].sort((a, b) => {
