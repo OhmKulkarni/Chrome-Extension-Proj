@@ -158,7 +158,7 @@ function truncateBody(text, maxSize = extensionSettings.maxBodySize) {
 }
 
 // Performance Metrics Collection Functions
-const extractPerformanceMetrics = (url, requestStartTime) => {
+const extractPerformanceMetrics = (url, requestStartTime, manualDuration) => {
   try {
     // Get all resource entries for this URL
     const entries = performance.getEntriesByName(url, 'resource');
@@ -170,30 +170,50 @@ const extractPerformanceMetrics = (url, requestStartTime) => {
       return timeDiff < 100; // Within 100ms tolerance
     }) || entries[entries.length - 1]; // Fallback to latest entry
 
+    // Check if we have detailed timing data (not restricted by cross-origin policies)
+    const hasDetailedTiming = targetEntry.domainLookupStart > 0 &&
+                             targetEntry.connectStart > 0 &&
+                             targetEntry.requestStart > 0 &&
+                             targetEntry.responseStart > 0;
+
     // Extract timing metrics with safety checks
     const metrics = {
-      dnsLookup: targetEntry.domainLookupEnd && targetEntry.domainLookupStart ?
+      dnsLookup: hasDetailedTiming && targetEntry.domainLookupEnd && targetEntry.domainLookupStart ?
         Math.max(0, targetEntry.domainLookupEnd - targetEntry.domainLookupStart) : 0,
 
-      tcpConnect: targetEntry.connectEnd && targetEntry.connectStart ?
+      tcpConnect: hasDetailedTiming && targetEntry.connectEnd && targetEntry.connectStart ?
         Math.max(0, targetEntry.connectEnd - targetEntry.connectStart) : 0,
 
-      sslHandshake: targetEntry.secureConnectionStart > 0 && targetEntry.connectEnd ?
+      sslHandshake: hasDetailedTiming && targetEntry.secureConnectionStart > 0 && targetEntry.connectEnd ?
         Math.max(0, targetEntry.connectEnd - targetEntry.secureConnectionStart) : 0,
 
-      timeToFirstByte: targetEntry.responseStart && targetEntry.requestStart ?
+      timeToFirstByte: hasDetailedTiming && targetEntry.responseStart && targetEntry.requestStart ?
         Math.max(0, targetEntry.responseStart - targetEntry.requestStart) : 0,
 
-      contentDownload: targetEntry.responseEnd && targetEntry.responseStart ?
+      contentDownload: hasDetailedTiming && targetEntry.responseEnd && targetEntry.responseStart ?
         Math.max(0, targetEntry.responseEnd - targetEntry.responseStart) : 0,
 
-      totalTime: targetEntry.responseEnd && targetEntry.startTime ?
-        Math.max(0, targetEntry.responseEnd - targetEntry.startTime) : 0,
+      // Use Resource Timing total if available and reasonable, otherwise use manual timing
+      totalTime: (() => {
+        const resourceTotal = targetEntry.responseEnd && targetEntry.startTime ?
+          Math.max(0, targetEntry.responseEnd - targetEntry.startTime) : 0;
 
-      redirectTime: targetEntry.redirectEnd && targetEntry.redirectStart ?
+        // If Resource Timing total seems unreasonable (too far from manual), use manual
+        if (resourceTotal > 0 && manualDuration > 0) {
+          const difference = Math.abs(resourceTotal - manualDuration);
+          const percentDiff = difference / Math.max(resourceTotal, manualDuration);
+
+          // If difference is > 50%, prefer manual timing (more reliable)
+          return percentDiff > 0.5 ? manualDuration : resourceTotal;
+        }
+
+        return resourceTotal > 0 ? resourceTotal : (manualDuration || 0);
+      })(),
+
+      redirectTime: hasDetailedTiming && targetEntry.redirectEnd && targetEntry.redirectStart ?
         Math.max(0, targetEntry.redirectEnd - targetEntry.redirectStart) : 0,
 
-      requestTime: targetEntry.responseStart && targetEntry.requestStart ?
+      requestTime: hasDetailedTiming && targetEntry.responseStart && targetEntry.requestStart ?
         Math.max(0, targetEntry.responseStart - targetEntry.requestStart) : 0,
 
       // Additional useful metrics
@@ -201,14 +221,24 @@ const extractPerformanceMetrics = (url, requestStartTime) => {
       encodedBodySize: targetEntry.encodedBodySize || 0,
       decodedBodySize: targetEntry.decodedBodySize || 0,
 
-      // Derive cache status from transfer size
-      cacheStatus: targetEntry.transferSize === 0 && targetEntry.encodedBodySize > 0 ?
-        'hit' : targetEntry.transferSize > 0 ? 'miss' : 'unknown'
+      // Add manual duration as backup reference
+      manualDuration: manualDuration || 0,
+
+      // Enhanced cache status detection
+      cacheStatus: (() => {
+        if (targetEntry.transferSize === 0 && targetEntry.encodedBodySize > 0) return 'hit';
+        if (targetEntry.transferSize > 0) return 'miss';
+        return 'unknown';
+      })(),
+
+      // Add timing data quality indicator
+      timingDataQuality: hasDetailedTiming ? 'full' : 'limited'
     };
 
     // Round to 2 decimal places for cleaner data
     Object.keys(metrics).forEach(key => {
-      if (typeof metrics[key] === 'number' && key !== 'transferSize' && key !== 'encodedBodySize' && key !== 'decodedBodySize') {
+      if (typeof metrics[key] === 'number' &&
+          !['transferSize', 'encodedBodySize', 'decodedBodySize', 'manualDuration'].includes(key)) {
         metrics[key] = Math.round(metrics[key] * 100) / 100;
       }
     });
@@ -238,7 +268,7 @@ const initializePerformanceMonitoring = () => {
             approximateKeys.forEach(key => {
               const pendingData = performanceMetricsState.pendingRequests.get(key);
               if (pendingData && Math.abs(entry.startTime - pendingData.startTime) < 200) {
-                const metrics = extractPerformanceMetrics(entry.name, pendingData.startTime);
+                const metrics = extractPerformanceMetrics(entry.name, pendingData.startTime, pendingData.manualDuration);
                 if (metrics) {
                   pendingData.performanceMetrics = metrics;
                 }
@@ -294,13 +324,14 @@ const initializePerformanceMonitoring = () => {
   }
 };
 
-const addRequestToPendingMetrics = (url, startTime) => {
+const addRequestToPendingMetrics = (url, startTime, manualDuration) => {
   if (!performanceMetricsState.isObserving) return;
 
   const key = `${url}:${Math.floor(startTime)}`;
   performanceMetricsState.pendingRequests.set(key, {
     url,
     startTime,
+    manualDuration: manualDuration || 0,
     timestamp: Date.now()
   });
 };
@@ -337,17 +368,20 @@ const interceptFetch = (originalFetch, input, init) => {
     originalConsoleLog.call(console, 'MAIN-WORLD: URL resolution failed:', url, error);
   }
 
-  // Add request to pending performance metrics tracking
-  addRequestToPendingMetrics(url, performanceStartTime);
-
-  // Log intercept (reduced for performance)
-  if (Math.random() < 0.1) { // Only log 10% of requests
-    originalConsoleLog.call(console, 'MAIN-WORLD: Intercepted fetch request:', url);
-  }
-
   // Call the original fetch
   return originalFetch.call(this, input, init).then(async response => {
-    const endTime = Date.now();
+    const endTime = performance.now() + performance.timeOrigin;
+    const manualDuration = endTime - performanceStartTime;
+
+    // Add request to pending performance metrics tracking with manual duration
+    addRequestToPendingMetrics(url, performanceStartTime, manualDuration);
+
+    // Log intercept (reduced for performance)
+    if (Math.random() < 0.1) { // Only log 10% of requests
+      originalConsoleLog.call(console, 'MAIN-WORLD: Intercepted fetch request:', url);
+    }
+
+    const endTimeMs = Date.now();
     // Log response (reduced for performance)
     if (Math.random() < 0.1) { // Only log 10% of responses
       originalConsoleLog.call(console, 'MAIN-WORLD: Fetch response received for:', url, 'Status:', response.status);
@@ -410,7 +444,7 @@ const interceptFetch = (originalFetch, input, init) => {
         domain: getSafeDomain(url),
         status: response.status,
         statusText: response.statusText,
-        duration: endTime - startTime,
+        duration: endTimeMs - startTime,
         requestHeaders,
         responseHeaders,
         requestBody,
@@ -448,6 +482,13 @@ const interceptFetch = (originalFetch, input, init) => {
 const interceptXHR = (xhr, originalXhrSend, data) => {
   xhr.addEventListener('loadend', () => {
     const endTime = Date.now();
+    const performanceEndTime = performance.now() + performance.timeOrigin;
+    const manualDuration = xhr._performanceStartTime ? performanceEndTime - xhr._performanceStartTime : 0;
+
+    // Update pending metrics with manual duration
+    if (xhr._url && xhr._performanceStartTime && manualDuration > 0) {
+      addRequestToPendingMetrics(xhr._url, xhr._performanceStartTime, manualDuration);
+    }
 
     // Capture response headers
     let responseHeaders = {};
@@ -682,9 +723,6 @@ try {
       this._startTime = Date.now();
       this._performanceStartTime = performance.now() + performance.timeOrigin;
       this._requestHeaders = {};
-
-      // Add to pending performance metrics tracking
-      addRequestToPendingMetrics(this._url, this._performanceStartTime);
 
       return originalXhrOpen.call(this, method, url, async, user, password);
     };
