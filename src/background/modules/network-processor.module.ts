@@ -195,7 +195,9 @@ export class NetworkProcessorModule {
           main_domain: mainDomain, // Store the main domain directly for reliable grouping
           // Store new size fields for better data analysis
           request_size: requestData.requestSize || 0,
-          response_size: requestData.responseSize || 0
+          response_size: requestData.responseSize || 0,
+          // NEW: Store performance metrics if available
+          performance_metrics: requestData.performanceMetrics ? JSON.stringify(requestData.performanceMetrics) : undefined
         };
 
         // Use IndexedDB storage with race condition protection
@@ -263,7 +265,8 @@ export class NetworkProcessorModule {
         source_url: apiCall.tab_url || apiCall.url,
         tabId: apiCall.tab_id,
         duration: apiCall.response_time,
-        response_time: apiCall.response_time
+        response_time: apiCall.response_time,
+        performanceMetrics: apiCall.performance_metrics ? JSON.parse(apiCall.performance_metrics) : undefined
       }));
     });
   }

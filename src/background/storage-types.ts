@@ -17,6 +17,7 @@ export interface ApiCall {
   request_body?: string // Request body for analysis
   request_size?: number // Request size in bytes
   response_size?: number // Response size in bytes
+  performance_metrics?: string // JSON string of performance timing data
 }
 
 export interface ConsoleError {
