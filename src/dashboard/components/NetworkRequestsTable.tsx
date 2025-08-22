@@ -16,6 +16,7 @@ interface NetworkRequest {
   response_time?: number;
   time_taken?: number;
   duration?: number;
+  performanceMetrics?: any; // Parsed performance timing data object
 }
 
 interface NetworkRequestsTableProps {
@@ -64,7 +65,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
   // Helper function to check if a request is selected
   const isRequestSelected = (request: NetworkRequest): boolean => {
     if (!selectedRequest) return false;
-    
+
     // Compare key properties to determine if it's the same request
     return (
       request.url === selectedRequest.url &&
@@ -72,6 +73,24 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
       request.timestamp === selectedRequest.timestamp &&
       request.status === selectedRequest.status
     );
+  };
+
+  // Helper function to extract response time with performance metrics as primary source
+  const getResponseTime = (request: NetworkRequest): string => {
+    // First try to get performance metrics total time (already parsed object from background)
+    if (request.performanceMetrics && typeof request.performanceMetrics === 'object') {
+      const totalTime = request.performanceMetrics.totalTime;
+      if (totalTime && typeof totalTime === 'number') {
+        return `${Math.round(totalTime)}ms`;
+      }
+    }
+
+    // Fallback to existing logic (Date.now() based timing)
+    if (request.duration) return `${request.duration}ms`;
+    if (request.response_time) return `${request.response_time}ms`;
+    if (request.time_taken) return `${request.time_taken}ms`;
+
+    return 'N/A';
   };
 
   const getHeaderPreview = (request: NetworkRequest): string => {
@@ -333,8 +352,8 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                     <tr
                       key={index}
                       className={`cursor-pointer transition-all duration-200 ${
-                        isSelected 
-                          ? 'bg-blue-50 border-l-4 border-blue-500 hover:bg-blue-100 shadow-sm' 
+                        isSelected
+                          ? 'bg-blue-50 border-l-4 border-blue-500 hover:bg-blue-100 shadow-sm'
                           : 'hover:bg-gray-50'
                       }`}
                       onDoubleClick={() => onDetailClick(request)}
@@ -409,9 +428,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                       </div>
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-20">
-                      {request.duration ? `${request.duration}ms` :
-                       request.response_time ? `${request.response_time}ms` :
-                       request.time_taken ? `${request.time_taken}ms` : 'N/A'}
+                      {getResponseTime(request)}
                     </td>
                   </tr>
                   );

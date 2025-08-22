@@ -61,7 +61,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
   // Helper function to check if a token event is selected
   const isTokenSelected = (event: TokenEvent): boolean => {
     if (!selectedToken) return false;
-    
+
     // Compare key properties to determine if it's the same token event
     return (
       event.url === selectedToken.url &&
@@ -74,7 +74,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
   const generatePageNumbers = () => {
     const pageNumbers: (number | string)[] = [];
     const maxVisiblePages = 7;
-    
+
     if (totalPages <= maxVisiblePages) {
       // Show all pages if total is small
       for (let i = 1; i <= totalPages; i++) {
@@ -109,7 +109,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
         pageNumbers.push(totalPages);
       }
     }
-    
+
     return pageNumbers;
   };
 
@@ -176,7 +176,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
             />
           </div>
         </div>
-        
+
         {/* Enhanced Type Filter */}
         <div className="flex items-center space-x-3">
           <label className="text-sm font-medium text-gray-700">Type:</label>
@@ -203,7 +203,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
         >
           {showFullTokenHash ? 'Hide Full Hash' : 'Show Full Hash'}
         </button>
-        
+
         {/* Clear Filters */}
         {(searchTerm || filterType !== 'all') && (
           <button
@@ -214,7 +214,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
           </button>
         )}
       </div>
-      
+
       {/* Table */}
       {events.length > 0 ? (
         <div className="overflow-hidden">
@@ -222,7 +222,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
             <table className="w-full table-fixed divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th 
+                  <th
                     className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-24"
                     onClick={() => onSort('type')}
                   >
@@ -235,7 +235,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                       )}
                     </div>
                   </th>
-                  <th 
+                  <th
                     className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-24"
                     onClick={() => onSort('tokenType')}
                   >
@@ -248,7 +248,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                       )}
                     </div>
                   </th>
-                  <th 
+                  <th
                     className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-1/3"
                     onClick={() => onSort('url')}
                   >
@@ -267,7 +267,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
                     Value Hash
                   </th>
-                  <th 
+                  <th
                     className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-20"
                     onClick={() => onSort('timestamp')}
                   >
@@ -286,13 +286,13 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                 {events.map((event, index) => {
                   const isSelected = isTokenSelected(event);
                   return (
-                    <tr 
-                      key={index} 
+                    <tr
+                      key={index}
                       className={`cursor-pointer transition-all duration-200 ${
-                        isSelected 
-                          ? 'bg-yellow-50 border-l-4 border-yellow-500 hover:bg-yellow-100 shadow-sm' 
+                        isSelected
+                          ? 'bg-yellow-50 border-l-4 border-yellow-500 hover:bg-yellow-100 shadow-sm'
                           : 'hover:bg-gray-50'
-                      }`} 
+                      }`}
                       onDoubleClick={() => onDetailClick(event)}
                       title={isSelected ? "Currently viewing in detail panel - Double-click to refresh" : "Double-click to view detailed information"}
                     >
@@ -327,7 +327,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
               </tbody>
             </table>
           </div>
-          
+
           {/* Pagination Controls */}
           {totalPages > 1 && (
             <div className="mt-6 flex items-center justify-between">
@@ -396,7 +396,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
           </svg>
           <h3 className="mt-2 text-sm font-medium text-gray-900">No token events found</h3>
           <p className="mt-1 text-sm text-gray-500">
-            {searchTerm || filterType !== 'all' 
+            {searchTerm || filterType !== 'all'
               ? 'Try adjusting your search criteria or filters'
               : 'Token events will appear here when they are captured'
             }
