@@ -347,10 +347,33 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-16">
                       {(() => {
-                        const totalSize = (request.requestSize || 0) + (request.responseSize || 0);
+                        // Helper function to format size with appropriate units
+                        const formatSize = (bytes: number): string => {
+                          if (bytes === 0) return '0 B';
+                          if (bytes < 1024) return `${bytes} B`;
+                          if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+                          return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+                        };
+
+                        // Calculate accurate total size
+                        const requestSize = request.requestSize || 0;
+                        const responseSize = request.responseSize || 0;
+                        const totalSize = requestSize + responseSize;
+
+                        // Fallback to legacy payload_size if new sizes not available
                         const fallbackSize = request.payload_size || 0;
                         const sizeToShow = totalSize > 0 ? totalSize : fallbackSize;
-                        return sizeToShow > 0 ? `${Math.round(sizeToShow / 1024)}KB` : '-';
+
+                        // Show detailed breakdown on hover if both sizes available
+                        if (requestSize > 0 && responseSize > 0) {
+                          return (
+                            <span title={`Request: ${formatSize(requestSize)}, Response: ${formatSize(responseSize)}`}>
+                              {formatSize(totalSize)}
+                            </span>
+                          );
+                        }
+
+                        return sizeToShow > 0 ? formatSize(sizeToShow) : '-';
                       })()}
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-20">
