@@ -440,7 +440,11 @@ const interceptFetch = (originalFetch, input, init) => {
     setTimeout(() => {
       performanceMetrics = getAndRemovePendingMetrics(url, performanceStartTime);
 
-      // Send captured data including performance metrics
+      // Calculate actual byte sizes
+      const requestSize = requestBody ? new Blob([requestBody]).size : 0;
+      const responseSize = responseBody ? new Blob([responseBody]).size : 0;
+
+      // Send captured data including performance metrics and size calculations
       const capturedData = {
         type: 'fetch',
         method: (init?.method || 'GET').toUpperCase(),
@@ -453,7 +457,9 @@ const interceptFetch = (originalFetch, input, init) => {
         responseHeaders,
         requestBody,
         responseBody,
-        performanceMetrics, // NEW: Include performance timing metrics
+        requestSize,  // NEW: Actual byte size of request body
+        responseSize, // NEW: Actual byte size of response body
+        performanceMetrics, // Include performance timing metrics
         timestamp: new Date().toISOString()
       };
 
@@ -464,6 +470,8 @@ const interceptFetch = (originalFetch, input, init) => {
           domain: capturedData.domain,
           status: capturedData.status,
           method: capturedData.method,
+          requestSize: capturedData.requestSize,
+          responseSize: capturedData.responseSize,
           hasPerformanceMetrics: !!capturedData.performanceMetrics
         });
       }
@@ -524,6 +532,10 @@ const interceptXHR = (xhr, originalXhrSend, data) => {
     setTimeout(() => {
       const performanceMetrics = getAndRemovePendingMetrics(xhr._url, xhr._performanceStartTime);
 
+      // Calculate actual byte sizes
+      const requestSize = data ? new Blob([String(data)]).size : 0;
+      const responseSize = responseBody ? new Blob([responseBody]).size : 0;
+
       // Send captured data
       const capturedData = {
         type: 'xhr',
@@ -537,7 +549,9 @@ const interceptXHR = (xhr, originalXhrSend, data) => {
         responseHeaders,
         requestBody: data ? truncateBody(String(data), extensionSettings.maxBodySize) : '',
         responseBody,
-        performanceMetrics, // NEW: Include performance timing metrics
+        requestSize,  // NEW: Actual byte size of request body
+        responseSize, // NEW: Actual byte size of response body
+        performanceMetrics, // Include performance timing metrics
         timestamp: new Date().toISOString()
       };
 
@@ -547,6 +561,8 @@ const interceptXHR = (xhr, originalXhrSend, data) => {
         domain: capturedData.domain,
         method: capturedData.method,
         status: capturedData.status,
+        requestSize: capturedData.requestSize,
+        responseSize: capturedData.responseSize,
         hasRequestBody: !!capturedData.requestBody,
         hasResponseBody: !!capturedData.responseBody,
         hasPerformanceMetrics: !!capturedData.performanceMetrics,

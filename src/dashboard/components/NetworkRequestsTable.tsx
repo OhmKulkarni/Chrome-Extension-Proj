@@ -7,12 +7,16 @@ interface NetworkRequest {
   payload_size?: number;
   requestSize?: number;
   responseSize?: number;
+  request_size?: number; // Database field name
+  response_size?: number; // Database field name
   timestamp: string;
   headers?: any;
   request_headers?: any;
   response_headers?: any;
   requestBody?: string;
   responseBody?: string;
+  request_body?: string; // Database field name
+  response_body?: string; // Database field name
   response_time?: number;
   time_taken?: number;
   duration?: number;
@@ -76,6 +80,56 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
   };
 
   // Helper function to extract response time with performance metrics as primary source
+  // Helper function to get size display with multiple fallback options
+  const getSizeDisplay = (request: NetworkRequest): string => {
+    // Method 1: Use payload_size if available (most reliable)
+    if (request.payload_size && request.payload_size > 0) {
+      return `${Math.round(request.payload_size / 1024)}KB`;
+    }
+    
+    // Method 2: Calculate from separate size fields (try both naming conventions)
+    const requestSize = request.requestSize || request.request_size || 0;
+    const responseSize = request.responseSize || request.response_size || 0;
+    const totalSize = requestSize + responseSize;
+    
+    if (totalSize > 0) {
+      return `${Math.round(totalSize / 1024)}KB`;
+    }
+    
+    // Method 3: Estimate from body content if available (try both naming conventions)
+    let estimatedSize = 0;
+    
+    const requestBody = request.requestBody || request.request_body;
+    if (requestBody) {
+      estimatedSize += new Blob([requestBody]).size;
+    }
+    
+    const responseBody = request.responseBody || request.response_body;
+    if (responseBody) {
+      estimatedSize += new Blob([responseBody]).size;
+    }
+    
+    if (estimatedSize > 0) {
+      return `~${Math.round(estimatedSize / 1024)}KB`;
+    }
+    
+    // Method 4: Estimate from headers if available
+    if (request.headers) {
+      try {
+        const headerStr = typeof request.headers === 'string' ? request.headers : JSON.stringify(request.headers);
+        const headerSize = new Blob([headerStr]).size;
+        if (headerSize > 100) { // Only show if meaningful size
+          return `~${Math.round(headerSize / 1024)}KB`;
+        }
+      } catch (e) {
+        // Ignore header size calculation errors
+      }
+    }
+    
+    // Fallback: Show dash if no size data available
+    return '-';
+  };
+
   const getResponseTime = (request: NetworkRequest): string => {
     // First try to get performance metrics total time (already parsed object from background)
     if (request.performanceMetrics && typeof request.performanceMetrics === 'object') {
@@ -389,7 +443,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                       </span>
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-16">
-                      {request.payload_size ? `${Math.round(request.payload_size / 1024)}KB` : '-'}
+                      {getSizeDisplay(request)}
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-20">
                       {new Date(request.timestamp).toLocaleTimeString()}

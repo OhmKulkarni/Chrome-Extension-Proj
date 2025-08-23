@@ -184,9 +184,8 @@ export class NetworkProcessorModule {
             request: requestData.requestHeaders || {},
             response: requestData.responseHeaders || {}
           }),
-          // Handle both new and old size field names
-          payload_size: requestData.requestSize || requestData.responseSize ||
-                       (requestData.requestBody ? requestData.requestBody.length : 0),
+          // Calculate total payload size properly
+          payload_size: (requestData.requestSize || 0) + (requestData.responseSize || 0),
           status: status || 0,
           response_body: requestData.responseBody || `Status: ${status} ${requestData.statusText || ''}`,
           // Add request body if captured
