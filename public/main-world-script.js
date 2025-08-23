@@ -775,6 +775,10 @@ try {
     };
   };
 
+  // Error event handlers (for cleanup)
+  let uncaughtErrorHandler = null;
+  let unhandledRejectionHandler = null;
+
   // Start console interception
   const startConsoleInterception = () => {
     if (isConsoleIntercepting) return;
@@ -806,6 +810,64 @@ try {
       const callSiteStack = (new Error().stack) || 'No stack trace available';
       interceptConsole(originalConsoleLog, 'log', 'info', callSiteStack, ...args);
     };
+
+    // Create uncaught error handler
+    uncaughtErrorHandler = (event) => {
+      // Handle uncaught JavaScript errors
+      const errorMessage = `${event.error?.name || 'Error'}: ${event.message}`;
+      const stack = event.error?.stack || `at ${event.filename}:${event.lineno}:${event.colno}`;
+      
+      // Create console error data matching our format
+      const consoleData = {
+        message: errorMessage,
+        severity: 'error',
+        timestamp: new Date().toISOString(),
+        url: window.location.href,
+        domain: getSafeDomain(window.location.href),
+        source: 'uncaught-error',
+        stack: stack,
+        lineNumber: event.lineno,
+        columnNumber: event.colno,
+        filename: event.filename || window.location.href
+      };
+
+      // Send to content script
+      window.postMessage({
+        source: 'main-world-console-interceptor',
+        data: consoleData
+      }, '*');
+    };
+
+    // Create unhandled rejection handler
+    unhandledRejectionHandler = (event) => {
+      // Handle unhandled promise rejections
+      const errorMessage = `Unhandled Promise Rejection: ${event.reason}`;
+      const stack = event.reason?.stack || 'No stack trace available';
+      
+      // Create console error data matching our format
+      const consoleData = {
+        message: errorMessage,
+        severity: 'error',
+        timestamp: new Date().toISOString(),
+        url: window.location.href,
+        domain: getSafeDomain(window.location.href),
+        source: 'unhandled-rejection',
+        stack: stack,
+        lineNumber: null,
+        columnNumber: null,
+        filename: window.location.href
+      };
+
+      // Send to content script
+      window.postMessage({
+        source: 'main-world-console-interceptor',
+        data: consoleData
+      }, '*');
+    };
+
+    // Add event listeners
+    window.addEventListener('error', uncaughtErrorHandler);
+    window.addEventListener('unhandledrejection', unhandledRejectionHandler);
   };
 
   // Stop interception
@@ -834,6 +896,16 @@ try {
     console.warn = originalConsoleWarn;
     console.info = originalConsoleInfo;
     console.log = originalConsoleLog;
+
+    // Remove error event listeners
+    if (uncaughtErrorHandler) {
+      window.removeEventListener('error', uncaughtErrorHandler);
+      uncaughtErrorHandler = null;
+    }
+    if (unhandledRejectionHandler) {
+      window.removeEventListener('unhandledrejection', unhandledRejectionHandler);
+      unhandledRejectionHandler = null;
+    }
   };
 
   // Initial setup - check if we should start intercepting
