@@ -79,48 +79,73 @@ export const RequestDetailContent: React.FC<{
                 {request.status || 'N/A'}
               </span>
             </div>
-            {(request.payload_size || request.request_size || request.response_size || request.requestSize || request.responseSize) && (
+            {(request.payload_size || request.request_size || request.response_size || request.requestSize || request.responseSize || request.requestBody || request.request_body || request.responseBody || request.response_body) && (
               <div>
-                <span className="text-sm font-medium text-gray-700">Size Metrics:</span>
-                <div className="mt-1 space-y-1">
+                <span className="text-sm font-medium text-gray-700">Size Breakdown:</span>
+                <div className="mt-1 space-y-2">
                   {(() => {
-                    console.log('🔍 DetailedViews size metrics for:', request.url?.substring(0, 50), {
-                      payload_size: request.payload_size,
-                      request_size: request.request_size,
-                      response_size: request.response_size,
-                      requestSize: request.requestSize,
-                      responseSize: request.responseSize
-                    });
-                    
                     const parseSize = (value: any): number => {
                       if (value === null || value === undefined) return 0;
                       const parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
                       return isNaN(parsed) || parsed < 0 ? 0 : parsed;
                     };
 
+                    const formatSize = (bytes: number): string =>
+                      bytes > 0 ? `${(bytes / 1024).toFixed(2)}KB (${bytes} bytes)` : '0KB (0 bytes)';
+
                     const payloadSize = parseSize(request.payload_size);
                     const requestSize = parseSize(request.requestSize || request.request_size);
                     const responseSize = parseSize(request.responseSize || request.response_size);
 
-                    const formatSize = (bytes: number): string =>
-                      bytes > 0 ? `${(bytes / 1024).toFixed(2)}KB (${bytes} bytes)` : '0KB (0 bytes)';
-
-                    return (
-                      <div className="text-sm text-gray-900 space-y-1">
-                        {payloadSize > 0 && (
+                    // Logic matching the tooltip
+                    if (payloadSize > 0) {
+                      return (
+                        <div className="text-sm text-gray-900 space-y-1 bg-gray-50 p-3 rounded">
                           <div><strong>Total:</strong> {formatSize(payloadSize)}</div>
-                        )}
-                        {requestSize > 0 && (
+                          {(requestSize > 0 || responseSize > 0) && (
+                            <>
+                              <div><strong>Request:</strong> {formatSize(requestSize)}</div>
+                              <div><strong>Response:</strong> {formatSize(responseSize)}</div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    } else if (requestSize > 0 || responseSize > 0) {
+                      return (
+                        <div className="text-sm text-gray-900 space-y-1 bg-gray-50 p-3 rounded">
                           <div><strong>Request:</strong> {formatSize(requestSize)}</div>
-                        )}
-                        {responseSize > 0 && (
                           <div><strong>Response:</strong> {formatSize(responseSize)}</div>
-                        )}
-                        {payloadSize === 0 && (requestSize > 0 || responseSize > 0) && (
                           <div><strong>Total:</strong> {formatSize(requestSize + responseSize)}</div>
-                        )}
-                      </div>
-                    );
+                        </div>
+                      );
+                    } else {
+                      // Try to estimate from body content
+                      const requestBody = request.requestBody || request.request_body;
+                      const responseBody = request.responseBody || request.response_body;
+                      
+                      let estimatedRequest = 0;
+                      let estimatedResponse = 0;
+                      
+                      if (requestBody) estimatedRequest = new Blob([requestBody]).size;
+                      if (responseBody) estimatedResponse = new Blob([responseBody]).size;
+                      
+                      if (estimatedRequest > 0 || estimatedResponse > 0) {
+                        return (
+                          <div className="text-sm text-gray-900 space-y-1 bg-yellow-50 p-3 rounded border border-yellow-200">
+                            <div className="text-xs text-yellow-700 mb-2"><strong>Estimated from body content:</strong></div>
+                            <div><strong>Request:</strong> {formatSize(estimatedRequest)}</div>
+                            <div><strong>Response:</strong> {formatSize(estimatedResponse)}</div>
+                            <div><strong>Total:</strong> {formatSize(estimatedRequest + estimatedResponse)}</div>
+                          </div>
+                        );
+                      } else {
+                        return (
+                          <div className="text-sm text-gray-500 italic bg-gray-50 p-3 rounded">
+                            No size data available
+                          </div>
+                        );
+                      }
+                    }
                   })()}
                 </div>
               </div>
@@ -826,51 +851,6 @@ export const RequestDetailContent: React.FC<{
                 ) : (
                   <p className="text-sm text-orange-600">Encoded size larger than decoded (unusual)</p>
                 )}
-              </div>
-            )}
-
-            {/* Visual Size Comparison */}
-            {metrics.transferSize > 0 && (
-              <div className="bg-gray-100 border border-gray-200 rounded-lg p-3">
-                <h4 className="text-sm font-medium text-gray-900 mb-3">📏 Size Comparison</h4>
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-20 text-xs text-gray-600">Transfer:</div>
-                    <div className="flex-1 bg-gray-200 rounded h-4 relative">
-                      <div
-                        className="bg-blue-500 h-full rounded"
-                        style={{ width: '100%' }}
-                      ></div>
-                    </div>
-                    <div className="w-16 text-xs text-right">{formatSize(metrics.transferSize)}</div>
-                  </div>
-
-                  {metrics.encodedBodySize > 0 && (
-                    <div className="flex items-center space-x-3">
-                      <div className="w-20 text-xs text-gray-600">Body (enc):</div>
-                      <div className="flex-1 bg-gray-200 rounded h-4 relative">
-                        <div
-                          className="bg-green-500 h-full rounded"
-                          style={{ width: `${Math.min(100, (metrics.encodedBodySize / metrics.transferSize) * 100)}%` }}
-                        ></div>
-                      </div>
-                      <div className="w-16 text-xs text-right">{formatSize(metrics.encodedBodySize)}</div>
-                    </div>
-                  )}
-
-                  {metrics.decodedBodySize > 0 && metrics.decodedBodySize !== metrics.encodedBodySize && (
-                    <div className="flex items-center space-x-3">
-                      <div className="w-20 text-xs text-gray-600">Body (dec):</div>
-                      <div className="flex-1 bg-gray-200 rounded h-4 relative">
-                        <div
-                          className="bg-purple-500 h-full rounded"
-                          style={{ width: `${Math.min(100, (metrics.decodedBodySize / metrics.transferSize) * 100)}%` }}
-                        ></div>
-                      </div>
-                      <div className="w-16 text-xs text-right">{formatSize(metrics.decodedBodySize)}</div>
-                    </div>
-                  )}
-                </div>
               </div>
             )}
           </div>

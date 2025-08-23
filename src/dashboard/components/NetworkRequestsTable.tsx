@@ -82,14 +82,6 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
   // Helper function to extract response time with performance metrics as primary source
   // Helper function to get size display with multiple fallback options
   const getSizeDisplay = (request: NetworkRequest): string => {
-    console.log('🔍 getSizeDisplay called for:', request.url?.substring(0, 50), {
-      payload_size: request.payload_size,
-      request_size: request.request_size,
-      response_size: request.response_size,
-      requestSize: request.requestSize,
-      responseSize: request.responseSize
-    });
-    
     // Helper function to safely parse size value
     const parseSize = (value: any): number => {
       if (value === null || value === undefined) return 0;
