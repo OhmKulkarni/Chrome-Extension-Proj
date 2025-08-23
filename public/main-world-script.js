@@ -813,61 +813,88 @@ try {
 
     // Create uncaught error handler
     uncaughtErrorHandler = (event) => {
-      // Handle uncaught JavaScript errors
-      const errorMessage = `${event.error?.name || 'Error'}: ${event.message}`;
-      const stack = event.error?.stack || `at ${event.filename}:${event.lineno}:${event.colno}`;
-      
-      // Create console error data matching our format
-      const consoleData = {
-        message: errorMessage,
-        severity: 'error',
-        timestamp: new Date().toISOString(),
-        url: window.location.href,
-        domain: getSafeDomain(window.location.href),
-        source: 'uncaught-error',
-        stack: stack,
-        lineNumber: event.lineno,
-        columnNumber: event.colno,
-        filename: event.filename || window.location.href
-      };
+      try {
+        originalConsoleLog.call(console, 'MAIN-WORLD: Uncaught error detected:', {
+          message: event.message,
+          filename: event.filename,
+          lineno: event.lineno,
+          colno: event.colno,
+          error: event.error
+        });
 
-      // Send to content script
-      window.postMessage({
-        source: 'main-world-console-interceptor',
-        data: consoleData
-      }, '*');
+        // Handle uncaught JavaScript errors
+        const errorMessage = `${event.error?.name || 'Error'}: ${event.message}`;
+        const stack = event.error?.stack || `at ${event.filename}:${event.lineno}:${event.colno}`;
+        
+        // Create console error data matching our format
+        const consoleData = {
+          message: errorMessage,
+          severity: 'error',
+          timestamp: new Date().toISOString(),
+          url: window.location.href,
+          domain: getSafeDomain(window.location.href),
+          source: 'uncaught-error',
+          stack: stack,
+          lineNumber: event.lineno,
+          columnNumber: event.colno,
+          filename: event.filename || window.location.href
+        };
+
+        originalConsoleLog.call(console, 'MAIN-WORLD: Sending uncaught error to content script:', consoleData);
+
+        // Send to content script
+        window.postMessage({
+          source: 'main-world-console-interceptor',
+          data: consoleData
+        }, '*');
+      } catch (err) {
+        originalConsoleLog.call(console, 'MAIN-WORLD: Error in uncaughtErrorHandler:', err);
+      }
     };
 
     // Create unhandled rejection handler
     unhandledRejectionHandler = (event) => {
-      // Handle unhandled promise rejections
-      const errorMessage = `Unhandled Promise Rejection: ${event.reason}`;
-      const stack = event.reason?.stack || 'No stack trace available';
-      
-      // Create console error data matching our format
-      const consoleData = {
-        message: errorMessage,
-        severity: 'error',
-        timestamp: new Date().toISOString(),
-        url: window.location.href,
-        domain: getSafeDomain(window.location.href),
-        source: 'unhandled-rejection',
-        stack: stack,
-        lineNumber: null,
-        columnNumber: null,
-        filename: window.location.href
-      };
+      try {
+        originalConsoleLog.call(console, 'MAIN-WORLD: Unhandled rejection detected:', {
+          reason: event.reason,
+          promise: event.promise
+        });
 
-      // Send to content script
-      window.postMessage({
-        source: 'main-world-console-interceptor',
-        data: consoleData
-      }, '*');
+        // Handle unhandled promise rejections
+        const errorMessage = `Unhandled Promise Rejection: ${event.reason}`;
+        const stack = event.reason?.stack || 'No stack trace available';
+        
+        // Create console error data matching our format
+        const consoleData = {
+          message: errorMessage,
+          severity: 'error',
+          timestamp: new Date().toISOString(),
+          url: window.location.href,
+          domain: getSafeDomain(window.location.href),
+          source: 'unhandled-rejection',
+          stack: stack,
+          lineNumber: null,
+          columnNumber: null,
+          filename: window.location.href
+        };
+
+        originalConsoleLog.call(console, 'MAIN-WORLD: Sending unhandled rejection to content script:', consoleData);
+
+        // Send to content script
+        window.postMessage({
+          source: 'main-world-console-interceptor',
+          data: consoleData
+        }, '*');
+      } catch (err) {
+        originalConsoleLog.call(console, 'MAIN-WORLD: Error in unhandledRejectionHandler:', err);
+      }
     };
 
     // Add event listeners
     window.addEventListener('error', uncaughtErrorHandler);
     window.addEventListener('unhandledrejection', unhandledRejectionHandler);
+    
+    originalConsoleLog.call(console, 'MAIN-WORLD: Error event listeners added - uncaught errors will now be captured');
   };
 
   // Stop interception
