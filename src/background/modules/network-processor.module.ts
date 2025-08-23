@@ -135,9 +135,14 @@ export class NetworkProcessorModule {
       // Skip complex tab logging validation for now - let requests through
       // (Main branch handles this differently at the message routing level)
 
-      // Get settings for body sanitization
+      // Get settings for filtering and body sanitization
       const settings = await this.storageManager.getSettings();
       const networkConfig = settings.networkInterception || {};
+
+      // Check if request should be filtered as noise (if filtering is enabled)
+      if (networkConfig.privacy?.filterNoise && this.isNoiseRequest(url, method)) {
+        return { success: false, reason: 'Request filtered as noise' };
+      }
 
       // Extract main domain for intelligent grouping
       const mainDomain = tabUrl ? this.extractMainDomain(tabUrl) : this.extractMainDomain(url);
@@ -345,11 +350,10 @@ export class NetworkProcessorModule {
   /**
    * Check if request should be filtered as noise
    */
-  /* TEMPORARILY DISABLED FOR DEBUGGING
   private isNoiseRequest(url: string, method: string): boolean {
     const urlLower = url.toLowerCase();
 
-    // Filter out common noise patterns (matching original background script)
+    // Filter out common noise patterns (enhanced with AWS WAF and more telemetry)
     const noisePatterns = [
       'favicon.ico',
       'google-analytics',
@@ -366,6 +370,12 @@ export class NetworkProcessorModule {
       'scorecardresearch.com',
       'outbrain.com',
       'taboola.com',
+      'awswaf.com',        // AWS WAF telemetry
+      'edge.sdk.awswaf',   // AWS WAF edge SDK
+      '/telemetry',        // Telemetry endpoints
+      '/ping',             // Health check endpoints
+      '/health',           // Health check endpoints
+      'telemetry/',        // Telemetry paths
       '.css',
       '.js',
       '.png',
@@ -379,11 +389,9 @@ export class NetworkProcessorModule {
       '.eot'
     ];
 
-    // Filter GET requests to static resources
-    if (method === 'GET') {
-      if (noisePatterns.some(pattern => urlLower.includes(pattern))) {
-        return true;
-      }
+    // Filter requests matching noise patterns
+    if (noisePatterns.some(pattern => urlLower.includes(pattern))) {
+      return true;
     }
 
     // Filter HEAD and OPTIONS requests (usually preflight)
@@ -393,7 +401,6 @@ export class NetworkProcessorModule {
 
     return false;
   }
-  */ // END TEMPORARY DISABLE
 
   /**
    * Extract main domain from URL

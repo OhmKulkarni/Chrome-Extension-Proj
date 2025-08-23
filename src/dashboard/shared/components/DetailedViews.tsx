@@ -571,8 +571,15 @@ export const RequestDetailContent: React.FC<{
       );
     }
 
-    // Calculate percentages for visualization
-    const total = metrics.totalTime || (metrics.dnsLookup + metrics.tcpConnect + metrics.sslHandshake + metrics.timeToFirstByte + metrics.contentDownload);
+    // Calculate percentages for visualization - now includes requestWaiting
+    const total = metrics.totalTime || (
+      metrics.dnsLookup +
+      metrics.tcpConnect +
+      metrics.sslHandshake +
+      (metrics.requestWaiting || 0) +
+      metrics.timeToFirstByte +
+      metrics.contentDownload
+    );
 
     // Helper to format size with proper units
     const formatSize = (bytes: number): string => {
@@ -621,6 +628,7 @@ export const RequestDetailContent: React.FC<{
             <ProgressBar value={metrics.dnsLookup} total={total} color="bg-blue-500" label="DNS Lookup" />
             <ProgressBar value={metrics.tcpConnect} total={total} color="bg-green-500" label="TCP Connect" />
             <ProgressBar value={metrics.sslHandshake} total={total} color="bg-yellow-500" label="SSL Handshake" />
+            <ProgressBar value={metrics.requestWaiting} total={total} color="bg-indigo-500" label="Request Waiting" />
             <ProgressBar value={metrics.timeToFirstByte} total={total} color="bg-orange-500" label="Time to First Byte" />
             <ProgressBar value={metrics.contentDownload} total={total} color="bg-purple-500" label="Content Download" />
             <ProgressBar value={metrics.redirectTime} total={total} color="bg-gray-500" label="Redirect Time" />
@@ -629,7 +637,7 @@ export const RequestDetailContent: React.FC<{
               <div className="flex items-center space-x-3">
                 <div className="w-32 text-sm font-bold text-gray-900">Total Time:</div>
                 <div className="flex-1 bg-gray-300 rounded-full h-5 relative overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-blue-500 via-green-500 via-yellow-500 via-orange-500 to-purple-500 rounded-full"></div>
+                  <div className="h-full bg-gradient-to-r from-blue-500 via-green-500 via-yellow-500 via-indigo-500 via-orange-500 to-purple-500 rounded-full"></div>
                 </div>
                 <div className="w-16 text-sm font-bold text-gray-900 text-right">
                   {total > 0 ? `${total}ms` : '-'}
@@ -642,37 +650,128 @@ export const RequestDetailContent: React.FC<{
 
         <div>
           <h3 className="text-sm font-semibold text-gray-900 mb-3">Transfer Information</h3>
-          <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <span className="text-sm font-medium text-gray-700">Transfer Size:</span>
-              <p className="text-sm text-gray-900 mt-1">{formatSize(metrics.transferSize)}</p>
+          <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+
+            {/* Size Breakdown Explanation */}
+            <div className="bg-blue-50 border-l-4 border-blue-400 p-3 mb-4">
+              <h4 className="text-sm font-medium text-blue-900 mb-2">📊 Size Breakdown</h4>
+              <div className="text-xs text-blue-800 space-y-1">
+                <div><strong>Transfer Size:</strong> Total bytes over network (headers + compressed body)</div>
+                <div><strong>Encoded Body:</strong> Response body size (compressed/as-received)</div>
+                <div><strong>Decoded Body:</strong> Response body size (uncompressed/final)</div>
+                <div className="mt-2 text-blue-600">
+                  <strong>Why Transfer Size is larger:</strong> Includes HTTP headers (~200-400 bytes)
+                </div>
+              </div>
             </div>
-            <div>
-              <span className="text-sm font-medium text-gray-700">Encoded Body Size:</span>
-              <p className="text-sm text-gray-900 mt-1">{formatSize(metrics.encodedBodySize)}</p>
-            </div>
-            <div>
-              <span className="text-sm font-medium text-gray-700">Decoded Body Size:</span>
-              <p className="text-sm text-gray-900 mt-1">{formatSize(metrics.decodedBodySize)}</p>
-            </div>
-            <div>
-              <span className="text-sm font-medium text-gray-700">Cache Status:</span>
-              <span className={`inline-block px-2 py-1 text-xs rounded-full ml-2 ${
-                metrics.cacheStatus === 'hit' ? 'bg-green-100 text-green-800' :
-                metrics.cacheStatus === 'miss' ? 'bg-red-100 text-red-800' :
-                'bg-gray-100 text-gray-800'
-              }`}>
-                {metrics.cacheStatus}
-              </span>
-            </div>
-            {metrics.encodedBodySize > 0 && metrics.decodedBodySize > 0 && (
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <span className="text-sm font-medium text-gray-700">Transfer Size:</span>
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm text-gray-900">{formatSize(metrics.transferSize)}</p>
+                  <span className="text-xs text-gray-500">(headers + body)</span>
+                </div>
+                {metrics.transferSize > 0 && metrics.encodedBodySize >= 0 && (
+                  <div className="text-xs text-gray-500">
+                    Headers: ~{formatSize(Math.max(0, metrics.transferSize - metrics.encodedBodySize))}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-sm font-medium text-gray-700">Encoded Body Size:</span>
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm text-gray-900">{formatSize(metrics.encodedBodySize)}</p>
+                  <span className="text-xs text-gray-500">(compressed)</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-sm font-medium text-gray-700">Decoded Body Size:</span>
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm text-gray-900">{formatSize(metrics.decodedBodySize)}</p>
+                  <span className="text-xs text-gray-500">(uncompressed)</span>
+                </div>
+              </div>
+
               <div>
-                <span className="text-sm font-medium text-gray-700">Compression Ratio:</span>
-                <p className="text-sm text-gray-900 mt-1">
-                  {metrics.encodedBodySize < metrics.decodedBodySize ?
-                    `${Math.round((1 - metrics.encodedBodySize / metrics.decodedBodySize) * 100)}% saved` :
-                    'No compression'}
-                </p>
+                <span className="text-sm font-medium text-gray-700">Cache Status:</span>
+                <div className="mt-1">
+                  <span className={`inline-block px-2 py-1 text-xs rounded-full ${
+                    metrics.cacheStatus === 'hit' ? 'bg-green-100 text-green-800' :
+                    metrics.cacheStatus === 'miss' ? 'bg-red-100 text-red-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {metrics.cacheStatus}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Compression Analysis */}
+            {metrics.encodedBodySize > 0 && metrics.decodedBodySize > 0 && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <h4 className="text-sm font-medium text-green-900 mb-2">🗜️ Compression Analysis</h4>
+                {metrics.encodedBodySize < metrics.decodedBodySize ? (
+                  <div className="space-y-1">
+                    <p className="text-sm text-green-800">
+                      <strong>{Math.round((1 - metrics.encodedBodySize / metrics.decodedBodySize) * 100)}% compression savings</strong>
+                    </p>
+                    <p className="text-xs text-green-700">
+                      Saved {formatSize(metrics.decodedBodySize - metrics.encodedBodySize)} through compression
+                    </p>
+                  </div>
+                ) : metrics.encodedBodySize === metrics.decodedBodySize ? (
+                  <p className="text-sm text-gray-600">No compression applied (sizes match)</p>
+                ) : (
+                  <p className="text-sm text-orange-600">Encoded size larger than decoded (unusual)</p>
+                )}
+              </div>
+            )}
+
+            {/* Visual Size Comparison */}
+            {metrics.transferSize > 0 && (
+              <div className="bg-gray-100 border border-gray-200 rounded-lg p-3">
+                <h4 className="text-sm font-medium text-gray-900 mb-3">📏 Size Comparison</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-20 text-xs text-gray-600">Transfer:</div>
+                    <div className="flex-1 bg-gray-200 rounded h-4 relative">
+                      <div
+                        className="bg-blue-500 h-full rounded"
+                        style={{ width: '100%' }}
+                      ></div>
+                    </div>
+                    <div className="w-16 text-xs text-right">{formatSize(metrics.transferSize)}</div>
+                  </div>
+
+                  {metrics.encodedBodySize > 0 && (
+                    <div className="flex items-center space-x-3">
+                      <div className="w-20 text-xs text-gray-600">Body (enc):</div>
+                      <div className="flex-1 bg-gray-200 rounded h-4 relative">
+                        <div
+                          className="bg-green-500 h-full rounded"
+                          style={{ width: `${Math.min(100, (metrics.encodedBodySize / metrics.transferSize) * 100)}%` }}
+                        ></div>
+                      </div>
+                      <div className="w-16 text-xs text-right">{formatSize(metrics.encodedBodySize)}</div>
+                    </div>
+                  )}
+
+                  {metrics.decodedBodySize > 0 && metrics.decodedBodySize !== metrics.encodedBodySize && (
+                    <div className="flex items-center space-x-3">
+                      <div className="w-20 text-xs text-gray-600">Body (dec):</div>
+                      <div className="flex-1 bg-gray-200 rounded h-4 relative">
+                        <div
+                          className="bg-purple-500 h-full rounded"
+                          style={{ width: `${Math.min(100, (metrics.decodedBodySize / metrics.transferSize) * 100)}%` }}
+                        ></div>
+                      </div>
+                      <div className="w-16 text-xs text-right">{formatSize(metrics.decodedBodySize)}</div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -820,6 +919,97 @@ export const ErrorDetailContent: React.FC<{
             <div className="text-gray-500">No stack trace available</div>
           </div>
         )}
+      </div>
+    );
+  }
+
+  if (selectedField === 'message') {
+    const formatJSON = (obj: any) => {
+      try {
+        const maxDisplaySize = 10000; // 10KB limit for console error message display
+        const seen = new WeakSet();
+        const safeStringify = (_key: string, value: any) => {
+          if (typeof value === 'object' && value !== null) {
+            if (seen.has(value)) {
+              return '[Circular Reference]';
+            }
+            seen.add(value);
+          }
+          return value;
+        };
+
+        const jsonString = JSON.stringify(obj, safeStringify, 2);
+        return jsonString.length > maxDisplaySize ?
+          jsonString.substring(0, maxDisplaySize) + '...\n[Truncated for display]' :
+          jsonString;
+      } catch (e) {
+        return String(obj);
+      }
+    };
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-gray-900">Console Error Message & Data</h3>
+          <button
+            onClick={() => copyToClipboard(formatJSON(error))}
+            className="copy-button text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+          >
+            Copy Full Error Data
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {/* Primary Message */}
+          <div>
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Error Message</h4>
+            <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+              <pre className="text-sm text-red-800 whitespace-pre-wrap font-mono">{error.message || 'No message available'}</pre>
+            </div>
+          </div>
+
+          {/* Raw Error Object */}
+          <div>
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Complete Error Object</h4>
+            <div className="code-block bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto text-sm font-mono max-h-96">
+              <pre className="whitespace-pre-wrap break-words">{formatJSON(error)}</pre>
+            </div>
+          </div>
+
+          {/* Additional Context if Available */}
+          {error.url && (
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Source Context</h4>
+              <div className="bg-gray-50 rounded-lg p-3">
+                <div className="text-sm">
+                  <span className="font-medium">URL:</span> <span className="text-blue-600 break-all">{error.url}</span>
+                </div>
+                {error.line && (
+                  <div className="text-sm mt-1">
+                    <span className="font-medium">Location:</span> Line {error.line}{error.column ? `:${error.column}` : ''}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Error Properties Summary */}
+          <div>
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Error Properties</h4>
+            <div className="bg-gray-50 rounded-lg p-3">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div><span className="font-medium">Severity:</span> {error.severity || 'N/A'}</div>
+                <div><span className="font-medium">Timestamp:</span> {error.timestamp ? new Date(error.timestamp).toLocaleString() : 'N/A'}</div>
+                <div><span className="font-medium">Source:</span> {error.source || 'N/A'}</div>
+                <div><span className="font-medium">Domain:</span> {error.domain || 'N/A'}</div>
+                {error.tab_id && <div><span className="font-medium">Tab ID:</span> {error.tab_id}</div>}
+                {error.lineNumber && <div><span className="font-medium">Line Number:</span> {error.lineNumber}</div>}
+                {error.columnNumber && <div><span className="font-medium">Column Number:</span> {error.columnNumber}</div>}
+                {error.filename && <div><span className="font-medium">Filename:</span> <span className="text-xs break-all">{error.filename}</span></div>}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

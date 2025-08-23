@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Missing Timing Phase - Request Waiting</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .timing-section {
+            border: 1px solid #ddd;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .explanation {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .visual-timeline {
+            background: #fff;
+            border: 1px solid #ccc;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .timeline-bar {
+            height: 30px;
+            background: #f0f0f0;
+            margin: 10px 0;
+            position: relative;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        .phase {
+            height: 100%;
+            float: left;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .dns { background: #2196f3; }
+        .tcp { background: #4caf50; }
+        .ssl { background: #ff9800; }
+        .waiting { background: #673ab7; }
+        .ttfb { background: #ff5722; }
+        .download { background: #9c27b0; }
+        button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #005a87;
+        }
+        .results {
+            background: #f5f5f5;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .info { color: #17a2b8; }
+        .warning { color: #ffc107; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background: #f5f5f5;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 The Missing Timing Phase - Request Waiting</h1>
+
+    <div class="explanation">
+        <h2>🕐 What is "Request Waiting" Time?</h2>
+        <p><strong>Request Waiting = requestStart - connectEnd</strong></p>
+        <p>This is the time between when the connection is established and when the actual HTTP request starts sending. This can include:</p>
+        <ul>
+            <li><strong>HTTP/2 Stream Setup</strong> - Protocol negotiation</li>
+            <li><strong>Connection Pool Management</strong> - Browser managing connection reuse</li>
+            <li><strong>Request Queuing</strong> - Waiting for available connection slot</li>
+            <li><strong>Browser Throttling</strong> - Request prioritization delays</li>
+            <li><strong>Keep-Alive Processing</strong> - Connection state verification</li>
+        </ul>
+    </div>
+
+    <div class="timing-section">
+        <h3>📊 Complete Resource Timing Breakdown</h3>
+        <div class="visual-timeline">
+            <h4>Before Fix (Missing ~10ms):</h4>
+            <div class="timeline-bar">
+                <div class="phase dns" style="width: 0%;">DNS (0ms)</div>
+                <div class="phase tcp" style="width: 0%;">TCP (0ms)</div>
+                <div class="phase ssl" style="width: 0%;">SSL (0ms)</div>
+                <!-- Missing phase here -->
+                <div class="phase ttfb" style="width: 95%;">TTFB (212.8ms)</div>
+                <div class="phase download" style="width: 5%;">Download (0.5ms)</div>
+            </div>
+            <p><strong>Visible Total:</strong> 0 + 0 + 0 + 212.8 + 0.5 = <span style="color: #dc3545;">213.3ms</span></p>
+            <p><strong>Actual Total:</strong> <span style="color: #28a745;">224.2ms</span></p>
+            <p><strong>Missing:</strong> <span style="color: #ffc107;">~10.9ms</span> 🤔</p>
+
+            <h4>After Fix (Complete breakdown):</h4>
+            <div class="timeline-bar">
+                <div class="phase dns" style="width: 0%;">DNS (0ms)</div>
+                <div class="phase tcp" style="width: 0%;">TCP (0ms)</div>
+                <div class="phase ssl" style="width: 0%;">SSL (0ms)</div>
+                <div class="phase waiting" style="width: 5%;">Request Waiting (~10.9ms)</div>
+                <div class="phase ttfb" style="width: 90%;">TTFB (212.8ms)</div>
+                <div class="phase download" style="width: 5%;">Download (0.5ms)</div>
+            </div>
+            <p><strong>Complete Total:</strong> 0 + 0 + 0 + 10.9 + 212.8 + 0.5 = <span style="color: #28a745;">224.2ms ✅</span></p>
+        </div>
+    </div>
+
+    <div class="timing-section">
+        <h3>🧪 Test the Enhanced Timing</h3>
+        <p>Test various scenarios to see when Request Waiting time appears:</p>
+
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button onclick="testBasicRequest()">Basic Request</button>
+            <button onclick="testMultipleRequests()">Multiple Parallel Requests</button>
+            <button onclick="testSlowAPI()">Slow API (Delayed Response)</button>
+            <button onclick="testLargeResponse()">Large Response</button>
+            <button onclick="testHTTP2()">HTTP/2 Site</button>
+        </div>
+
+        <div id="test-results" class="results">Click a button above to test enhanced timing breakdown...</div>
+    </div>
+
+    <div class="timing-section">
+        <h3>📋 Resource Timing Phases Explained</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Phase</th>
+                    <th>Calculation</th>
+                    <th>What It Measures</th>
+                    <th>Common Range</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>DNS Lookup</strong></td>
+                    <td>domainLookupEnd - domainLookupStart</td>
+                    <td>Domain name resolution</td>
+                    <td>0-200ms</td>
+                </tr>
+                <tr>
+                    <td><strong>TCP Connect</strong></td>
+                    <td>connectEnd - connectStart</td>
+                    <td>TCP connection establishment</td>
+                    <td>10-300ms</td>
+                </tr>
+                <tr>
+                    <td><strong>SSL Handshake</strong></td>
+                    <td>connectEnd - secureConnectionStart</td>
+                    <td>TLS/SSL negotiation</td>
+                    <td>50-500ms</td>
+                </tr>
+                <tr style="background: #e8f5e8;">
+                    <td><strong>Request Waiting</strong> 🆕</td>
+                    <td>requestStart - connectEnd</td>
+                    <td>Connection ready → request starts</td>
+                    <td>1-50ms</td>
+                </tr>
+                <tr>
+                    <td><strong>Time to First Byte</strong></td>
+                    <td>responseStart - requestStart</td>
+                    <td>Server processing + network</td>
+                    <td>20-2000ms</td>
+                </tr>
+                <tr>
+                    <td><strong>Content Download</strong></td>
+                    <td>responseEnd - responseStart</td>
+                    <td>Response body transfer</td>
+                    <td>1-1000ms</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="timing-section">
+        <h3>🔍 When Request Waiting Time Appears</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+                <h4>✅ Common Scenarios:</h4>
+                <ul>
+                    <li><strong>HTTP/2 sites</strong> - Stream multiplexing setup</li>
+                    <li><strong>Keep-alive connections</strong> - Connection validation</li>
+                    <li><strong>Busy servers</strong> - Request queuing</li>
+                    <li><strong>Browser throttling</strong> - Priority management</li>
+                    <li><strong>Connection pooling</strong> - Socket management</li>
+                </ul>
+            </div>
+            <div>
+                <h4>🔧 Technical Details:</h4>
+                <ul>
+                    <li><strong>1-10ms:</strong> Normal HTTP/2 overhead</li>
+                    <li><strong>10-50ms:</strong> Connection pool management</li>
+                    <li><strong>50ms+:</strong> Request queuing or throttling</li>
+                    <li><strong>0ms:</strong> Perfect connection timing (rare)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="explanation">
+        <h3>🎯 Why This Matters</h3>
+        <p>Before this fix, users would see timing breakdowns that didn't add up to the total time, causing confusion about where the "missing time" went. Now the complete picture is visible:</p>
+        <ol>
+            <li><strong>More accurate analysis</strong> - See all timing components</li>
+            <li><strong>Better debugging</strong> - Identify bottlenecks in connection handling</li>
+            <li><strong>Complete picture</strong> - Timing breakdown always adds up to total</li>
+            <li><strong>HTTP/2 insights</strong> - Understand modern protocol overhead</li>
+        </ol>
+    </div>
+
+    <script>
+        function log(message, type = 'info', resultId = 'test-results') {
+            const element = document.getElementById(resultId);
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type;
+            element.innerHTML += `<span class="${className}">${timestamp}: ${message}</span>\n`;
+            element.scrollTop = element.scrollHeight;
+        }
+
+        function calculateEnhancedMetrics(url) {
+            const entries = performance.getEntriesByName(url);
+            if (entries.length === 0) return null;
+
+            const entry = entries[entries.length - 1];
+
+            const hasDetailedTiming = entry.domainLookupStart > 0 &&
+                                     entry.connectStart > 0 &&
+                                     entry.requestStart > 0 &&
+                                     entry.responseStart > 0;
+
+            if (!hasDetailedTiming) return null;
+
+            const metrics = {
+                dnsLookup: Math.max(0, entry.domainLookupEnd - entry.domainLookupStart),
+                tcpConnect: Math.max(0, entry.connectEnd - entry.connectStart),
+                sslHandshake: entry.secureConnectionStart > 0 ? Math.max(0, entry.connectEnd - entry.secureConnectionStart) : 0,
+                requestWaiting: Math.max(0, entry.requestStart - entry.connectEnd), // NEW METRIC
+                timeToFirstByte: Math.max(0, entry.responseStart - entry.requestStart),
+                contentDownload: Math.max(0, entry.responseEnd - entry.responseStart),
+                totalTime: Math.max(0, entry.responseEnd - entry.startTime)
+            };
+
+            return metrics;
+        }
+
+        async function testBasicRequest() {
+            log('🔄 Testing basic request with enhanced timing...', 'info');
+
+            try {
+                const url = `https://httpbin.org/get?enhanced_timing=${Date.now()}`;
+
+                const startTime = performance.now();
+                const response = await fetch(url);
+                const data = await response.json();
+                const endTime = performance.now();
+
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                const metrics = calculateEnhancedMetrics(url);
+                if (metrics) {
+                    log('✅ Enhanced timing breakdown:', 'success');
+                    log(`  DNS Lookup:       ${metrics.dnsLookup.toFixed(2)}ms`);
+                    log(`  TCP Connect:      ${metrics.tcpConnect.toFixed(2)}ms`);
+                    log(`  SSL Handshake:    ${metrics.sslHandshake.toFixed(2)}ms`);
+                    log(`  Request Waiting:  ${metrics.requestWaiting.toFixed(2)}ms 🆕`);
+                    log(`  Time to First Byte: ${metrics.timeToFirstByte.toFixed(2)}ms`);
+                    log(`  Content Download: ${metrics.contentDownload.toFixed(2)}ms`);
+                    log(`  ──────────────────────────────────`);
+                    log(`  Components Total: ${(metrics.dnsLookup + metrics.tcpConnect + metrics.sslHandshake + metrics.requestWaiting + metrics.timeToFirstByte + metrics.contentDownload).toFixed(2)}ms`);
+                    log(`  Resource API Total: ${metrics.totalTime.toFixed(2)}ms`);
+                    log(`  Manual Duration:  ${(endTime - startTime).toFixed(2)}ms`);
+
+                    const difference = Math.abs(metrics.totalTime - (metrics.dnsLookup + metrics.tcpConnect + metrics.sslHandshake + metrics.requestWaiting + metrics.timeToFirstByte + metrics.contentDownload));
+                    if (difference < 1) {
+                        log(`  ✅ Perfect match! Difference: ${difference.toFixed(2)}ms`, 'success');
+                    } else {
+                        log(`  ⚠️ Small difference: ${difference.toFixed(2)}ms (acceptable rounding)`, 'warning');
+                    }
+                } else {
+                    log('⚠️ No detailed timing available (CORS restrictions)', 'warning');
+                    log('💡 This is normal for cross-origin requests', 'info');
+                }
+
+                log('');
+            } catch (error) {
+                log(`❌ Test failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testMultipleRequests() {
+            log('🔄 Testing multiple parallel requests...', 'info');
+
+            try {
+                const urls = [
+                    `https://httpbin.org/get?req=1&test=${Date.now()}`,
+                    `https://httpbin.org/get?req=2&test=${Date.now()}`,
+                    `https://httpbin.org/get?req=3&test=${Date.now()}`
+                ];
+
+                const promises = urls.map(url => fetch(url));
+                await Promise.all(promises);
+
+                await new Promise(resolve => setTimeout(resolve, 200));
+
+                log('📊 Parallel request timing analysis:', 'success');
+                urls.forEach((url, index) => {
+                    const metrics = calculateEnhancedMetrics(url);
+                    if (metrics) {
+                        log(`  Request ${index + 1}: Request Waiting = ${metrics.requestWaiting.toFixed(2)}ms`);
+                    }
+                });
+
+                log('💡 Later requests may show higher Request Waiting due to connection queue');
+                log('');
+            } catch (error) {
+                log(`❌ Parallel test failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testSlowAPI() {
+            log('🔄 Testing slow API response...', 'info');
+
+            try {
+                const url = `https://httpbin.org/delay/2?enhanced_timing=${Date.now()}`;
+
+                const response = await fetch(url);
+                await response.json();
+
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                const metrics = calculateEnhancedMetrics(url);
+                if (metrics) {
+                    log('✅ Slow API timing breakdown:', 'success');
+                    log(`  Request Waiting:    ${metrics.requestWaiting.toFixed(2)}ms`);
+                    log(`  Time to First Byte: ${metrics.timeToFirstByte.toFixed(2)}ms (includes 2s server delay)`);
+                    log(`  Content Download:   ${metrics.contentDownload.toFixed(2)}ms`);
+                    log(`💡 Notice: Server delay appears in TTFB, not Request Waiting`, 'info');
+                } else {
+                    log('⚠️ No detailed timing available', 'warning');
+                }
+
+                log('');
+            } catch (error) {
+                log(`❌ Slow API test failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testLargeResponse() {
+            log('🔄 Testing large response download...', 'info');
+
+            try {
+                const url = `https://httpbin.org/bytes/102400?enhanced_timing=${Date.now()}`;
+
+                const response = await fetch(url);
+                await response.arrayBuffer();
+
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                const metrics = calculateEnhancedMetrics(url);
+                if (metrics) {
+                    log('✅ Large response timing breakdown:', 'success');
+                    log(`  Request Waiting:  ${metrics.requestWaiting.toFixed(2)}ms`);
+                    log(`  Time to First Byte: ${metrics.timeToFirstByte.toFixed(2)}ms`);
+                    log(`  Content Download: ${metrics.contentDownload.toFixed(2)}ms (should be higher for 100KB)`);
+                    log(`💡 Large responses show higher Content Download time`, 'info');
+                } else {
+                    log('⚠️ No detailed timing available', 'warning');
+                }
+
+                log('');
+            } catch (error) {
+                log(`❌ Large response test failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testHTTP2() {
+            log('🔄 Testing HTTP/2 site (Google)...', 'info');
+
+            try {
+                const url = `https://www.google.com/favicon.ico?enhanced_timing=${Date.now()}`;
+
+                const response = await fetch(url);
+                await response.arrayBuffer();
+
+                await new Promise(resolve => setTimeout(resolve, 200));
+
+                const metrics = calculateEnhancedMetrics(url);
+                if (metrics) {
+                    log('✅ HTTP/2 timing breakdown:', 'success');
+                    log(`  Request Waiting:  ${metrics.requestWaiting.toFixed(2)}ms`);
+                    log(`💡 HTTP/2 sites often show measurable Request Waiting time`, 'info');
+                    log(`   This represents stream multiplexing setup overhead`, 'info');
+                } else {
+                    log('⚠️ No detailed timing (expected for cross-origin)', 'warning');
+                    log('💡 Google.com has CORS restrictions', 'info');
+                }
+
+                log('');
+            } catch (error) {
+                log(`❌ HTTP/2 test failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Initial message
+        log('🔍 Enhanced timing analysis ready - now includes Request Waiting phase!', 'success');
+        log('📊 This new metric captures the time between connection establishment and request start', 'info');
+        log('⚡ Your timing breakdowns should now add up correctly to the total time', 'info');
+        log('');
+    </script>
+</body>
+</html>

@@ -187,6 +187,10 @@ const extractPerformanceMetrics = (url, requestStartTime, manualDuration) => {
       sslHandshake: hasDetailedTiming && targetEntry.secureConnectionStart > 0 && targetEntry.connectEnd ?
         Math.max(0, targetEntry.connectEnd - targetEntry.secureConnectionStart) : 0,
 
+      // NEW: Request queuing/waiting time (from connection ready to request start)
+      requestWaiting: hasDetailedTiming && targetEntry.requestStart && targetEntry.connectEnd ?
+        Math.max(0, targetEntry.requestStart - targetEntry.connectEnd) : 0,
+
       timeToFirstByte: hasDetailedTiming && targetEntry.responseStart && targetEntry.requestStart ?
         Math.max(0, targetEntry.responseStart - targetEntry.requestStart) : 0,
 
