@@ -82,14 +82,22 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
   // Helper function to extract response time with performance metrics as primary source
   // Helper function to get size display with multiple fallback options
   const getSizeDisplay = (request: NetworkRequest): string => {
+    // Helper function to safely parse size value
+    const parseSize = (value: any): number => {
+      if (value === null || value === undefined) return 0;
+      const parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
+      return isNaN(parsed) || parsed < 0 ? 0 : parsed;
+    };
+
     // Method 1: Use payload_size if available (most reliable)
-    if (request.payload_size && request.payload_size > 0) {
-      return `${Math.round(request.payload_size / 1024)}KB`;
+    const payloadSize = parseSize(request.payload_size);
+    if (payloadSize > 0) {
+      return `${Math.round(payloadSize / 1024)}KB`;
     }
     
     // Method 2: Calculate from separate size fields (try both naming conventions)
-    const requestSize = request.requestSize || request.request_size || 0;
-    const responseSize = request.responseSize || request.response_size || 0;
+    const requestSize = parseSize(request.requestSize || request.request_size);
+    const responseSize = parseSize(request.responseSize || request.response_size);
     const totalSize = requestSize + responseSize;
     
     if (totalSize > 0) {
@@ -128,9 +136,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
     
     // Fallback: Show dash if no size data available
     return '-';
-  };
-
-  const getResponseTime = (request: NetworkRequest): string => {
+  };  const getResponseTime = (request: NetworkRequest): string => {
     // First try to get performance metrics total time (already parsed object from background)
     if (request.performanceMetrics && typeof request.performanceMetrics === 'object') {
       const totalTime = request.performanceMetrics.totalTime;
