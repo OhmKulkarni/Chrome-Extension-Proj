@@ -317,7 +317,61 @@ export const RequestDetailContent: React.FC<{
       }
     };
 
-    // Check if response body looks like a status-only response (encrypted/non-JSON content)
+    // Get context-specific common reasons for status-only responses
+    const getCommonReasons = (body: any, status?: number): string[] => {
+      // Check if it's an 'ok' response
+      if (typeof body === 'string' && body.trim().toLowerCase() === 'ok') {
+        return [
+          "Simple confirmation of successful operation",
+          "API designed for minimal response payloads",
+          "Action completed without needing to return data",
+          "Lightweight response to reduce bandwidth usage",
+          "Server acknowledges request completion"
+        ];
+      }
+
+      // Status code specific reasons
+      if (status) {
+        if (status >= 200 && status < 300) {
+          return [
+            "Successful operation with minimal response data",
+            "Server confirmation without detailed payload",
+            "Action completed successfully",
+            "Empty response body by design",
+            "Status confirmation only"
+          ];
+        }
+
+        if (status >= 400 && status < 500) {
+          return [
+            "Error details may be in HTML format",
+            "Authentication or authorization failure",
+            "Client request validation error",
+            "Protected error information",
+            "Custom error response format"
+          ];
+        }
+
+        if (status >= 500) {
+          return [
+            "Server error with minimal details",
+            "Internal processing failure",
+            "Error response may be encrypted",
+            "Server-side exception occurred",
+            "System error with limited information"
+          ];
+        }
+      }
+
+      // Default reasons for other status-only responses
+      return [
+        "HTTPS encrypted responses",
+        "Binary content (images, files, etc.)",
+        "Compressed responses (gzip, deflate)",
+        "Protected API endpoints",
+        "Non-text content types"
+      ];
+    };
     const isStatusOnlyResponse = (body: any): boolean => {
       if (!body || typeof body !== 'string') return false;
 
@@ -339,6 +393,8 @@ export const RequestDetailContent: React.FC<{
 
       // Check if the entire body is just a status message (no additional content)
       const statusOnlyPatterns = [
+        // Simple success responses
+        /^(ok|OK|Ok)\s*$/,
         // Exact status format matches (entire string)
         /^Status:\s*\d+\s*$/i,
         /^status:\s*\d+\s*$/i, // lowercase variant
@@ -369,6 +425,11 @@ export const RequestDetailContent: React.FC<{
     // Get explanation for why we can't show JSON content
     const getBodyExplanation = (body: any, status?: number): string => {
       if (isStatusOnlyResponse(body)) {
+        // Special handling for 'ok' response
+        if (typeof body === 'string' && body.trim().toLowerCase() === 'ok') {
+          return "👌 Simple Success Response - Server returned 'ok' indicating successful operation without additional data";
+        }
+
         if (status) {
           // Special case for status code 0 (network/connection errors)
           if (status === 0) {
@@ -529,11 +590,9 @@ export const RequestDetailContent: React.FC<{
                     <div className="mt-2 text-xs text-yellow-600">
                       <p><strong>Common reasons:</strong></p>
                       <ul className="list-disc list-inside space-y-1 mt-1">
-                        <li>HTTPS encrypted responses</li>
-                        <li>Binary content (images, files, etc.)</li>
-                        <li>Compressed responses (gzip, deflate)</li>
-                        <li>Protected API endpoints</li>
-                        <li>Non-text content types</li>
+                        {getCommonReasons(responseBody, request.status).map((reason, index) => (
+                          <li key={index}>{reason}</li>
+                        ))}
                       </ul>
                     </div>
                   </div>
