@@ -895,6 +895,26 @@ try {
     window.addEventListener('unhandledrejection', unhandledRejectionHandler);
     
     originalConsoleLog.call(console, 'MAIN-WORLD: Error event listeners added - uncaught errors will now be captured');
+    
+    // Test uncaught error handling after a short delay to ensure everything is set up
+    setTimeout(() => {
+      originalConsoleLog.call(console, 'MAIN-WORLD: Testing uncaught error handling...');
+      try {
+        // This should trigger our uncaught error handler
+        window.testErrorHandler = () => {
+          throw new Error('Test uncaught error - this should be captured by extension');
+        };
+        window.testErrorHandler();
+      } catch (e) {
+        originalConsoleLog.call(console, 'MAIN-WORLD: Test error was caught in try-catch, not by global handler');
+      }
+      
+      // Test with setTimeout to avoid try-catch
+      setTimeout(() => {
+        originalConsoleLog.call(console, 'MAIN-WORLD: Triggering async test error...');
+        throw new Error('Async test uncaught error - this should be captured by extension');
+      }, 100);
+    }, 1000);
   };
 
   // Stop interception
