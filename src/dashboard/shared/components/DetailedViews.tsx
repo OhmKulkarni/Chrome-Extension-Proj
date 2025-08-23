@@ -122,13 +122,13 @@ export const RequestDetailContent: React.FC<{
                       // Try to estimate from body content
                       const requestBody = request.requestBody || request.request_body;
                       const responseBody = request.responseBody || request.response_body;
-                      
+
                       let estimatedRequest = 0;
                       let estimatedResponse = 0;
-                      
+
                       if (requestBody) estimatedRequest = new Blob([requestBody]).size;
                       if (responseBody) estimatedResponse = new Blob([responseBody]).size;
-                      
+
                       if (estimatedRequest > 0 || estimatedResponse > 0) {
                         return (
                           <div className="text-sm text-gray-900 space-y-1 bg-yellow-50 p-3 rounded border border-yellow-200">
@@ -955,8 +955,6 @@ export const RequestDetailContent: React.FC<{
                 <div className="text-xs text-gray-500 bg-blue-50 border border-blue-200 rounded p-3">
                   <p><strong>Size Metric Differences:</strong></p>
                   <ul className="list-disc list-inside mt-1 space-y-1">
-                    <li><strong>Extension Sizes</strong> (Total/Request/Response): Calculated from intercepted body content at the JavaScript level</li>
-                    <li><strong>Browser API Sizes</strong> (Transfer/Encoded/Decoded): From Resource Timing API, includes headers, compression, and network-level data</li>
                     <li><strong>Transfer Size</strong> includes headers and represents actual network bytes</li>
                     <li><strong>Encoded vs Decoded</strong> shows compression effectiveness (gzip, deflate, etc.)</li>
                   </ul>
