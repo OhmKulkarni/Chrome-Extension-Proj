@@ -953,7 +953,7 @@ export const RequestDetailContent: React.FC<{
                   )}
                 </div>
                 <div className="text-xs text-gray-500 bg-blue-50 border border-blue-200 rounded p-3">
-                  <p><strong>Size Metric Differences:</strong></p>
+                  <p><strong>Size Metrics Info:</strong></p>
                   <ul className="list-disc list-inside mt-1 space-y-1">
                     <li><strong>Transfer Size</strong> includes headers and represents actual network bytes</li>
                     <li><strong>Encoded vs Decoded</strong> shows compression effectiveness (gzip, deflate, etc.)</li>
