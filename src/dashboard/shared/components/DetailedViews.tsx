@@ -79,10 +79,50 @@ export const RequestDetailContent: React.FC<{
                 {request.status || 'N/A'}
               </span>
             </div>
-            {request.payload_size && (
+            {(request.payload_size || request.request_size || request.response_size || request.requestSize || request.responseSize) && (
               <div>
-                <span className="text-sm font-medium text-gray-700">Payload Size:</span>
-                <p className="text-sm text-gray-900 mt-1">{Math.round(request.payload_size / 1024)}KB</p>
+                <span className="text-sm font-medium text-gray-700">Size Metrics:</span>
+                <div className="mt-1 space-y-1">
+                  {(() => {
+                    console.log('🔍 DetailedViews size metrics for:', request.url?.substring(0, 50), {
+                      payload_size: request.payload_size,
+                      request_size: request.request_size,
+                      response_size: request.response_size,
+                      requestSize: request.requestSize,
+                      responseSize: request.responseSize
+                    });
+                    
+                    const parseSize = (value: any): number => {
+                      if (value === null || value === undefined) return 0;
+                      const parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
+                      return isNaN(parsed) || parsed < 0 ? 0 : parsed;
+                    };
+
+                    const payloadSize = parseSize(request.payload_size);
+                    const requestSize = parseSize(request.requestSize || request.request_size);
+                    const responseSize = parseSize(request.responseSize || request.response_size);
+
+                    const formatSize = (bytes: number): string =>
+                      bytes > 0 ? `${(bytes / 1024).toFixed(2)}KB (${bytes} bytes)` : '0KB (0 bytes)';
+
+                    return (
+                      <div className="text-sm text-gray-900 space-y-1">
+                        {payloadSize > 0 && (
+                          <div><strong>Total:</strong> {formatSize(payloadSize)}</div>
+                        )}
+                        {requestSize > 0 && (
+                          <div><strong>Request:</strong> {formatSize(requestSize)}</div>
+                        )}
+                        {responseSize > 0 && (
+                          <div><strong>Response:</strong> {formatSize(responseSize)}</div>
+                        )}
+                        {payloadSize === 0 && (requestSize > 0 || responseSize > 0) && (
+                          <div><strong>Total:</strong> {formatSize(requestSize + responseSize)}</div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
             )}
             {request.response_time && (
@@ -835,6 +875,117 @@ export const RequestDetailContent: React.FC<{
             )}
           </div>
         </div>
+
+        {/* Size Metrics Comparison */}
+        {(() => {
+          const parseSize = (value: any): number => {
+            if (value === null || value === undefined) return 0;
+            const parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
+            return isNaN(parsed) || parsed < 0 ? 0 : parsed;
+          };
+
+          const payloadSize = parseSize(request.payload_size);
+          const requestSize = parseSize(request.requestSize || request.request_size);
+          const responseSize = parseSize(request.responseSize || request.response_size);
+          const transferSize = metrics.transferSize || 0;
+          const encodedBodySize = metrics.encodedBodySize || 0;
+          const decodedBodySize = metrics.decodedBodySize || 0;
+
+          // Show section if we have any size data
+          if (payloadSize > 0 || requestSize > 0 || responseSize > 0 || transferSize > 0 || encodedBodySize > 0 || decodedBodySize > 0) {
+            const maxSize = Math.max(payloadSize, requestSize, responseSize, transferSize, encodedBodySize, decodedBodySize);
+
+            const SizeBar: React.FC<{ value: number; label: string; color: string; tooltip: string }> = ({ value, label, color, tooltip }) => {
+              const percentage = maxSize > 0 ? (value / maxSize) * 100 : 0;
+              return (
+                <div className="flex items-center space-x-3" title={tooltip}>
+                  <div className="w-32 text-sm font-medium text-gray-700">{label}:</div>
+                  <div className="flex-1 bg-gray-200 rounded-full h-4 relative overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${color}`}
+                      style={{ width: `${Math.max(percentage, value > 0 ? 2 : 0)}%` }}
+                    ></div>
+                  </div>
+                  <div className="w-16 text-sm text-gray-600 text-right">
+                    {value > 0 ? formatSize(value) : '-'}
+                  </div>
+                  <div className="w-12 text-xs text-gray-500 text-right">
+                    {percentage > 0 ? `${Math.round(percentage)}%` : '-'}
+                  </div>
+                </div>
+              );
+            };
+
+            return (
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold text-gray-900">Size Metrics Comparison</h4>
+                <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                  {/* Application-level sizes */}
+                  {payloadSize > 0 && (
+                    <SizeBar
+                      value={payloadSize}
+                      label="Total Size"
+                      color="bg-blue-500"
+                      tooltip="Total payload size calculated by our extension from intercepted request/response bodies"
+                    />
+                  )}
+                  {requestSize > 0 && (
+                    <SizeBar
+                      value={requestSize}
+                      label="Request Size"
+                      color="bg-green-500"
+                      tooltip="Size of request body data captured by our extension"
+                    />
+                  )}
+                  {responseSize > 0 && (
+                    <SizeBar
+                      value={responseSize}
+                      label="Response Size"
+                      color="bg-purple-500"
+                      tooltip="Size of response body data captured by our extension"
+                    />
+                  )}
+
+                  {/* Browser Resource Timing API sizes */}
+                  {transferSize > 0 && (
+                    <SizeBar
+                      value={transferSize}
+                      label="Transfer Size"
+                      color="bg-orange-500"
+                      tooltip="Total bytes transferred over the network including headers and compression (from Resource Timing API)"
+                    />
+                  )}
+                  {encodedBodySize > 0 && (
+                    <SizeBar
+                      value={encodedBodySize}
+                      label="Encoded Body"
+                      color="bg-yellow-500"
+                      tooltip="Size of response body after compression/encoding but before decompression (from Resource Timing API)"
+                    />
+                  )}
+                  {decodedBodySize > 0 && (
+                    <SizeBar
+                      value={decodedBodySize}
+                      label="Decoded Body"
+                      color="bg-red-500"
+                      tooltip="Size of response body after decompression/decoding (from Resource Timing API)"
+                    />
+                  )}
+                </div>
+                <div className="text-xs text-gray-500 bg-blue-50 border border-blue-200 rounded p-3">
+                  <p><strong>Size Metric Differences:</strong></p>
+                  <ul className="list-disc list-inside mt-1 space-y-1">
+                    <li><strong>Extension Sizes</strong> (Total/Request/Response): Calculated from intercepted body content at the JavaScript level</li>
+                    <li><strong>Browser API Sizes</strong> (Transfer/Encoded/Decoded): From Resource Timing API, includes headers, compression, and network-level data</li>
+                    <li><strong>Transfer Size</strong> includes headers and represents actual network bytes</li>
+                    <li><strong>Encoded vs Decoded</strong> shows compression effectiveness (gzip, deflate, etc.)</li>
+                  </ul>
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
 
         <div className="text-xs text-gray-500">
           <p><strong>Note:</strong> Performance metrics are captured using the Resource Timing API.</p>

@@ -82,6 +82,14 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
   // Helper function to extract response time with performance metrics as primary source
   // Helper function to get size display with multiple fallback options
   const getSizeDisplay = (request: NetworkRequest): string => {
+    console.log('🔍 getSizeDisplay called for:', request.url?.substring(0, 50), {
+      payload_size: request.payload_size,
+      request_size: request.request_size,
+      response_size: request.response_size,
+      requestSize: request.requestSize,
+      responseSize: request.responseSize
+    });
+    
     // Helper function to safely parse size value
     const parseSize = (value: any): number => {
       if (value === null || value === undefined) return 0;
@@ -110,19 +118,21 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
     const payloadSize = parseSize(request.payload_size);
     if (payloadSize > 0) {
       if (showDebug) console.log('✅ Using Method 1 (payload_size):', payloadSize);
-      return `${Math.round(payloadSize / 1024)}KB`;
+      const sizeInKB = payloadSize / 1024;
+      return sizeInKB >= 1 ? `${sizeInKB.toFixed(1)}KB` : `~${sizeInKB.toFixed(1)}KB`;
     }
-    
+
     // Method 2: Calculate from separate size fields (try both naming conventions)
     const requestSize = parseSize(request.requestSize || request.request_size);
     const responseSize = parseSize(request.responseSize || request.response_size);
     const totalSize = requestSize + responseSize;
-    
+
     if (totalSize > 0) {
       if (showDebug) console.log('✅ Using Method 2 (individual sizes):', { requestSize, responseSize, totalSize });
-      return `${Math.round(totalSize / 1024)}KB`;
+      const sizeInKB = totalSize / 1024;
+      return sizeInKB >= 1 ? `${sizeInKB.toFixed(1)}KB` : `~${sizeInKB.toFixed(1)}KB`;
     }
-    
+
     // Method 3: Estimate from body content if available (try both naming conventions)
     let estimatedSize = 0;
 
@@ -138,7 +148,8 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
 
     if (estimatedSize > 0) {
       if (showDebug) console.log('⚠️  Using Method 3 (body estimation):', estimatedSize);
-      return `~${Math.round(estimatedSize / 1024)}KB`;
+      const sizeInKB = estimatedSize / 1024;
+      return `~${sizeInKB.toFixed(1)}KB`;
     }
 
     // Method 4: Estimate from headers if available
@@ -169,14 +180,14 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
       return isNaN(parsed) || parsed < 0 ? 0 : parsed;
     };
 
-    const formatSize = (bytes: number): string => bytes > 0 ? `${bytes} bytes (${Math.round(bytes / 1024)}KB)` : '0 bytes';
+    const formatSize = (bytes: number): string => bytes > 0 ? `${(bytes / 1024).toFixed(2)}KB (${bytes} bytes)` : '0KB (0 bytes)';
 
     const payloadSize = parseSize(request.payload_size);
     const requestSize = parseSize(request.requestSize || request.request_size);
     const responseSize = parseSize(request.responseSize || request.response_size);
 
     let tooltip = 'Size Breakdown:\n';
-    
+
     if (payloadSize > 0) {
       tooltip += `Total: ${formatSize(payloadSize)}\n`;
       if (requestSize > 0 || responseSize > 0) {
@@ -191,13 +202,13 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
       // Try to estimate from body content
       const requestBody = request.requestBody || request.request_body;
       const responseBody = request.responseBody || request.response_body;
-      
+
       let estimatedRequest = 0;
       let estimatedResponse = 0;
-      
+
       if (requestBody) estimatedRequest = new Blob([requestBody]).size;
       if (responseBody) estimatedResponse = new Blob([responseBody]).size;
-      
+
       if (estimatedRequest > 0 || estimatedResponse > 0) {
         tooltip += `Estimated from body content:\n`;
         tooltip += `Request: ${formatSize(estimatedRequest)}\n`;
@@ -215,33 +226,33 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
   const getMethodTooltip = (request: NetworkRequest): string => {
     const requestBody = request.requestBody || request.request_body;
     const responseBody = request.responseBody || request.response_body;
-    
+
     let tooltip = `${request.method} ${request.url}\n\n`;
-    
+
     if (requestBody) {
       tooltip += `Request Body (${requestBody.length} chars):\n`;
       tooltip += `${requestBody.substring(0, 300)}${requestBody.length > 300 ? '...' : ''}\n\n`;
     }
-    
+
     if (responseBody) {
       tooltip += `Response Body (${responseBody.length} chars):\n`;
       tooltip += `${responseBody.substring(0, 300)}${responseBody.length > 300 ? '...' : ''}`;
     }
-    
+
     if (!requestBody && !responseBody) {
       tooltip += 'No request/response body data captured';
     }
-    
+
     return tooltip.trim();
   };
   const getResponseTimeTooltip = (request: NetworkRequest): string => {
     let tooltip = 'Response Time Details:\n';
-    
+
     // Check performance metrics first
     if (request.performanceMetrics && typeof request.performanceMetrics === 'object') {
       const metrics = request.performanceMetrics;
       tooltip += `Total Time: ${metrics.totalTime || 'N/A'}ms\n`;
-      
+
       if (metrics.dnsLookup) tooltip += `DNS Lookup: ${metrics.dnsLookup}ms\n`;
       if (metrics.tcpConnection) tooltip += `TCP Connection: ${metrics.tcpConnection}ms\n`;
       if (metrics.tlsHandshake) tooltip += `TLS Handshake: ${metrics.tlsHandshake}ms\n`;
@@ -259,12 +270,12 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
       if (request.time_taken && request.time_taken !== request.duration && request.time_taken !== request.response_time) {
         tooltip += `Time Taken: ${request.time_taken}ms\n`;
       }
-      
+
       if (!request.duration && !request.response_time && !request.time_taken) {
         tooltip += 'No timing data available\n';
       }
     }
-    
+
     return tooltip.trim();
   };
   const getHeadersTooltip = (request: NetworkRequest): string => {
@@ -287,7 +298,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
       }
 
       let tooltip = '';
-      
+
       // Show request headers
       const requestHeaderEntries = Object.entries(requestHeaders);
       if (requestHeaderEntries.length > 0) {
@@ -297,7 +308,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
         });
       }
 
-      // Show response headers  
+      // Show response headers
       const responseHeaderEntries = Object.entries(responseHeaders);
       if (responseHeaderEntries.length > 0) {
         if (tooltip) tooltip += '\n';
