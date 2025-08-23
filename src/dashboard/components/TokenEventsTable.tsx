@@ -7,6 +7,7 @@ interface TokenEvent {
   method?: string;
   status?: number;
   valueHash?: string;
+  value_hash?: string; // Database field name
   expiry?: string;
   timestamp: string;
 }
@@ -315,8 +316,15 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                     <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-16">
                       {event.method || 'N/A'}
                     </td>
-                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 font-mono w-1/4">
-                      {formatHash(event.valueHash || '')}
+                    <td 
+                      className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 font-mono w-1/4"
+                      title={
+                        (event.valueHash || event.value_hash) && !showFullTokenHash
+                          ? `${event.valueHash || event.value_hash} (click Toggle Full Hash to see complete value)`
+                          : (event.valueHash || event.value_hash) || 'No hash available'
+                      }
+                    >
+                      {formatHash(event.valueHash || event.value_hash || '')}
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-20">
                       {new Date(event.timestamp).toLocaleTimeString()}

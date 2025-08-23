@@ -1569,7 +1569,16 @@ export const TokenDetailContent: React.FC<{
             {(tokenEvent.valueHash || tokenEvent.value_hash) && (
               <div>
                 <span className="text-sm font-medium text-gray-700">Value Hash:</span>
-                <p className="text-sm text-gray-900 mt-1 font-mono">{formatHashValue(tokenEvent.valueHash || tokenEvent.value_hash)}</p>
+                <div className="mt-1 flex items-center space-x-2">
+                  <p className="text-sm text-gray-900 font-mono">
+                    {formatHashValue(tokenEvent.valueHash || tokenEvent.value_hash)}
+                  </p>
+                  {!showFullTokenHash && (tokenEvent.valueHash || tokenEvent.value_hash) && 
+                   (tokenEvent.valueHash || tokenEvent.value_hash).length > 16 && 
+                   /^[a-fA-F0-9]+$/.test(tokenEvent.valueHash || tokenEvent.value_hash) && (
+                    <span className="text-xs text-gray-500 italic">(truncated - see Raw JSON for full value)</span>
+                  )}
+                </div>
               </div>
             )}
             {tokenEvent.timestamp && (
