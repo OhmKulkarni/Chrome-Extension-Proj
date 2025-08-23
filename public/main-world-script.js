@@ -394,11 +394,15 @@ const interceptFetch = (originalFetch, input, init) => {
     // Try to capture response body
     let responseBody = '';
     let requestBody = '';
+    let originalRequestSize = 0;
+    let originalResponseSize = 0;
 
     try {
       // Capture request body
       if (init && init.body) {
-        requestBody = truncateBody(String(init.body), extensionSettings.maxBodySize);
+        const originalRequestBody = String(init.body);
+        originalRequestSize = new Blob([originalRequestBody]).size; // Calculate size BEFORE truncation
+        requestBody = truncateBody(originalRequestBody, extensionSettings.maxBodySize);
       }
 
       // Clone response to capture body
@@ -407,8 +411,9 @@ const interceptFetch = (originalFetch, input, init) => {
 
       if (contentType.includes('application/json') || contentType.includes('text/')) {
         try {
-          responseBody = await responseClone.text();
-          responseBody = truncateBody(responseBody, extensionSettings.maxBodySize);
+          const originalResponseBody = await responseClone.text();
+          originalResponseSize = new Blob([originalResponseBody]).size; // Calculate size BEFORE truncation
+          responseBody = truncateBody(originalResponseBody, extensionSettings.maxBodySize);
         } catch (e) {
           originalConsoleLog.call(console, 'MAIN-WORLD: MAIN-WORLD: Could not read response body:', e);
         }
@@ -440,9 +445,9 @@ const interceptFetch = (originalFetch, input, init) => {
     setTimeout(() => {
       performanceMetrics = getAndRemovePendingMetrics(url, performanceStartTime);
 
-      // Calculate actual byte sizes
-      const requestSize = requestBody ? new Blob([requestBody]).size : 0;
-      const responseSize = responseBody ? new Blob([responseBody]).size : 0;
+      // Use the accurate sizes calculated before truncation
+      const requestSize = originalRequestSize;
+      const responseSize = originalResponseSize;
 
       // Send captured data including performance metrics and size calculations
       const capturedData = {
@@ -518,10 +523,12 @@ const interceptXHR = (xhr, originalXhrSend, data) => {
       originalConsoleLog.call(console, 'MAIN-WORLD: MAIN-WORLD: Could not get XHR response headers:', e);
     }
 
-    // Capture response body
+    // Capture response body and calculate accurate size
     let responseBody = '';
+    let originalResponseSize = 0;
     try {
       if (xhr.responseText) {
+        originalResponseSize = new Blob([xhr.responseText]).size; // Calculate size BEFORE truncation
         responseBody = truncateBody(xhr.responseText, extensionSettings.maxBodySize);
       }
     } catch (e) {
@@ -532,9 +539,9 @@ const interceptXHR = (xhr, originalXhrSend, data) => {
     setTimeout(() => {
       const performanceMetrics = getAndRemovePendingMetrics(xhr._url, xhr._performanceStartTime);
 
-      // Calculate actual byte sizes
+      // Calculate accurate sizes (request size from original data, response size calculated above)
       const requestSize = data ? new Blob([String(data)]).size : 0;
-      const responseSize = responseBody ? new Blob([responseBody]).size : 0;
+      const responseSize = originalResponseSize;
 
       // Send captured data
       const capturedData = {

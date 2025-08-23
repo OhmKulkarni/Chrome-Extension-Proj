@@ -43,33 +43,33 @@
             if (request.payload_size && request.payload_size > 0) {
                 return { value: `${Math.round(request.payload_size / 1024)}KB`, method: '1-payload_size', accurate: true };
             }
-            
+
             // Method 2: Calculate from separate size fields
             const requestSize = request.requestSize || request.request_size || 0;
             const responseSize = request.responseSize || request.response_size || 0;
             const totalSize = requestSize + responseSize;
-            
+
             if (totalSize > 0) {
                 return { value: `${Math.round(totalSize / 1024)}KB`, method: '2-individual_sizes', accurate: true };
             }
-            
+
             // Method 3: Estimate from body content
             let estimatedSize = 0;
-            
+
             const requestBody = request.requestBody || request.request_body;
             if (requestBody) {
                 estimatedSize += new Blob([requestBody]).size;
             }
-            
+
             const responseBody = request.responseBody || request.response_body;
             if (responseBody) {
                 estimatedSize += new Blob([responseBody]).size;
             }
-            
+
             if (estimatedSize > 0) {
                 return { value: `~${Math.round(estimatedSize / 1024)}KB`, method: '3-body_estimation', accurate: false };
             }
-            
+
             // Method 4: Estimate from headers
             if (request.headers) {
                 try {
@@ -82,7 +82,7 @@
                     // Ignore
                 }
             }
-            
+
             return { value: '-', method: 'none', accurate: false };
         }
 
@@ -108,7 +108,7 @@
                     response.data.forEach((req, i) => {
                         const sizeResult = getSizeDisplay(req);
                         const category = sizeResult.accurate ? 'ACCURATE' : (sizeResult.value === '-' ? 'MISSING' : 'ESTIMATED');
-                        
+
                         if (sizeResult.accurate) accurateCount++;
                         else if (sizeResult.value === '-') missingCount++;
                         else estimatedCount++;
@@ -164,15 +164,15 @@
             resultsDiv.className = 'results';
 
             try {
-                const testData = JSON.stringify({ 
-                    test: 'size accuracy', 
+                const testData = JSON.stringify({
+                    test: 'size accuracy',
                     timestamp: Date.now(),
                     payload: 'x'.repeat(500) // 500 chars for predictable size
                 });
 
                 const response = await fetch('https://httpbin.org/post', {
                     method: 'POST',
-                    headers: { 
+                    headers: {
                         'Content-Type': 'application/json',
                         'X-Test-Size': 'accuracy-debug'
                     },
@@ -180,7 +180,7 @@
                 });
 
                 const responseText = await response.text();
-                
+
                 const expectedRequestSize = new Blob([testData]).size;
                 const expectedResponseSize = new Blob([responseText]).size;
                 const expectedTotal = expectedRequestSize + expectedResponseSize;
@@ -207,15 +207,15 @@
 
                         if (stored?.success && stored.data?.length > 0) {
                             // Find our test request
-                            const testReq = stored.data.find(req => 
-                                req.url.includes('httpbin.org/post') && 
+                            const testReq = stored.data.find(req =>
+                                req.url.includes('httpbin.org/post') &&
                                 req.method === 'POST' &&
                                 (req.request_body || req.requestBody || '').includes('size accuracy')
                             );
 
                             if (testReq) {
                                 const sizeResult = getSizeDisplay(testReq);
-                                
+
                                 output += `Stored Request Analysis:\n`;
                                 output += `========================\n`;
                                 output += `Found test request in database!\n`;

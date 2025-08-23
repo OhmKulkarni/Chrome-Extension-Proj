@@ -176,6 +176,16 @@ export class NetworkProcessorModule {
 
       // Store the network request in IndexedDB using the same format as origin/main
       try {
+        // DEBUG: Log size data being processed (remove after debugging)
+        if (Math.random() < 0.1) {
+          console.log('🔍 BACKGROUND SIZE DEBUG for', validatedRequestData.url?.substring(0, 50), {
+            requestData_requestSize: requestData.requestSize,
+            requestData_responseSize: requestData.responseSize,
+            calculated_payload_size: (requestData.requestSize || 0) + (requestData.responseSize || 0),
+            requestData_keys: Object.keys(requestData)
+          });
+        }
+
         // Map the request data from main-world-script to storage API format (EXACT COPY FROM MAIN BRANCH)
         const apiCallData = {
           url: validatedRequestData.url,

@@ -89,9 +89,27 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
       return isNaN(parsed) || parsed < 0 ? 0 : parsed;
     };
 
+    // DEBUG MODE: Show detailed size data for first few requests (remove this after debugging)
+    const showDebug = Math.random() < 0.1; // Show debug for ~10% of requests
+    if (showDebug) {
+      console.log('🔍 SIZE DEBUG for', request.url?.substring(0, 50), {
+        payload_size: request.payload_size,
+        payload_size_type: typeof request.payload_size,
+        request_size: request.request_size,
+        request_size_type: typeof request.request_size,
+        response_size: request.response_size,
+        response_size_type: typeof request.response_size,
+        requestSize: request.requestSize,
+        responseSize: request.responseSize,
+        has_request_body: !!(request.requestBody || request.request_body),
+        has_response_body: !!(request.responseBody || request.response_body)
+      });
+    }
+
     // Method 1: Use payload_size if available (most reliable)
     const payloadSize = parseSize(request.payload_size);
     if (payloadSize > 0) {
+      if (showDebug) console.log('✅ Using Method 1 (payload_size):', payloadSize);
       return `${Math.round(payloadSize / 1024)}KB`;
     }
     
@@ -101,42 +119,49 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
     const totalSize = requestSize + responseSize;
     
     if (totalSize > 0) {
+      if (showDebug) console.log('✅ Using Method 2 (individual sizes):', { requestSize, responseSize, totalSize });
       return `${Math.round(totalSize / 1024)}KB`;
     }
     
     // Method 3: Estimate from body content if available (try both naming conventions)
     let estimatedSize = 0;
-    
+
     const requestBody = request.requestBody || request.request_body;
     if (requestBody) {
       estimatedSize += new Blob([requestBody]).size;
     }
-    
+
     const responseBody = request.responseBody || request.response_body;
     if (responseBody) {
       estimatedSize += new Blob([responseBody]).size;
     }
-    
+
     if (estimatedSize > 0) {
+      if (showDebug) console.log('⚠️  Using Method 3 (body estimation):', estimatedSize);
       return `~${Math.round(estimatedSize / 1024)}KB`;
     }
-    
+
+    // Method 4: Estimate from headers if available
     // Method 4: Estimate from headers if available
     if (request.headers) {
       try {
         const headerStr = typeof request.headers === 'string' ? request.headers : JSON.stringify(request.headers);
         const headerSize = new Blob([headerStr]).size;
         if (headerSize > 100) { // Only show if meaningful size
+          if (showDebug) console.log('⚠️  Using Method 4 (header estimation):', headerSize);
           return `~${Math.round(headerSize / 1024)}KB`;
         }
       } catch (e) {
         // Ignore header size calculation errors
       }
     }
-    
+
     // Fallback: Show dash if no size data available
+    if (showDebug) console.log('❌ No size data available for request');
     return '-';
-  };  const getResponseTime = (request: NetworkRequest): string => {
+  };
+
+  const getResponseTime = (request: NetworkRequest): string => {
     // First try to get performance metrics total time (already parsed object from background)
     if (request.performanceMetrics && typeof request.performanceMetrics === 'object') {
       const totalTime = request.performanceMetrics.totalTime;
