@@ -130,7 +130,6 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
   };
 
   const formatHash = (hash: string): string => {
-    console.log('🔍 TokenEventsTable formatHash called with:', { hash, type: typeof hash, event_sample: events[0] });
     if (!hash) return 'N/A';
     if (showFullTokenHash) return hash;
     return hash.length > 12 ? `${hash.substring(0, 8)}...${hash.substring(hash.length - 4)}` : hash;
@@ -327,13 +326,6 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                     >
                       {(() => {
                         const hashValue = event.valueHash || event.value_hash || '';
-                        console.log('🔍 Hash display for event:', {
-                          event_type: event.type,
-                          valueHash: event.valueHash,
-                          value_hash: event.value_hash,
-                          final_hash: hashValue,
-                          full_event: event
-                        });
                         return formatHash(hashValue);
                       })()}
                     </td>

@@ -562,19 +562,25 @@ const interceptXHR = (xhr, originalXhrSend, data) => {
         timestamp: new Date().toISOString()
       };
 
-      // Debug logging for XHR requests
-      console.log(`MAIN-WORLD XHR: Sending data for ${xhr._url}:`, {
-        url: capturedData.url,
-        domain: capturedData.domain,
-        method: capturedData.method,
-        status: capturedData.status,
-        requestSize: capturedData.requestSize,
-        responseSize: capturedData.responseSize,
-        hasRequestBody: !!capturedData.requestBody,
-        hasResponseBody: !!capturedData.responseBody,
-        hasPerformanceMetrics: !!capturedData.performanceMetrics,
-        requestHeaders: Object.keys(capturedData.requestHeaders).length,
-        responseHeaders: Object.keys(capturedData.responseHeaders).length
+      // Debug logging for XHR requests - only if console logging enabled
+      isConsoleLoggingEnabled().then(isEnabled => {
+        if (isEnabled) {
+          console.log(`MAIN-WORLD XHR: Sending data for ${xhr._url}:`, {
+            url: capturedData.url,
+            domain: capturedData.domain,
+            method: capturedData.method,
+            status: capturedData.status,
+            requestSize: capturedData.requestSize,
+            responseSize: capturedData.responseSize,
+            hasRequestBody: !!capturedData.requestBody,
+            hasResponseBody: !!capturedData.responseBody,
+            hasPerformanceMetrics: !!capturedData.performanceMetrics,
+            requestHeaders: Object.keys(capturedData.requestHeaders).length,
+            responseHeaders: Object.keys(capturedData.responseHeaders).length
+          });
+        }
+      }).catch(() => {
+        // Silent fallback - don't spam console if extension context unavailable
       });
 
       // Send to content script
