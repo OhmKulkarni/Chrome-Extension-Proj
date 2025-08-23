@@ -161,6 +161,162 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
     return '-';
   };
 
+  // Helper function to get size tooltip with detailed breakdown
+  const getSizeTooltip = (request: NetworkRequest): string => {
+    const parseSize = (value: any): number => {
+      if (value === null || value === undefined) return 0;
+      const parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
+      return isNaN(parsed) || parsed < 0 ? 0 : parsed;
+    };
+
+    const formatSize = (bytes: number): string => bytes > 0 ? `${bytes} bytes (${Math.round(bytes / 1024)}KB)` : '0 bytes';
+
+    const payloadSize = parseSize(request.payload_size);
+    const requestSize = parseSize(request.requestSize || request.request_size);
+    const responseSize = parseSize(request.responseSize || request.response_size);
+
+    let tooltip = 'Size Breakdown:\n';
+    
+    if (payloadSize > 0) {
+      tooltip += `Total: ${formatSize(payloadSize)}\n`;
+      if (requestSize > 0 || responseSize > 0) {
+        tooltip += `Request: ${formatSize(requestSize)}\n`;
+        tooltip += `Response: ${formatSize(responseSize)}`;
+      }
+    } else if (requestSize > 0 || responseSize > 0) {
+      tooltip += `Request: ${formatSize(requestSize)}\n`;
+      tooltip += `Response: ${formatSize(responseSize)}\n`;
+      tooltip += `Total: ${formatSize(requestSize + responseSize)}`;
+    } else {
+      // Try to estimate from body content
+      const requestBody = request.requestBody || request.request_body;
+      const responseBody = request.responseBody || request.response_body;
+      
+      let estimatedRequest = 0;
+      let estimatedResponse = 0;
+      
+      if (requestBody) estimatedRequest = new Blob([requestBody]).size;
+      if (responseBody) estimatedResponse = new Blob([responseBody]).size;
+      
+      if (estimatedRequest > 0 || estimatedResponse > 0) {
+        tooltip += `Estimated from body content:\n`;
+        tooltip += `Request: ${formatSize(estimatedRequest)}\n`;
+        tooltip += `Response: ${formatSize(estimatedResponse)}\n`;
+        tooltip += `Total: ${formatSize(estimatedRequest + estimatedResponse)}`;
+      } else {
+        tooltip = 'No size data available';
+      }
+    }
+
+    return tooltip;
+  };
+
+  // Helper function to get method tooltip with request details
+  const getMethodTooltip = (request: NetworkRequest): string => {
+    const requestBody = request.requestBody || request.request_body;
+    const responseBody = request.responseBody || request.response_body;
+    
+    let tooltip = `${request.method} ${request.url}\n\n`;
+    
+    if (requestBody) {
+      tooltip += `Request Body (${requestBody.length} chars):\n`;
+      tooltip += `${requestBody.substring(0, 300)}${requestBody.length > 300 ? '...' : ''}\n\n`;
+    }
+    
+    if (responseBody) {
+      tooltip += `Response Body (${responseBody.length} chars):\n`;
+      tooltip += `${responseBody.substring(0, 300)}${responseBody.length > 300 ? '...' : ''}`;
+    }
+    
+    if (!requestBody && !responseBody) {
+      tooltip += 'No request/response body data captured';
+    }
+    
+    return tooltip.trim();
+  };
+  const getResponseTimeTooltip = (request: NetworkRequest): string => {
+    let tooltip = 'Response Time Details:\n';
+    
+    // Check performance metrics first
+    if (request.performanceMetrics && typeof request.performanceMetrics === 'object') {
+      const metrics = request.performanceMetrics;
+      tooltip += `Total Time: ${metrics.totalTime || 'N/A'}ms\n`;
+      
+      if (metrics.dnsLookup) tooltip += `DNS Lookup: ${metrics.dnsLookup}ms\n`;
+      if (metrics.tcpConnection) tooltip += `TCP Connection: ${metrics.tcpConnection}ms\n`;
+      if (metrics.tlsHandshake) tooltip += `TLS Handshake: ${metrics.tlsHandshake}ms\n`;
+      if (metrics.requestWaiting) tooltip += `Request Waiting: ${metrics.requestWaiting}ms\n`;
+      if (metrics.timeToFirstByte) tooltip += `Time to First Byte: ${metrics.timeToFirstByte}ms\n`;
+      if (metrics.contentDownload) tooltip += `Content Download: ${metrics.contentDownload}ms\n`;
+    } else {
+      // Fallback to basic timing
+      if (request.duration) {
+        tooltip += `Duration: ${request.duration}ms\n`;
+      }
+      if (request.response_time && request.response_time !== request.duration) {
+        tooltip += `Response Time: ${request.response_time}ms\n`;
+      }
+      if (request.time_taken && request.time_taken !== request.duration && request.time_taken !== request.response_time) {
+        tooltip += `Time Taken: ${request.time_taken}ms\n`;
+      }
+      
+      if (!request.duration && !request.response_time && !request.time_taken) {
+        tooltip += 'No timing data available\n';
+      }
+    }
+    
+    return tooltip.trim();
+  };
+  const getHeadersTooltip = (request: NetworkRequest): string => {
+    try {
+      let requestHeaders: any = {};
+      let responseHeaders: any = {};
+
+      // Parse headers using same logic as getHeaderPreview
+      if (request.headers) {
+        const headerData = typeof request.headers === 'string' ? JSON.parse(request.headers) : request.headers;
+        requestHeaders = headerData.request || {};
+        responseHeaders = headerData.response || {};
+      } else {
+        if (request.request_headers) {
+          requestHeaders = typeof request.request_headers === 'string' ? JSON.parse(request.request_headers) : request.request_headers;
+        }
+        if (request.response_headers) {
+          responseHeaders = typeof request.response_headers === 'string' ? JSON.parse(request.response_headers) : request.response_headers;
+        }
+      }
+
+      let tooltip = '';
+      
+      // Show request headers
+      const requestHeaderEntries = Object.entries(requestHeaders);
+      if (requestHeaderEntries.length > 0) {
+        tooltip += 'Request Headers:\n';
+        requestHeaderEntries.forEach(([key, value]) => {
+          tooltip += `${key}: ${value}\n`;
+        });
+      }
+
+      // Show response headers  
+      const responseHeaderEntries = Object.entries(responseHeaders);
+      if (responseHeaderEntries.length > 0) {
+        if (tooltip) tooltip += '\n';
+        tooltip += 'Response Headers:\n';
+        responseHeaderEntries.forEach(([key, value]) => {
+          tooltip += `${key}: ${value}\n`;
+        });
+      }
+
+      if (!tooltip) {
+        tooltip = 'No headers available';
+      }
+
+      return tooltip.trim();
+    } catch (e) {
+      return 'Error parsing headers data';
+    }
+  };
+
   const getResponseTime = (request: NetworkRequest): string => {
     // First try to get performance metrics total time (already parsed object from background)
     if (request.performanceMetrics && typeof request.performanceMetrics === 'object') {
@@ -451,7 +607,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                         request.method === 'PUT' ? 'bg-yellow-100 text-yellow-800' :
                         request.method === 'DELETE' ? 'bg-red-100 text-red-800' :
                         'bg-gray-100 text-gray-800'
-                      }`}>
+                      }`} title={getMethodTooltip(request)}>
                         {request.method}
                       </span>
                     </td>
@@ -469,22 +625,22 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                         request.status >= 300 && request.status < 400 ? 'bg-yellow-100 text-yellow-800' :
                         request.status >= 400 ? 'bg-red-100 text-red-800' :
                         'bg-gray-100 text-gray-800'
-                      }`}>
+                      }`} title={`HTTP ${request.status} - ${new Date(request.timestamp).toLocaleString()}`}>
                         {request.status}
                       </span>
                     </td>
-                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-16">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-16" title={getSizeTooltip(request)}>
                       {getSizeDisplay(request)}
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-20">
                       {new Date(request.timestamp).toLocaleTimeString()}
                     </td>
-                    <td className="px-3 py-3 text-sm text-gray-500 w-1/4">
+                    <td className="px-3 py-3 text-sm text-gray-500 w-1/4" title={getHeadersTooltip(request)}>
                       <div className="truncate max-w-xs">
                         {getHeaderPreview(request)}
                       </div>
                     </td>
-                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-20">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-20" title={getResponseTimeTooltip(request)}>
                       {getResponseTime(request)}
                     </td>
                   </tr>
