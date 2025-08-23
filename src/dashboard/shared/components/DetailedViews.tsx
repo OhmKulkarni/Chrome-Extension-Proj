@@ -1180,23 +1180,6 @@ export const ErrorDetailContent: React.FC<{
               </div>
             </div>
           )}
-
-          {/* Error Properties Summary */}
-          <div>
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Error Properties</h4>
-            <div className="bg-gray-50 rounded-lg p-3">
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><span className="font-medium">Severity:</span> {error.severity || 'N/A'}</div>
-                <div><span className="font-medium">Timestamp:</span> {error.timestamp ? new Date(error.timestamp).toLocaleString() : 'N/A'}</div>
-                <div><span className="font-medium">Source:</span> {error.source || 'N/A'}</div>
-                <div><span className="font-medium">Domain:</span> {error.domain || 'N/A'}</div>
-                {error.tab_id && <div><span className="font-medium">Tab ID:</span> {error.tab_id}</div>}
-                {error.lineNumber && <div><span className="font-medium">Line Number:</span> {error.lineNumber}</div>}
-                {error.columnNumber && <div><span className="font-medium">Column Number:</span> {error.columnNumber}</div>}
-                {error.filename && <div><span className="font-medium">Filename:</span> <span className="text-xs break-all">{error.filename}</span></div>}
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     );

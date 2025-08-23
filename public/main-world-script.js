@@ -48,6 +48,18 @@ let mainWorldState = {
   consoleLoggingEnabled: true
 };
 
+// Error statistics tracking
+let errorStats = {
+  crossOriginErrors: 0,
+  regularErrors: 0,
+  unhandledRejections: 0,
+  consoleErrors: 0,
+  consoleWarns: 0,
+  consoleInfos: 0,
+  consoleLogs: 0,
+  startTime: Date.now()
+};
+
 // Communication with content script for Chrome API access
 const requestFromContentScript = (action, data = {}) => {
   return new Promise((resolve) => {
@@ -699,7 +711,21 @@ const interceptConsole = (originalMethod, methodName, severity, callSiteStack, .
         }
       }
 
-      // Dispatch custom event for content script to catch
+      // Track console statistics
+      switch (severity) {
+        case 'error': errorStats.consoleErrors++; break;
+        case 'warn': errorStats.consoleWarns++; break;
+        case 'info': errorStats.consoleInfos++; break;
+        case 'log': errorStats.consoleLogs++; break;
+      }
+
+      // Send to content script using the same method as error handlers
+      window.postMessage({
+        source: 'main-world-console-interceptor',
+        data: consoleData
+      }, '*');
+
+      // Also dispatch custom event for backward compatibility
       window.dispatchEvent(new CustomEvent('consoleErrorIntercepted', {
         detail: consoleData
       }));
@@ -822,10 +848,22 @@ try {
           error: event.error
         });
 
-        // Handle uncaught JavaScript errors
-        const errorMessage = `${event.error?.name || 'Error'}: ${event.message}`;
-        const stack = event.error?.stack || `at ${event.filename}:${event.lineno}:${event.colno}`;
-        
+        // Detect cross-origin "Script error." and provide more context
+        const isCrossOriginError = event.message === 'Script error.' && !event.filename;
+        let errorMessage, stack, filename;
+
+        if (isCrossOriginError) {
+          // Cross-origin error - provide helpful context
+          errorMessage = 'Cross-Origin Script Error (likely from ads, analytics, or external resources)';
+          stack = 'Stack trace unavailable due to CORS policy';
+          filename = `External script on ${window.location.hostname}`;
+        } else {
+          // Regular error with full details
+          errorMessage = `${event.error?.name || 'Error'}: ${event.message}`;
+          stack = event.error?.stack || `at ${event.filename}:${event.lineno}:${event.colno}`;
+          filename = event.filename || window.location.href;
+        }
+
         // Create console error data matching our format
         const consoleData = {
           message: errorMessage,
@@ -833,14 +871,22 @@ try {
           timestamp: new Date().toISOString(),
           url: window.location.href,
           domain: getSafeDomain(window.location.href),
-          source: 'uncaught-error',
+          source: isCrossOriginError ? 'cross-origin-error' : 'uncaught-error',
           stack: stack,
-          lineNumber: event.lineno,
-          columnNumber: event.colno,
-          filename: event.filename || window.location.href
+          lineNumber: event.lineno || null,
+          columnNumber: event.colno || null,
+          filename: filename
         };
 
+        // Update error statistics
+        if (isCrossOriginError) {
+          errorStats.crossOriginErrors++;
+        } else {
+          errorStats.regularErrors++;
+        }
+
         originalConsoleLog.call(console, 'MAIN-WORLD: Sending uncaught error to content script:', consoleData);
+        originalConsoleLog.call(console, `MAIN-WORLD: Error stats - Cross-origin: ${errorStats.crossOriginErrors}, Regular: ${errorStats.regularErrors}, Rejections: ${errorStats.unhandledRejections}`);
 
         // Send to content script
         window.postMessage({
@@ -863,7 +909,7 @@ try {
         // Handle unhandled promise rejections
         const errorMessage = `Unhandled Promise Rejection: ${event.reason}`;
         const stack = event.reason?.stack || 'No stack trace available';
-        
+
         // Create console error data matching our format
         const consoleData = {
           message: errorMessage,
@@ -878,7 +924,11 @@ try {
           filename: window.location.href
         };
 
+        // Update error statistics
+        errorStats.unhandledRejections++;
+
         originalConsoleLog.call(console, 'MAIN-WORLD: Sending unhandled rejection to content script:', consoleData);
+        originalConsoleLog.call(console, `MAIN-WORLD: Error stats - Cross-origin: ${errorStats.crossOriginErrors}, Regular: ${errorStats.regularErrors}, Rejections: ${errorStats.unhandledRejections}`);
 
         // Send to content script
         window.postMessage({
@@ -893,9 +943,9 @@ try {
     // Add event listeners
     window.addEventListener('error', uncaughtErrorHandler);
     window.addEventListener('unhandledrejection', unhandledRejectionHandler);
-    
+
     originalConsoleLog.call(console, 'MAIN-WORLD: Error event listeners added - uncaught errors will now be captured');
-    
+
     // Test uncaught error handling after a short delay to ensure everything is set up
     setTimeout(() => {
       originalConsoleLog.call(console, 'MAIN-WORLD: Testing uncaught error handling...');
@@ -908,7 +958,7 @@ try {
       } catch (e) {
         originalConsoleLog.call(console, 'MAIN-WORLD: Test error was caught in try-catch, not by global handler');
       }
-      
+
       // Test with setTimeout to avoid try-catch
       setTimeout(() => {
         originalConsoleLog.call(console, 'MAIN-WORLD: Triggering async test error...');
@@ -1077,6 +1127,77 @@ window.addEventListener('checkMainWorldActive', (event) => {
   }));
 });
 
+// Global debugging functions for developers
+window.getErrorStats = () => {
+  const runtime = Date.now() - errorStats.startTime;
+  const runtimeMinutes = Math.round(runtime / 60000 * 10) / 10;
+
+  const totalErrors = errorStats.crossOriginErrors + errorStats.regularErrors + errorStats.unhandledRejections;
+  const totalConsole = errorStats.consoleErrors + errorStats.consoleWarns + errorStats.consoleInfos + errorStats.consoleLogs;
+
+  originalConsoleLog.call(console, `📊 Error & Console Statistics (${runtimeMinutes} min runtime):`);
+  originalConsoleLog.call(console, `  🚨 JavaScript Errors:`);
+  originalConsoleLog.call(console, `    • Cross-origin errors: ${errorStats.crossOriginErrors}`);
+  originalConsoleLog.call(console, `    • Regular JavaScript errors: ${errorStats.regularErrors}`);
+  originalConsoleLog.call(console, `    • Unhandled promise rejections: ${errorStats.unhandledRejections}`);
+  originalConsoleLog.call(console, `    • Total errors captured: ${totalErrors}`);
+
+  originalConsoleLog.call(console, `  📝 Console Messages:`);
+  originalConsoleLog.call(console, `    • console.error(): ${errorStats.consoleErrors}`);
+  originalConsoleLog.call(console, `    • console.warn(): ${errorStats.consoleWarns}`);
+  originalConsoleLog.call(console, `    • console.info(): ${errorStats.consoleInfos}`);
+  originalConsoleLog.call(console, `    • console.log(): ${errorStats.consoleLogs}`);
+  originalConsoleLog.call(console, `    • Total console messages: ${totalConsole}`);
+
+  if (errorStats.crossOriginErrors > 0) {
+    originalConsoleLog.call(console, `  ℹ️  Cross-origin errors are "Script error." messages from external resources (ads, analytics, etc.)`);
+  }
+
+  if (totalConsole === 0) {
+    originalConsoleLog.call(console, `  ⚠️  No console messages captured - browser warnings bypass console method interception`);
+  }
+
+  return errorStats;
+};
+
+window.generateTestError = () => {
+  originalConsoleLog.call(console, 'MAIN-WORLD: Generating test error...');
+  setTimeout(() => {
+    throw new Error('Test error generated by user - this should appear in the extension dashboard');
+  }, 100);
+};
+
+window.generateTestRejection = () => {
+  originalConsoleLog.call(console, 'MAIN-WORLD: Generating test promise rejection...');
+  setTimeout(() => {
+    Promise.reject(new Error('Test promise rejection - this should appear in the extension dashboard'));
+  }, 100);
+};
+
+window.generateTestConsoleMessages = () => {
+  originalConsoleLog.call(console, 'MAIN-WORLD: Generating test console messages...');
+
+  // These should be captured by our console interception
+  setTimeout(() => {
+    console.error('Test console.error() message - should appear in dashboard');
+  }, 100);
+
+  setTimeout(() => {
+    console.warn('Test console.warn() message - should appear in dashboard');
+  }, 200);
+
+  setTimeout(() => {
+    console.info('Test console.info() message - should appear in dashboard');
+  }, 300);
+
+  setTimeout(() => {
+    console.log('Test console.log() message - should appear in dashboard');
+  }, 400);
+};
+
 originalConsoleLog.call(console, 'MAIN-WORLD: Network interception script loaded and ready');
+originalConsoleLog.call(console, 'MAIN-WORLD: Use getErrorStats() to see error capture statistics');
+originalConsoleLog.call(console, 'MAIN-WORLD: Use generateTestError() or generateTestRejection() to test error capture');
+originalConsoleLog.call(console, 'MAIN-WORLD: Use generateTestConsoleMessages() to test console message capture');
 
 } // End of main initialization block

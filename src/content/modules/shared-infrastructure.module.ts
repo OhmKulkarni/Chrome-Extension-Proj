@@ -971,13 +971,27 @@ export class SharedInfrastructureModule {
    * Set up communication with main-world script
    */
   private setupMainWorldCommunication(): void {
-    // Listen for messages from main-world script (network requests)
+    // Listen for messages from main-world script (network requests and console events)
     const mainWorldListener = (event: MessageEvent) => {
-      // Only handle messages from the main-world-script
+      // Handle network requests from main-world script
       if (event.data?.source === 'main-world-network-interceptor') {
         this.handleMainWorldMessage({
           type: 'networkRequest',
           payload: event.data.data
+        })
+      }
+      // Handle console events from main-world script
+      else if (event.data?.source === 'main-world-console-interceptor') {
+        this.handleMainWorldMessage({
+          type: 'consoleEvent',
+          payload: {
+            level: event.data.data.severity, // main-world uses 'severity'
+            message: event.data.data.message,
+            timestamp: new Date(event.data.data.timestamp).getTime(),
+            url: event.data.data.url,
+            stack: event.data.data.stack,
+            args: []
+          }
         })
       }
     }
