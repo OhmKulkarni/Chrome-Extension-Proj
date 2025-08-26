@@ -25,6 +25,7 @@ interface ConsoleErrorsTableProps {
   filterSeverity: string;
   onSeverityFilterChange: (severity: string) => void;
   onDetailClick: (error: ConsoleError) => void;
+  selectedError?: ConsoleError | null;
 }
 
 export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
@@ -41,7 +42,8 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
   onSearchChange,
   filterSeverity,
   onSeverityFilterChange,
-  onDetailClick
+  onDetailClick,
+  selectedError
 }) => {
   const indexOfLastError = currentPage * errorsPerPage;
   const indexOfFirstError = indexOfLastError - errorsPerPage;
@@ -51,10 +53,23 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
     onSeverityFilterChange('all');
   };
 
+  // Helper function to check if an error is selected
+  const isErrorSelected = (error: ConsoleError): boolean => {
+    if (!selectedError) return false;
+
+    // Compare key properties to determine if it's the same error
+    return (
+      error.message === selectedError.message &&
+      error.timestamp === selectedError.timestamp &&
+      error.url === selectedError.url &&
+      error.line === selectedError.line
+    );
+  };
+
   const generatePageNumbers = () => {
     const pageNumbers: (number | string)[] = [];
     const maxVisiblePages = 7;
-    
+
     if (totalPages <= maxVisiblePages) {
       // Show all pages if total is small
       for (let i = 1; i <= totalPages; i++) {
@@ -89,7 +104,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
         pageNumbers.push(totalPages);
       }
     }
-    
+
     return pageNumbers;
   };
 
@@ -145,7 +160,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
             />
           </div>
         </div>
-        
+
         {/* Severity Filter */}
         <div className="flex items-center space-x-3">
           <label className="text-sm font-medium text-gray-700">Severity:</label>
@@ -160,7 +175,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
             <option value="info">Info</option>
           </select>
         </div>
-        
+
         {/* Clear Filters */}
         {(searchTerm || filterSeverity !== 'all') && (
           <button
@@ -171,7 +186,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
           </button>
         )}
       </div>
-      
+
       {/* Table */}
       {errors.length > 0 ? (
         <div className="overflow-hidden">
@@ -179,7 +194,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
             <table className="w-full table-fixed divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th 
+                  <th
                     className="w-24 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => onSort('severity')}
                   >
@@ -192,7 +207,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                       )}
                     </div>
                   </th>
-                  <th 
+                  <th
                     className="w-2/5 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => onSort('message')}
                   >
@@ -205,7 +220,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                       )}
                     </div>
                   </th>
-                  <th 
+                  <th
                     className="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => onSort('url')}
                   >
@@ -218,7 +233,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                       )}
                     </div>
                   </th>
-                  <th 
+                  <th
                     className="w-24 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => onSort('timestamp')}
                   >
@@ -234,20 +249,29 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {errors.map((error, index) => (
-                  <tr 
-                    key={index} 
-                    className="hover:bg-gray-50 cursor-pointer" 
-                    onDoubleClick={() => onDetailClick(error)}
-                    title="Double-click to view detailed information"
-                  >
+                {errors.map((error, index) => {
+                  const isSelected = isErrorSelected(error);
+                  return (
+                    <tr
+                      key={index}
+                      className={`cursor-pointer transition-all duration-200 ${
+                        isSelected
+                          ? 'bg-red-50 border-l-4 border-red-500 hover:bg-red-100 shadow-sm'
+                          : 'hover:bg-gray-50'
+                      }`}
+                      onDoubleClick={() => onDetailClick(error)}
+                      title={isSelected ? "Currently viewing in detail panel - Double-click to refresh" : "Double-click to view detailed information"}
+                    >
                     <td className="w-24 px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getSeverityColor(error.severity)}`}>
                         {error.severity || 'unknown'}
                       </span>
                     </td>
                     <td className="w-2/5 px-6 py-4">
-                      <div className="text-sm text-gray-900 truncate" title={error.message}>
+                      <div className={`text-sm truncate flex items-center ${isSelected ? 'text-red-900 font-medium' : 'text-gray-900'}`} title={error.message}>
+                        {isSelected && (
+                          <div className="w-2 h-2 bg-red-500 rounded-full mr-2 flex-shrink-0"></div>
+                        )}
                         {error.message}
                       </div>
                     </td>
@@ -260,11 +284,12 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                       {new Date(error.timestamp).toLocaleTimeString()}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
-          
+
           {/* Pagination Controls */}
           {totalPages > 1 && (
             <div className="mt-6 flex items-center justify-between">
@@ -333,7 +358,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
           </svg>
           <h3 className="mt-2 text-sm font-medium text-gray-900">No errors found</h3>
           <p className="mt-1 text-sm text-gray-500">
-            {searchTerm || filterSeverity !== 'all' 
+            {searchTerm || filterSeverity !== 'all'
               ? 'Try adjusting your search criteria or filters'
               : 'Console errors will appear here when they are captured'
             }

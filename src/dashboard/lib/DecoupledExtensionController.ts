@@ -2,8 +2,7 @@
 import {
   InterceptionEventBus,
   NetworkInterceptionManager,
-  ConsoleErrorManager,
-  TokenDetectionManager
+  ConsoleErrorManager
 } from './InterceptionManager';
 
 import {
@@ -19,28 +18,27 @@ export class DecoupledExtensionController {
   private interceptionBus: InterceptionEventBus;
   private storageManager: UnifiedStorageManager;
   private dashboardManager: DashboardUpdateManager;
-  
+
   private networkManager: NetworkInterceptionManager;
   private consoleManager: ConsoleErrorManager;
-  private tokenManager: TokenDetectionManager;
-  
+
   private isInitialized: boolean = false;
   private cleanupFunctions: Array<() => void> = [];
 
   constructor() {
     // Initialize event bus
     this.interceptionBus = new InterceptionEventBus();
-    
+
     // Initialize storage
     this.storageManager = new UnifiedStorageManager();
-    
+
     // Initialize dashboard manager
     this.dashboardManager = new DashboardUpdateManager(this.interceptionBus, this.storageManager);
-    
+
     // Initialize interception managers
     this.networkManager = new NetworkInterceptionManager(this.interceptionBus);
     this.consoleManager = new ConsoleErrorManager(this.interceptionBus);
-    this.tokenManager = new TokenDetectionManager(this.interceptionBus);
+    // Token detection now handled by background TokenTrackerModule via messaging
   }
 
   async initialize(): Promise<void> {
@@ -54,17 +52,19 @@ export class DecoupledExtensionController {
     try {
       // Set up the storage pipeline
       this.setupStoragePipeline();
-      
-      // Start all managers
+
+      // Start interception managers (token detection handled by background)
       await Promise.all([
         this.networkManager.start(),
-        this.consoleManager.start(),
-        this.tokenManager.start()
+        this.consoleManager.start()
       ]);
+
+      // Set up background message listener for token events
+      this.setupBackgroundMessageListener();
 
       this.isInitialized = true;
       console.log('✅ DecoupledExtensionController: Initialization complete');
-      
+
     } catch (error) {
       console.error('❌ DecoupledExtensionController: Initialization failed:', error);
       throw error;
@@ -110,6 +110,27 @@ export class DecoupledExtensionController {
       }
     );
     this.cleanupFunctions.push(unsubscribeTokenStorage);
+  }
+
+  private setupBackgroundMessageListener(): void {
+    // Listen for token events from background service worker
+    const messageListener = (message: any, sender: chrome.runtime.MessageSender) => {
+      if (message.type === 'TOKEN_EVENT' && message.data) {
+        // Emit token event to dashboard system
+        this.interceptionBus.emit('token_event_detected', {
+          token: message.data,
+          sender,
+          tabId: sender.tab?.id
+        });
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(messageListener);
+
+    // Add cleanup function
+    this.cleanupFunctions.push(() => {
+      chrome.runtime.onMessage.removeListener(messageListener);
+    });
   }
 
   // Dashboard API - Returns managers for dashboard components
@@ -182,17 +203,17 @@ export class DecoupledExtensionController {
   }
 
   // Health check for all systems
-  public async healthCheck(): Promise<{ 
-    network: boolean; 
-    console: boolean; 
-    token: boolean; 
-    storage: boolean; 
-    dashboard: boolean 
+  public async healthCheck(): Promise<{
+    network: boolean;
+    console: boolean;
+    token: boolean;
+    storage: boolean;
+    dashboard: boolean
   }> {
     try {
       // Test storage
       const storageTest = await this.storageManager.network.getPage(1, 1);
-      
+
       return {
         network: true, // Network manager is running if no errors
         console: true, // Console manager is running if no errors
@@ -221,10 +242,9 @@ export class DecoupledExtensionController {
     console.log('🛑 DecoupledExtensionController: Shutting down...');
 
     try {
-      // Stop all managers
+      // Stop interception managers (token detection handled by background)
       this.networkManager.stop();
       this.consoleManager.stop();
-      this.tokenManager.stop();
 
       // Clean up event listeners
       this.cleanupFunctions.forEach(cleanup => cleanup());
@@ -238,7 +258,7 @@ export class DecoupledExtensionController {
 
       this.isInitialized = false;
       console.log('✅ DecoupledExtensionController: Shutdown complete');
-      
+
     } catch (error) {
       console.error('❌ DecoupledExtensionController: Shutdown error:', error);
     }

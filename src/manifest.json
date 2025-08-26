@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Monitor and analyze client-side web applications.",
   "background": {
-    "service_worker": "background/background.ts"
+    "service_worker": "src/background/background-controller.ts"
   },
   "action": {
     "default_popup": "src/popup/popup.html"
@@ -13,7 +13,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content/content-simple.ts"],
+      "js": ["src/content/content-modular.ts"],
       "run_at": "document_start"
     }
   ],
@@ -22,7 +22,8 @@
     "activeTab",
     "tabs",
     "scripting",
-    "declarativeNetRequest"
+    "declarativeNetRequest",
+    "webRequest"
   ],
   "minimum_chrome_version": "109",
   "host_permissions": [

@@ -7,7 +7,10 @@ import TokenEventsTable from './components/TokenEventsTable';
 import LazyStatisticsCard from './components/LazyStatisticsCard';
 import LeftSidebar from './components/LeftSidebar';
 import SettingsInline from './components/SettingsInline';
+import { TimelineVisualization } from './components/timeline/TimelineVisualization';
 import { RequestDetailContent, ErrorDetailContent, TokenDetailContent } from './shared/components/DetailedViews';
+import { StorageService } from '../utils/storage-service';
+import { ChromeSyncService } from '../services/chrome-sync-service';
 
 // Chrome data clearing function
 const clearChromeData = async (): Promise<void> => {
@@ -67,6 +70,10 @@ interface TabLoggingStatus {
 }
 
 const DecomposedDashboard: React.FC = () => {
+  // Storage services for hybrid approach
+  const storageService = useMemo(() => new StorageService(), []);
+  const chromeSyncService = useMemo(() => ChromeSyncService.getInstance(), []);
+
   // Main state - using the same structure as original dashboard
   const [data, setData] = useState<DashboardData>({
     totalTabs: 0,
@@ -86,7 +93,7 @@ const DecomposedDashboard: React.FC = () => {
   const [sidebarMode, setSidebarMode] = useState<'logging' | 'settings' | 'base'>('base');
 
   // Main view state - controls what's displayed in the main content area
-  const [mainView, setMainView] = useState<'dataTables' | 'statisticsDashboard' | 'settings'>('dataTables');
+  const [mainView, setMainView] = useState<'dataTables' | 'statisticsDashboard' | 'settings' | 'timeline'>('dataTables');
 
   // Table carousel state
   const [activeTable, setActiveTable] = useState<'network' | 'errors' | 'tokens'>('network');
@@ -121,7 +128,7 @@ const DecomposedDashboard: React.FC = () => {
   const [expandedItem, setExpandedItem] = useState<any>(null);
   const [expandedItemType, setExpandedItemType] = useState<'request' | 'error' | 'token' | null>(null);
   const [selectedField, setSelectedField] = useState('details');
-  
+
   // Drag functionality for detail viewer
   const [detailViewerHeight, setDetailViewerHeight] = useState(400);
   const [isDragging, setIsDragging] = useState(false);
@@ -140,12 +147,12 @@ const DecomposedDashboard: React.FC = () => {
   const loadAllNetworkRequests = useCallback(async () => {
     try {
       console.log('🔄 Loading ALL network requests for sorting')
-      const response = await sendChromeMessage({ 
-        action: 'getNetworkRequests', 
+      const response = await sendChromeMessage({
+        action: 'getNetworkRequests',
         limit: -1, // Request all data
-        offset: 0 
+        offset: 0
       })
-      
+
       if (response?.success && response?.requests) {
         setFullNetworkData(response.requests)
         setData(prevData => ({
@@ -167,12 +174,12 @@ const DecomposedDashboard: React.FC = () => {
   const loadAllConsoleErrors = useCallback(async () => {
     try {
       console.log('🔄 Loading ALL console errors for sorting')
-      const response = await sendChromeMessage({ 
-        action: 'getConsoleErrors', 
+      const response = await sendChromeMessage({
+        action: 'getConsoleErrors',
         limit: -1, // Request all data
-        offset: 0 
+        offset: 0
       })
-      
+
       if (response?.success && response?.errors) {
         setFullErrorData(response.errors)
         setData(prevData => ({
@@ -194,12 +201,12 @@ const DecomposedDashboard: React.FC = () => {
   const loadAllTokenEvents = useCallback(async () => {
     try {
       console.log('🔄 Loading ALL token events for sorting')
-      const response = await sendChromeMessage({ 
-        action: 'getTokenEvents', 
+      const response = await sendChromeMessage({
+        action: 'getTokenEvents',
         limit: -1, // Request all data
-        offset: 0 
+        offset: 0
       })
-      
+
       if (response?.success && response?.events) {
         setFullTokenData(response.events)
         setData(prevData => ({
@@ -223,14 +230,14 @@ const DecomposedDashboard: React.FC = () => {
     try {
       console.log(`🔄 Loading network requests page ${page} with limit ${limit}`)
       const offset = (page - 1) * limit
-      const response = await sendChromeMessage({ 
-        action: 'getNetworkRequests', 
-        limit, 
-        offset 
+      const response = await sendChromeMessage({
+        action: 'getNetworkRequests',
+        limit,
+        offset
       })
-      
+
       console.log('📊 Network requests response:', response)
-      
+
       if (response?.success && response?.requests) {
         setData(prevData => ({
           ...prevData,
@@ -250,14 +257,14 @@ const DecomposedDashboard: React.FC = () => {
     try {
       console.log(`🔄 Loading console errors page ${page} with limit ${limit}`)
       const offset = (page - 1) * limit
-      const response = await sendChromeMessage({ 
-        action: 'getConsoleErrors', 
-        limit, 
-        offset 
+      const response = await sendChromeMessage({
+        action: 'getConsoleErrors',
+        limit,
+        offset
       })
-      
+
       console.log('📊 Console errors response:', response)
-      
+
       if (response?.success && response?.errors) {
         setData(prevData => ({
           ...prevData,
@@ -277,14 +284,14 @@ const DecomposedDashboard: React.FC = () => {
     try {
       console.log(`🔄 Loading token events page ${page} with limit ${limit}`)
       const offset = (page - 1) * limit
-      const response = await sendChromeMessage({ 
-        action: 'getTokenEvents', 
-        limit, 
-        offset 
+      const response = await sendChromeMessage({
+        action: 'getTokenEvents',
+        limit,
+        offset
       })
-      
+
       console.log('📊 Token events response:', response)
-      
+
       if (response?.success && response?.events) {
         setData(prevData => ({
           ...prevData,
@@ -300,24 +307,29 @@ const DecomposedDashboard: React.FC = () => {
     }
   }, [])
 
-  // Load tab logging status - using same logic as original dashboard
+  // Load tab logging status - using Chrome sync for preferences, IndexedDB for counters
   const loadTabsLoggingStatus = useCallback(async () => {
     try {
-      // Get all tabs and global settings
+      // Initialize Chrome sync storage
+      await chromeSyncService.initializeSyncStorage();
+
+      // Get all tabs
       const tabs = await chrome.tabs.query({});
-      const settingsResult = await chrome.storage.local.get(['settings']);
-      const settings = settingsResult.settings || {};
-      
+
       const tabStatuses: TabLoggingStatus[] = [];
 
       for (const tab of tabs) {
         if (tab.id && tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
-          // Get logging status for this tab
-          const result = await chrome.storage.local.get([`tabLogging_${tab.id}`, `tabErrorLogging_${tab.id}`, `tabTokenLogging_${tab.id}`]);
+
+          // Get user's synced preferences for this domain
+          const syncPrefs = await chromeSyncService.getTabPreferencesForUrl(tab.url);
+
+          // Get real-time state from IndexedDB (counters, active sessions)
+          const result = await storageService.get([`tabLogging_${tab.id}`, `tabErrorLogging_${tab.id}`, `tabTokenLogging_${tab.id}`]);
           const networkState = result[`tabLogging_${tab.id}`];
           const errorState = result[`tabErrorLogging_${tab.id}`];
           const tokenState = result[`tabTokenLogging_${tab.id}`];
-          
+
           // Get domain from URL
           let domain = '';
           try {
@@ -326,42 +338,10 @@ const DecomposedDashboard: React.FC = () => {
             domain = 'unknown';
           }
 
-          // Determine logging status with proper defaults
-          let networkLogging = false;
-          let errorLogging = false;
-          let tokenLogging = false;
-
-          // Network logging status
-          if (networkState) {
-            // Check both 'status' and 'active' properties for compatibility
-            if (networkState.status !== undefined) {
-              networkLogging = networkState.status === 'active';
-            } else {
-              networkLogging = typeof networkState === 'boolean' ? networkState : networkState.active;
-            }
-          } else {
-            // Use default from settings if no tab state exists
-            const defaultActive = settings.networkInterception?.tabSpecific?.defaultState === 'active';
-            networkLogging = defaultActive;
-          }
-
-          // Error logging status
-          if (errorState) {
-            errorLogging = typeof errorState === 'boolean' ? errorState : errorState.active;
-          } else {
-            // Use default from settings if no tab state exists - should be paused by default
-            const defaultActive = settings.errorLogging?.tabSpecific?.defaultState === 'active';
-            errorLogging = defaultActive; // This will be false when defaultState is 'paused'
-          }
-
-          // Token logging status
-          if (tokenState) {
-            tokenLogging = typeof tokenState === 'boolean' ? tokenState : tokenState.active;
-          } else {
-            // Use default from settings if no tab state exists - should be paused by default
-            const defaultActive = settings.tokenLogging?.tabSpecific?.defaultState === 'active';
-            tokenLogging = defaultActive; // This will be false when defaultState is 'paused'
-          }
+          // Use Chrome sync preferences with IndexedDB state override if active
+          const networkLogging = (networkState?.active !== undefined) ? networkState.active : syncPrefs.network;
+          const errorLogging = (errorState?.active !== undefined) ? errorState.active : syncPrefs.errors;
+          const tokenLogging = (tokenState?.active !== undefined) ? tokenState.active : syncPrefs.tokens;
 
           tabStatuses.push({
             tabId: tab.id,
@@ -381,7 +361,7 @@ const DecomposedDashboard: React.FC = () => {
       console.error('Error loading tabs logging status:', error);
       setTabsLoggingStatus([]);
     }
-  }, []);
+  }, [chromeSyncService, storageService]);
 
   // Toggle network logging for a specific tab
   const toggleTabNetworkLogging = async (tabId: number) => {
@@ -390,20 +370,25 @@ const DecomposedDashboard: React.FC = () => {
       if (!currentTab) return;
 
       const newState = !currentTab.networkLogging;
-      
+
+      // Save preference to Chrome sync for cross-device sync
+      await chromeSyncService.setTabPreferencesForUrl(currentTab.url, {
+        network: newState
+      });
+
       // Get current tab state to preserve counter when disabling
-      const tabStorageData = await chrome.storage.local.get([`tabLogging_${tabId}`]);
+      const tabStorageData = await storageService.get([`tabLogging_${tabId}`]);
       const currentTabState = tabStorageData[`tabLogging_${tabId}`];
       const currentCount = currentTabState?.requestCount || 0;
-      
+
       const tabState = {
         active: newState,
         startTime: newState ? Date.now() : undefined,
         requestCount: newState ? 0 : currentCount  // Reset only when enabling, preserve when disabling
       };
-      
-      await chrome.storage.local.set({ [`tabLogging_${tabId}`]: tabState });
-      
+
+      await storageService.set({ [`tabLogging_${tabId}`]: tabState });
+
       // Send message to content script
       try {
         await chrome.tabs.sendMessage(tabId, {
@@ -413,10 +398,10 @@ const DecomposedDashboard: React.FC = () => {
       } catch (error) {
         console.log('Could not send message to tab (may not have content script):', error);
       }
-      
+
       // Update local state
-      setTabsLoggingStatus(prev => 
-        prev.map(tab => 
+      setTabsLoggingStatus(prev =>
+        prev.map(tab =>
           tab.tabId === tabId ? { ...tab, networkLogging: newState } : tab
         )
       );
@@ -432,20 +417,25 @@ const DecomposedDashboard: React.FC = () => {
       if (!currentTab) return;
 
       const newState = !currentTab.errorLogging;
-      
+
+      // Save preference to Chrome sync for cross-device sync
+      await chromeSyncService.setTabPreferencesForUrl(currentTab.url, {
+        errors: newState
+      });
+
       // Get current tab state to preserve counter when disabling
-      const tabStorageData = await chrome.storage.local.get([`tabErrorLogging_${tabId}`]);
+      const tabStorageData = await storageService.get([`tabErrorLogging_${tabId}`]);
       const currentTabState = tabStorageData[`tabErrorLogging_${tabId}`];
       const currentCount = currentTabState?.errorCount || 0;
-      
+
       const tabState = {
         active: newState,
         startTime: newState ? Date.now() : undefined,
         errorCount: newState ? 0 : currentCount  // Reset only when enabling, preserve when disabling
       };
-      
-      await chrome.storage.local.set({ [`tabErrorLogging_${tabId}`]: tabState });
-      
+
+      await storageService.set({ [`tabErrorLogging_${tabId}`]: tabState });
+
       // Send message to content script
       try {
         await chrome.tabs.sendMessage(tabId, {
@@ -455,10 +445,10 @@ const DecomposedDashboard: React.FC = () => {
       } catch (error) {
         console.log('Could not send message to tab (may not have content script):', error);
       }
-      
+
       // Update local state
-      setTabsLoggingStatus(prev => 
-        prev.map(tab => 
+      setTabsLoggingStatus(prev =>
+        prev.map(tab =>
           tab.tabId === tabId ? { ...tab, errorLogging: newState } : tab
         )
       );
@@ -474,26 +464,31 @@ const DecomposedDashboard: React.FC = () => {
       if (!currentTab) return;
 
       const newState = !currentTab.tokenLogging;
-      
+
+      // Save preference to Chrome sync for cross-device sync
+      await chromeSyncService.setTabPreferencesForUrl(currentTab.url, {
+        tokens: newState
+      });
+
       // Get current tab state to preserve counter when disabling
-      const tabStorageData = await chrome.storage.local.get([`tabTokenLogging_${tabId}`]);
+      const tabStorageData = await storageService.get([`tabTokenLogging_${tabId}`]);
       const currentTabState = tabStorageData[`tabTokenLogging_${tabId}`];
       const currentCount = currentTabState?.tokenCount || 0;
-      
+
       const tabState = {
         active: newState,
         startTime: newState ? Date.now() : undefined,
         tokenCount: newState ? 0 : currentCount  // Reset only when enabling, preserve when disabling
       };
-      
-      await chrome.storage.local.set({ [`tabTokenLogging_${tabId}`]: tabState });
-      
+
+      await storageService.set({ [`tabTokenLogging_${tabId}`]: tabState });
+
       // Note: Token logging doesn't require content script communication
       // as it's handled purely in the background script via network interception
-      
+
       // Update local state
-      setTabsLoggingStatus(prev => 
-        prev.map(tab => 
+      setTabsLoggingStatus(prev =>
+        prev.map(tab =>
           tab.tabId === tabId ? { ...tab, tokenLogging: newState } : tab
         )
       );
@@ -506,14 +501,14 @@ const DecomposedDashboard: React.FC = () => {
   const loadDashboardData = useCallback(async () => {
     try {
       setLoading(true);
-      
+
       // Get tabs count - same as original
       const tabs = await chrome.tabs.query({});
-      
+
       // Load initial data for current pages
       await Promise.all([
         loadNetworkRequestsPage(currentPage, requestsPerPage),
-        loadConsoleErrorsPage(currentErrorPage, errorsPerPage), 
+        loadConsoleErrorsPage(currentErrorPage, errorsPerPage),
         loadTokenEventsPage(currentTokenPage, tokenEventsPerPage),
         loadTabsLoggingStatus()
       ]);
@@ -538,14 +533,14 @@ const DecomposedDashboard: React.FC = () => {
       '⚠️ WARNING: This will permanently delete all recorded network requests, console errors, token events, and reset all tab counters.\n\n' +
       'This action cannot be undone. Are you sure you want to continue?'
     );
-    
+
     if (confirmed) {
       try {
         setLoading(true);
-        
+
         // Use the clearChromeData function
         await clearChromeData()
-        
+
         // Reset local state
         setData({
           totalTabs: data.totalTabs,
@@ -562,10 +557,10 @@ const DecomposedDashboard: React.FC = () => {
         setCurrentPage(1);
         setCurrentErrorPage(1);
         setCurrentTokenPage(1);
-        
+
         // Reload data from database to confirm it's actually cleared
         await loadDashboardData();
-        
+
         // Trigger refresh of all dashboard components
         window.dispatchEvent(new CustomEvent('dataCleared'));
 
@@ -585,15 +580,15 @@ const DecomposedDashboard: React.FC = () => {
     try {
       const [syncResult, localResult] = await Promise.all([
         chrome.storage.sync.get(['extensionSettings']),
-        chrome.storage.local.get(['settings'])
+        storageService.get(['settings'])
       ]);
-      
+
       // Store the full settings for use in detail viewers
       const fullSettings = localResult.settings || syncResult.extensionSettings || {};
       setSettings(fullSettings);
-      
+
       let tokenSettings = { showFullHash: false };
-      
+
       if (localResult.settings?.tokenLogging) {
         tokenSettings = {
           showFullHash: localResult.settings.tokenLogging.showFullHash || false
@@ -603,7 +598,7 @@ const DecomposedDashboard: React.FC = () => {
           showFullHash: syncResult.extensionSettings.tokenLogging.showFullHash || false
         };
       }
-      
+
       setShowFullTokenHash(tokenSettings.showFullHash);
 
       // Load global power state
@@ -624,11 +619,11 @@ const DecomposedDashboard: React.FC = () => {
   const handleExtensionToggle = useCallback(async (enabled: boolean) => {
     try {
       setData(prevData => ({ ...prevData, extensionEnabled: enabled }));
-      const response = await sendChromeMessage({ 
-        action: 'toggleExtension', 
-        enabled 
+      const response = await sendChromeMessage({
+        action: 'toggleExtension',
+        enabled
       });
-      
+
       if (!response?.success) {
         setData(prevData => ({ ...prevData, extensionEnabled: !enabled })); // Revert on failure
         console.error('Failed to toggle extension:', response?.error);
@@ -645,13 +640,13 @@ const DecomposedDashboard: React.FC = () => {
       key,
       direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
     }));
-    
+
     // Load all data for sorting if not already in sort mode
     if (!networkSortMode) {
       setNetworkSortMode(true);
       await loadAllNetworkRequests();
     }
-    
+
     // Don't reset to page 1 - maintain current page position
     // setCurrentPage(1); // Removed to maintain current page
   }, [networkSortMode, loadAllNetworkRequests]);
@@ -661,13 +656,13 @@ const DecomposedDashboard: React.FC = () => {
       key,
       direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
     }));
-    
-    // Load all data for sorting if not already in sort mode  
+
+    // Load all data for sorting if not already in sort mode
     if (!errorSortMode) {
       setErrorSortMode(true);
       await loadAllConsoleErrors();
     }
-    
+
     // Don't reset to page 1 - maintain current page position
     // setCurrentErrorPage(1); // Removed to maintain current page
   }, [errorSortMode, loadAllConsoleErrors]);
@@ -677,13 +672,13 @@ const DecomposedDashboard: React.FC = () => {
       key,
       direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
     }));
-    
+
     // Load all data for sorting if not already in sort mode
     if (!tokenSortMode) {
       setTokenSortMode(true);
       await loadAllTokenEvents();
     }
-    
+
     // Don't reset to page 1 - maintain current page position
     // setCurrentTokenPage(1); // Removed to maintain current page
   }, [tokenSortMode, loadAllTokenEvents]);
@@ -698,12 +693,16 @@ const DecomposedDashboard: React.FC = () => {
   }, [loadAllNetworkRequests]);
 
   const handleNetworkFilterMethodChange = useCallback(async (method: string) => {
+    console.log('🔍 Filter method changed to:', method);
     setNetworkFilterMethod(method);
-    if (method && method !== 'all') {
-      await loadAllNetworkRequests();
-    }
+
+    // Always load full data when applying a filter (not just when method !== 'all')
+    // This ensures we have the complete dataset to filter from
+    await loadAllNetworkRequests();
+    console.log('📊 Full network data loaded for filtering, count:', fullNetworkData.length);
+
     setCurrentPage(1); // Reset to first page when filtering
-  }, [loadAllNetworkRequests]);
+  }, [loadAllNetworkRequests, fullNetworkData.length]);
 
   const handleErrorSearchChange = useCallback(async (searchTerm: string) => {
     setErrorSearchTerm(searchTerm);
@@ -738,7 +737,7 @@ const DecomposedDashboard: React.FC = () => {
   }, [loadAllTokenEvents]);
 
   // Main view transition handler - prevents memory leaks with proper cleanup
-  const handleMainViewChange = useCallback((newView: 'dataTables' | 'statisticsDashboard' | 'settings') => {
+  const handleMainViewChange = useCallback((newView: 'dataTables' | 'statisticsDashboard' | 'settings' | 'timeline') => {
     // Prevent unnecessary re-renders if view hasn't changed
     if (newView !== mainView) {
       setMainView(newView);
@@ -765,7 +764,7 @@ const DecomposedDashboard: React.FC = () => {
     setDragStartY(e.clientY);
     setDragStartHeight(detailViewerHeight);
     e.preventDefault();
-    
+
     // Add cursor style to body to show dragging state
     document.body.style.cursor = 'ns-resize';
     document.body.style.userSelect = 'none';
@@ -773,21 +772,21 @@ const DecomposedDashboard: React.FC = () => {
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging) return;
-    
+
     // Calculate the delta from the initial drag position
     const deltaY = dragStartY - e.clientY; // Inverted because we want upward drag to increase height
     const newHeight = dragStartHeight + deltaY;
-    
+
     const minHeight = 200;
     const maxHeight = window.innerHeight * 0.8;
-    
+
     setDetailViewerHeight(Math.max(minHeight, Math.min(maxHeight, newHeight)));
   }, [isDragging, dragStartY, dragStartHeight]);
 
   const handleMouseUp = useCallback(() => {
     if (isDragging) {
       setIsDragging(false);
-      
+
       // Reset cursor styles
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
@@ -799,7 +798,7 @@ const DecomposedDashboard: React.FC = () => {
     if (isDragging) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
-      
+
       return () => {
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
@@ -877,7 +876,7 @@ const DecomposedDashboard: React.FC = () => {
     totalRequests: data.totalRequests || data.networkRequests.length,
     totalErrors: data.totalErrors || data.consoleErrors.length,
     totalTokenEvents: data.totalTokenEvents || data.tokenEvents.length,
-    activeLoggingTabs: tabsLoggingStatus.filter(tab => 
+    activeLoggingTabs: tabsLoggingStatus.filter(tab =>
       tab.networkLogging || tab.errorLogging || tab.tokenLogging
     ).length
   };
@@ -888,39 +887,58 @@ const DecomposedDashboard: React.FC = () => {
     // Check if we need full data for filtering or sorting
     const hasFilters = (networkSearchTerm && networkSearchTerm.trim()) || (networkFilterMethod && networkFilterMethod !== 'all');
     const needsFullData = networkSortMode || hasFilters;
-    
+
+    console.log('🔍 Filter Debug:', {
+      networkSearchTerm,
+      networkFilterMethod,
+      hasFilters,
+      needsFullData,
+      fullNetworkDataLength: fullNetworkData.length,
+      currentDataLength: data.networkRequests.length
+    });
+
     // Use full dataset if we need it and have it loaded, otherwise use current page data
     const dataToSort = (needsFullData && fullNetworkData.length > 0) ? fullNetworkData : data.networkRequests;
-    
-    if (!dataToSort || dataToSort.length === 0) return [];
-    
+
+    if (!dataToSort || dataToSort.length === 0) {
+      console.log('❌ No data to sort/filter');
+      return [];
+    }
+
+    console.log('📊 Using data source:', needsFullData ? 'fullNetworkData' : 'data.networkRequests', 'length:', dataToSort.length);
+
     // Apply filtering first, before sorting
     let filteredData = dataToSort.filter((request: any) => {
       // Search term filter
       if (networkSearchTerm && networkSearchTerm.trim()) {
         const searchLower = networkSearchTerm.toLowerCase();
-        const matchesSearch = 
+        const matchesSearch =
           request.url?.toLowerCase().includes(searchLower) ||
           request.method?.toLowerCase().includes(searchLower) ||
           request.status?.toString().includes(searchLower);
         if (!matchesSearch) return false;
       }
-      
+
       // Method filter
       if (networkFilterMethod && networkFilterMethod !== 'all') {
-        if (request.method?.toLowerCase() !== networkFilterMethod.toLowerCase()) {
+        const requestMethod = request.method?.toLowerCase();
+        const filterMethod = networkFilterMethod.toLowerCase();
+        console.log('🔍 Method filter check:', { requestMethod, filterMethod, matches: requestMethod === filterMethod });
+        if (requestMethod !== filterMethod) {
           return false;
         }
       }
-      
+
       return true;
     });
-    
+
+    console.log('📊 After filtering:', filteredData.length, 'requests');
+
     // Apply sorting to filtered data
     const sorted = [...filteredData].sort((a, b) => {
       const aValue = a[sortConfig.key as keyof typeof a];
       const bValue = b[sortConfig.key as keyof typeof b];
-      
+
       // Handle different data types for sorting
       let comparison = 0;
       if (typeof aValue === 'string' && typeof bValue === 'string') {
@@ -935,7 +953,7 @@ const DecomposedDashboard: React.FC = () => {
         const bStr = String(bValue || '');
         comparison = aStr.localeCompare(bStr);
       }
-      
+
       return sortConfig.direction === 'asc' ? comparison : -comparison;
     });
 
@@ -955,39 +973,39 @@ const DecomposedDashboard: React.FC = () => {
     // Check if we need full data for filtering or sorting
     const hasFilters = (errorSearchTerm && errorSearchTerm.trim()) || (errorFilterSeverity && errorFilterSeverity !== 'all');
     const needsFullData = errorSortMode || hasFilters;
-    
+
     // Use full dataset if we need it and have it loaded, otherwise use current page data
     const dataToSort = (needsFullData && fullErrorData.length > 0) ? fullErrorData : data.consoleErrors;
-    
+
     if (!dataToSort || dataToSort.length === 0) return [];
-    
+
     // Apply filtering first, before sorting
     let filteredData = dataToSort.filter((error: any) => {
       // Search term filter
       if (errorSearchTerm && errorSearchTerm.trim()) {
         const searchLower = errorSearchTerm.toLowerCase();
-        const matchesSearch = 
+        const matchesSearch =
           error.message?.toLowerCase().includes(searchLower) ||
           error.source?.toLowerCase().includes(searchLower) ||
           error.type?.toLowerCase().includes(searchLower);
         if (!matchesSearch) return false;
       }
-      
+
       // Severity filter
       if (errorFilterSeverity && errorFilterSeverity !== 'all') {
         if (error.level?.toLowerCase() !== errorFilterSeverity.toLowerCase()) {
           return false;
         }
       }
-      
+
       return true;
     });
-    
+
     // Apply sorting to filtered data
     const sorted = [...filteredData].sort((a, b) => {
       const aValue = a[errorSortConfig.key as keyof typeof a];
       const bValue = b[errorSortConfig.key as keyof typeof b];
-      
+
       let comparison = 0;
       if (typeof aValue === 'string' && typeof bValue === 'string') {
         comparison = aValue.localeCompare(bValue);
@@ -1000,7 +1018,7 @@ const DecomposedDashboard: React.FC = () => {
         const bStr = String(bValue || '');
         comparison = aStr.localeCompare(bStr);
       }
-      
+
       return errorSortConfig.direction === 'asc' ? comparison : -comparison;
     });
 
@@ -1020,39 +1038,39 @@ const DecomposedDashboard: React.FC = () => {
     // Check if we need full data for filtering or sorting
     const hasFilters = (tokenSearchTerm && tokenSearchTerm.trim()) || (tokenFilterType && tokenFilterType !== 'all');
     const needsFullData = tokenSortMode || hasFilters;
-    
+
     // Use full dataset if we need it and have it loaded, otherwise use current page data
     const dataToSort = (needsFullData && fullTokenData.length > 0) ? fullTokenData : data.tokenEvents;
-    
+
     if (!dataToSort || dataToSort.length === 0) return [];
-    
+
     // Apply filtering first, before sorting
     let filteredData = dataToSort.filter((event: any) => {
       // Search term filter
       if (tokenSearchTerm && tokenSearchTerm.trim()) {
         const searchLower = tokenSearchTerm.toLowerCase();
-        const matchesSearch = 
+        const matchesSearch =
           event.token_hash?.toLowerCase().includes(searchLower) ||
           event.domain?.toLowerCase().includes(searchLower) ||
           event.action?.toLowerCase().includes(searchLower);
         if (!matchesSearch) return false;
       }
-      
+
       // Type filter
       if (tokenFilterType && tokenFilterType !== 'all') {
         if (event.action?.toLowerCase() !== tokenFilterType.toLowerCase()) {
           return false;
         }
       }
-      
+
       return true;
     });
-    
+
     // Apply sorting to filtered data
     const sorted = [...filteredData].sort((a, b) => {
       const aValue = a[tokenSortConfig.key as keyof typeof a];
       const bValue = b[tokenSortConfig.key as keyof typeof b];
-      
+
       let comparison = 0;
       if (typeof aValue === 'string' && typeof bValue === 'string') {
         comparison = aValue.localeCompare(bValue);
@@ -1065,7 +1083,7 @@ const DecomposedDashboard: React.FC = () => {
         const bStr = String(bValue || '');
         comparison = aStr.localeCompare(bStr);
       }
-      
+
       return tokenSortConfig.direction === 'asc' ? comparison : -comparison;
     });
 
@@ -1086,29 +1104,29 @@ const DecomposedDashboard: React.FC = () => {
     // Check if we need full data for filtering or sorting
     const hasFilters = (networkSearchTerm && networkSearchTerm.trim()) || (networkFilterMethod && networkFilterMethod !== 'all');
     const needsFullData = networkSortMode || hasFilters;
-    
+
     // Use full dataset if we need it and have it loaded, otherwise use current page data
     const dataToFilter = (needsFullData && fullNetworkData.length > 0) ? fullNetworkData : data.networkRequests;
     if (!dataToFilter || dataToFilter.length === 0) return 0;
-    
+
     return dataToFilter.filter((request: any) => {
       // Search term filter
       if (networkSearchTerm && networkSearchTerm.trim()) {
         const searchLower = networkSearchTerm.toLowerCase();
-        const matchesSearch = 
+        const matchesSearch =
           request.url?.toLowerCase().includes(searchLower) ||
           request.method?.toLowerCase().includes(searchLower) ||
           request.status?.toString().includes(searchLower);
         if (!matchesSearch) return false;
       }
-      
+
       // Method filter
       if (networkFilterMethod && networkFilterMethod !== 'all') {
         if (request.method?.toLowerCase() !== networkFilterMethod.toLowerCase()) {
           return false;
         }
       }
-      
+
       return true;
     }).length;
   }, [fullNetworkData, data.networkRequests, networkSortMode, networkSearchTerm, networkFilterMethod]);
@@ -1117,29 +1135,29 @@ const DecomposedDashboard: React.FC = () => {
     // Check if we need full data for filtering or sorting
     const hasFilters = (errorSearchTerm && errorSearchTerm.trim()) || (errorFilterSeverity && errorFilterSeverity !== 'all');
     const needsFullData = errorSortMode || hasFilters;
-    
+
     // Use full dataset if we need it and have it loaded, otherwise use current page data
     const dataToFilter = (needsFullData && fullErrorData.length > 0) ? fullErrorData : data.consoleErrors;
     if (!dataToFilter || dataToFilter.length === 0) return 0;
-    
+
     return dataToFilter.filter((error: any) => {
       // Search term filter
       if (errorSearchTerm && errorSearchTerm.trim()) {
         const searchLower = errorSearchTerm.toLowerCase();
-        const matchesSearch = 
+        const matchesSearch =
           error.message?.toLowerCase().includes(searchLower) ||
           error.source?.toLowerCase().includes(searchLower) ||
           error.type?.toLowerCase().includes(searchLower);
         if (!matchesSearch) return false;
       }
-      
+
       // Severity filter
       if (errorFilterSeverity && errorFilterSeverity !== 'all') {
         if (error.level?.toLowerCase() !== errorFilterSeverity.toLowerCase()) {
           return false;
         }
       }
-      
+
       return true;
     }).length;
   }, [fullErrorData, data.consoleErrors, errorSortMode, errorSearchTerm, errorFilterSeverity]);
@@ -1148,46 +1166,46 @@ const DecomposedDashboard: React.FC = () => {
     // Check if we need full data for filtering or sorting
     const hasFilters = (tokenSearchTerm && tokenSearchTerm.trim()) || (tokenFilterType && tokenFilterType !== 'all');
     const needsFullData = tokenSortMode || hasFilters;
-    
+
     // Use full dataset if we need it and have it loaded, otherwise use current page data
     const dataToFilter = (needsFullData && fullTokenData.length > 0) ? fullTokenData : data.tokenEvents;
     if (!dataToFilter || dataToFilter.length === 0) return 0;
-    
+
     return dataToFilter.filter((event: any) => {
       // Search term filter
       if (tokenSearchTerm && tokenSearchTerm.trim()) {
         const searchLower = tokenSearchTerm.toLowerCase();
-        const matchesSearch = 
+        const matchesSearch =
           event.token_hash?.toLowerCase().includes(searchLower) ||
           event.domain?.toLowerCase().includes(searchLower) ||
           event.action?.toLowerCase().includes(searchLower);
         if (!matchesSearch) return false;
       }
-      
+
       // Type filter
       if (tokenFilterType && tokenFilterType !== 'all') {
         if (event.action?.toLowerCase() !== tokenFilterType.toLowerCase()) {
           return false;
         }
       }
-      
+
       return true;
     }).length;
   }, [fullTokenData, data.tokenEvents, tokenSortMode, tokenSearchTerm, tokenFilterType]);
 
   // Calculate pagination for each table - Enhanced for sort mode and filtering
   const networkTotalPages = Math.ceil(
-    ((networkSortMode || ((networkSearchTerm && networkSearchTerm.trim()) || (networkFilterMethod && networkFilterMethod !== 'all'))) && fullNetworkData.length > 0) 
+    ((networkSortMode || ((networkSearchTerm && networkSearchTerm.trim()) || (networkFilterMethod && networkFilterMethod !== 'all'))) && fullNetworkData.length > 0)
       ? filteredNetworkCount / requestsPerPage  // Sort/Filter mode: use filtered count from full dataset
       : (data.totalRequests || data.networkRequests.length) / requestsPerPage  // Normal mode: use total from backend
   );
   const errorsTotalPages = Math.ceil(
-    ((errorSortMode || ((errorSearchTerm && errorSearchTerm.trim()) || (errorFilterSeverity && errorFilterSeverity !== 'all'))) && fullErrorData.length > 0) 
-      ? filteredErrorCount / errorsPerPage  // Sort/Filter mode: use filtered count from full dataset  
+    ((errorSortMode || ((errorSearchTerm && errorSearchTerm.trim()) || (errorFilterSeverity && errorFilterSeverity !== 'all'))) && fullErrorData.length > 0)
+      ? filteredErrorCount / errorsPerPage  // Sort/Filter mode: use filtered count from full dataset
       : (data.totalErrors || data.consoleErrors.length) / errorsPerPage  // Normal mode: use total from backend
   );
   const tokensTotalPages = Math.ceil(
-    ((tokenSortMode || ((tokenSearchTerm && tokenSearchTerm.trim()) || (tokenFilterType && tokenFilterType !== 'all'))) && fullTokenData.length > 0) 
+    ((tokenSortMode || ((tokenSearchTerm && tokenSearchTerm.trim()) || (tokenFilterType && tokenFilterType !== 'all'))) && fullTokenData.length > 0)
       ? filteredTokenCount / tokenEventsPerPage  // Sort/Filter mode: use filtered count from full dataset
       : (data.totalTokenEvents || data.tokenEvents.length) / tokenEventsPerPage  // Normal mode: use total from backend
   );
@@ -1216,12 +1234,12 @@ const DecomposedDashboard: React.FC = () => {
   useEffect(() => {
     const handleStorageChanges = (changes: any, namespace: string) => {
       if (namespace === 'local') {
-        const hasTabLoggingChanges = Object.keys(changes).some(key => 
-          key.startsWith('tabLogging_') || 
-          key.startsWith('tabErrorLogging_') || 
+        const hasTabLoggingChanges = Object.keys(changes).some(key =>
+          key.startsWith('tabLogging_') ||
+          key.startsWith('tabErrorLogging_') ||
           key.startsWith('tabTokenLogging_')
         );
-        
+
         if (hasTabLoggingChanges) {
           console.log('📡 DASHBOARD: Tab logging states changed, updating sidebar...');
           loadTabsLoggingStatus();
@@ -1242,7 +1260,7 @@ const DecomposedDashboard: React.FC = () => {
     };
 
     chrome.storage.onChanged.addListener(handleStorageChanges);
-    
+
     return () => {
       chrome.storage.onChanged.removeListener(handleStorageChanges);
     };
@@ -1252,26 +1270,26 @@ const DecomposedDashboard: React.FC = () => {
   useEffect(() => {
     let refreshInterval: number | null = null
     let isActive = true
-    
+
     // MEMORY LEAK FIX: Memory-aware interval with exponential backoff
     const startPeriodicRefresh = () => {
       if (!isActive) return
-      
+
       // Clear any existing interval
       if (refreshInterval) {
         clearTimeout(refreshInterval)
       }
-      
+
       // Start with 10 second intervals (slower than before)
       let currentInterval = 10000
       const maxInterval = 60000 // Cap at 60 seconds
-      
+
       const scheduleNextRefresh = () => {
         if (!isActive) return
-        
+
         refreshInterval = window.setTimeout(() => {
           if (!isActive) return
-          
+
           try {
             // Check memory pressure before refreshing
             const performanceMemory = (performance as any).memory
@@ -1279,7 +1297,7 @@ const DecomposedDashboard: React.FC = () => {
               const heapUsed = performanceMemory.usedJSHeapSize
               const heapLimit = performanceMemory.jsHeapSizeLimit
               const heapPercentage = (heapUsed / heapLimit) * 100
-              
+
               if (heapPercentage > 85) {
                 // Skip refresh under high memory pressure
                 console.log('� Skipping dashboard refresh - high memory pressure')
@@ -1294,31 +1312,31 @@ const DecomposedDashboard: React.FC = () => {
                 currentInterval = 10000
               }
             }
-            
+
             console.log('�🔄 DASHBOARD: Periodic data refresh...')
             loadDashboardData()
           } catch (error) {
             console.error('Dashboard refresh error:', error)
           }
-          
+
           // Schedule next refresh
           scheduleNextRefresh()
         }, currentInterval)
       }
-      
+
       scheduleNextRefresh()
     }
 
     // Listen for background script notifications about new data
     const handleBackgroundMessages = (message: any, _sender: any, _sendResponse: any) => {
       if (!isActive) return
-      
+
       if (message.type === 'DATA_UPDATED') {
         console.log('📡 DASHBOARD: Received data update notification:', message.dataType);
-        
+
         // Update counts AND refresh current page data
         loadDashboardData();
-        
+
         // Also refresh the current page data to show new entries immediately
         if (message.dataType === 'network_request' && activeTable === 'network') {
           console.log('🔄 DASHBOARD: Refreshing network requests page');
@@ -1351,7 +1369,7 @@ const DecomposedDashboard: React.FC = () => {
   }, [loading, loadDashboardData, activeTable, currentPage, requestsPerPage, loadNetworkRequestsPage, currentErrorPage, errorsPerPage, loadConsoleErrorsPage, currentTokenPage, tokenEventsPerPage, loadTokenEventsPage]);
 
   // Calculate if there's any active logging
-  const hasActiveLogging = tabsLoggingStatus.some(tab => 
+  const hasActiveLogging = tabsLoggingStatus.some(tab =>
     tab.networkLogging || tab.errorLogging || tab.tokenLogging
   );
 
@@ -1380,6 +1398,7 @@ const DecomposedDashboard: React.FC = () => {
             filterMethod={networkFilterMethod}
             onMethodFilterChange={handleNetworkFilterMethodChange}
             onDetailClick={(request) => openDetailViewer(request, 'request')}
+            selectedRequest={expandedItemType === 'request' ? expandedItem : null}
           />
         );
 
@@ -1400,6 +1419,7 @@ const DecomposedDashboard: React.FC = () => {
             filterSeverity={errorFilterSeverity}
             onSeverityFilterChange={handleErrorFilterSeverityChange}
             onDetailClick={(error) => openDetailViewer(error, 'error')}
+            selectedError={expandedItemType === 'error' ? expandedItem : null}
           />
         );
 
@@ -1422,6 +1442,7 @@ const DecomposedDashboard: React.FC = () => {
             onDetailClick={(event) => openDetailViewer(event, 'token')}
             showFullTokenHash={showFullTokenHash}
             onToggleTokenHash={() => setShowFullTokenHash(!showFullTokenHash)}
+            selectedToken={expandedItemType === 'token' ? expandedItem : null}
           />
         );
 
@@ -1502,6 +1523,15 @@ const DecomposedDashboard: React.FC = () => {
               totalTokenEvents={data.totalTokenEvents}
               onRefreshAnalysisData={loadDashboardData}
             />
+          </div>
+        );
+
+      case 'timeline':
+        return (
+          <div className="w-full transform transition-all duration-500 ease-in-out opacity-100 translate-y-0">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 h-full">
+              <TimelineVisualization />
+            </div>
           </div>
         );
 
@@ -1599,29 +1629,29 @@ const DecomposedDashboard: React.FC = () => {
 
       {/* Enhanced Drag-Up Detail Viewer */}
       {detailViewerOpen && expandedItem && (
-        <div 
+        <div
           className={`fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40 ${
             isDragging ? 'transition-none' : 'transition-all duration-200'
           }`}
           style={{ height: `${detailViewerHeight}px` }}
         >
           {/* Drag Handle */}
-          <div 
+          <div
             className={`w-full h-3 cursor-ns-resize transition-all duration-150 flex items-center justify-center ${
-              isDragging 
-                ? 'bg-blue-200 border-t border-blue-300' 
+              isDragging
+                ? 'bg-blue-200 border-t border-blue-300'
                 : 'bg-gray-100 hover:bg-gray-200 border-t border-gray-200'
             }`}
             onMouseDown={handleMouseDown}
             title="Drag to resize"
           >
             <div className={`transition-all duration-150 rounded-full ${
-              isDragging 
-                ? 'w-16 h-1.5 bg-blue-500' 
+              isDragging
+                ? 'w-16 h-1.5 bg-blue-500'
                 : 'w-12 h-1 bg-gray-400 hover:bg-gray-500'
             }`}></div>
           </div>
-          
+
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
             <div className="flex items-center space-x-4">
@@ -1629,11 +1659,11 @@ const DecomposedDashboard: React.FC = () => {
                 {expandedItemType === 'request' ? 'Request Details' :
                  expandedItemType === 'error' ? 'Error Details' : 'Token Event Details'}
               </h3>
-              
+
               {/* Side-by-side Field Selector */}
               <div className="flex bg-gray-100 rounded-lg p-1">
-                {(expandedItemType === 'request' ? ['details', 'headers', 'body', 'rawjson'] :
-                  expandedItemType === 'error' ? ['details', 'stack'] :
+                {(expandedItemType === 'request' ? ['details', 'headers', 'body', 'performance', 'rawjson'] :
+                  expandedItemType === 'error' ? ['details', 'stack', 'message'] :
                   ['details', 'rawjson']).map((field) => (
                   <button
                     key={field}
@@ -1644,17 +1674,19 @@ const DecomposedDashboard: React.FC = () => {
                         : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
                     }`}
                   >
-                    {field === 'rawjson' ? 'Raw JSON' : 
+                    {field === 'rawjson' ? 'Raw JSON' :
                      field === 'body' ? 'Body' :
                      field === 'headers' ? 'Headers' :
+                     field === 'performance' ? 'Performance' :
                      field === 'stack' ? 'Stack' :
+                     field === 'message' ? 'Message' :
                      field === 'analysis' ? 'Analysis' :
                      'Details'}
                   </button>
                 ))}
               </div>
             </div>
-            
+
             <button
               onClick={closeDetailViewer}
               className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100"
@@ -1664,25 +1696,25 @@ const DecomposedDashboard: React.FC = () => {
               </svg>
             </button>
           </div>
-          
+
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-4" style={{ height: `${detailViewerHeight - 120}px` }}>
             {expandedItemType === 'request' && (
-              <RequestDetailContent 
-                request={expandedItem} 
+              <RequestDetailContent
+                request={expandedItem}
                 selectedField={selectedField}
                 settings={settings}
               />
             )}
             {expandedItemType === 'error' && (
-              <ErrorDetailContent 
-                error={expandedItem} 
+              <ErrorDetailContent
+                error={expandedItem}
                 selectedField={selectedField}
               />
             )}
             {expandedItemType === 'token' && (
-              <TokenDetailContent 
-                tokenEvent={expandedItem} 
+              <TokenDetailContent
+                tokenEvent={expandedItem}
                 selectedField={selectedField}
                 showFullTokenHash={showFullTokenHash}
                 settings={settings}

@@ -5,12 +5,22 @@ interface NetworkRequest {
   url: string;
   status: number;
   payload_size?: number;
+  requestSize?: number;
+  responseSize?: number;
+  request_size?: number; // Database field name
+  response_size?: number; // Database field name
   timestamp: string;
   headers?: any;
   request_headers?: any;
   response_headers?: any;
+  requestBody?: string;
+  responseBody?: string;
+  request_body?: string; // Database field name
+  response_body?: string; // Database field name
   response_time?: number;
   time_taken?: number;
+  duration?: number;
+  performanceMetrics?: any; // Parsed performance timing data object
 }
 
 interface NetworkRequestsTableProps {
@@ -28,6 +38,7 @@ interface NetworkRequestsTableProps {
   filterMethod: string;
   onMethodFilterChange: (method: string) => void;
   onDetailClick: (request: NetworkRequest) => void;
+  selectedRequest?: NetworkRequest | null;
 }
 
 export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
@@ -44,7 +55,8 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
   onSearchChange,
   filterMethod,
   onMethodFilterChange,
-  onDetailClick
+  onDetailClick,
+  selectedRequest
 }) => {
   const indexOfLastRequest = currentPage * requestsPerPage;
   const indexOfFirstRequest = indexOfLastRequest - requestsPerPage;
@@ -54,11 +66,282 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
     onMethodFilterChange('all');
   };
 
+  // Helper function to check if a request is selected
+  const isRequestSelected = (request: NetworkRequest): boolean => {
+    if (!selectedRequest) return false;
+
+    // Compare key properties to determine if it's the same request
+    return (
+      request.url === selectedRequest.url &&
+      request.method === selectedRequest.method &&
+      request.timestamp === selectedRequest.timestamp &&
+      request.status === selectedRequest.status
+    );
+  };
+
+  // Helper function to extract response time with performance metrics as primary source
+  // Helper function to get size display with multiple fallback options
+  const getSizeDisplay = (request: NetworkRequest): string => {
+    // Helper function to safely parse size value
+    const parseSize = (value: any): number => {
+      if (value === null || value === undefined) return 0;
+      const parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
+      return isNaN(parsed) || parsed < 0 ? 0 : parsed;
+    };
+
+    // DEBUG MODE: Show detailed size data for first few requests (remove this after debugging)
+    const showDebug = Math.random() < 0.1; // Show debug for ~10% of requests
+    if (showDebug) {
+      console.log('🔍 SIZE DEBUG for', request.url?.substring(0, 50), {
+        payload_size: request.payload_size,
+        payload_size_type: typeof request.payload_size,
+        request_size: request.request_size,
+        request_size_type: typeof request.request_size,
+        response_size: request.response_size,
+        response_size_type: typeof request.response_size,
+        requestSize: request.requestSize,
+        responseSize: request.responseSize,
+        has_request_body: !!(request.requestBody || request.request_body),
+        has_response_body: !!(request.responseBody || request.response_body)
+      });
+    }
+
+    // Method 1: Use payload_size if available (most reliable)
+    const payloadSize = parseSize(request.payload_size);
+    if (payloadSize > 0) {
+      if (showDebug) console.log('✅ Using Method 1 (payload_size):', payloadSize);
+      const sizeInKB = payloadSize / 1024;
+      return sizeInKB >= 1 ? `${sizeInKB.toFixed(1)}KB` : `~${sizeInKB.toFixed(1)}KB`;
+    }
+
+    // Method 2: Calculate from separate size fields (try both naming conventions)
+    const requestSize = parseSize(request.requestSize || request.request_size);
+    const responseSize = parseSize(request.responseSize || request.response_size);
+    const totalSize = requestSize + responseSize;
+
+    if (totalSize > 0) {
+      if (showDebug) console.log('✅ Using Method 2 (individual sizes):', { requestSize, responseSize, totalSize });
+      const sizeInKB = totalSize / 1024;
+      return sizeInKB >= 1 ? `${sizeInKB.toFixed(1)}KB` : `~${sizeInKB.toFixed(1)}KB`;
+    }
+
+    // Method 3: Estimate from body content if available (try both naming conventions)
+    let estimatedSize = 0;
+
+    const requestBody = request.requestBody || request.request_body;
+    if (requestBody) {
+      estimatedSize += new Blob([requestBody]).size;
+    }
+
+    const responseBody = request.responseBody || request.response_body;
+    if (responseBody) {
+      estimatedSize += new Blob([responseBody]).size;
+    }
+
+    if (estimatedSize > 0) {
+      if (showDebug) console.log('⚠️  Using Method 3 (body estimation):', estimatedSize);
+      const sizeInKB = estimatedSize / 1024;
+      return `~${sizeInKB.toFixed(1)}KB`;
+    }
+
+    // Method 4: Estimate from headers if available
+    // Method 4: Estimate from headers if available
+    if (request.headers) {
+      try {
+        const headerStr = typeof request.headers === 'string' ? request.headers : JSON.stringify(request.headers);
+        const headerSize = new Blob([headerStr]).size;
+        if (headerSize > 100) { // Only show if meaningful size
+          if (showDebug) console.log('⚠️  Using Method 4 (header estimation):', headerSize);
+          return `~${Math.round(headerSize / 1024)}KB`;
+        }
+      } catch (e) {
+        // Ignore header size calculation errors
+      }
+    }
+
+    // Fallback: Show dash if no size data available
+    if (showDebug) console.log('❌ No size data available for request');
+    return '-';
+  };
+
+  // Helper function to get size tooltip with detailed breakdown
+  const getSizeTooltip = (request: NetworkRequest): string => {
+    const parseSize = (value: any): number => {
+      if (value === null || value === undefined) return 0;
+      const parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
+      return isNaN(parsed) || parsed < 0 ? 0 : parsed;
+    };
+
+    const formatSize = (bytes: number): string => bytes > 0 ? `${(bytes / 1024).toFixed(2)}KB (${bytes} bytes)` : '0KB (0 bytes)';
+
+    const payloadSize = parseSize(request.payload_size);
+    const requestSize = parseSize(request.requestSize || request.request_size);
+    const responseSize = parseSize(request.responseSize || request.response_size);
+
+    let tooltip = 'Size Breakdown:\n';
+
+    if (payloadSize > 0) {
+      tooltip += `Total: ${formatSize(payloadSize)}\n`;
+      if (requestSize > 0 || responseSize > 0) {
+        tooltip += `Request: ${formatSize(requestSize)}\n`;
+        tooltip += `Response: ${formatSize(responseSize)}`;
+      }
+    } else if (requestSize > 0 || responseSize > 0) {
+      tooltip += `Request: ${formatSize(requestSize)}\n`;
+      tooltip += `Response: ${formatSize(responseSize)}\n`;
+      tooltip += `Total: ${formatSize(requestSize + responseSize)}`;
+    } else {
+      // Try to estimate from body content
+      const requestBody = request.requestBody || request.request_body;
+      const responseBody = request.responseBody || request.response_body;
+
+      let estimatedRequest = 0;
+      let estimatedResponse = 0;
+
+      if (requestBody) estimatedRequest = new Blob([requestBody]).size;
+      if (responseBody) estimatedResponse = new Blob([responseBody]).size;
+
+      if (estimatedRequest > 0 || estimatedResponse > 0) {
+        tooltip += `Estimated from body content:\n`;
+        tooltip += `Request: ${formatSize(estimatedRequest)}\n`;
+        tooltip += `Response: ${formatSize(estimatedResponse)}\n`;
+        tooltip += `Total: ${formatSize(estimatedRequest + estimatedResponse)}`;
+      } else {
+        tooltip = 'No size data available';
+      }
+    }
+
+    return tooltip;
+  };
+
+  // Helper function to get method tooltip with request details
+  const getMethodTooltip = (request: NetworkRequest): string => {
+    const requestBody = request.requestBody || request.request_body;
+    const responseBody = request.responseBody || request.response_body;
+
+    let tooltip = `${request.method} ${request.url}\n\n`;
+
+    if (requestBody) {
+      tooltip += `Request Body (${requestBody.length} chars):\n`;
+      tooltip += `${requestBody.substring(0, 300)}${requestBody.length > 300 ? '...' : ''}\n\n`;
+    }
+
+    if (responseBody) {
+      tooltip += `Response Body (${responseBody.length} chars):\n`;
+      tooltip += `${responseBody.substring(0, 300)}${responseBody.length > 300 ? '...' : ''}`;
+    }
+
+    if (!requestBody && !responseBody) {
+      tooltip += 'No request/response body data captured';
+    }
+
+    return tooltip.trim();
+  };
+  const getResponseTimeTooltip = (request: NetworkRequest): string => {
+    let tooltip = 'Response Time Details:\n';
+
+    // Check performance metrics first
+    if (request.performanceMetrics && typeof request.performanceMetrics === 'object') {
+      const metrics = request.performanceMetrics;
+      tooltip += `Total Time: ${metrics.totalTime || 'N/A'}ms\n`;
+
+      if (metrics.dnsLookup) tooltip += `DNS Lookup: ${metrics.dnsLookup}ms\n`;
+      if (metrics.tcpConnection) tooltip += `TCP Connection: ${metrics.tcpConnection}ms\n`;
+      if (metrics.tlsHandshake) tooltip += `TLS Handshake: ${metrics.tlsHandshake}ms\n`;
+      if (metrics.requestWaiting) tooltip += `Request Waiting: ${metrics.requestWaiting}ms\n`;
+      if (metrics.timeToFirstByte) tooltip += `Time to First Byte: ${metrics.timeToFirstByte}ms\n`;
+      if (metrics.contentDownload) tooltip += `Content Download: ${metrics.contentDownload}ms\n`;
+    } else {
+      // Fallback to basic timing
+      if (request.duration) {
+        tooltip += `Duration: ${request.duration}ms\n`;
+      }
+      if (request.response_time && request.response_time !== request.duration) {
+        tooltip += `Response Time: ${request.response_time}ms\n`;
+      }
+      if (request.time_taken && request.time_taken !== request.duration && request.time_taken !== request.response_time) {
+        tooltip += `Time Taken: ${request.time_taken}ms\n`;
+      }
+
+      if (!request.duration && !request.response_time && !request.time_taken) {
+        tooltip += 'No timing data available\n';
+      }
+    }
+
+    return tooltip.trim();
+  };
+  const getHeadersTooltip = (request: NetworkRequest): string => {
+    try {
+      let requestHeaders: any = {};
+      let responseHeaders: any = {};
+
+      // Parse headers using same logic as getHeaderPreview
+      if (request.headers) {
+        const headerData = typeof request.headers === 'string' ? JSON.parse(request.headers) : request.headers;
+        requestHeaders = headerData.request || {};
+        responseHeaders = headerData.response || {};
+      } else {
+        if (request.request_headers) {
+          requestHeaders = typeof request.request_headers === 'string' ? JSON.parse(request.request_headers) : request.request_headers;
+        }
+        if (request.response_headers) {
+          responseHeaders = typeof request.response_headers === 'string' ? JSON.parse(request.response_headers) : request.response_headers;
+        }
+      }
+
+      let tooltip = '';
+
+      // Show request headers
+      const requestHeaderEntries = Object.entries(requestHeaders);
+      if (requestHeaderEntries.length > 0) {
+        tooltip += 'Request Headers:\n';
+        requestHeaderEntries.forEach(([key, value]) => {
+          tooltip += `${key}: ${value}\n`;
+        });
+      }
+
+      // Show response headers
+      const responseHeaderEntries = Object.entries(responseHeaders);
+      if (responseHeaderEntries.length > 0) {
+        if (tooltip) tooltip += '\n';
+        tooltip += 'Response Headers:\n';
+        responseHeaderEntries.forEach(([key, value]) => {
+          tooltip += `${key}: ${value}\n`;
+        });
+      }
+
+      if (!tooltip) {
+        tooltip = 'No headers available';
+      }
+
+      return tooltip.trim();
+    } catch (e) {
+      return 'Error parsing headers data';
+    }
+  };
+
+  const getResponseTime = (request: NetworkRequest): string => {
+    // First try to get performance metrics total time (already parsed object from background)
+    if (request.performanceMetrics && typeof request.performanceMetrics === 'object') {
+      const totalTime = request.performanceMetrics.totalTime;
+      if (totalTime && typeof totalTime === 'number') {
+        return `${Math.round(totalTime)}ms`;
+      }
+    }
+
+    // Fallback to existing logic (Date.now() based timing)
+    if (request.duration) return `${request.duration}ms`;
+    if (request.response_time) return `${request.response_time}ms`;
+    if (request.time_taken) return `${request.time_taken}ms`;
+
+    return 'N/A';
+  };
+
   const getHeaderPreview = (request: NetworkRequest): string => {
     try {
       let requestHeaders: any = {};
       let responseHeaders: any = {};
-      
+
       // Use same robust header parsing logic as detail view
       if (request.headers) {
         const headerData = typeof request.headers === 'string' ? JSON.parse(request.headers) : request.headers;
@@ -74,27 +357,27 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
           responseHeaders = typeof request.response_headers === 'string' ? JSON.parse(request.response_headers) : request.response_headers;
         }
       }
-      
+
       // Combine both request and response headers for preview
       const allHeaders: any = { ...requestHeaders, ...responseHeaders };
-      
+
       // Priority headers to show in preview
       const priorityHeaders = ['content-type', 'authorization', 'accept', 'user-agent', 'x-api-key'];
-      
+
       for (const priority of priorityHeaders) {
         if (allHeaders[priority]) {
           const value = String(allHeaders[priority]);
           return `${priority}: ${value.substring(0, 30)}${value.length > 30 ? '...' : ''}`;
         }
       }
-      
+
       // If no priority headers, show first available header
       const firstHeader = Object.entries(allHeaders)[0];
       if (firstHeader) {
         const value = String(firstHeader[1]);
         return `${firstHeader[0]}: ${value.substring(0, 30)}${value.length > 30 ? '...' : ''}`;
       }
-      
+
       return 'No headers';
     } catch (e) {
       console.error('Error parsing headers for preview:', e);
@@ -105,7 +388,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
   const generatePageNumbers = () => {
     const pageNumbers: (number | string)[] = [];
     const maxVisiblePages = 7;
-    
+
     if (totalPages <= maxVisiblePages) {
       // Show all pages if total is small
       for (let i = 1; i <= totalPages; i++) {
@@ -140,7 +423,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
         pageNumbers.push(totalPages);
       }
     }
-    
+
     return pageNumbers;
   };
 
@@ -186,7 +469,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
             />
           </div>
         </div>
-        
+
         {/* Method Filter */}
         <div className="flex items-center space-x-3">
           <label className="text-sm font-medium text-gray-700">Method:</label>
@@ -204,7 +487,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
             <option value="OPTIONS">OPTIONS</option>
           </select>
         </div>
-        
+
         {/* Clear Filters */}
         {(searchTerm || filterMethod !== 'all') && (
           <button
@@ -215,7 +498,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
           </button>
         )}
       </div>
-      
+
       {/* Table */}
       {requests.length > 0 ? (
         <div className="overflow-hidden">
@@ -223,7 +506,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
             <table className="w-full table-fixed divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th 
+                  <th
                     className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-20"
                     onClick={() => onSort('method')}
                   >
@@ -236,7 +519,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                       )}
                     </div>
                   </th>
-                  <th 
+                  <th
                     className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-1/3"
                     onClick={() => onSort('url')}
                   >
@@ -249,7 +532,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                       )}
                     </div>
                   </th>
-                  <th 
+                  <th
                     className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-16"
                     onClick={() => onSort('status')}
                   >
@@ -262,20 +545,20 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                       )}
                     </div>
                   </th>
-                  <th 
+                  <th
                     className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-16"
-                    onClick={() => onSort('payload_size')}
+                    onClick={() => onSort('requestSize')}
                   >
                     <div className="flex items-center">
                       Size
-                      {sortConfig.key === 'payload_size' && (
+                      {(sortConfig.key === 'requestSize' || sortConfig.key === 'payload_size') && (
                         <span className="ml-1">
                           {sortConfig.direction === 'asc' ? '↑' : '↓'}
                         </span>
                       )}
                     </div>
                   </th>
-                  <th 
+                  <th
                     className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-20"
                     onClick={() => onSort('timestamp')}
                   >
@@ -291,13 +574,13 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
                     Headers Preview
                   </th>
-                  <th 
+                  <th
                     className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-20"
-                    onClick={() => onSort('response_time')}
+                    onClick={() => onSort('duration')}
                   >
                     <div className="flex items-center">
                       Response Time
-                      {sortConfig.key === 'response_time' && (
+                      {(sortConfig.key === 'duration' || sortConfig.key === 'response_time') && (
                         <span className="ml-1">
                           {sortConfig.direction === 'asc' ? '↑' : '↓'}
                         </span>
@@ -307,13 +590,19 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {requests.map((request, index) => (
-                  <tr 
-                    key={index} 
-                    className="hover:bg-gray-50 cursor-pointer" 
-                    onDoubleClick={() => onDetailClick(request)}
-                    title="Double-click to view detailed information"
-                  >
+                {requests.map((request, index) => {
+                  const isSelected = isRequestSelected(request);
+                  return (
+                    <tr
+                      key={index}
+                      className={`cursor-pointer transition-all duration-200 ${
+                        isSelected
+                          ? 'bg-blue-50 border-l-4 border-blue-500 hover:bg-blue-100 shadow-sm'
+                          : 'hover:bg-gray-50'
+                      }`}
+                      onDoubleClick={() => onDetailClick(request)}
+                      title={isSelected ? "Currently viewing in detail panel - Double-click to refresh" : "Double-click to view detailed information"}
+                    >
                     <td className="px-3 py-3 whitespace-nowrap w-20">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                         request.method === 'GET' ? 'bg-blue-100 text-blue-800' :
@@ -321,12 +610,15 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                         request.method === 'PUT' ? 'bg-yellow-100 text-yellow-800' :
                         request.method === 'DELETE' ? 'bg-red-100 text-red-800' :
                         'bg-gray-100 text-gray-800'
-                      }`}>
+                      }`} title={getMethodTooltip(request)}>
                         {request.method}
                       </span>
                     </td>
                     <td className="px-3 py-3 w-1/3">
-                      <div className="text-sm text-gray-900 truncate max-w-sm" title={request.url}>
+                      <div className={`text-sm truncate max-w-sm flex items-center ${isSelected ? 'text-blue-900 font-medium' : 'text-gray-900'}`} title={request.url}>
+                        {isSelected && (
+                          <div className="w-2 h-2 bg-blue-500 rounded-full mr-2 flex-shrink-0"></div>
+                        )}
                         {request.url}
                       </div>
                     </td>
@@ -336,31 +628,31 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                         request.status >= 300 && request.status < 400 ? 'bg-yellow-100 text-yellow-800' :
                         request.status >= 400 ? 'bg-red-100 text-red-800' :
                         'bg-gray-100 text-gray-800'
-                      }`}>
+                      }`} title={`HTTP ${request.status} - ${new Date(request.timestamp).toLocaleString()}`}>
                         {request.status}
                       </span>
                     </td>
-                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-16">
-                      {request.payload_size ? `${Math.round(request.payload_size / 1024)}KB` : '-'}
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-16" title={getSizeTooltip(request)}>
+                      {getSizeDisplay(request)}
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-20">
                       {new Date(request.timestamp).toLocaleTimeString()}
                     </td>
-                    <td className="px-3 py-3 text-sm text-gray-500 w-1/4">
+                    <td className="px-3 py-3 text-sm text-gray-500 w-1/4" title={getHeadersTooltip(request)}>
                       <div className="truncate max-w-xs">
                         {getHeaderPreview(request)}
                       </div>
                     </td>
-                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-20">
-                      {request.response_time ? `${request.response_time}ms` : 
-                       request.time_taken ? `${request.time_taken}ms` : 'N/A'}
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-20" title={getResponseTimeTooltip(request)}>
+                      {getResponseTime(request)}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
-          
+
           {/* Pagination Controls */}
           {totalPages > 1 && (
             <div className="mt-6 flex items-center justify-between">
@@ -429,7 +721,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
           </svg>
           <h3 className="mt-2 text-sm font-medium text-gray-900">No requests found</h3>
           <p className="mt-1 text-sm text-gray-500">
-            {searchTerm || filterMethod !== 'all' 
+            {searchTerm || filterMethod !== 'all'
               ? 'Try adjusting your search criteria or filters'
               : 'Network requests will appear here when they are captured'
             }
