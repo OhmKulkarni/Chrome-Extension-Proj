@@ -280,6 +280,12 @@ export class NetworkProcessorModule {
         tabId: apiCall.tab_id,
         duration: apiCall.response_time,
         response_time: apiCall.response_time,
+        // ADD MISSING SIZE FIELDS
+        requestSize: apiCall.request_size || 0,
+        responseSize: apiCall.response_size || 0,
+        payload_size: apiCall.payload_size || 0,
+        request_size: apiCall.request_size || 0,
+        response_size: apiCall.response_size || 0,
         performanceMetrics: apiCall.performance_metrics ? JSON.parse(apiCall.performance_metrics) : undefined
       }));
     });

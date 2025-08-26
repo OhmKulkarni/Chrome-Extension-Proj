@@ -578,6 +578,19 @@ export class MessageRouterModule {
               totalCounts: { networkCount, errorCount, tokenCount }
             });
 
+            // DEBUG: Check size fields in first few network requests
+            if (networkRequests && networkRequests.length > 0) {
+              console.log('🔍 MessageRouter: Size field debugging for first 3 requests:');
+              networkRequests.slice(0, 3).forEach((req, index) => {
+                console.log(`Request ${index + 1}:`, {
+                  url: req.url?.substring(0, 50),
+                  requestSize: req.requestSize,
+                  responseSize: req.responseSize,
+                  availableFields: Object.keys(req)
+                });
+              });
+            }
+
             sendResponse({
               success: true,
               data: {

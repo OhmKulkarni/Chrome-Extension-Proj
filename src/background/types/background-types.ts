@@ -42,6 +42,11 @@ export interface NetworkRequestData {
   responseBody?: string; // Response body from main-world script
   duration?: number; // Request duration from main-world script
   response_time?: number; // Alternative field name for response time
+  requestSize?: number; // Request size in bytes (camelCase)
+  responseSize?: number; // Response size in bytes (camelCase)
+  payload_size?: number; // Total payload size (snake_case from DB)
+  request_size?: number; // Request size (snake_case from DB)
+  response_size?: number; // Response size (snake_case from DB)
   performanceMetrics?: PerformanceTimingMetrics; // NEW: Performance timing data
 }
 
