@@ -152,7 +152,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
 
   // User-selected analysis sample size (number of records to consider for stats)
   const [analysisLimit, setAnalysisLimit] = useState<number>(200);
-  
+
   // Track actual number of records loaded for display
   const [actualRecordCounts, setActualRecordCounts] = useState<{
     networkRequests: number;
@@ -843,6 +843,39 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="global" className="w-full">
+          {/* Global Record Limit Selector - visible for both tabs */}
+          <div className="flex justify-end mb-4">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-600">Records considered</label>
+              <select
+                value={analysisLimit}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value, 10);
+                  setAnalysisLimit(isNaN(value) ? 200 : value);
+                }}
+                className="border border-gray-300 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                title="Number of most recent records used to compute all statistics and charts"
+              >
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={200}>200</option>
+                <option value={500}>500</option>
+                <option value={1000}>1000</option>
+                <option value={2000}>2000</option>
+                <option value={5000}>5000</option>
+                <option value={10000}>10000</option>
+                <option value={-1}>All</option>
+              </select>
+              <span className="hidden md:inline text-xs text-gray-500">
+                {actualRecordCounts.networkRequests > 0 && (
+                  <span className="text-blue-600">
+                    {actualRecordCounts.networkRequests} loaded
+                  </span>
+                )}
+              </span>
+            </div>
+          </div>
+
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="global" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
@@ -960,7 +993,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                   transition={{ duration: 0.3 }}
                   className="space-y-4"
                 >
-                  {/* Chart Search + Analysis Limit */}
+                  {/* Chart Search */}
                   <div className="flex flex-col md:flex-row md:items-center gap-3">
                     <div className="relative flex-1">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -971,36 +1004,6 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                         onChange={(e) => setChartSearch(e.target.value)}
                         className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <label className="text-sm text-gray-600">Records considered</label>
-                      <select
-                        value={analysisLimit}
-                        onChange={(e) => {
-                          const value = parseInt(e.target.value, 10);
-                          setAnalysisLimit(isNaN(value) ? 200 : value);
-                        }}
-                        className="border border-gray-300 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        title="Number of most recent records used to compute statistics and charts"
-                      >
-                        <option value={50}>50</option>
-                        <option value={100}>100</option>
-                        <option value={200}>200</option>
-                        <option value={500}>500</option>
-                        <option value={1000}>1000</option>
-                        <option value={2000}>2000</option>
-                        <option value={5000}>5000</option>
-                        <option value={10000}>10000</option>
-                        <option value={-1}>All</option>
-                      </select>
-                      <span className="hidden md:inline text-xs text-gray-500">
-                        Larger samples may increase memory usage
-                        {actualRecordCounts.networkRequests > 0 && (
-                          <span className="ml-2 text-blue-600">
-                            ({actualRecordCounts.networkRequests} loaded)
-                          </span>
-                        )}
-                      </span>
                     </div>
                   </div>
 
@@ -1117,42 +1120,9 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                 </div>
               </div>
             </div>
-
-            {/* Record Limit Selector for Domain Statistics */}
-            <div className="flex justify-end mb-4">
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-600">Records considered</label>
-                <select
-                  value={analysisLimit}
-                  onChange={(e) => {
-                    const value = parseInt(e.target.value, 10);
-                    setAnalysisLimit(isNaN(value) ? 200 : value);
-                  }}
-                  className="border border-gray-300 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  title="Number of most recent records used to compute domain statistics"
-                >
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                  <option value={200}>200</option>
-                  <option value={500}>500</option>
-                  <option value={1000}>1000</option>
-                  <option value={2000}>2000</option>
-                  <option value={5000}>5000</option>
-                  <option value={10000}>10000</option>
-                  <option value={-1}>All</option>
-                </select>
-                <span className="hidden md:inline text-xs text-gray-500">
-                  Affects domain statistics accuracy
-                  {actualRecordCounts.networkRequests > 0 && (
-                    <span className="ml-2 text-blue-600">
-                      ({actualRecordCounts.networkRequests} loaded)
-                    </span>
-                  )}
-                </span>
-              </div>
-            </div>
-            <div className="rounded-md border">
-              <Table>
+            <div className="rounded-md border overflow-hidden">
+              <div className="overflow-x-auto">
+                <Table className="w-full">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="font-semibold">
@@ -1161,37 +1131,37 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                         <SortButton column="domain" currentSort={domainSortConfig} onSort={handleDomainSort} />
                       </div>
                     </TableHead>
-                    <TableHead className="font-semibold">
-                      <div className="flex items-center gap-2">
+                    <TableHead className="font-semibold w-20 text-center">
+                      <div className="flex items-center gap-2 justify-center">
                         Requests
                         <SortButton column="totalRequests" currentSort={domainSortConfig} onSort={handleDomainSort} />
                       </div>
                     </TableHead>
-                    <TableHead className="font-semibold">
-                      <div className="flex items-center gap-2">
+                    <TableHead className="font-semibold w-16 text-center">
+                      <div className="flex items-center gap-2 justify-center">
                         Errors
                         <SortButton column="errors" currentSort={domainSortConfig} onSort={handleDomainSort} />
                       </div>
                     </TableHead>
-                    <TableHead className="font-semibold">
-                      <div className="flex items-center gap-2">
+                    <TableHead className="font-semibold w-16 text-center">
+                      <div className="flex items-center gap-2 justify-center">
                         Tokens
                         <SortButton column="tokens" currentSort={domainSortConfig} onSort={handleDomainSort} />
                       </div>
                     </TableHead>
-                    <TableHead className="font-semibold">
-                      <div className="flex items-center gap-2">
+                    <TableHead className="font-semibold w-24 text-center">
+                      <div className="flex items-center gap-2 justify-center">
                         Success Rate
                         <SortButton column="successRate" currentSort={domainSortConfig} onSort={handleDomainSort} />
                       </div>
                     </TableHead>
-                    <TableHead className="font-semibold">
-                      <div className="flex items-center gap-2">
+                    <TableHead className="font-semibold w-24 text-center">
+                      <div className="flex items-center gap-2 justify-center">
                         Avg Response
                         <SortButton column="avgResponseTime" currentSort={domainSortConfig} onSort={handleDomainSort} />
                       </div>
                     </TableHead>
-                    <TableHead className="font-semibold">
+                    <TableHead className="font-semibold w-36 text-center">
                       <div className="flex items-center gap-2">
                         Last Activity
                         <SortButton column="lastSeen" currentSort={domainSortConfig} onSort={handleDomainSort} />
@@ -1203,7 +1173,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                   {sortedDomainStats.map((stat, index) => (
                     <React.Fragment key={index}>
                       <TableRow className="hover:bg-blue-50/50">
-                        <TableCell className="font-medium max-w-[300px]" title={
+                        <TableCell className="font-medium w-[30%] min-w-[200px]" title={
                           stat.isGrouped ?
                             `${stat.domain} (Service group with ${stat.groupedDomains.length} domains: ${stat.groupedDomains.join(', ')})` :
                             `${stat.domain}${stat.tabContext?.primaryTabUrl ? ` - Tab: ${stat.tabContext.primaryTabUrl}` : ''}`
@@ -1249,10 +1219,10 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                             )}
                           </div>
                       </TableCell>
-                      <TableCell className="font-semibold text-green-700">{stat.totalRequests}</TableCell>
-                      <TableCell className="font-semibold text-red-700">{stat.errors}</TableCell>
-                      <TableCell className="font-semibold text-yellow-700">{stat.tokens}</TableCell>
-                      <TableCell>
+                      <TableCell className="font-semibold text-green-700 w-20 text-center">{stat.totalRequests}</TableCell>
+                      <TableCell className="font-semibold text-red-700 w-16 text-center">{stat.errors}</TableCell>
+                      <TableCell className="font-semibold text-yellow-700 w-16 text-center">{stat.tokens}</TableCell>
+                      <TableCell className="w-24 text-center">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                           stat.successRate >= 90 ? 'bg-green-100 text-green-800' :
                           stat.successRate >= 70 ? 'bg-yellow-100 text-yellow-800' :
@@ -1261,10 +1231,10 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                           {stat.successRate}%
                         </span>
                       </TableCell>
-                      <TableCell className="font-medium text-blue-700">
+                      <TableCell className="font-medium text-blue-700 w-24 text-center">
                         {stat.avgResponseTime > 0 ? `${stat.avgResponseTime}ms` : 'N/A'}
                       </TableCell>
-                      <TableCell className="text-sm text-gray-600 max-w-[150px] truncate" title={new Date(stat.lastSeen).toLocaleString()}>
+                      <TableCell className="text-sm text-gray-600 w-36 truncate" title={new Date(stat.lastSeen).toLocaleString()}>
                         {new Date(stat.lastSeen).toLocaleString()}
                       </TableCell>
                     </TableRow>
@@ -1307,6 +1277,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                   )}
                 </TableBody>
               </Table>
+              </div>
             </div>
           </TabsContent>
         </Tabs>
