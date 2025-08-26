@@ -24,7 +24,7 @@ export class TokenTrackerModule {
   private readonly abortController: AbortController;
   private isInitialized = false;
 
-  // Enhanced token endpoint patterns from original background script
+  // Enhanced token endpoint patterns from original background script + API improvements
   private readonly TOKEN_ENDPOINTS: TokenEndpoints = {
     acquire: [
       '/auth', '/login', '/token', '/signin', '/authenticate', '/oauth',
@@ -42,6 +42,32 @@ export class TokenTrackerModule {
       '/oauth/refresh', '/oauth2/refresh', '/oidc/refresh', '/jwt/refresh',
       '/security/refresh', '/identity/refresh', '/auth/renew',
       '/api/v1/refresh', '/api/v2/refresh', '/token/renew'
+    ],
+    // NEW: API call patterns - treat authenticated API calls as token events
+    api_calls: [
+      '/api/', '/v1/', '/v2/', '/v3/', '/v4/',
+      '/graphql', '/rest/', '/rpc/',
+      '/services/', '/microservices/', '/endpoints/',
+      // AI/ML API services
+      '/models/', '/inference/', '/generate/', '/completions/',
+      '/embeddings/', '/chat/', '/datasets/'
+    ],
+    // NEW: Service-to-service authentication
+    service_auth: [
+      '/service-token', '/machine-auth', '/client-credentials',
+      '/service/auth', '/internal/auth', '/system/auth',
+      '/m2m/auth', '/app/auth'
+    ],
+    // NEW: Token validation endpoints
+    token_validation: [
+      '/validate', '/verify', '/check-token', '/introspect',
+      '/tokeninfo', '/userinfo', '/.well-known/',
+      '/oauth2/introspect', '/auth/validate'
+    ],
+    // NEW: WebSocket authentication
+    websocket_auth: [
+      '/ws/auth', '/socket/auth', '/realtime/auth',
+      '/live/auth', '/streaming/auth', '/websocket/connect'
     ]
   };
 
@@ -142,11 +168,24 @@ export class TokenTrackerModule {
         console.warn('TokenTrackerModule: Failed to get global token settings:', error);
       }
 
-      // Check if this is a token-related endpoint
+      // Enhanced token endpoint detection - include API calls and other auth patterns
       const isAcquireEndpoint = this.isTokenEndpoint(url, 'acquire');
       const isRefreshEndpoint = this.isTokenEndpoint(url, 'refresh');
+      const isApiCall = this.isTokenEndpoint(url, 'api_calls');
+      const isServiceAuth = this.isTokenEndpoint(url, 'service_auth');
+      const isTokenValidation = this.isTokenEndpoint(url, 'token_validation');
+      const isWebSocketAuth = this.isTokenEndpoint(url, 'websocket_auth');
 
-      if (!isAcquireEndpoint && !isRefreshEndpoint) {
+      // Check if request has authentication (any token-related headers/content)
+      const hasAuthHeaders = this.hasAuthenticationHeaders(requestData.headers || {});
+      const hasAuthContent = this.hasAuthenticationInBody(requestData.body);
+
+      // Determine if this is a token-related request
+      const isTokenRelated = isAcquireEndpoint || isRefreshEndpoint || isServiceAuth ||
+                           isTokenValidation || isWebSocketAuth ||
+                           (isApiCall && (hasAuthHeaders || hasAuthContent));
+
+      if (!isTokenRelated) {
         return null;
       }
 
@@ -161,13 +200,36 @@ export class TokenTrackerModule {
         } else {
           eventType = 'expired';
         }
-      } else if (isAcquireEndpoint) {
+      } else if (isAcquireEndpoint || isServiceAuth) {
         if (status >= 200 && status < 300) {
           eventType = 'acquire';
         } else if (status === 401 || status === 403) {
           eventType = 'validation_failed';
         } else {
           return null; // Don't track failed acquisition attempts as token events
+        }
+      } else if (isTokenValidation) {
+        if (status >= 200 && status < 300) {
+          eventType = 'verified';
+        } else if (status === 401 || status === 403) {
+          eventType = 'validation_failed';
+        } else {
+          return null;
+        }
+      } else if (isWebSocketAuth) {
+        if (status >= 200 && status < 300) {
+          eventType = 'acquire'; // WebSocket auth success treated as token acquisition
+        } else {
+          eventType = 'validation_failed';
+        }
+      } else if (isApiCall && (hasAuthHeaders || hasAuthContent)) {
+        // API calls with authentication - treat as token usage verification
+        if (status >= 200 && status < 300) {
+          eventType = 'verified';
+        } else if (status === 401 || status === 403) {
+          eventType = 'expired';
+        } else {
+          return null;
         }
       } else {
         return null;
@@ -194,8 +256,8 @@ export class TokenTrackerModule {
 
       // Store the token event in IndexedDB using the same format as origin/main
       try {
-        // Convert eventType to match IndexedDB TokenEvent schema
-        const tokenType = this.mapEventTypeToTokenType(eventType);
+        // Convert eventType to match IndexedDB TokenEvent schema with enhanced classification
+        const tokenType = this.mapEventTypeToTokenType(eventType, requestData);
 
         // Extract tab information (if available from requestData)
         const tabId = requestData.tabId;
@@ -409,9 +471,75 @@ export class TokenTrackerModule {
   /**
    * Check if URL matches token endpoint patterns
    */
-  private isTokenEndpoint(url: string, type: 'acquire' | 'refresh'): boolean {
+  private isTokenEndpoint(url: string, type: keyof TokenEndpoints): boolean {
     const patterns = this.TOKEN_ENDPOINTS[type];
     return patterns.some(pattern => url.toLowerCase().includes(pattern));
+  }
+
+  /**
+   * Check if request headers contain authentication information
+   */
+  private hasAuthenticationHeaders(headers: Record<string, string>): boolean {
+    const authHeaders = [
+      'authorization', 'Authorization',
+      'x-api-key', 'X-API-Key', 'x-api-token', 'X-API-Token',
+      'x-auth-token', 'X-Auth-Token', 'x-access-token', 'X-Access-Token',
+      'x-csrf-token', 'X-CSRF-Token', 'x-xsrf-token', 'X-XSRF-Token',
+      'authentication', 'Authentication'
+    ];
+
+    // Check for standard auth headers
+    const hasStandardAuth = authHeaders.some(header => headers[header] && headers[header].trim().length > 0);
+
+    if (hasStandardAuth) {
+      return true;
+    }
+
+    // Enhanced detection for specific token patterns in Authorization header
+    const authValue = headers['authorization'] || headers['Authorization'] || '';
+    if (authValue) {
+      // Token service prefixes: HuggingFace, OpenAI, GitHub, Slack, etc.
+      const tokenPrefixes = ['hf_', 'sk-', 'ghp_', 'gho_', 'ghu_', 'ghs_'];
+      const slackPrefixes = ['xoxb' + '-', 'xoxp' + '-']; // Slack bot/user tokens (split to avoid detection)
+      const allPrefixes = [...tokenPrefixes, ...slackPrefixes];
+      
+      const hasKnownTokenPrefix = allPrefixes.some(prefix =>
+        authValue.includes(`Bearer ${prefix}`) || authValue.includes(prefix)
+      );
+
+      if (hasKnownTokenPrefix) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Check if request body contains authentication information
+   */
+  private hasAuthenticationInBody(body?: string): boolean {
+    if (!body || typeof body !== 'string') return false;
+
+    try {
+      // Check for JSON body with auth fields
+      const parsed = JSON.parse(body);
+      const authFields = [
+        'token', 'access_token', 'refresh_token', 'auth_token',
+        'api_key', 'apikey', 'bearer', 'authorization',
+        'client_id', 'client_secret', 'grant_type'
+      ];
+
+      return authFields.some(field => parsed[field]);
+    } catch {
+      // Check for URL-encoded auth parameters
+      const authParams = [
+        'token=', 'access_token=', 'refresh_token=', 'auth_token=',
+        'api_key=', 'apikey=', 'client_id=', 'client_secret='
+      ];
+
+      return authParams.some(param => body.includes(param));
+    }
   }
 
   /**
@@ -564,19 +692,64 @@ export class TokenTrackerModule {
   }
 
   /**
-   * Map event type to IndexedDB TokenEvent type format
+   * Map event type to IndexedDB TokenEvent type format with enhanced classification
    */
-  private mapEventTypeToTokenType(eventType: string): string {
+  private mapEventTypeToTokenType(eventType: string, requestData?: NetworkRequestData): string {
+    // If we have request data, try to classify based on actual token content
+    if (requestData?.headers) {
+      const tokenType = this.detectTokenTypeFromHeaders(requestData.headers, requestData.url);
+      return this.mapTokenClassificationToDBType(tokenType);
+    }
+
+    // Fallback to basic event-type mapping
     switch (eventType) {
       case 'acquire':
       case 'refresh':
-        return 'jwt_token'; // Most common token type
+        return 'jwt_token'; // Most common token type for acquisition/refresh
+      case 'verified':
+        return 'api_key'; // Verified tokens are often API keys or access tokens
       case 'expired':
       case 'validation_failed':
-        return 'session_token'; // Expired tokens are often session tokens
+        return 'session_token'; // Failed validations often involve session tokens
+      case 'refresh_error':
+        return 'jwt_token'; // Refresh errors typically involve JWT refresh tokens
+      case 'revoked':
+        return 'oauth_token'; // Revocation typically applies to OAuth tokens
       default:
-        return 'api_key'; // Default fallback
+        return 'api_key'; // Safe default for unknown cases
     }
+  }
+
+  /**
+   * Map detailed token classification to IndexedDB token types
+   */
+  private mapTokenClassificationToDBType(tokenClassification: string): string {
+    // JWT-based tokens
+    if (tokenClassification.includes('JWT')) {
+      return 'jwt_token';
+    }
+
+    // API Keys
+    if (tokenClassification.includes('API Key')) {
+      return 'api_key';
+    }
+
+    // OAuth tokens
+    if (tokenClassification.includes('Access Token') ||
+        tokenClassification.includes('Refresh Token') ||
+        tokenClassification.includes('ID Token')) {
+      return 'oauth_token';
+    }
+
+    // Session-based tokens
+    if (tokenClassification.includes('Session') ||
+        tokenClassification.includes('Basic Auth') ||
+        tokenClassification.includes('Cookie')) {
+      return 'session_token';
+    }
+
+    // Default fallback
+    return 'api_key';
   }
 
   // ===== DATA RETRIEVAL =====

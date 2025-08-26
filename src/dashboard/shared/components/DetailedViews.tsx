@@ -586,8 +586,8 @@ export const RequestDetailContent: React.FC<{
                 )}
               </div>
             </div>
-            <div className="code-block bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto text-sm font-mono max-h-96">
-              <pre className="whitespace-pre-wrap break-words">{typeof requestBody === 'string' ? prettyPrintIfJson(requestBody) : formatJSON(requestBody)}</pre>
+            <div className="bg-gray-900 rounded-lg p-4">
+              <pre className="text-sm text-green-400 whitespace-pre-wrap overflow-auto max-h-96">{typeof requestBody === 'string' ? prettyPrintIfJson(requestBody) : formatJSON(requestBody)}</pre>
             </div>
           </div>
         )}
@@ -664,8 +664,8 @@ export const RequestDetailContent: React.FC<{
                 </div>
               </div>
             ) : (
-              <div className="code-block bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto text-sm font-mono max-h-96">
-                <pre className="whitespace-pre-wrap break-words">{typeof responseBody === 'string' ? prettyPrintIfJson(responseBody) : formatJSON(responseBody)}</pre>
+              <div className="bg-gray-900 rounded-lg p-4">
+                <pre className="text-sm text-green-400 whitespace-pre-wrap overflow-auto max-h-96">{typeof responseBody === 'string' ? prettyPrintIfJson(responseBody) : formatJSON(responseBody)}</pre>
               </div>
             )}
           </div>
@@ -1159,8 +1159,8 @@ export const ErrorDetailContent: React.FC<{
           {/* Raw Error Object */}
           <div>
             <h4 className="text-sm font-medium text-gray-700 mb-2">Complete Error Object</h4>
-            <div className="code-block bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto text-sm font-mono max-h-96">
-              <pre className="whitespace-pre-wrap break-words">{formatJSON(error)}</pre>
+            <div className="bg-gray-900 rounded-lg p-4">
+              <pre className="text-sm text-green-400 whitespace-pre-wrap overflow-auto max-h-96">{formatJSON(error)}</pre>
             </div>
           </div>
 

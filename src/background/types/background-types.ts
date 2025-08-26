@@ -21,6 +21,11 @@ export interface TokenEvent {
 export interface TokenEndpoints {
   acquire: string[];
   refresh: string[];
+  // Enhanced API event detection
+  api_calls: string[];
+  service_auth: string[];
+  token_validation: string[];
+  websocket_auth: string[];
 }
 
 // ===== NETWORK SYSTEM TYPES =====
