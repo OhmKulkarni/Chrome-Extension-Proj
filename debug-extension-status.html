@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extension Debug - Network Interception</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .debug-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .log { font-family: monospace; font-size: 12px; color: #333; margin: 5px 0; }
+        button { padding: 10px 15px; margin: 5px; background: #007cba; color: white; border: none; cursor: pointer; }
+        button:hover { background: #005a8b; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .status.good { background: #d4edda; color: #155724; }
+        .status.bad { background: #f8d7da; color: #721c24; }
+        .status.warning { background: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Extension Debug - Network Interception</h1>
+
+    <div class="debug-section">
+        <h3>Extension Status</h3>
+        <div id="extension-status">Checking...</div>
+    </div>
+
+    <div class="debug-section">
+        <h3>Main World Script Status</h3>
+        <div id="main-world-status">Checking...</div>
+        <button onclick="checkMainWorld()">Check Main World Script</button>
+    </div>
+
+    <div class="debug-section">
+        <h3>Storage State</h3>
+        <div id="storage-status">Checking...</div>
+        <button onclick="checkStorage()">Check Storage</button>
+    </div>
+
+    <div class="debug-section">
+        <h3>Test Network Request</h3>
+        <button onclick="testRequest()">🚀 Test Fetch Request</button>
+        <div id="test-result"></div>
+    </div>
+
+    <div class="debug-section">
+        <h3>Debug Log</h3>
+        <div id="debug-log"></div>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <script>
+        let logContainer;
+
+        function log(message, type = 'info') {
+            if (!logContainer) {
+                logContainer = document.getElementById('debug-log');
+            }
+            const div = document.createElement('div');
+            div.className = 'log';
+            div.style.color = type === 'error' ? 'red' : type === 'success' ? 'green' : '#333';
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logContainer.appendChild(div);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function setStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        async function checkExtensionContext() {
+            log('Checking extension context...');
+
+            if (typeof chrome === 'undefined') {
+                setStatus('extension-status', '❌ Chrome extension APIs not available', 'bad');
+                return false;
+            }
+
+            if (!chrome.runtime) {
+                setStatus('extension-status', '❌ Chrome runtime not available', 'bad');
+                return false;
+            }
+
+            try {
+                const response = await new Promise((resolve, reject) => {
+                    chrome.runtime.sendMessage({ action: 'ping' }, (response) => {
+                        if (chrome.runtime.lastError) {
+                            reject(chrome.runtime.lastError);
+                        } else {
+                            resolve(response);
+                        }
+                    });
+                });
+                setStatus('extension-status', '✅ Extension context active and responding', 'good');
+                log('Extension context check passed', 'success');
+                return true;
+            } catch (error) {
+                setStatus('extension-status', `❌ Extension context error: ${error.message}`, 'bad');
+                log(`Extension context error: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        function checkMainWorld() {
+            log('Checking main world script...');
+
+            // Check if main world script variables exist
+            if (typeof window._extensionInjected !== 'undefined') {
+                log('Main world script is injected', 'success');
+                setStatus('main-world-status', '✅ Main world script is injected', 'good');
+
+                // Try to communicate with main world
+                window.addEventListener('checkMainWorldResponse', function(event) {
+                    log(`Main world response: ${JSON.stringify(event.detail)}`, 'success');
+                    setStatus('main-world-status', `✅ Main world active: ${JSON.stringify(event.detail)}`, 'good');
+                }, { once: true });
+
+                window.dispatchEvent(new CustomEvent('checkMainWorldActive', {
+                    detail: { timestamp: Date.now() }
+                }));
+            } else {
+                log('Main world script not detected', 'error');
+                setStatus('main-world-status', '❌ Main world script not detected', 'bad');
+            }
+        }
+
+        async function checkStorage() {
+            log('Checking storage state...');
+
+            try {
+                const currentTab = await chrome.tabs.getCurrent();
+                if (!currentTab) {
+                    log('Could not get current tab', 'error');
+                    return;
+                }
+
+                const tabId = currentTab.id;
+                log(`Current tab ID: ${tabId}`);
+
+                const result = await chrome.storage.local.get([
+                    `tabLogging_${tabId}`,
+                    `tabErrorLogging_${tabId}`,
+                    'extensionEnabled',
+                    'settings'
+                ]);
+
+                log(`Storage data: ${JSON.stringify(result, null, 2)}`);
+
+                const globalEnabled = result.extensionEnabled !== false;
+                const tabNetworkLogging = result[`tabLogging_${tabId}`];
+                const networkEnabled = globalEnabled && (!tabNetworkLogging || tabNetworkLogging.active === true);
+
+                setStatus('storage-status',
+                    `Global: ${globalEnabled}, Network: ${networkEnabled}, Raw: ${JSON.stringify(tabNetworkLogging)}`,
+                    networkEnabled ? 'good' : 'warning');
+
+            } catch (error) {
+                log(`Storage check error: ${error.message}`, 'error');
+                setStatus('storage-status', `❌ Error: ${error.message}`, 'bad');
+            }
+        }
+
+        async function testRequest() {
+            log('Testing network request...');
+
+            try {
+                const response = await fetch('https://httpbin.org/json');
+                const data = await response.json();
+
+                document.getElementById('test-result').innerHTML =
+                    `<div class="status good">✅ Request successful: ${response.status}</div>`;
+                log(`Test request successful: ${response.status}`, 'success');
+            } catch (error) {
+                document.getElementById('test-result').innerHTML =
+                    `<div class="status bad">❌ Request failed: ${error.message}</div>`;
+                log(`Test request failed: ${error.message}`, 'error');
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('debug-log').innerHTML = '';
+        }
+
+        // Initialize checks
+        window.addEventListener('load', async () => {
+            log('Debug page loaded');
+            await checkExtensionContext();
+            checkMainWorld();
+            await checkStorage();
+        });
+    </script>
+</body>
+</html>

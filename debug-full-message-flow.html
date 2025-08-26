@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Background Console Debug - Full Message Flow</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; }
+        .critical { background: #ffebee; border: 2px solid #f44336; padding: 20px; margin: 20px 0; border-radius: 8px; }
+        .step { background: #f5f5f5; padding: 15px; margin: 10px 0; border-left: 4px solid #2196f3; }
+        .expected { background: #e8f5e9; padding: 15px; margin: 10px 0; border-left: 4px solid #4caf50; }
+        .warning { background: #fff3e0; padding: 15px; margin: 10px 0; border-left: 4px solid #ff9800; }
+        .code { background: #f8f9fa; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 12px; margin: 8px 0; }
+        h2 { color: #1976d2; }
+        h3 { color: #424242; }
+    </style>
+</head>
+<body>
+    <h1>🚨 Complete Message Flow Debug</h1>
+
+    <div class="critical">
+        <h2>🎯 What We're Testing Now</h2>
+        <p>I've added debug messages at EVERY step of the message flow:</p>
+        <ol>
+            <li><strong>Content Script:</strong> "Requesting main-world script injection..."</li>
+            <li><strong>Message Router:</strong> "Received INJECT_MAIN_WORLD_SCRIPT request"</li>
+            <li><strong>Extension State:</strong> "SCRIPT INJECTION REQUEST for tabId"</li>
+            <li><strong>Storage Check:</strong> "currentState = [object]"</li>
+            <li><strong>Result:</strong> Either success or "Extension globally disabled"</li>
+        </ol>
+    </div>
+
+    <div class="step">
+        <h3>🔧 Setup Instructions</h3>
+        <ol>
+            <li><strong>Reload extension:</strong> Go to chrome://extensions/ and reload</li>
+            <li><strong>Open background console:</strong> Extension details → "Inspect background page" (or "Service worker")</li>
+            <li><strong>Clear console:</strong> Right-click → Clear console</li>
+            <li><strong>Reload this page</strong> to trigger the injection request</li>
+        </ol>
+    </div>
+
+    <div class="expected">
+        <h3>✅ Expected Success Messages (if working):</h3>
+        <div class="code">🚨 MESSAGE ROUTER: Received INJECT_MAIN_WORLD_SCRIPT request from tabId: 12345
+🚨 MESSAGE ROUTER: handleScriptInjection called with tabId: 12345
+🚨 MESSAGE ROUTER: Calling extensionState.handleScriptInjection...
+🚀 SCRIPT INJECTION REQUEST for tabId: 12345
+🚀 Current state before injection: {enabled: true}
+🔍 INJECTION CHECK: currentState = {enabled: true}
+🔍 INJECTION CHECK: currentState?.enabled = true
+🔍 INJECTION CHECK: isEnabled = true
+🚨 MESSAGE ROUTER: Got result from extensionState: {success: true}</div>
+    </div>
+
+    <div class="warning">
+        <h3>❌ Expected Failure Messages (current issue):</h3>
+        <div class="code">🚨 MESSAGE ROUTER: Received INJECT_MAIN_WORLD_SCRIPT request from tabId: 12345
+🚨 MESSAGE ROUTER: handleScriptInjection called with tabId: 12345
+🚨 MESSAGE ROUTER: Calling extensionState.handleScriptInjection...
+🚀 SCRIPT INJECTION REQUEST for tabId: 12345
+🚀 Current state before injection: {enabled: false} [OR null/undefined]
+🔍 INJECTION CHECK: currentState = {enabled: false}
+🔍 INJECTION CHECK: isEnabled = false
+❌ INJECTION FAILED: Extension globally disabled - currentState: {enabled: false}
+🚨 MESSAGE ROUTER: Got result from extensionState: {success: false, error: "Extension globally disabled"}</div>
+    </div>
+
+    <div class="step">
+        <h3>🔍 What to Look For</h3>
+
+        <h4>Case 1: No messages at all</h4>
+        <p>→ Background script not running or message not reaching it</p>
+
+        <h4>Case 2: Messages stop at "MESSAGE ROUTER: Received..."</h4>
+        <p>→ Error in message router or extension state module</p>
+
+        <h4>Case 3: Shows "currentState = null" or "undefined"</h4>
+        <p>→ Extension state not loaded from storage</p>
+
+        <h4>Case 4: Shows "currentState = {enabled: false}"</h4>
+        <p>→ Storage contains wrong value, need manual fix</p>
+
+        <h4>Case 5: Shows "currentState = {enabled: true}" but still fails</h4>
+        <p>→ Logic error in the enabled check</p>
+    </div>
+
+    <div class="critical">
+        <h2>📋 Action Required</h2>
+        <p><strong>Please:</strong></p>
+        <ol>
+            <li>Follow the setup instructions above</li>
+            <li>Reload this page after setting up the background console</li>
+            <li>Copy and paste EXACTLY what appears in the background console</li>
+            <li>Also confirm that extension popup shows all toggles as ON (blue)</li>
+        </ol>
+
+        <p>With these debug messages, we'll know exactly where the problem is and can fix it immediately.</p>
+    </div>
+
+    <script>
+        // This page load will trigger the content script and generate the debug messages
+        console.log('🧪 Debug page loaded - this should trigger extension content script');
+        console.log('👀 Check background console for debug messages now');
+
+        // Add a small delay and then make a test request to ensure extension activates
+        setTimeout(() => {
+            fetch('/test-extension-activation', { method: 'GET' })
+                .catch(() => console.log('✅ Test request sent (expected to fail)'));
+        }, 1000);
+    </script>
+</body>
+</html>

@@ -228,49 +228,30 @@ const Popup: React.FC = () => {
         if (globalResponse && 'enabled' in globalResponse) {
           setGlobalPowerEnabled(globalResponse.enabled);
         } else {
-          // Fallback to storage for backward compatibility using StorageService
+          // CRITICAL FIX: Read from chrome.storage.local (where background script saves)
+          // instead of IndexedDB via StorageService
           try {
-            const result = await storageService.get(['extensionEnabled']);
+            const result = await chrome.storage.local.get(['extensionEnabled']);
             setGlobalPowerEnabled(result.extensionEnabled ?? true);
+            console.log('✅ Popup: Loaded extensionEnabled from chrome.storage.local:', result.extensionEnabled);
           } catch (error) {
-            console.error('Failed to get extension enabled state:', error);
+            console.error('❌ Popup: Failed to load from chrome.storage.local:', error);
             setGlobalPowerEnabled(true);
           }
         }
 
-        // Load site-specific state for current tab
-        chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
-          if (tabs[0]?.id && tabs[0]?.url) {
-            try {
-              const siteResponse = await sendChromeMessage({
-                action: 'GET_SITE_SPECIFIC_STATE',
-                tabId: tabs[0].id
-              });
-
-              if (siteResponse && 'enabled' in siteResponse) {
-                setSiteSpecificEnabled(siteResponse.enabled);
-              } else {
-                // Default to enabled for site-specific if no override
-                setSiteSpecificEnabled(true);
-              }
-            } catch (error) {
-              console.error('Error loading site-specific state:', error);
-              setSiteSpecificEnabled(true);
-            }
-          }
-        });
-
       } catch (error) {
         console.error('Error loading extension state:', error);
-        // Fallback to storage using StorageService
+        // CRITICAL FIX: Fallback to chrome.storage.local instead of StorageService
         try {
-          const result = await storageService.get(['extensionEnabled']);
+          const result = await chrome.storage.local.get(['extensionEnabled']);
           setGlobalPowerEnabled(result.extensionEnabled ?? true);
+          console.log('✅ Popup: Fallback loaded extensionEnabled from chrome.storage.local:', result.extensionEnabled);
         } catch (storageError) {
-          console.error('Failed to get extension enabled state from storage:', storageError);
+          console.error('❌ Popup: Failed to load from chrome.storage.local in fallback:', storageError);
           setGlobalPowerEnabled(true);
         }
-        setSiteSpecificEnabled(true);
+        // Site-specific state will be loaded in loadTabStates
       }
     };
 
@@ -278,6 +259,7 @@ const Popup: React.FC = () => {
 
     // Get current tab's logging state (network, error, and token)
     // NEW: Uses Chrome sync for preferences, IndexedDB for real-time counters
+    // UPDATED: Now respects site-specific toggle state
     const loadTabStates = async () => {
       try {
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -286,6 +268,30 @@ const Popup: React.FC = () => {
         const tabId = tabs[0].id;
         const tabUrl = tabs[0].url;
 
+        // Get site-specific state first
+        let siteEnabled = true;
+        try {
+          const siteResponse = await sendChromeMessage({
+            action: 'GET_SITE_SPECIFIC_STATE',
+            tabId: tabId
+          });
+          if (siteResponse && 'enabled' in siteResponse) {
+            siteEnabled = siteResponse.enabled;
+            setSiteSpecificEnabled(siteEnabled);
+          }
+        } catch (error) {
+          console.error('Error loading site-specific state:', error);
+        }
+
+        // If site is disabled, set all logging types to false and return early
+        if (!siteEnabled) {
+          setTabLoggingActive(false);
+          setTabErrorLoggingActive(false);
+          setTabTokenLoggingActive(false);
+          return;
+        }
+
+        // Site is enabled, load individual logging preferences
         // Get logging preferences from Chrome sync (cross-device)
         const syncPrefs = await chromeSyncService.getTabPreferencesForUrl(tabUrl);
 
@@ -317,6 +323,9 @@ const Popup: React.FC = () => {
 
       } catch (error) {
         console.error('Error loading tab states:', error);
+        // Set fallback for site-specific state
+        setSiteSpecificEnabled(true);
+
         // Fallback to sync defaults if everything fails
         try {
           const defaults = await chromeSyncService.getTabDefaults();
@@ -325,10 +334,28 @@ const Popup: React.FC = () => {
           setTabTokenLoggingActive(defaults.tokens);
         } catch (syncError) {
           console.error('Error loading sync defaults:', syncError);
-          // Final fallback to hardcoded defaults
-          setTabLoggingActive(false);
-          setTabErrorLoggingActive(true);
-          setTabTokenLoggingActive(false);
+          // Final fallback: Use settings-based defaults instead of hardcoded ones
+          try {
+            const settingsResult = await storageService.get(['settings']);
+            const settings = settingsResult?.settings || {};
+
+            const networkDefault = settings.networkInterception?.tabSpecific?.defaultState === 'active';
+            const errorDefault = settings.errorLogging?.tabSpecific?.defaultState === 'active';
+            const tokenDefault = settings.tokenLogging?.tabSpecific?.defaultState === 'active';
+
+            setTabLoggingActive(networkDefault);
+            setTabErrorLoggingActive(errorDefault);
+            setTabTokenLoggingActive(tokenDefault);
+
+            console.log('🔄 POPUP: Using settings-based defaults - Network:', networkDefault, 'Error:', errorDefault, 'Token:', tokenDefault);
+          } catch (settingsError) {
+            console.error('Error loading settings defaults:', settingsError);
+            // Ultimate fallback: Use disabled defaults (safer than enabled)
+            setTabLoggingActive(false);
+            setTabErrorLoggingActive(false);
+            setTabTokenLoggingActive(false);
+            console.log('🔄 POPUP: Using ultimate disabled defaults');
+          }
         }
       }
     };
@@ -343,31 +370,39 @@ const Popup: React.FC = () => {
           if (tabs[0]?.id) {
             const tabId = tabs[0].id;
 
-            // Check for network logging changes
-            const networkLoggingKey = `tabLogging_${tabId}`;
-            if (changes[networkLoggingKey]) {
-              const newValue = changes[networkLoggingKey].newValue;
-              if (newValue && typeof newValue === 'object' && 'active' in newValue) {
-                setTabLoggingActive(newValue.active);
+            // Only update individual logging states if site-specific monitoring is enabled
+            if (siteSpecificEnabled) {
+              // Check for network logging changes
+              const networkLoggingKey = `tabLogging_${tabId}`;
+              if (changes[networkLoggingKey]) {
+                const newValue = changes[networkLoggingKey].newValue;
+                if (newValue && typeof newValue === 'object' && 'active' in newValue) {
+                  setTabLoggingActive(newValue.active);
+                }
               }
-            }
 
-            // Check for error logging changes
-            const errorLoggingKey = `tabErrorLogging_${tabId}`;
-            if (changes[errorLoggingKey]) {
-              const newValue = changes[errorLoggingKey].newValue;
-              if (newValue && typeof newValue === 'object' && 'active' in newValue) {
-                setTabErrorLoggingActive(newValue.active);
+              // Check for error logging changes
+              const errorLoggingKey = `tabErrorLogging_${tabId}`;
+              if (changes[errorLoggingKey]) {
+                const newValue = changes[errorLoggingKey].newValue;
+                if (newValue && typeof newValue === 'object' && 'active' in newValue) {
+                  setTabErrorLoggingActive(newValue.active);
+                }
               }
-            }
 
-            // Check for token logging changes
-            const tokenLoggingKey = `tabTokenLogging_${tabId}`;
-            if (changes[tokenLoggingKey]) {
-              const newValue = changes[tokenLoggingKey].newValue;
-              if (newValue && typeof newValue === 'object' && 'active' in newValue) {
-                setTabTokenLoggingActive(newValue.active);
+              // Check for token logging changes
+              const tokenLoggingKey = `tabTokenLogging_${tabId}`;
+              if (changes[tokenLoggingKey]) {
+                const newValue = changes[tokenLoggingKey].newValue;
+                if (newValue && typeof newValue === 'object' && 'active' in newValue) {
+                  setTabTokenLoggingActive(newValue.active);
+                }
               }
+            } else {
+              // Site is disabled, ensure all individual toggles remain off
+              setTabLoggingActive(false);
+              setTabErrorLoggingActive(false);
+              setTabTokenLoggingActive(false);
             }
           }
         });
@@ -400,14 +435,16 @@ const Popup: React.FC = () => {
     const newState = !globalPowerEnabled;
     setGlobalPowerEnabled(newState);
 
-    // Update storage using StorageService (IndexedDB)
+    // CRITICAL FIX: Save directly to chrome.storage.local (where background script reads from)
+    // instead of IndexedDB via StorageService
     try {
-      await storageService.set({ extensionEnabled: newState });
+      await chrome.storage.local.set({ extensionEnabled: newState });
+      console.log('✅ Popup: Saved extensionEnabled to chrome.storage.local:', newState);
     } catch (error) {
-      console.error('Failed to save extension enabled state:', error);
+      console.error('❌ Popup: Failed to save to chrome.storage.local:', error);
     }
 
-    // Update extension state controller for immediate effect
+    // Also update extension state controller for immediate effect
     try {
       const response = await sendChromeMessage({
         action: 'SET_EXTENSION_STATE',
@@ -420,6 +457,73 @@ const Popup: React.FC = () => {
     } catch (error) {
       console.error('Error updating global extension state:', error);
     }
+  };
+
+  // Helper function to toggle all three logging types
+  const toggleAllLoggingTypes = async (enabled: boolean, tabId: number, tabUrl: string) => {
+    const promises = [];
+
+    // Toggle network logging if available
+    if (settings?.networkInterception?.tabSpecific?.enabled) {
+      setTabLoggingActive(enabled);
+      promises.push(
+        chromeSyncService.setTabPreferencesForUrl(tabUrl, { network: enabled }),
+        sendChromeMessage({
+          action: 'setTabNetworkState',
+          tabId,
+          active: enabled
+        })
+      );
+
+      // Send message to content script
+      try {
+        await chrome.tabs.sendMessage(tabId, {
+          action: 'toggleLogging',
+          enabled: enabled
+        });
+      } catch (error) {
+        console.log('Could not send network logging message to tab:', error);
+      }
+    }
+
+    // Toggle error logging if available
+    if (settings?.errorLogging?.tabSpecific?.enabled) {
+      setTabErrorLoggingActive(enabled);
+      promises.push(
+        chromeSyncService.setTabPreferencesForUrl(tabUrl, { errors: enabled }),
+        sendChromeMessage({
+          action: 'setTabErrorState',
+          tabId,
+          active: enabled
+        })
+      );
+
+      // Send message to content script
+      try {
+        await chrome.tabs.sendMessage(tabId, {
+          action: 'toggleErrorLogging',
+          enabled: enabled
+        });
+      } catch (error) {
+        console.log('Could not send error logging message to tab:', error);
+      }
+    }
+
+    // Toggle token logging if available
+    if (settings?.tokenLogging?.tabSpecific?.enabled) {
+      setTabTokenLoggingActive(enabled);
+      promises.push(
+        chromeSyncService.setTabPreferencesForUrl(tabUrl, { tokens: enabled }),
+        sendChromeMessage({
+          action: 'setTabTokenState',
+          tabId,
+          active: enabled
+        })
+      );
+    }
+
+    // Wait for all operations to complete
+    await Promise.allSettled(promises);
   };
 
   // MEMORY LEAK FIX: Toggle site-specific state (current site only)
@@ -438,6 +542,21 @@ const Popup: React.FC = () => {
 
           if (!response?.success) {
             console.warn('Failed to update site-specific extension state:', response);
+          } else {
+            // Automatically toggle all three logging types to match the site-specific state
+            await toggleAllLoggingTypes(newState, tabs[0].id, tabs[0].url);
+
+            if (newState) {
+              // If we just enabled the site, retry script injection
+              try {
+                await chrome.tabs.sendMessage(tabs[0].id, {
+                  action: 'retryScriptInjection'
+                });
+                console.log('Sent script injection retry request to content script');
+              } catch (error) {
+                console.log('Could not send injection retry message to tab (may not have content script):', error);
+              }
+            }
           }
         } catch (error) {
           console.error('Error updating site-specific extension state:', error);

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Batch Optimization Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .button-group {
+      margin: 20px 0;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    button {
+      padding: 10px 15px;
+      margin: 5px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .normal { background: #4CAF50; color: white; }
+    .priority { background: #ff9800; color: white; }
+    .error { background: #f44336; color: white; }
+    .info { background: #2196F3; color: white; }
+    .status {
+      margin-top: 20px;
+      padding: 15px;
+      border-left: 4px solid #2196F3;
+      background: #f5f5f5;
+    }
+    .timestamp {
+      color: #666;
+      font-size: 12px;
+      margin-left: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🚀 Batch Optimization Test</h1>
+  <p>Test the improved batching with priority flushing:</p>
+
+  <div class="button-group">
+    <button class="normal" onclick="sendNormalRequests()">
+      Send Normal Requests (3x)
+    </button>
+    <button class="priority" onclick="sendErrorRequest()">
+      Send Error Request (Priority)
+    </button>
+    <button class="error" onclick="triggerConsoleError()">
+      Trigger Console Error (Priority)
+    </button>
+    <button class="info" onclick="triggerConsoleInfo()">
+      Trigger Console Info (Normal)
+    </button>
+  </div>
+
+  <div class="button-group">
+    <button class="normal" onclick="mixedBatch()">
+      Mixed Batch (6 normal + 1 error)
+    </button>
+    <button class="priority" onclick="slowRequest()">
+      Simulate Slow Request
+    </button>
+    <button class="info" onclick="clearResults()">
+      Clear Results
+    </button>
+  </div>
+
+  <div id="status" class="status">
+    <strong>Status:</strong> Ready for testing<br>
+    <strong>Optimizations:</strong>
+    <ul>
+      <li>✅ Batch size reduced: 8 → 4 items</li>
+      <li>✅ Flush interval reduced: 4s → 2s</li>
+      <li>✅ Priority flushing for errors (immediate)</li>
+      <li>✅ Priority flushing for slow requests (>5s)</li>
+      <li>✅ Priority flushing for console errors/warnings</li>
+    </ul>
+  </div>
+
+  <div id="results"></div>
+
+  <script>
+    let testCounter = 0;
+
+    function log(message, type = 'info') {
+      const results = document.getElementById('results');
+      const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
+      const div = document.createElement('div');
+      div.innerHTML = `<span style="color: ${type === 'error' ? 'red' : type === 'warn' ? 'orange' : 'blue'}">[${type.toUpperCase()}]</span> ${message} <span class="timestamp">${timestamp}</span>`;
+      results.appendChild(div);
+      results.scrollTop = results.scrollHeight;
+    }
+
+    async function sendNormalRequests() {
+      log('🔄 Sending 3 normal requests...');
+      for (let i = 1; i <= 3; i++) {
+        try {
+          await fetch(`https://jsonplaceholder.typicode.com/posts/${i}`);
+          log(`✅ Normal request ${i} completed`);
+        } catch (error) {
+          log(`❌ Normal request ${i} failed: ${error.message}`, 'error');
+        }
+      }
+      log('📊 Normal requests should batch (wait for 4 total or 2 seconds)');
+    }
+
+    async function sendErrorRequest() {
+      log('🚨 Sending error request (should flush immediately)...');
+      try {
+        await fetch('https://httpstat.us/500');
+        log('❌ Error request returned 500', 'error');
+      } catch (error) {
+        log(`❌ Error request failed: ${error.message}`, 'error');
+      }
+      log('⚡ Error request should trigger immediate flush');
+    }
+
+    function triggerConsoleError() {
+      log('🚨 Triggering console error (should flush immediately)...');
+      console.error('Test error message - should trigger immediate flush!');
+      log('⚡ Console error should trigger immediate flush', 'error');
+    }
+
+    function triggerConsoleInfo() {
+      log('ℹ️ Triggering console info (normal priority)...');
+      console.info('Test info message - normal batching');
+      log('📊 Console info should batch normally');
+    }
+
+    async function mixedBatch() {
+      log('🎯 Starting mixed batch test...');
+
+      // Send 6 normal requests
+      for (let i = 1; i <= 6; i++) {
+        try {
+          await fetch(`https://jsonplaceholder.typicode.com/posts/${i}`);
+          log(`✅ Mixed batch request ${i}`);
+        } catch (error) {
+          log(`❌ Mixed batch request ${i} failed`, 'error');
+        }
+        await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
+      }
+
+      // Send 1 error request that should trigger immediate flush
+      log('🚨 Adding error to mixed batch...');
+      try {
+        await fetch('https://httpstat.us/404');
+        log('❌ 404 error added to batch', 'error');
+      } catch (error) {
+        log(`❌ Error added to batch: ${error.message}`, 'error');
+      }
+
+      log('⚡ Mixed batch should flush immediately due to error');
+    }
+
+    async function slowRequest() {
+      log('🐌 Simulating slow request...');
+      const startTime = Date.now();
+
+      try {
+        // Use a service that introduces delay
+        await fetch('https://httpstat.us/200?sleep=6000');
+        const duration = Date.now() - startTime;
+        log(`🐌 Slow request completed in ${duration}ms`);
+        log('⚡ Slow request (>5s) should trigger priority flush');
+      } catch (error) {
+        log(`❌ Slow request failed: ${error.message}`, 'error');
+      }
+    }
+
+    function clearResults() {
+      document.getElementById('results').innerHTML = '';
+      log('🧹 Results cleared');
+    }
+
+    // Initial status
+    log('🚀 Batch optimization test loaded');
+    log('📝 Check your extension dashboard to see improved response times');
+  </script>
+</body>
+</html>

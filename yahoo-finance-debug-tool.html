@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yahoo Finance Fix Debug Tool</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .debug-section {
+      background: white;
+      margin: 20px 0;
+      padding: 20px;
+      border-radius: 8px;
+      border-left: 4px solid #2196F3;
+    }
+    .error { border-left-color: #f44336; }
+    .success { border-left-color: #4CAF50; }
+    .warning { border-left-color: #ff9800; }
+
+    button {
+      padding: 10px 15px;
+      margin: 5px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      background: #2196F3;
+      color: white;
+    }
+    button:hover { background: #1976D2; }
+    .danger { background: #f44336; }
+    .danger:hover { background: #d32f2f; }
+    .success { background: #4CAF50; }
+    .success:hover { background: #388e3c; }
+
+    pre {
+      background: #f8f8f8;
+      padding: 15px;
+      border-radius: 5px;
+      overflow-x: auto;
+      font-size: 12px;
+    }
+    .status-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+    .status-enabled { background: #4CAF50; }
+    .status-disabled { background: #f44336; }
+    .status-unknown { background: #999; }
+  </style>
+</head>
+<body>
+  <h1>🔧 Yahoo Finance Extension Debug Tool</h1>
+
+  <div class="debug-section error">
+    <h3>🚨 Current Issue</h3>
+    <p><strong>Problem:</strong> "Extension disabled for yahoo.com" - Main-world script injection failed</p>
+    <p><strong>Expected:</strong> Extension should work on Yahoo Finance with logging enabled</p>
+    <p><strong>Current URL:</strong> <span id="currentUrl">Loading...</span></p>
+    <p><strong>Current Domain:</strong> <span id="currentDomain">Loading...</span></p>
+  </div>
+
+  <div class="debug-section">
+    <h3>🔍 Diagnostic Tools</h3>
+    <div style="margin: 15px 0;">
+      <button onclick="checkExtensionState()">Check Extension State</button>
+      <button onclick="checkSiteSpecificState()">Check Site-Specific State</button>
+      <button onclick="checkStorageState()">Check Storage State</button>
+      <button onclick="testScriptInjection()">Test Script Injection</button>
+    </div>
+    <div style="margin: 15px 0;">
+      <button class="success" onclick="forceEnableGlobal()">Force Enable Global Extension</button>
+      <button class="success" onclick="enableYahooFinance()">Force Enable Yahoo Finance</button>
+      <button class="danger" onclick="resetAllSiteStates()">Reset All Site States</button>
+      <button onclick="retryInjection()">Retry Injection</button>
+    </div>
+  </div>
+
+  <div class="debug-section">
+    <h3>📊 Current Status</h3>
+    <div id="statusDisplay">
+      <p><span class="status-indicator status-unknown"></span><strong>Global Extension:</strong> <span id="globalStatus">Unknown</span></p>
+      <p><span class="status-indicator status-unknown"></span><strong>Yahoo Finance:</strong> <span id="yahooStatus">Unknown</span></p>
+      <p><span class="status-indicator status-unknown"></span><strong>Main-world Script:</strong> <span id="scriptStatus">Unknown</span></p>
+    </div>
+  </div>
+
+  <div class="debug-section">
+    <h3>📋 Debug Output</h3>
+    <pre id="debugOutput">Click a diagnostic button to see results...</pre>
+  </div>
+
+  <div class="debug-section">
+    <h3>🔄 Quick Fixes for "Extension globally disabled"</h3>
+    <ol>
+      <li><strong>Check Extension State:</strong> Click "Check Extension State" to see current status</li>
+      <li><strong>Force Enable Global:</strong> Click "Force Enable Global Extension" to reset global state</li>
+      <li><strong>Force Enable Site:</strong> Click "Force Enable Yahoo Finance" to override any site-specific disabled state</li>
+      <li><strong>Retry Injection:</strong> Click "Retry Injection" to attempt script injection again</li>
+      <li><strong>Reset if needed:</strong> If problems persist, click "Reset All Site States" to start fresh</li>
+    </ol>
+    <p><strong>Enhanced Logging:</strong> Check the browser console (F12) for detailed state debugging information.</p>
+  </div>
+
+  <script>
+    // Initialize page
+    document.getElementById('currentUrl').textContent = window.location.href;
+    document.getElementById('currentDomain').textContent = window.location.hostname;
+
+    function log(message, type = 'info') {
+      const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
+      const output = document.getElementById('debugOutput');
+      const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+      output.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+      output.scrollTop = output.scrollHeight;
+    }
+
+    function updateStatus(element, status, isEnabled = null) {
+      const indicator = element.previousElementSibling;
+      if (isEnabled === true) {
+        indicator.className = 'status-indicator status-enabled';
+      } else if (isEnabled === false) {
+        indicator.className = 'status-indicator status-disabled';
+      } else {
+        indicator.className = 'status-indicator status-unknown';
+      }
+      element.textContent = status;
+    }
+
+    async function sendMessage(message) {
+      try {
+        if (typeof chrome === 'undefined' || !chrome.runtime) {
+          throw new Error('Chrome extension API not available');
+        }
+        const response = await chrome.runtime.sendMessage(message);
+        return response;
+      } catch (error) {
+        log(`Chrome message failed: ${error.message}`, 'error');
+        return { error: error.message };
+      }
+    }
+
+    async function checkExtensionState() {
+      log('Checking global extension state...', 'info');
+      try {
+        const response = await sendMessage({ action: 'GET_EXTENSION_STATE' });
+        if (response && response.enabled !== undefined) {
+          log(`Global extension enabled: ${response.enabled}`, 'success');
+          updateStatus(document.getElementById('globalStatus'),
+            response.enabled ? 'Enabled' : 'Disabled', response.enabled);
+          return response;
+        } else {
+          log('Failed to get extension state', 'error');
+          updateStatus(document.getElementById('globalStatus'), 'Error', null);
+        }
+      } catch (error) {
+        log(`Error checking extension state: ${error.message}`, 'error');
+        updateStatus(document.getElementById('globalStatus'), 'Error', null);
+      }
+    }
+
+    async function checkSiteSpecificState() {
+      log('Checking site-specific state for current domain...', 'info');
+      try {
+        // Get current tab info
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tabs[0]) {
+          log('No active tab found', 'error');
+          return;
+        }
+
+        const response = await sendMessage({
+          action: 'GET_SITE_SPECIFIC_STATE',
+          tabId: tabs[0].id
+        });
+
+        if (response && response.enabled !== undefined) {
+          const domain = response.domain || 'unknown';
+          log(`Site-specific state for ${domain}: ${response.enabled}`, 'success');
+          updateStatus(document.getElementById('yahooStatus'),
+            response.enabled ? 'Enabled' : 'Disabled', response.enabled);
+
+          log(`Full response: ${JSON.stringify(response, null, 2)}`, 'info');
+          return response;
+        } else {
+          log('Failed to get site-specific state', 'error');
+          updateStatus(document.getElementById('yahooStatus'), 'Error', null);
+        }
+      } catch (error) {
+        log(`Error checking site-specific state: ${error.message}`, 'error');
+        updateStatus(document.getElementById('yahooStatus'), 'Error', null);
+      }
+    }
+
+    async function checkStorageState() {
+      log('Checking raw storage state...', 'info');
+      try {
+        const response = await sendMessage({ action: 'GET_RAW_STORAGE' });
+        if (response) {
+          log('Raw storage state:', 'info');
+          log(JSON.stringify(response, null, 2), 'info');
+          return response;
+        }
+      } catch (error) {
+        log(`Error checking storage: ${error.message}`, 'error');
+      }
+    }
+
+    async function testScriptInjection() {
+      log('Testing script injection...', 'info');
+      try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tabs[0]) {
+          log('No active tab found', 'error');
+          return;
+        }
+
+        const response = await sendMessage({
+          action: 'TEST_SCRIPT_INJECTION',
+          tabId: tabs[0].id
+        });
+
+        if (response && response.success) {
+          log('Script injection test successful', 'success');
+          updateStatus(document.getElementById('scriptStatus'), 'Working', true);
+        } else {
+          log(`Script injection test failed: ${response.error || 'Unknown error'}`, 'error');
+          updateStatus(document.getElementById('scriptStatus'), 'Failed', false);
+        }
+        return response;
+      } catch (error) {
+        log(`Error testing script injection: ${error.message}`, 'error');
+        updateStatus(document.getElementById('scriptStatus'), 'Error', null);
+      }
+    }
+
+    async function forceEnableGlobal() {
+      log('Force enabling global extension...', 'info');
+      try {
+        const response = await sendMessage({ action: 'FORCE_ENABLE_EXTENSION' });
+        if (response && response.success) {
+          log('Successfully force enabled global extension', 'success');
+          updateStatus(document.getElementById('globalStatus'), 'Enabled', true);
+
+          // Refresh all status checks
+          await checkExtensionState();
+          await checkSiteSpecificState();
+
+          // Try injection retry
+          await retryInjection();
+        } else {
+          log(`Failed to force enable extension: ${response.error || 'Unknown error'}`, 'error');
+        }
+      } catch (error) {
+        log(`Error force enabling extension: ${error.message}`, 'error');
+      }
+    }
+
+    async function enableYahooFinance() {
+      log('Force enabling Yahoo Finance...', 'info');
+      try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tabs[0]) {
+          log('No active tab found', 'error');
+          return;
+        }
+
+        // Force enable the site
+        const response = await sendMessage({
+          action: 'SET_EXTENSION_STATE',
+          tabId: tabs[0].id,
+          enabled: true,
+          force: true
+        });
+
+        if (response && response.success) {
+          log('Successfully enabled Yahoo Finance', 'success');
+          updateStatus(document.getElementById('yahooStatus'), 'Enabled', true);
+
+          // Try to retry injection
+          await retryInjection();
+        } else {
+          log(`Failed to enable Yahoo Finance: ${response.error || 'Unknown error'}`, 'error');
+        }
+      } catch (error) {
+        log(`Error enabling Yahoo Finance: ${error.message}`, 'error');
+      }
+    }
+
+    async function resetAllSiteStates() {
+      if (!confirm('This will reset all site-specific states. Continue?')) {
+        return;
+      }
+
+      log('Resetting all site states...', 'warning');
+      try {
+        const response = await sendMessage({ action: 'RESET_SITE_STATES' });
+        if (response && response.success) {
+          log('Successfully reset all site states', 'success');
+          // Refresh status
+          await checkExtensionState();
+          await checkSiteSpecificState();
+        } else {
+          log(`Failed to reset site states: ${response.error || 'Unknown error'}`, 'error');
+        }
+      } catch (error) {
+        log(`Error resetting site states: ${error.message}`, 'error');
+      }
+    }
+
+    async function retryInjection() {
+      log('Retrying script injection...', 'info');
+      try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tabs[0]) {
+          log('No active tab found', 'error');
+          return;
+        }
+
+        const response = await sendMessage({
+          action: 'RETRY_SCRIPT_INJECTION',
+          tabId: tabs[0].id
+        });
+
+        if (response && response.success) {
+          log('Script injection retry successful', 'success');
+          updateStatus(document.getElementById('scriptStatus'), 'Working', true);
+        } else {
+          log(`Script injection retry failed: ${response.error || 'Unknown error'}`, 'error');
+          updateStatus(document.getElementById('scriptStatus'), 'Failed', false);
+        }
+      } catch (error) {
+        log(`Error retrying injection: ${error.message}`, 'error');
+      }
+    }
+
+    // Auto-run initial checks
+    setTimeout(async () => {
+      log('Running initial diagnostics...', 'info');
+      await checkExtensionState();
+      await checkSiteSpecificState();
+    }, 1000);
+  </script>
+</body>
+</html>

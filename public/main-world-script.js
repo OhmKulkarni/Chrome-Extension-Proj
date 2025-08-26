@@ -42,10 +42,11 @@ let isIntercepting = false;
 let isConsoleIntercepting = false;
 
 // State tracking for main-world context (no direct Chrome API access)
+// FIX: Start with disabled defaults to prevent inappropriate logging on tab reactivation
 let mainWorldState = {
   extensionEnabled: true,
-  networkLoggingEnabled: true,
-  consoleLoggingEnabled: true
+  networkLoggingEnabled: false,  // Start disabled, will be enabled by content script if needed
+  consoleLoggingEnabled: false   // Start disabled, will be enabled by content script if needed
 };
 
 // Error statistics tracking
@@ -946,25 +947,8 @@ try {
 
     originalConsoleLog.call(console, 'MAIN-WORLD: Error event listeners added - uncaught errors will now be captured');
 
-    // Test uncaught error handling after a short delay to ensure everything is set up
-    setTimeout(() => {
-      originalConsoleLog.call(console, 'MAIN-WORLD: Testing uncaught error handling...');
-      try {
-        // This should trigger our uncaught error handler
-        window.testErrorHandler = () => {
-          throw new Error('Test uncaught error - this should be captured by extension');
-        };
-        window.testErrorHandler();
-      } catch (e) {
-        originalConsoleLog.call(console, 'MAIN-WORLD: Test error was caught in try-catch, not by global handler');
-      }
-
-      // Test with setTimeout to avoid try-catch
-      setTimeout(() => {
-        originalConsoleLog.call(console, 'MAIN-WORLD: Triggering async test error...');
-        throw new Error('Async test uncaught error - this should be captured by extension');
-      }, 100);
-    }, 1000);
+    // NOTE: Automatic test code removed to prevent spam in production
+    // Test functions are still available manually: generateTestError(), generateTestRejection()
   };
 
   // Stop interception
@@ -1019,28 +1003,51 @@ try {
     // Request initial settings
     window.dispatchEvent(new CustomEvent('extensionRequestSettings'));
 
-    // Wait a bit for content script to be ready
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Wait longer for content script to be ready and properly initialized
+    await new Promise(resolve => setTimeout(resolve, 300));
 
-    // Check initial states
+    // Check initial states - with multiple retries for tab reactivation scenarios
     originalConsoleLog.call(console, ' MAIN_WORLD: Checking initial logging states...');
-    const networkEnabled = await isLoggingEnabled();
-    const consoleEnabled = await isConsoleLoggingEnabled();
 
-    originalConsoleLog.call(console, ' MAIN_WORLD: Initial states - Network:', networkEnabled, 'Console:', consoleEnabled);
+    let networkEnabled = false;
+    let consoleEnabled = false;
+    let retryCount = 0;
+    const maxRetries = 3;
 
-    if (networkEnabled) {
-      originalConsoleLog.call(console, ' MAIN_WORLD: Network logging enabled, starting interception...');
-      startInterception();
-    } else {
-      originalConsoleLog.call(console, ' MAIN_WORLD: Network logging disabled, not starting interception');
+    while (retryCount < maxRetries) {
+      try {
+        networkEnabled = await isLoggingEnabled();
+        consoleEnabled = await isConsoleLoggingEnabled();
+
+        originalConsoleLog.call(console, ` MAIN_WORLD: Initial states (attempt ${retryCount + 1}) - Network:`, networkEnabled, 'Console:', consoleEnabled);
+
+        // If we got valid responses, break out of retry loop
+        if (networkEnabled !== null && consoleEnabled !== null) {
+          break;
+        }
+      } catch (error) {
+        originalConsoleLog.call(console, ` MAIN_WORLD: Error getting initial states (attempt ${retryCount + 1}):`, error);
+      }
+
+      retryCount++;
+      if (retryCount < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
     }
 
-    if (consoleEnabled) {
-      originalConsoleLog.call(console, ' MAIN_WORLD: Console logging enabled, starting console interception...');
+    // Only start interception if explicitly enabled (conservative approach)
+    if (networkEnabled === true) {
+      originalConsoleLog.call(console, ' MAIN_WORLD: Network logging confirmed enabled, starting interception...');
+      startInterception();
+    } else {
+      originalConsoleLog.call(console, ' MAIN_WORLD: Network logging disabled/unknown, not starting interception');
+    }
+
+    if (consoleEnabled === true) {
+      originalConsoleLog.call(console, ' MAIN_WORLD: Console logging confirmed enabled, starting console interception...');
       startConsoleInterception();
     } else {
-      originalConsoleLog.call(console, ' MAIN_WORLD: Console logging disabled, not starting console interception');
+      originalConsoleLog.call(console, ' MAIN_WORLD: Console logging disabled/unknown, not starting console interception');
     }
   })();
 
@@ -1199,5 +1206,17 @@ originalConsoleLog.call(console, 'MAIN-WORLD: Network interception script loaded
 originalConsoleLog.call(console, 'MAIN-WORLD: Use getErrorStats() to see error capture statistics');
 originalConsoleLog.call(console, 'MAIN-WORLD: Use generateTestError() or generateTestRejection() to test error capture');
 originalConsoleLog.call(console, 'MAIN-WORLD: Use generateTestConsoleMessages() to test console message capture');
+
+// FIX: Request current logging state from content script after initialization
+// This ensures the main world script gets the correct state even if it loads after state changes
+setTimeout(() => {
+  originalConsoleLog.call(console, 'MAIN-WORLD: Requesting current logging state...');
+  window.dispatchEvent(new CustomEvent('contentScriptRequest', {
+    detail: {
+      action: 'getCurrentLoggingState',
+      timestamp: Date.now()
+    }
+  }));
+}, 100);
 
 } // End of main initialization block

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extension Debug Test - Post Storage Fix</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .test-section { background: #f5f5f5; padding: 15px; margin: 15px 0; border-left: 4px solid #007cba; }
+        .success { border-left-color: #28a745; background: #f8f9fa; }
+        .error { border-left-color: #dc3545; background: #f8d7da; }
+        button { background: #007cba; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #005a87; }
+        #results { font-family: monospace; background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Extension Debug Test - Post Storage Fix</h1>
+
+    <div class="test-section">
+        <h2>🧪 Testing Instructions</h2>
+        <ol>
+            <li>Reload the extension after the latest build</li>
+            <li>Open extension popup and verify all toggles are ON</li>
+            <li>Open browser console and look for debug messages</li>
+            <li>Run tests below to verify functionality</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>Expected Debug Messages</h2>
+        <p>If the storage fix worked, you should see in the background console:</p>
+        <pre>
+🔍 ExtensionStateModule: Raw storage data: {...}
+🔌 ExtensionStateModule: Using extensionEnabled: true
+🔌 ExtensionStateModule: State loaded, enabled: true
+        </pre>
+        <p>And in the content script console:</p>
+        <pre>
+✅ Main-world script injection successful
+        </pre>
+        <p>Instead of:</p>
+        <pre>
+⚠️ Main-world script injection failed: Extension globally disabled
+        </pre>
+    </div>
+
+    <div class="test-section">
+        <h2>🌐 Network Request Tests</h2>
+        <button onclick="testSimpleGET()">Test Simple GET Request</button>
+        <button onclick="testPOSTRequest()">Test POST Request</button>
+        <button onclick="testMultipleRequests()">Test Multiple Requests</button>
+        <button onclick="clearResults()">Clear Results</button>
+
+        <div id="results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🖥️ Console Event Tests</h2>
+        <button onclick="testConsoleError()">Test Console Error</button>
+        <button onclick="testConsoleWarn()">Test Console Warning</button>
+        <button onclick="testConsoleLog()">Test Console Log</button>
+    </div>
+
+    <script>
+        let testCounter = 0;
+
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#dc3545' : type === 'success' ? '#28a745' : '#007cba';
+            results.innerHTML += `<div style="color: ${color}; margin: 2px 0;">[${timestamp}] ${message}</div>`;
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            console.clear();
+            log('🧹 Results cleared', 'success');
+        }
+
+        async function testSimpleGET() {
+            testCounter++;
+            log(`🌐 Test ${testCounter}: Simple GET request`, 'info');
+
+            try {
+                const response = await fetch(`/api/test-get-${testCounter}?timestamp=${Date.now()}`);
+                log(`✅ GET request completed - Status: ${response.status}`, 'success');
+            } catch (error) {
+                log(`✅ GET request sent (expected to fail) - Error: ${error.message}`, 'success');
+            }
+        }
+
+        async function testPOSTRequest() {
+            testCounter++;
+            log(`📤 Test ${testCounter}: POST request`, 'info');
+
+            try {
+                const response = await fetch(`/api/test-post-${testCounter}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ test: 'data', counter: testCounter, timestamp: Date.now() })
+                });
+                log(`✅ POST request completed - Status: ${response.status}`, 'success');
+            } catch (error) {
+                log(`✅ POST request sent (expected to fail) - Error: ${error.message}`, 'success');
+            }
+        }
+
+        async function testMultipleRequests() {
+            log(`🔄 Test: Multiple simultaneous requests`, 'info');
+
+            const promises = [];
+            for (let i = 1; i <= 3; i++) {
+                testCounter++;
+                promises.push(
+                    fetch(`/api/batch-test-${testCounter}?batch=${i}&timestamp=${Date.now()}`)
+                    .catch(error => ({ error: error.message, counter: testCounter }))
+                );
+            }
+
+            const results = await Promise.allSettled(promises);
+            log(`✅ Batch requests completed - ${results.length} requests sent`, 'success');
+        }
+
+        function testConsoleError() {
+            testCounter++;
+            log(`❌ Test ${testCounter}: Console Error`, 'error');
+            console.error(`Test error message #${testCounter} - ${new Date().toISOString()}`);
+        }
+
+        function testConsoleWarn() {
+            testCounter++;
+            log(`⚠️ Test ${testCounter}: Console Warning`, 'info');
+            console.warn(`Test warning message #${testCounter} - ${new Date().toISOString()}`);
+        }
+
+        function testConsoleLog() {
+            testCounter++;
+            log(`📝 Test ${testCounter}: Console Log`, 'info');
+            console.log(`Test log message #${testCounter} - ${new Date().toISOString()}`);
+        }
+
+        // Initialize
+        log('🚀 Extension debug test page loaded', 'success');
+        log('👉 Check browser console for extension debug messages', 'info');
+        log('📊 Look for storage debug info in background console', 'info');
+    </script>
+</body>
+</html>

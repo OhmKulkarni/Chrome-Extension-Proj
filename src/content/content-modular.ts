@@ -34,8 +34,8 @@ const defaultModuleConfig = {
   },
   communication: {
     enabled: true, // Always enabled for coordination
-    batchSize: 8,
-    flushInterval: 4000
+    batchSize: 4,        // REDUCED: Smaller batches for faster processing
+    flushInterval: 2000  // REDUCED: 2 seconds instead of 4 for better responsiveness
   }
 }
 
@@ -105,6 +105,7 @@ async function initializeModularArchitecture(): Promise<void> {
     await sharedInfrastructure.initialize()
 
     // Request main-world script injection for full website console/network interception
+    let mainWorldInjected = false
     try {
       console.log('🌍 Requesting main-world script injection...')
       const injectionResponse = await chrome.runtime.sendMessage({
@@ -112,11 +113,36 @@ async function initializeModularArchitecture(): Promise<void> {
       })
       if (injectionResponse?.success) {
         console.log('✅ Main-world script injection successful')
+        mainWorldInjected = true
       } else {
         console.warn('⚠️ Main-world script injection failed:', injectionResponse?.error)
+        mainWorldInjected = false
       }
     } catch (error) {
       console.error('❌ Failed to request main-world script injection:', error)
+      mainWorldInjected = false
+    }
+
+    // Fallback: Enable console capturing in content script if main-world injection failed
+    if (!mainWorldInjected) {
+      console.log('🔄 Main-world injection failed - enabling content script console fallback')
+      try {
+        // Update configuration to enable console capturing as fallback
+        const fallbackConfig = {
+          ...moduleConfig,
+          console: {
+            ...moduleConfig.console,
+            enabled: true, // Enable console capturing as fallback
+            levels: ['error', 'warn', 'log', 'info'] as ('error' | 'warn' | 'info' | 'log' | 'debug')[]
+          }
+        }
+
+        // Update the shared infrastructure with fallback configuration
+        await sharedInfrastructure.updateConfiguration(fallbackConfig)
+        console.log('✅ Console fallback enabled - capturing errors and warnings via content script')
+      } catch (fallbackError) {
+        console.error('❌ Failed to enable console fallback:', fallbackError)
+      }
     }
 
     console.log('✅ Modular architecture initialized successfully')
@@ -244,10 +270,11 @@ async function main(): Promise<void> {
     setupPageVisibilityOptimization()
     setupCleanup()
 
+    // NOTE: Automatic testing disabled - can be run manually via modularArchitecture.test()
     // Run integration test after a short delay
-    setTimeout(() => {
-      testModularArchitecture()
-    }, 2000)
+    // setTimeout(() => {
+    //   testModularArchitecture()
+    // }, 2000)
 
     console.log('🎉 Modular content script initialization complete')
 

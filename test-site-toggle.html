@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Site-Specific Toggle Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .status { padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .good { background: #d4edda; color: #155724; }
+        .bad { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+        button { padding: 10px 15px; margin: 5px; background: #007cba; color: white; border: none; cursor: pointer; }
+        .log { font-family: monospace; font-size: 12px; margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <h1>🎯 Site-Specific Toggle Test</h1>
+    <p>Test if the site-specific extension toggle is working properly.</p>
+
+    <div class="status good">
+        <strong>Instructions:</strong><br>
+        1. Open the extension popup<br>
+        2. Toggle the "Enable for this site" switch OFF<br>
+        3. Close and reopen the popup - it should still be OFF<br>
+        4. Toggle it back ON<br>
+        5. Close and reopen the popup - it should still be ON<br>
+        6. Check this page for status updates
+    </div>
+
+    <div>
+        <button onclick="checkExtensionStatus()">🔍 Check Extension Status</button>
+        <button onclick="testNetworkRequest()">📡 Test Network Request</button>
+        <button onclick="clearLog()">🧹 Clear Log</button>
+    </div>
+
+    <div id="log"></div>
+
+    <script>
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = 'log';
+            div.style.color = type === 'error' ? 'red' : type === 'success' ? 'green' : '#333';
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            document.getElementById('log').appendChild(div);
+        }
+
+        async function checkExtensionStatus() {
+            log('🔍 Checking extension status...');
+
+            try {
+                // Check if extension is available
+                if (typeof chrome === 'undefined' || !chrome.runtime) {
+                    log('❌ Extension not available', 'error');
+                    return;
+                }
+
+                // Check if main world script is injected
+                if (window._extensionInjected) {
+                    log('✅ Main world script is injected', 'success');
+                } else {
+                    log('⚠️ Main world script not detected - extension may be disabled for this site', 'error');
+                }
+
+                // Try to send a message to the background script
+                const response = await chrome.runtime.sendMessage({ action: 'ping' });
+                if (response) {
+                    log('✅ Background script is responding', 'success');
+                } else {
+                    log('⚠️ Background script not responding', 'error');
+                }
+
+            } catch (error) {
+                log(`❌ Error checking status: ${error.message}`, 'error');
+            }
+        }
+
+        async function testNetworkRequest() {
+            log('📡 Making test network request...');
+
+            try {
+                const response = await fetch('https://httpbin.org/json');
+                const data = await response.json();
+                log(`✅ Network request successful: ${response.status}`, 'success');
+
+                // If extension is working, this request should appear in the dashboard
+                log('💡 If extension is enabled and working, this request should appear in your dashboard');
+
+            } catch (error) {
+                log(`❌ Network request failed: ${error.message}`, 'error');
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+            log('🟢 Log cleared');
+        }
+
+        // Auto-check on page load
+        window.addEventListener('load', () => {
+            log('🟢 Page loaded');
+            log(`📍 Current domain: ${window.location.hostname}`);
+            checkExtensionStatus();
+        });
+    </script>
+</body>
+</html>

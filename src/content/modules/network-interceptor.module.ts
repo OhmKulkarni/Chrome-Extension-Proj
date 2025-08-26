@@ -122,9 +122,11 @@ export class NetworkInterceptorModule {
    * Notify all listeners of a network request
    */
   private notifyListeners(request: NetworkRequest): void {
+    console.log(`📢 NetworkInterceptor: Notifying ${this.listeners.size} listeners for ${request.method} ${request.url}`)
     this.listeners.forEach(listener => {
       try {
         listener(request)
+        console.log(`✅ NetworkInterceptor: Listener notified successfully`)
       } catch (error) {
         console.error('NetworkInterceptorModule: Listener error:', error)
       }
@@ -158,7 +160,10 @@ export class NetworkInterceptorModule {
 
     XMLHttpRequest.prototype.send = function(body?: Document | XMLHttpRequestBodyInit | null) {
       const interceptor = (this as any)._networkInterceptor
+      console.log(`🌐 NetworkInterceptor: XHR send called for ${interceptor?.url || 'unknown'}`)
+
       if (!interceptor) {
+        console.log(`⚠️ NetworkInterceptor: No interceptor data found`)
         return originalXHRSend.call(this, body)
       }
 
@@ -319,6 +324,8 @@ export class NetworkInterceptorModule {
       const realStartTime = Date.now() // Real timestamp for storage
       const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
       const method = init?.method || 'GET'
+
+      console.log(`🌐 NetworkInterceptor: Fetch called for ${method} ${url}`)
 
       // Calculate request size and body
       let requestBody: string | undefined = undefined
@@ -512,17 +519,34 @@ export class NetworkInterceptorModule {
    * Check if request should be filtered
    */
   private shouldFilter(request: NetworkRequest): boolean {
+    console.log(`🔍 NetworkInterceptor: shouldFilter check for ${request.method} ${request.url}`)
+
     // URL filters
     if (this.config.urlFilters && this.config.urlFilters.length > 0) {
-      const matchesFilter = this.config.urlFilters.some(filter => filter.test(request.url))
-      if (!matchesFilter) return true
+      console.log(`🔍 NetworkInterceptor: Checking ${this.config.urlFilters.length} URL filters`)
+      const matchesFilter = this.config.urlFilters.some(filter => {
+        const matches = filter.test(request.url)
+        console.log(`🔍 NetworkInterceptor: Filter ${filter} - matches: ${matches}`)
+        return matches
+      })
+      if (!matchesFilter) {
+        console.log(`❌ NetworkInterceptor: URL filtered out - no filter match`)
+        return true
+      }
+      console.log(`✅ NetworkInterceptor: URL passes filter`)
     }
 
     // Method filters
     if (this.config.methodFilters && this.config.methodFilters.length > 0) {
-      if (!this.config.methodFilters.includes(request.method)) return true
+      console.log(`🔍 NetworkInterceptor: Checking method filters: ${this.config.methodFilters}`)
+      if (!this.config.methodFilters.includes(request.method)) {
+        console.log(`❌ NetworkInterceptor: Method ${request.method} filtered out`)
+        return true
+      }
+      console.log(`✅ NetworkInterceptor: Method ${request.method} passes filter`)
     }
 
+    console.log(`✅ NetworkInterceptor: Request passes all filters, will notify listeners`)
     return false
   }
 

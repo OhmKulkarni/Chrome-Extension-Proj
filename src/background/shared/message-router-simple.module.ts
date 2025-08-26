@@ -136,6 +136,7 @@ export class MessageRouterModule {
 
         // Extension State
         case 'INJECT_MAIN_WORLD_SCRIPT':
+          console.log('🚨 MESSAGE ROUTER: Received INJECT_MAIN_WORLD_SCRIPT request from tabId:', sender.tab?.id);
           await this.handleScriptInjection(message, sender, sendResponse);
           break;
 
@@ -146,8 +147,26 @@ export class MessageRouterModule {
 
         case 'SET_EXTENSION_STATE':
           if (typeof message.enabled === 'boolean') {
-            const result = await this.extensionState.setExtensionState(message.enabled);
-            sendResponse(result);
+            // If tabId is provided, this is for site-specific state
+            if (message.tabId) {
+              try {
+                // Get the domain from the tab
+                const tab = await chrome.tabs.get(message.tabId);
+                if (tab.url) {
+                  const domain = new URL(tab.url).hostname;
+                  const result = await this.extensionState.setSiteSpecificState(domain, message.enabled);
+                  sendResponse(result);
+                } else {
+                  sendResponse({ success: false, error: 'Could not get tab URL' });
+                }
+              } catch (error) {
+                sendResponse({ success: false, error: `Failed to set site-specific state: ${error instanceof Error ? error.message : error}` });
+              }
+            } else {
+              // Global extension state
+              const result = await this.extensionState.setExtensionState(message.enabled);
+              sendResponse(result);
+            }
           } else {
             sendResponse({ success: false, error: 'Enabled state must be boolean' });
           }
@@ -678,9 +697,73 @@ export class MessageRouterModule {
         case 'GET_SITE_SPECIFIC_STATE':
           if (message.domain) {
             const siteState = await this.extensionState.getSiteSpecificState(message.domain);
-            sendResponse({ success: true, data: siteState });
+            sendResponse({ success: true, enabled: siteState.enabled, domain: message.domain });
+          } else if (message.tabId) {
+            try {
+              // Get the domain from the tab
+              const tab = await chrome.tabs.get(message.tabId);
+              if (tab.url) {
+                const domain = new URL(tab.url).hostname;
+                const siteState = await this.extensionState.getSiteSpecificState(domain);
+                sendResponse({ success: true, enabled: siteState.enabled, domain: domain });
+              } else {
+                sendResponse({ success: false, error: 'Could not get tab URL' });
+              }
+            } catch (error) {
+              sendResponse({ success: false, error: `Failed to get site-specific state: ${error instanceof Error ? error.message : error}` });
+            }
           } else {
-            sendResponse({ success: false, error: 'Domain required' });
+            sendResponse({ success: false, error: 'Domain or tabId required' });
+          }
+          break;
+
+        case 'TEST_SCRIPT_INJECTION':
+        case 'RETRY_SCRIPT_INJECTION':
+          if (message.tabId) {
+            try {
+              const result = await this.extensionState.handleScriptInjection(message.tabId);
+              sendResponse({ success: result.success, error: result.error });
+            } catch (error) {
+              sendResponse({ success: false, error: `Script injection failed: ${error instanceof Error ? error.message : error}` });
+            }
+          } else {
+            sendResponse({ success: false, error: 'TabId required' });
+          }
+          break;
+
+        case 'FORCE_ENABLE_EXTENSION':
+          try {
+            // Force enable the extension globally
+            const result = await this.extensionState.setExtensionState(true);
+            sendResponse({ success: true, message: 'Extension force enabled', newState: result.newState });
+          } catch (error) {
+            sendResponse({ success: false, error: `Failed to force enable: ${error instanceof Error ? error.message : error}` });
+          }
+          break;
+
+        case 'GET_RAW_STORAGE':
+          try {
+            const rawStorage = await chrome.storage.local.get(null);
+            sendResponse({ success: true, data: rawStorage });
+          } catch (error) {
+            sendResponse({ success: false, error: `Failed to get raw storage: ${error instanceof Error ? error.message : error}` });
+          }
+          break;
+
+        case 'RESET_SITE_STATES':
+          try {
+            // Get current storage
+            const storage = await chrome.storage.local.get(['extensionState']);
+            if (storage.extensionState && storage.extensionState.siteSpecificState) {
+              // Clear site-specific states
+              storage.extensionState.siteSpecificState = {};
+              await chrome.storage.local.set({ extensionState: storage.extensionState });
+              sendResponse({ success: true });
+            } else {
+              sendResponse({ success: true, message: 'No site states to reset' });
+            }
+          } catch (error) {
+            sendResponse({ success: false, error: `Failed to reset site states: ${error instanceof Error ? error.message : error}` });
           }
           break;
 
@@ -707,13 +790,17 @@ export class MessageRouterModule {
     sendResponse: (response: any) => void
   ): Promise<void> {
     const tabId = sender.tab?.id;
+    console.log('🚨 MESSAGE ROUTER: handleScriptInjection called with tabId:', tabId);
 
     if (!tabId) {
+      console.error('🚨 MESSAGE ROUTER: No tab ID available for script injection');
       sendResponse({ success: false, error: 'No tab ID available' });
       return;
     }
 
+    console.log('🚨 MESSAGE ROUTER: Calling extensionState.handleScriptInjection...');
     const result = await this.extensionState.handleScriptInjection(tabId);
+    console.log('🚨 MESSAGE ROUTER: Got result from extensionState:', result);
     sendResponse(result);
   }
 

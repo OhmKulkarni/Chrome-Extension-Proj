@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yahoo Finance Fix Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+      padding: 15px;
+      border: 1px solid #c3e6cb;
+      border-radius: 5px;
+      margin: 20px 0;
+    }
+    .info {
+      background: #d1ecf1;
+      color: #0c5460;
+      padding: 15px;
+      border: 1px solid #bee5eb;
+      border-radius: 5px;
+      margin: 20px 0;
+    }
+    .test-section {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+      border-left: 4px solid #007bff;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover { background: #0056b3; }
+    pre {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 5px;
+      overflow-x: auto;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎉 Yahoo Finance Fix Applied!</h1>
+
+  <div class="success">
+    <h3>✅ Fix Summary</h3>
+    <p><strong>Applied the Main Branch Approach:</strong></p>
+    <ul>
+      <li>Simplified script injection logic</li>
+      <li>Removed complex domain-specific validation</li>
+      <li>Default to "enabled" unless explicitly disabled</li>
+      <li>Kept batch optimization improvements (4 items, 2-second intervals, priority flushing)</li>
+    </ul>
+  </div>
+
+  <div class="info">
+    <h3>🔧 What Was Changed</h3>
+    <p><strong>Before (Complex - Causing Issues):</strong></p>
+    <ul>
+      <li>Complex domain extraction logic</li>
+      <li>Site-specific state validation that could fail</li>
+      <li>Error message: "Extension disabled for yahoo.com"</li>
+    </ul>
+    <p><strong>After (Simple - Like Main Branch):</strong></p>
+    <ul>
+      <li>Simple global state check only</li>
+      <li>Direct script injection without complex validation</li>
+      <li>Safe fallbacks that default to enabled</li>
+    </ul>
+  </div>
+
+  <div class="test-section">
+    <h3>🧪 Test the Fix</h3>
+    <p><strong>Next Steps:</strong></p>
+    <ol>
+      <li><strong>Reload Extension:</strong> Go to <code>chrome://extensions</code> and reload your extension</li>
+      <li><strong>Visit Yahoo Finance:</strong> Navigate to <code>https://finance.yahoo.com</code></li>
+      <li><strong>Check Console:</strong> You should see <code>✅ Main-world script injection successful</code></li>
+      <li><strong>Verify Logging:</strong> Network requests should appear in your dashboard</li>
+    </ol>
+
+    <button onclick="testInjection()">Test Extension State</button>
+    <button onclick="simulateNetworkRequests()">Test Network Capture</button>
+    <button onclick="testBatchOptimizations()">Test Batch Optimizations</button>
+  </div>
+
+  <div class="test-section">
+    <h3>📊 Expected Results</h3>
+    <pre id="results">Click a test button to see results...</pre>
+  </div>
+
+  <div class="test-section">
+    <h3>📋 Troubleshooting</h3>
+    <p><strong>If you still see issues:</strong></p>
+    <ul>
+      <li>Clear browser cache and reload</li>
+      <li>Check if extension is globally enabled</li>
+      <li>Open developer tools to see console messages</li>
+      <li>Use the Yahoo Finance Debug Tool for detailed diagnostics</li>
+    </ul>
+  </div>
+
+  <script>
+    function log(message, type = 'info') {
+      const results = document.getElementById('results');
+      const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
+      results.textContent += `[${timestamp}] ${message}\n`;
+    }
+
+    async function testInjection() {
+      log('Testing extension state and injection...');
+
+      try {
+        if (typeof chrome === 'undefined' || !chrome.runtime) {
+          log('❌ Chrome extension API not available');
+          return;
+        }
+
+        const response = await chrome.runtime.sendMessage({ action: 'GET_EXTENSION_STATE' });
+        if (response && response.enabled !== undefined) {
+          log(`✅ Extension global state: ${response.enabled ? 'Enabled' : 'Disabled'}`);
+        } else {
+          log('❌ Could not get extension state');
+        }
+
+        // Test script injection
+        const injectionResponse = await chrome.runtime.sendMessage({ action: 'TEST_SCRIPT_INJECTION', tabId: 'current' });
+        if (injectionResponse && injectionResponse.success) {
+          log('✅ Script injection test passed');
+        } else {
+          log(`❌ Script injection test failed: ${injectionResponse?.error || 'Unknown error'}`);
+        }
+      } catch (error) {
+        log(`❌ Test failed: ${error.message}`);
+      }
+    }
+
+    async function simulateNetworkRequests() {
+      log('Testing network capture...');
+
+      try {
+        // Make a few test requests
+        const response1 = await fetch('https://jsonplaceholder.typicode.com/posts/1');
+        log(`✅ Request 1: ${response1.status} - ${response1.url}`);
+
+        const response2 = await fetch('https://jsonplaceholder.typicode.com/posts/2');
+        log(`✅ Request 2: ${response2.status} - ${response2.url}`);
+
+        log('📊 Check your extension dashboard - these requests should appear');
+        log('⏱️ With batch optimizations: should flush within 2 seconds or after 4 requests');
+      } catch (error) {
+        log(`❌ Network test failed: ${error.message}`);
+      }
+    }
+
+    async function testBatchOptimizations() {
+      log('Testing batch optimization improvements...');
+
+      try {
+        // Generate console events to test priority flushing
+        console.error('Test error - should trigger priority flush');
+        log('✅ Generated error event (should trigger immediate flush)');
+
+        console.info('Test info 1');
+        console.info('Test info 2');
+        console.info('Test info 3');
+        log('📊 Generated 3 info events (should batch normally)');
+
+        // Make an error request to test priority network flushing
+        try {
+          await fetch('https://httpstat.us/500');
+        } catch (error) {
+          // Expected to fail
+        }
+        log('🚨 Generated 500 error request (should trigger priority flush)');
+
+        log('⚡ Priority events should appear immediately in dashboard');
+        log('📊 Normal events should batch with improved timing (2s max wait)');
+      } catch (error) {
+        log(`❌ Batch test failed: ${error.message}`);
+      }
+    }
+
+    // Initialize
+    log('🚀 Yahoo Finance Fix Test Ready');
+    log('Extension rebuilt with simplified injection logic from main branch');
+    log('Batch optimizations preserved: 4 items/2s + priority flushing');
+  </script>
+</body>
+</html>

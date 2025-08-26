@@ -1,5 +1,20 @@
 # 🔧 Yahoo Finance Extension Issues - Complete Solution
 
+## 🎯 **ROOT CAUSE IDENTIFIED** (After comparing with working main branch)
+
+The issue is **over-complex site-specific logic** in the feature branch that wasn't present in the working main branch.
+
+### **Main Branch (Working) vs Feature Branch (Broken)**
+
+| Aspect | Main Branch ✅ | Feature Branch ❌ |
+|--------|---------------|------------------|
+| State Management | Tab-specific (simple) | Domain-specific (complex) |
+| Injection Logic | Direct executeScript | Complex validation layers |
+| Error Handling | Simple fallbacks | Complex domain extraction |
+| Yahoo Finance | Works seamlessly | "Extension disabled for yahoo.com" |
+
+**Key Finding:** The main branch uses simple tab-specific state management and direct script injection, while the feature branch introduced complex domain-based logic that fails for Yahoo Finance.
+
 ## 📊 **Issue Analysis**
 
 Based on your Yahoo Finance console errors, there are two main problems:

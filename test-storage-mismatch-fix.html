@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Storage Mismatch Fix Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; }
+        .critical-fix { background: #e8f5e9; border: 2px solid #4caf50; padding: 20px; margin: 20px 0; border-radius: 8px; }
+        .test-step { background: #f5f5f5; padding: 15px; margin: 10px 0; border-left: 4px solid #2196f3; }
+        .expected { background: #fff3e0; padding: 15px; margin: 10px 0; border-left: 4px solid #ff9800; }
+        .code { background: #f8f9fa; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 12px; margin: 8px 0; }
+        button { background: #4caf50; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; margin: 8px; }
+    </style>
+</head>
+<body>
+    <h1>✅ Critical Storage Mismatch Fix Applied!</h1>
+
+    <div class="critical-fix">
+        <h2>🎯 Root Cause Found & Fixed</h2>
+        <p><strong>The Issue:</strong> Storage location mismatch between popup and background script</p>
+        <ul>
+            <li>❌ <strong>Popup was saving to:</strong> IndexedDB via StorageService</li>
+            <li>❌ <strong>Background was reading from:</strong> chrome.storage.local</li>
+            <li>✅ <strong>Fixed:</strong> Both now use chrome.storage.local</li>
+        </ul>
+
+        <h3>Changes Made:</h3>
+        <div class="code">// POPUP SAVE (before)
+await storageService.set({ extensionEnabled: newState }); // IndexedDB
+
+// POPUP SAVE (after)
+await chrome.storage.local.set({ extensionEnabled: newState }); // chrome.storage.local
+
+// POPUP LOAD (before)
+const result = await storageService.get(['extensionEnabled']); // IndexedDB
+
+// POPUP LOAD (after)
+const result = await chrome.storage.local.get(['extensionEnabled']); // chrome.storage.local</div>
+    </div>
+
+    <div class="test-step">
+        <h3>🧪 Testing Steps</h3>
+        <ol>
+            <li><strong>Reload extension:</strong> chrome://extensions/ → reload</li>
+            <li><strong>Open popup:</strong> Click extension icon</li>
+            <li><strong>Toggle extension OFF then ON</strong> (should see console messages)</li>
+            <li><strong>Reload this page</strong> to trigger content script</li>
+            <li><strong>Check console</strong> - should see success messages instead of "Extension globally disabled"</li>
+        </ol>
+    </div>
+
+    <div class="expected">
+        <h3>✅ Expected Success Messages</h3>
+
+        <h4>In Extension Popup Console:</h4>
+        <div class="code">✅ Popup: Saved extensionEnabled to chrome.storage.local: true
+✅ Popup: Loaded extensionEnabled from chrome.storage.local: true</div>
+
+        <h4>In Background Console (Service Worker):</h4>
+        <div class="code">🚨 MESSAGE ROUTER: Received INJECT_MAIN_WORLD_SCRIPT request from tabId: 12345
+🚀 SCRIPT INJECTION REQUEST for tabId: 12345
+🚀 Current state before injection: {enabled: true}
+🔍 INJECTION CHECK: currentState = {enabled: true}
+🔍 INJECTION CHECK: isEnabled = true
+🚨 MESSAGE ROUTER: Got result from extensionState: {success: true}</div>
+
+        <h4>In Page Console:</h4>
+        <div class="code">✅ Main-world script injection successful
+🌐 NetworkInterceptor: Fetch called for GET /test-request
+📢 NetworkInterceptor: Notifying X listeners for GET /test-request</div>
+    </div>
+
+    <div class="test-step">
+        <h3>🔧 Manual Verification</h3>
+        <p>Check storage contents manually:</p>
+        <button onclick="checkStorage()">Check chrome.storage.local</button>
+        <div id="storageResult" style="margin-top: 10px;"></div>
+    </div>
+
+    <div class="test-step">
+        <h3>🌐 Network Test</h3>
+        <p>Test if network interception works now:</p>
+        <button onclick="testNetwork()">Test Network Request</button>
+        <div id="networkResult" style="margin-top: 10px;"></div>
+    </div>
+
+    <script>
+        function checkStorage() {
+            const resultDiv = document.getElementById('storageResult');
+
+            chrome.storage.local.get(['extensionEnabled', 'extensionState'], (data) => {
+                resultDiv.innerHTML = `
+                    <div class="code">
+                        <strong>chrome.storage.local contents:</strong><br>
+                        extensionEnabled: ${data.extensionEnabled}<br>
+                        extensionState: ${JSON.stringify(data.extensionState)}<br>
+                        <br>
+                        <strong>Expected:</strong> extensionEnabled should be true
+                    </div>
+                `;
+
+                if (data.extensionEnabled === true) {
+                    resultDiv.innerHTML += '<p style="color: green;"><strong>✅ Storage looks correct!</strong></p>';
+                } else {
+                    resultDiv.innerHTML += '<p style="color: red;"><strong>❌ Storage still wrong - manually set it</strong></p>';
+                }
+            });
+        }
+
+        function testNetwork() {
+            const resultDiv = document.getElementById('networkResult');
+            resultDiv.innerHTML = '<p>Testing network request...</p>';
+
+            console.log('🧪 Testing network request with fixed storage');
+
+            fetch('/api/test-fixed-storage', {
+                method: 'GET',
+                headers: { 'Test': 'StorageFix' }
+            })
+            .then(() => {
+                resultDiv.innerHTML += '<p style="color: green;">✅ Request sent - check console for interception messages</p>';
+            })
+            .catch(error => {
+                resultDiv.innerHTML += '<p style="color: green;">✅ Request sent (expected to fail) - check console for interception messages</p>';
+            });
+        }
+
+        // Initialize
+        console.log('🚀 Storage Mismatch Fix Test Page loaded');
+        console.log('🔧 Popup now saves/loads from chrome.storage.local (same as background script)');
+        console.log('👉 Test the extension popup toggle and check for success messages');
+
+        // Auto-check storage on load
+        setTimeout(checkStorage, 1000);
+    </script>
+</body>
+</html>

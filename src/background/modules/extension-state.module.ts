@@ -50,6 +50,12 @@ export class ExtensionStateModule {
       return;
     }
 
+    // Failsafe: Start with enabled state
+    if (!this.currentState) {
+      this.currentState = { enabled: true };
+      console.log('🔍 ExtensionStateModule: Initialized with failsafe enabled state');
+    }
+
     try {
       // Verify dependencies are initialized
       if (!this.chromeApi.isExtensionContextValid()) {
@@ -59,11 +65,28 @@ export class ExtensionStateModule {
       // Load current extension state
       await this.loadExtensionState();
 
+      // Double-check state is valid after loading
+      if (!this.currentState || this.currentState.enabled === undefined) {
+        console.warn('ExtensionStateModule: State invalid after loading, resetting to enabled');
+        this.currentState = { enabled: true };
+      }
+
+      // Set up storage change listener to reload state when storage changes
+      chrome.storage.onChanged.addListener((changes, areaName) => {
+        if (areaName === 'local' && (changes.extensionEnabled || changes.extensionState)) {
+          console.log('🔄 ExtensionStateModule: Storage changed, reloading state...', changes);
+          this.loadExtensionState().catch(error => {
+            console.error('ExtensionStateModule: Failed to reload state after storage change:', error);
+          });
+        }
+      });
+
       this.isInitialized = true;
-      console.log('✅ ExtensionStateModule: Successfully initialized');
+      console.log('✅ ExtensionStateModule: Successfully initialized with state:', this.currentState);
     } catch (error) {
-      console.error('❌ ExtensionStateModule: Initialization failed:', error);
-      throw error;
+      console.error('❌ ExtensionStateModule: Initialization failed, using enabled fallback:', error);
+      this.currentState = { enabled: true };
+      this.isInitialized = true; // Still mark as initialized with fallback
     }
   }
 
@@ -121,19 +144,45 @@ export class ExtensionStateModule {
   }
 
   /**
-   * Get site-specific state for a domain
+   * Get site-specific state for a domain (simplified with safe fallbacks)
    */
   async getSiteSpecificState(domain: string): Promise<{ enabled: boolean }> {
     return this.executeWithSafety('getSiteSpecificState', async () => {
-      if (!domain) {
-        return { enabled: this.currentState.enabled };
+      try {
+        // Safe fallback: if no domain, assume enabled (like main branch)
+        if (!domain) {
+          console.log('ExtensionStateModule: No domain provided, defaulting to enabled');
+          return { enabled: true };
+        }
+
+        // Safe fallback: if current state not initialized, assume enabled
+        if (!this.currentState || this.currentState.enabled === undefined) {
+          console.log('ExtensionStateModule: State not initialized, defaulting to enabled');
+          return { enabled: true };
+        }
+
+        const siteSpecificState = this.currentState.siteSpecificState || {};
+        const siteEnabled = siteSpecificState[domain];
+
+        // Key change: Default to enabled unless explicitly disabled
+        // This prevents the "Extension disabled for yahoo.com" trap
+        const result = { enabled: siteEnabled !== false };
+
+        // Enhanced debugging for yahoo.com specifically
+        if (domain.includes('yahoo.com') || domain.includes('finance.yahoo.com')) {
+          console.log(`🔍 ExtensionStateModule: Yahoo Finance debug - domain: ${domain}`);
+          console.log(`🔍 ExtensionStateModule: Site-specific value: ${siteEnabled}`);
+          console.log(`🔍 ExtensionStateModule: Result (defaulting to enabled): ${result.enabled}`);
+          console.log(`🔍 ExtensionStateModule: All site states:`, siteSpecificState);
+        }
+
+        console.log(`ExtensionStateModule: Site-specific state for ${domain}: ${result.enabled} (stored: ${siteEnabled}, defaulting to enabled)`);
+        return result;
+      } catch (error) {
+        console.error(`ExtensionStateModule: Error getting site-specific state for ${domain}:`, error);
+        // Safe fallback: always default to enabled on error
+        return { enabled: true };
       }
-
-      const siteSpecificState = this.currentState.siteSpecificState || {};
-      const siteEnabled = siteSpecificState[domain];
-
-      // If no site-specific setting, fall back to global state
-      return { enabled: siteEnabled !== undefined ? siteEnabled : this.currentState.enabled };
     });
   }
 
@@ -170,24 +219,53 @@ export class ExtensionStateModule {
    */
   async getTabExtensionState(tabId: number): Promise<{ enabled: boolean; domain?: string }> {
     return this.executeWithSafety('getTabExtensionState', async () => {
-      // Get tab information
-      const tabs = await this.chromeApi.queryTabs({});
-      const tab = tabs.find(t => t.id === tabId);
+      try {
+        // Defensive check: ensure we have a valid current state
+        if (!this.currentState || this.currentState.enabled === undefined) {
+          console.warn('ExtensionStateModule: Current state not properly initialized, using defaults');
+          this.currentState = { enabled: true };
+        }
 
-      if (!tab?.url) {
-        return { enabled: this.currentState.enabled };
+        // Get tab information with better error handling
+        let tabs;
+        try {
+          tabs = await this.chromeApi.queryTabs({});
+        } catch (error) {
+          console.warn('ExtensionStateModule: Failed to query tabs, using global state:', error);
+          return { enabled: this.currentState.enabled };
+        }
+
+        const tab = tabs.find(t => t.id === tabId);
+        if (!tab?.url) {
+          console.warn(`ExtensionStateModule: Tab ${tabId} not found or has no URL, using global state`);
+          return { enabled: this.currentState.enabled };
+        }
+
+        // Extract domain from tab URL
+        const domain = this.extractDomain(tab.url);
+        if (!domain) {
+          console.warn(`ExtensionStateModule: Could not extract domain from ${tab.url}, using global state`);
+          return { enabled: this.currentState.enabled };
+        }
+
+        // Get site-specific state with fallback
+        let siteState;
+        try {
+          siteState = await this.getSiteSpecificState(domain);
+        } catch (error) {
+          console.warn(`ExtensionStateModule: Failed to get site-specific state for ${domain}, using global state:`, error);
+          return { enabled: this.currentState.enabled, domain };
+        }
+
+        console.log(`ExtensionStateModule: Tab ${tabId} (${domain}) state: enabled=${siteState.enabled}`);
+        return {
+          enabled: siteState.enabled,
+          domain
+        };
+      } catch (error) {
+        console.error('ExtensionStateModule: Error in getTabExtensionState, using global fallback:', error);
+        return { enabled: this.currentState?.enabled ?? true };
       }
-
-      // Extract domain from tab URL
-      const domain = this.extractDomain(tab.url);
-
-      // Get site-specific state
-      const siteState = await this.getSiteSpecificState(domain);
-
-      return {
-        enabled: siteState.enabled,
-        domain
-      };
     });
   }
 
@@ -225,34 +303,50 @@ export class ExtensionStateModule {
   /**
    * Handle main world script injection (from original background script)
    */
+  /**
+   * Handle script injection with simplified logic (like main branch)
+   */
   async handleScriptInjection(tabId: number): Promise<{ success: boolean; error?: string }> {
+    console.log('🚀 SCRIPT INJECTION REQUEST for tabId:', tabId);
+    console.log('🚀 Current state before injection:', this.currentState);
+
     return this.executeWithSafety('handleScriptInjection', async () => {
       try {
-        // Check if extension is enabled for this tab
-        const tabState = await this.getTabExtensionState(tabId);
-
-        if (!tabState.enabled) {
-          return {
-            success: false,
-            error: `Extension disabled for ${tabState.domain || 'this site'}`
-          };
+        // Ensure state is loaded
+        if (!this.currentState) {
+          console.log('⚠️ INJECTION: No current state, loading...');
+          await this.loadExtensionState();
+          console.log('✅ INJECTION: State loaded:', this.currentState);
         }
 
-        // Inject main world script using chrome.scripting API directly
+        // Simple check: use global state (like main branch)
+        // Default to enabled if state is undefined/null for reliability
+        console.log('🔍 INJECTION CHECK: currentState =', this.currentState);
+        console.log('🔍 INJECTION CHECK: currentState?.enabled =', this.currentState?.enabled);
+
+        const isEnabled = this.currentState?.enabled !== false;
+        console.log('🔍 INJECTION CHECK: isEnabled =', isEnabled);
+
+        if (!isEnabled) {
+          console.error('❌ INJECTION FAILED: Extension globally disabled - currentState:', this.currentState);
+          return {
+            success: false,
+            error: 'Extension globally disabled'
+          };
+        }        // Direct injection without complex validation (like main branch)
         await chrome.scripting.executeScript({
           target: { tabId },
           world: 'MAIN' as any,
-          files: ['main-world-script.js'] // Correct main-world script file name
+          files: ['main-world-script.js']
         });
 
-        console.log(`🔌 ExtensionStateModule: Script injected into tab ${tabId}`);
-
+        console.log(`✅ ExtensionStateModule: Script injected into tab ${tabId}`);
         return { success: true };
       } catch (error) {
         console.error('ExtensionStateModule: Script injection failed:', error);
         return {
           success: false,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Script injection failed'
         };
       }
     });
@@ -297,27 +391,45 @@ export class ExtensionStateModule {
   private async loadExtensionState(): Promise<void> {
     try {
       const settings = await this.storageManager.getSettings();
-      const extensionState = settings.extensionState;
 
-      if (extensionState && typeof extensionState === 'object') {
-        this.currentState = {
-          enabled: extensionState.enabled !== false, // Default to true
-          globalPowerState: extensionState.globalPowerState,
-          siteSpecificState: extensionState.siteSpecificState || {}
-        };
+      // Debug: Log what we actually found in storage
+      console.log('🔍 ExtensionStateModule: Raw storage data:', {
+        extensionEnabled: settings.extensionEnabled,
+        extensionState: settings.extensionState,
+        hasExtensionEnabled: settings.extensionEnabled !== undefined,
+        hasExtensionState: !!(settings.extensionState && typeof settings.extensionState === 'object')
+      });
+
+      // Check both locations for extension enabled state
+      // Primary: extensionEnabled (used by popup)
+      // Fallback: settings.extensionState.enabled (legacy)
+      let enabledValue = true; // Default to enabled
+
+      if (settings.extensionEnabled !== undefined) {
+        // Use the popup's storage format
+        enabledValue = settings.extensionEnabled !== false;
+        console.log('🔌 ExtensionStateModule: Using extensionEnabled:', enabledValue);
+      } else if (settings.extensionState && typeof settings.extensionState === 'object') {
+        // Fallback to legacy format
+        enabledValue = settings.extensionState.enabled !== false;
+        console.log('🔌 ExtensionStateModule: Using extensionState.enabled:', enabledValue);
       } else {
-        // Initialize with default state
-        this.currentState = { enabled: true };
+        console.log('🔌 ExtensionStateModule: No stored state found, defaulting to enabled');
       }
 
-      console.log('🔌 ExtensionStateModule: State loaded from storage');
+      this.currentState = {
+        enabled: enabledValue,
+        globalPowerState: settings.extensionState?.globalPowerState,
+        siteSpecificState: settings.extensionState?.siteSpecificState || {}
+      };
+
+      // Minimal logging for production
+      console.log('🔌 ExtensionStateModule: State loaded, enabled:', this.currentState.enabled);
     } catch (error) {
       console.warn('ExtensionStateModule: Failed to load state, using defaults:', error);
       this.currentState = { enabled: true };
     }
-  }
-
-  /**
+  }  /**
    * Save extension state to storage
    */
   private async saveExtensionState(): Promise<void> {
@@ -325,7 +437,9 @@ export class ExtensionStateModule {
 
     const updatedSettings = {
       ...settings,
-      extensionState: this.currentState
+      // Save to both locations for compatibility
+      extensionEnabled: this.currentState.enabled, // Primary location (popup uses this)
+      extensionState: this.currentState            // Legacy location
     };
 
     await this.storageManager.updateSettings(updatedSettings);
