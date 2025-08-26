@@ -152,6 +152,13 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
 
   // User-selected analysis sample size (number of records to consider for stats)
   const [analysisLimit, setAnalysisLimit] = useState<number>(200);
+  
+  // Track actual number of records loaded for display
+  const [actualRecordCounts, setActualRecordCounts] = useState<{
+    networkRequests: number;
+    consoleErrors: number;
+    tokenEvents: number;
+  }>({ networkRequests: 0, consoleErrors: 0, tokenEvents: 0 });
 
   // Load analysis data for statistics calculations (uses selectable limit) - MEMORY LEAK SAFE
   const loadAnalysisData = useCallback(async (limitOverride?: number) => {
@@ -180,6 +187,13 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
           consoleErrors: response.data.consoleErrors || [],
           tokenEvents: response.data.tokenEvents || [],
           loaded: true
+        });
+
+        // Track actual record counts for display
+        setActualRecordCounts({
+          networkRequests: response.data.networkRequests?.length || 0,
+          consoleErrors: response.data.consoleErrors?.length || 0,
+          tokenEvents: response.data.tokenEvents?.length || 0
         });
 
         console.log('✅ StatisticsCard: Analysis data loaded:', {
@@ -962,7 +976,10 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                       <label className="text-sm text-gray-600">Records considered</label>
                       <select
                         value={analysisLimit}
-                        onChange={(e) => setAnalysisLimit(parseInt(e.target.value, 10) || 200)}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value, 10);
+                          setAnalysisLimit(isNaN(value) ? 200 : value);
+                        }}
                         className="border border-gray-300 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         title="Number of most recent records used to compute statistics and charts"
                       >
@@ -972,8 +989,18 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                         <option value={500}>500</option>
                         <option value={1000}>1000</option>
                         <option value={2000}>2000</option>
+                        <option value={5000}>5000</option>
+                        <option value={10000}>10000</option>
+                        <option value={-1}>All</option>
                       </select>
-                      <span className="hidden md:inline text-xs text-gray-500">Larger samples may increase memory usage</span>
+                      <span className="hidden md:inline text-xs text-gray-500">
+                        Larger samples may increase memory usage
+                        {actualRecordCounts.networkRequests > 0 && (
+                          <span className="ml-2 text-blue-600">
+                            ({actualRecordCounts.networkRequests} loaded)
+                          </span>
+                        )}
+                      </span>
                     </div>
                   </div>
 
@@ -1088,6 +1115,40 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                     Hover for details.
                   </p>
                 </div>
+              </div>
+            </div>
+
+            {/* Record Limit Selector for Domain Statistics */}
+            <div className="flex justify-end mb-4">
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600">Records considered</label>
+                <select
+                  value={analysisLimit}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value, 10);
+                    setAnalysisLimit(isNaN(value) ? 200 : value);
+                  }}
+                  className="border border-gray-300 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  title="Number of most recent records used to compute domain statistics"
+                >
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                  <option value={200}>200</option>
+                  <option value={500}>500</option>
+                  <option value={1000}>1000</option>
+                  <option value={2000}>2000</option>
+                  <option value={5000}>5000</option>
+                  <option value={10000}>10000</option>
+                  <option value={-1}>All</option>
+                </select>
+                <span className="hidden md:inline text-xs text-gray-500">
+                  Affects domain statistics accuracy
+                  {actualRecordCounts.networkRequests > 0 && (
+                    <span className="ml-2 text-blue-600">
+                      ({actualRecordCounts.networkRequests} loaded)
+                    </span>
+                  )}
+                </span>
               </div>
             </div>
             <div className="rounded-md border">

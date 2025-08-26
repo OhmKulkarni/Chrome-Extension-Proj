@@ -554,14 +554,17 @@ export class MessageRouterModule {
         case 'getAnalysisData':
           // Get larger datasets for dashboard charts and statistics (memory-optimized)
           try {
-            const limit = message.limit || 200;
-            console.log(`📊 MessageRouter: Getting ${limit} records for dashboard analysis`);
+            const requestedLimit = message.limit || 200;
+            console.log(`📊 MessageRouter: Getting ${requestedLimit === -1 ? 'ALL' : requestedLimit} records for dashboard analysis`);
+
+            // Handle "All" option (-1) by using a very large limit
+            const actualLimit = requestedLimit === -1 ? 1000000 : requestedLimit;
 
             // Get data from each module with IndexedDB storage
             const [networkRequests, consoleErrors, tokenEvents] = await Promise.all([
-              this.networkProcessor.getNetworkRequests(limit, 0),
-              this.consoleHandler.getConsoleErrors(limit, 0),
-              this.tokenTracker.getTokenEvents(limit, 0)
+              this.networkProcessor.getNetworkRequests(actualLimit, 0),
+              this.consoleHandler.getConsoleErrors(actualLimit, 0),
+              this.tokenTracker.getTokenEvents(actualLimit, 0)
             ]);
 
             // Get total counts for statistics
