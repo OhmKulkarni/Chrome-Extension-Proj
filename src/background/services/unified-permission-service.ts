@@ -28,6 +28,9 @@ export class UnifiedPermissionService {
 
       // Initialize the unified manager
       await unifiedPermissionManager.initialize();
+      
+      // CRITICAL FIX: Sync with existing popup/storage system preferences
+      await this.syncWithExistingPreferences();
 
       // Set up Chrome storage change listeners
       this.setupStorageListeners();
@@ -86,6 +89,29 @@ export class UnifiedPermissionService {
     } catch (error) {
       console.error('❌ Migration check failed:', error);
       // Continue with defaults rather than failing
+    }
+  }
+
+  /**
+   * Sync with existing popup/storage system preferences
+   * This ensures the unified system matches what users have already configured
+   */
+  private async syncWithExistingPreferences(): Promise<void> {
+    try {
+      console.log('🔄 UnifiedPermissionService: Syncing with existing preferences...');
+
+      // Read existing global state from chrome.storage.local
+      const globalResult = await chrome.storage.local.get(['extensionEnabled']);
+      const globalEnabled = globalResult.extensionEnabled ?? true;
+      
+      // Update unified system with global state
+      await unifiedPermissionManager.setGlobalEnabled(globalEnabled);
+
+      console.log(`✅ UnifiedPermissionService: Synced global state: ${globalEnabled}`);
+
+    } catch (error) {
+      console.error('❌ UnifiedPermissionService: Failed to sync existing preferences:', error);
+      // Don't fail initialization, just log the error
     }
   }
 

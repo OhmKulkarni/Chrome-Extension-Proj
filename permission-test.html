@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Permission System Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .console-log { background: #f0f0f0; padding: 10px; margin: 10px 0; font-family: monospace; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>Chrome Extension Permission System Test</h1>
+
+    <div class="test-section">
+        <h2>🧪 Network Request Test</h2>
+        <p>This will trigger a network request to test if the permission system properly blocks/allows it.</p>
+        <button onclick="testNetworkRequest()">Test Network Request</button>
+        <div id="networkResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔍 Console Error Test</h2>
+        <p>This will generate console errors to test if they are properly intercepted based on permissions.</p>
+        <button onclick="testConsoleError()">Generate Console Error</button>
+        <button onclick="testConsoleWarn()">Generate Console Warning</button>
+        <button onclick="testConsoleLog()">Generate Console Log</button>
+        <div id="consoleResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>⚙️ Permission State Check</h2>
+        <p>Check current permission states for this site.</p>
+        <button onclick="checkPermissions()">Check Current Permissions</button>
+        <div id="permissionResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔧 Debug Controls</h2>
+        <p>Test the debug utility functions.</p>
+        <button onclick="disableThisSite()">Disable Site Logging</button>
+        <button onclick="enableThisSite()">Enable Site Logging</button>
+        <button onclick="resetAllPermissions()">Reset All Permissions</button>
+        <div id="debugResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Test Results Log</h2>
+        <div id="testLog"></div>
+    </div>
+
+    <script>
+        let testCounter = 0;
+
+        function logResult(message, isSuccess = true) {
+            const testLog = document.getElementById('testLog');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${isSuccess ? 'success' : 'error'}`;
+            resultDiv.innerHTML = `[${++testCounter}] ${new Date().toLocaleTimeString()}: ${message}`;
+            testLog.insertBefore(resultDiv, testLog.firstChild);
+        }
+
+        function getCurrentDomain() {
+            return window.location.hostname || 'localhost';
+        }
+
+        async function testNetworkRequest() {
+            const resultDiv = document.getElementById('networkResult');
+            resultDiv.innerHTML = '<p>Testing network request...</p>';
+
+            try {
+                // Make a test request that should be intercepted by the extension
+                const response = await fetch('https://httpbin.org/json');
+                const data = await response.json();
+
+                logResult('✅ Network request completed successfully', true);
+                resultDiv.innerHTML = `<p class="success">Network request completed. Check extension logs for interception details.</p>`;
+
+                // Also test with a request that might be blocked
+                setTimeout(async () => {
+                    try {
+                        await fetch('https://jsonplaceholder.typicode.com/posts/1');
+                        logResult('📡 Second network request also completed', true);
+                    } catch (err) {
+                        logResult('❌ Second network request failed: ' + err.message, false);
+                    }
+                }, 1000);
+
+            } catch (error) {
+                logResult('❌ Network request failed: ' + error.message, false);
+                resultDiv.innerHTML = `<p class="error">Network request failed: ${error.message}</p>`;
+            }
+        }
+
+        function testConsoleError() {
+            const resultDiv = document.getElementById('consoleResult');
+
+            // Generate different types of console messages
+            console.error('🔥 TEST ERROR: This is a test error for permission checking');
+            console.error('Permission Test Error:', {
+                testType: 'error',
+                domain: getCurrentDomain(),
+                timestamp: new Date().toISOString()
+            });
+
+            logResult('🔥 Generated console error messages', true);
+            resultDiv.innerHTML = '<p class="success">Console error generated. Check browser devtools and extension logs.</p>';
+        }
+
+        function testConsoleWarn() {
+            console.warn('⚠️ TEST WARNING: This is a test warning for permission checking');
+            console.warn('Permission Test Warning:', {
+                testType: 'warning',
+                domain: getCurrentDomain(),
+                timestamp: new Date().toISOString()
+            });
+
+            logResult('⚠️ Generated console warning messages', true);
+            document.getElementById('consoleResult').innerHTML = '<p class="success">Console warning generated. Check browser devtools and extension logs.</p>';
+        }
+
+        function testConsoleLog() {
+            console.log('ℹ️ TEST LOG: This is a test log for permission checking');
+            console.log('Permission Test Log:', {
+                testType: 'log',
+                domain: getCurrentDomain(),
+                timestamp: new Date().toISOString()
+            });
+
+            logResult('ℹ️ Generated console log messages', true);
+            document.getElementById('consoleResult').innerHTML = '<p class="success">Console log generated. Check browser devtools and extension logs.</p>';
+        }
+
+        async function checkPermissions() {
+            const resultDiv = document.getElementById('permissionResult');
+            resultDiv.innerHTML = '<p>Checking permissions...</p>';
+
+            try {
+                // Try to get permission state through extension messaging
+                const response = await chrome.runtime.sendMessage({
+                    action: 'debugGetPermissions',
+                    domain: getCurrentDomain()
+                });
+
+                if (response && response.success) {
+                    logResult('✅ Permission state retrieved successfully', true);
+                    resultDiv.innerHTML = `<pre class="console-log">${JSON.stringify(response.permissions, null, 2)}</pre>`;
+                } else {
+                    logResult('❌ Failed to get permission state: ' + (response?.error || 'Unknown error'), false);
+                    resultDiv.innerHTML = `<p class="error">Failed to get permissions: ${response?.error || 'Unknown error'}</p>`;
+                }
+            } catch (error) {
+                logResult('❌ Permission check failed: ' + error.message, false);
+                resultDiv.innerHTML = `<p class="error">Permission check failed: ${error.message}</p>`;
+            }
+        }
+
+        async function disableThisSite() {
+            const resultDiv = document.getElementById('debugResult');
+            const domain = getCurrentDomain();
+
+            try {
+                const response = await chrome.runtime.sendMessage({
+                    action: 'debugSetSiteEnabled',
+                    domain: domain,
+                    enabled: false
+                });
+
+                if (response && response.success) {
+                    logResult(`✅ Disabled logging for ${domain}`, true);
+                    resultDiv.innerHTML = `<p class="success">Site logging disabled for ${domain}</p>`;
+                } else {
+                    logResult(`❌ Failed to disable site: ${response?.error || 'Unknown error'}`, false);
+                    resultDiv.innerHTML = `<p class="error">Failed to disable site: ${response?.error || 'Unknown error'}</p>`;
+                }
+            } catch (error) {
+                logResult('❌ Disable site failed: ' + error.message, false);
+                resultDiv.innerHTML = `<p class="error">Failed to disable site: ${error.message}</p>`;
+            }
+        }
+
+        async function enableThisSite() {
+            const resultDiv = document.getElementById('debugResult');
+            const domain = getCurrentDomain();
+
+            try {
+                const response = await chrome.runtime.sendMessage({
+                    action: 'debugSetSiteEnabled',
+                    domain: domain,
+                    enabled: true
+                });
+
+                if (response && response.success) {
+                    logResult(`✅ Enabled logging for ${domain}`, true);
+                    resultDiv.innerHTML = `<p class="success">Site logging enabled for ${domain}</p>`;
+                } else {
+                    logResult(`❌ Failed to enable site: ${response?.error || 'Unknown error'}`, false);
+                    resultDiv.innerHTML = `<p class="error">Failed to enable site: ${response?.error || 'Unknown error'}</p>`;
+                }
+            } catch (error) {
+                logResult('❌ Enable site failed: ' + error.message, false);
+                resultDiv.innerHTML = `<p class="error">Failed to enable site: ${error.message}</p>`;
+            }
+        }
+
+        async function resetAllPermissions() {
+            const resultDiv = document.getElementById('debugResult');
+
+            try {
+                const response = await chrome.runtime.sendMessage({
+                    action: 'debugResetToDefaults'
+                });
+
+                if (response && response.success) {
+                    logResult('✅ Reset all permissions to defaults', true);
+                    resultDiv.innerHTML = '<p class="success">All permissions reset to defaults</p>';
+                } else {
+                    logResult(`❌ Failed to reset permissions: ${response?.error || 'Unknown error'}`, false);
+                    resultDiv.innerHTML = `<p class="error">Failed to reset permissions: ${response?.error || 'Unknown error'}</p>`;
+                }
+            } catch (error) {
+                logResult('❌ Reset permissions failed: ' + error.message, false);
+                resultDiv.innerHTML = `<p class="error">Failed to reset permissions: ${error.message}</p>`;
+            }
+        }
+
+        // Auto-check permissions when page loads
+        window.addEventListener('load', () => {
+            logResult('🚀 Permission test page loaded', true);
+            setTimeout(checkPermissions, 1000); // Give extension time to initialize
+        });
+    </script>
+</body>
+</html>

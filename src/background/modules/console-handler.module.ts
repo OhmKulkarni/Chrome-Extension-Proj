@@ -117,8 +117,8 @@ export class ConsoleHandlerModule {
         const permissionCheck = await this.unifiedPermissionService.canInterceptOnTab(tabId, 'console');
         if (!permissionCheck.canIntercept) {
           console.log(`🚫 ConsoleHandler: Error blocked - ${permissionCheck.reason}`);
-          return { 
-            success: false, 
+          return {
+            success: false,
             reason: permissionCheck.reason || 'Console logging disabled',
             blocked: true  // Flag to indicate this was blocked by permissions
           };

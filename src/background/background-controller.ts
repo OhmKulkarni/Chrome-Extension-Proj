@@ -13,7 +13,7 @@
 // Import all required modules
 import { ChromeApiModule } from './shared/chrome-api.module';
 import { StorageManagerModule } from './shared/storage-manager.module';
-import { MessageRouterModule } from './shared/message-router-simple.module';
+import { MessageRouterSimpleModule } from './shared/message-router-simple.module';
 import { NetworkProcessorModule } from './modules/network-processor.module';
 import { ConsoleHandlerModule } from './modules/console-handler.module';
 import { TokenTrackerModule } from './modules/token-tracker.module';
@@ -32,7 +32,7 @@ export class BackgroundController {
   private consoleHandler: ConsoleHandlerModule;
   private tokenTracker: TokenTrackerModule;
   private extensionState: ExtensionStateModule;
-  private messageRouter: MessageRouterModule;
+  private messageRouter: MessageRouterSimpleModule;
   private unifiedPermissionService: UnifiedPermissionService;
 
   // Legacy compatibility instances
@@ -94,7 +94,7 @@ export class BackgroundController {
     this.extensionState = new ExtensionStateModule(this.chromeApi, this.storageManager, this.config);
 
     // Initialize message router (handles all communication)
-    this.messageRouter = new MessageRouterModule(
+    this.messageRouter = new MessageRouterSimpleModule(
       this.chromeApi,
       this.storageManager,
       this.networkProcessor,

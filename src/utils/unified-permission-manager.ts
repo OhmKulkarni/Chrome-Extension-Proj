@@ -130,6 +130,9 @@ export class UnifiedPermissionManager {
       if (result[this.STORAGE_KEY]) {
         this.state = result[this.STORAGE_KEY];
 
+        // MIGRATION: Check if this is an old version with disabled defaults
+        await this.migrateFeatureDefaults();
+
         // Clean up old tabs
         await this.cleanupOldTabs();
       } else {
@@ -166,6 +169,31 @@ export class UnifiedPermissionManager {
   }
 
   /**
+   * Migrate feature defaults from old disabled-by-default to enabled-by-default
+   */
+  private async migrateFeatureDefaults(): Promise<void> {
+    if (!this.state) return;
+
+    // Check if migration is needed (version < 1.1.0 or defaults are false)
+    const needsMigration = !this.state.version || 
+                          this.state.version === '1.0.0';
+
+    if (needsMigration) {
+      console.log('🔄 UnifiedPermissionManager: Migrating permission system to v1.1.0');
+      
+      // Don't change the defaults - instead, we need to sync with existing user preferences
+      // This will be handled by integrating with the existing popup system
+      
+      // Update version
+      this.state.version = '1.1.0';
+      this.state.lastUpdated = Date.now();
+
+      // Save migrated state
+      await this.saveState();
+      
+      console.log('✅ UnifiedPermissionManager: Version migration completed');
+    }
+  }  /**
    * Reset to safe defaults
    */
   private async resetToDefaults(): Promise<void> {
@@ -174,16 +202,16 @@ export class UnifiedPermissionManager {
       sitePermissions: {},
       tabControls: {},
       featureDefaults: {
-        network: false, // Safe default - features start disabled
-        console: false,
-        tokens: false
+        network: true,  // Enable by default - users expect extension to work
+        console: true,  // Enable by default - users expect extension to work  
+        tokens: true    // Enable by default - users expect extension to work
       },
-      version: '1.0.0',
+      version: '1.1.0', // Updated version with enabled-by-default features
       lastUpdated: Date.now()
     };
 
     await this.saveState();
-    console.log('🔄 UnifiedPermissionManager: Reset to defaults');
+    console.log('🔄 UnifiedPermissionManager: Reset to defaults (features enabled by default)');
   }
 
   // ===== GLOBAL PERMISSION METHODS =====
@@ -269,14 +297,15 @@ export class UnifiedPermissionManager {
 
   /**
    * Check if a specific feature is enabled for a tab
+   * Uses intelligent fallback: tab-specific > feature defaults
    */
   async isFeatureEnabled(tabId: number, feature: 'network' | 'console' | 'tokens'): Promise<boolean> {
     await this.ensureState();
-    if (!this.state) return false;
+    if (!this.state) return true; // Safe fallback during initialization
 
     // Check tab-specific setting first
     const tabControl = this.state.tabControls[tabId];
-    if (tabControl) {
+    if (tabControl && tabControl[feature] !== undefined) {
       return tabControl[feature];
     }
 

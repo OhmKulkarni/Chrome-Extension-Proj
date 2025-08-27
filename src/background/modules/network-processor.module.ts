@@ -141,8 +141,8 @@ export class NetworkProcessorModule {
         const permissionCheck = await this.unifiedPermissionService.canInterceptOnTab(tabId, 'network');
         if (!permissionCheck.canIntercept) {
           console.log(`🚫 NetworkProcessor: Request blocked - ${permissionCheck.reason}`);
-          return { 
-            success: false, 
+          return {
+            success: false,
             reason: permissionCheck.reason || 'Network logging disabled',
             blocked: true  // Flag to indicate this was blocked by permissions
           };

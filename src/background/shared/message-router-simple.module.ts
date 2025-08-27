@@ -13,7 +13,9 @@ import { ExtensionStateModule } from '../modules/extension-state.module';
 import { UnifiedPermissionService } from '../services/unified-permission-service';
 import { SafetyConfig } from '../types/background-types';
 
-export class MessageRouterModule {
+import { unifiedPermissionManager } from '../../utils/unified-permission-manager';
+
+export class MessageRouterSimpleModule {
   private readonly chromeApi: ChromeApiModule;
   private readonly storageManager: StorageManagerModule;
   private readonly networkProcessor: NetworkProcessorModule;
@@ -158,7 +160,13 @@ export class MessageRouterModule {
                 const tab = await chrome.tabs.get(message.tabId);
                 if (tab.url) {
                   const domain = new URL(tab.url).hostname;
+                  
+                  // Update both old and new systems
                   const result = await this.extensionState.setSiteSpecificState(domain, message.enabled);
+                  
+                  // CRITICAL FIX: Also update the unified permission system
+                  await this.unifiedPermissionService.handleSetExtensionState(message.enabled, message.tabId);
+                  
                   sendResponse(result);
                 } else {
                   sendResponse({ success: false, error: 'Could not get tab URL' });
@@ -169,6 +177,10 @@ export class MessageRouterModule {
             } else {
               // Global extension state
               const result = await this.extensionState.setExtensionState(message.enabled);
+              
+              // CRITICAL FIX: Also update the unified permission system
+              await this.unifiedPermissionService.handleSetExtensionState(message.enabled);
+              
               sendResponse(result);
             }
           } else {
@@ -235,6 +247,9 @@ export class MessageRouterModule {
           if (message.tabId !== undefined && typeof message.active === 'boolean') {
             try {
               await this.storageManager.setTabNetworkState(message.tabId, message.active);
+              
+              // CRITICAL FIX: Also update the unified permission system
+              await this.unifiedPermissionService.handleSetTabNetworkState(message.tabId, message.active);
 
               // CRITICAL: Notify content script about the state change
               try {
@@ -262,6 +277,9 @@ export class MessageRouterModule {
           if (message.tabId !== undefined && typeof message.active === 'boolean') {
             try {
               await this.storageManager.setTabErrorState(message.tabId, message.active);
+              
+              // CRITICAL FIX: Also update the unified permission system
+              await this.unifiedPermissionService.handleSetTabErrorState(message.tabId, message.active);
 
               // CRITICAL: Notify content script about the state change
               try {
@@ -289,6 +307,9 @@ export class MessageRouterModule {
           if (message.tabId !== undefined && typeof message.active === 'boolean') {
             try {
               await this.storageManager.setTabTokenState(message.tabId, message.active);
+              
+              // CRITICAL FIX: Also update the unified permission system
+              await this.unifiedPermissionService.handleSetTabTokenState(message.tabId, message.active);
 
               // CRITICAL: Notify content script about the token state change
               try {
@@ -652,6 +673,49 @@ export class MessageRouterModule {
         case 'clearAllData':
           await this.storageManager.clearAllData();
           sendResponse({ success: true });
+          break;
+
+        // Debug Permission Actions
+        case 'debugGetPermissionState':
+          try {
+            const state = await this.unifiedPermissionService.getTabPermissionState(message.tabId);
+            sendResponse({ success: true, state });
+          } catch (error) {
+            sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+          }
+          break;
+
+        case 'debugSetSiteEnabled':
+          try {
+            await unifiedPermissionManager.setSiteEnabled(message.domain, message.enabled);
+            sendResponse({ success: true });
+          } catch (error) {
+            sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+          }
+          break;
+
+        case 'debugClearAllSitePermissions':
+          try {
+            // Clear all site permissions directly
+            const allPermissions = await unifiedPermissionManager.getAllSitePermissions();
+            for (const domain of Object.keys(allPermissions)) {
+              await unifiedPermissionManager.setSiteEnabled(domain, true); // Reset to default (enabled)
+            }
+            sendResponse({ success: true });
+          } catch (error) {
+            sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+          }
+          break;
+
+        case 'debugResetToDefaults':
+          try {
+            // Reset the unified permission system to defaults
+            await chrome.storage.local.remove(['unifiedPermissions']);
+            await unifiedPermissionManager.initialize(); // This will create defaults
+            sendResponse({ success: true });
+          } catch (error) {
+            sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+          }
           break;
 
         // Tab Information
