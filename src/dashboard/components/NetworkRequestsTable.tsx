@@ -241,11 +241,11 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
     let tooltip = 'Original Size (before truncation):\n';
 
     if (payloadSize > 0) {
-      tooltip += `Total: ${formatSize(payloadSize)}\n`;
       if (requestSize > 0 || responseSize > 0) {
         tooltip += `Request: ${formatSize(requestSize)}\n`;
-        tooltip += `Response: ${formatSize(responseSize)}`;
+        tooltip += `Response: ${formatSize(responseSize)}\n`;
       }
+      tooltip += `Total: ${formatSize(payloadSize)}`;
     } else if (requestSize > 0 || responseSize > 0) {
       tooltip += `Request: ${formatSize(requestSize)}\n`;
       tooltip += `Response: ${formatSize(responseSize)}\n`;

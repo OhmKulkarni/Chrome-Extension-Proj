@@ -124,11 +124,11 @@ export const RequestDetailContent: React.FC<{
                         }
                       }
 
-                      return { 
-                        storedRequestSize, 
-                        storedResponseSize, 
+                      return {
+                        storedRequestSize,
+                        storedResponseSize,
                         storedHeaderSize,
-                        totalStored: storedRequestSize + storedResponseSize + storedHeaderSize 
+                        totalStored: storedRequestSize + storedResponseSize + storedHeaderSize
                       };
                     };
 
