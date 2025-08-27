@@ -372,44 +372,40 @@ export class UnifiedPermissionManager {
     tokens?: boolean;
   }> {
     try {
-      // The popup uses ChromeSyncService which stores preferences in chrome.storage.sync
-      // with URL-based keys. Let's try to read those.
-
+      // ChromeSyncService stores preferences under 'tabPreferences.domainPreferences[domain]'
       const domain = this.extractDomain(tabUrl);
-      const urlKey = `tabPrefs_${tabUrl}`;
-      const domainKey = `tabPrefs_${domain}`;
 
-      // Try both URL and domain-based keys
-      const syncResult = await chrome.storage.sync.get([urlKey, domainKey]);
+      // Read the correct storage structure
+      const result = await chrome.storage.sync.get(['tabPreferences']);
+      const tabPreferences = result.tabPreferences;
 
-      // Check URL-specific preferences first, then domain-specific
-      const urlPrefs = syncResult[urlKey];
-      const domainPrefs = syncResult[domainKey];
+      if (!tabPreferences?.domainPreferences) {
+        console.log(`🔍 UnifiedPermissionManager: No existing preferences found for ${domain}`);
+        return {};
+      }
+
+      const domainPrefs = tabPreferences.domainPreferences[domain];
+
+      if (!domainPrefs) {
+        console.log(`🔍 UnifiedPermissionManager: No domain preferences found for ${domain}`);
+        return {};
+      }
 
       const preferences: any = {};
 
-      // Merge preferences (URL-specific overrides domain-specific)
-      if (domainPrefs) {
-        if (domainPrefs.network !== undefined) preferences.network = domainPrefs.network;
-        if (domainPrefs.errors !== undefined) preferences.console = domainPrefs.errors; // popup uses 'errors' key
-        if (domainPrefs.tokens !== undefined) preferences.tokens = domainPrefs.tokens;
-      }
+      // Map from ChromeSyncService format to unified system format
+      if (domainPrefs.network !== undefined) preferences.network = domainPrefs.network;
+      if (domainPrefs.errors !== undefined) preferences.console = domainPrefs.errors; // popup uses 'errors' key
+      if (domainPrefs.tokens !== undefined) preferences.tokens = domainPrefs.tokens;
 
-      if (urlPrefs) {
-        if (urlPrefs.network !== undefined) preferences.network = urlPrefs.network;
-        if (urlPrefs.errors !== undefined) preferences.console = urlPrefs.errors; // popup uses 'errors' key
-        if (urlPrefs.tokens !== undefined) preferences.tokens = urlPrefs.tokens;
-      }
-
+      console.log(`🔍 UnifiedPermissionManager: Found existing preferences for ${domain}:`, preferences);
       return preferences;
 
     } catch (error) {
       console.warn('UnifiedPermissionManager: Could not read existing tab preferences:', error);
       return {};
     }
-  }
-
-  /**
+  }  /**
    * Set tab-specific feature control
    */
   async setFeatureEnabled(
