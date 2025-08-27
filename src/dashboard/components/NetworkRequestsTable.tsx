@@ -71,11 +71,13 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
     if (!selectedRequest) return false;
 
     // Compare key properties to determine if it's the same request
+    // Added response_body to make selection more unique and prevent multiple selections
     return (
       request.url === selectedRequest.url &&
       request.method === selectedRequest.method &&
       request.timestamp === selectedRequest.timestamp &&
-      request.status === selectedRequest.status
+      request.status === selectedRequest.status &&
+      (request.response_body || request.responseBody || '') === (selectedRequest.response_body || selectedRequest.responseBody || '')
     );
   };
 
@@ -676,9 +678,11 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
               <tbody className="bg-white divide-y divide-gray-200">
                 {requests.map((request, index) => {
                   const isSelected = isRequestSelected(request);
+                  // Create a more unique key to prevent React key conflicts with duplicates
+                  const uniqueKey = `${request.url}-${request.method}-${request.timestamp}-${request.status}-${index}`;
                   return (
                     <tr
-                      key={index}
+                      key={uniqueKey}
                       className={`cursor-pointer transition-all duration-200 ${
                         isSelected
                           ? 'bg-blue-50 border-l-4 border-blue-500 hover:bg-blue-100 shadow-sm'

@@ -431,6 +431,8 @@ export class NetworkProcessorModule {
       'taboola.com',
       'awswaf.com',        // AWS WAF telemetry
       'edge.sdk.awswaf',   // AWS WAF edge SDK
+      'gcprivacy.com',     // GCP privacy/tracking
+      'p2.gcprivacy.com',  // Specific GCP privacy tracking
       '/telemetry',        // Telemetry endpoints
       '/ping',             // Health check endpoints
       '/health',           // Health check endpoints
