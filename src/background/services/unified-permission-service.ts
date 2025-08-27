@@ -28,7 +28,7 @@ export class UnifiedPermissionService {
 
       // Initialize the unified manager
       await unifiedPermissionManager.initialize();
-      
+
       // CRITICAL FIX: Sync with existing popup/storage system preferences
       await this.syncWithExistingPreferences();
 
@@ -103,7 +103,7 @@ export class UnifiedPermissionService {
       // Read existing global state from chrome.storage.local
       const globalResult = await chrome.storage.local.get(['extensionEnabled']);
       const globalEnabled = globalResult.extensionEnabled ?? true;
-      
+
       // Update unified system with global state
       await unifiedPermissionManager.setGlobalEnabled(globalEnabled);
 
@@ -379,6 +379,17 @@ export class UnifiedPermissionService {
         site: true,
         features: { network: false, console: false, tokens: false }
       };
+    }
+  }
+
+  /**
+   * Initialize tab permissions from existing popup preferences (public interface)
+   */
+  async initializeTabPermissions(tabId: number, tabUrl: string): Promise<void> {
+    try {
+      await unifiedPermissionManager.initializeTabFromExistingPreferences(tabId, tabUrl);
+    } catch (error) {
+      console.error('UnifiedPermissionService: Failed to initialize tab permissions:', error);
     }
   }
 

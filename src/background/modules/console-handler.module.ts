@@ -113,7 +113,10 @@ export class ConsoleHandlerModule {
       const tabUrl = errorData.tabUrl || sender?.tab?.url;
 
       // CHECK PERMISSIONS: Use unified permission system to check if console logging is allowed
-      if (tabId) {
+      if (tabId && tabUrl) {
+        // CRITICAL FIX: Initialize tab permissions from existing user preferences before checking
+        await this.unifiedPermissionService.initializeTabPermissions(tabId, tabUrl);
+
         const permissionCheck = await this.unifiedPermissionService.canInterceptOnTab(tabId, 'console');
         if (!permissionCheck.canIntercept) {
           console.log(`🚫 ConsoleHandler: Error blocked - ${permissionCheck.reason}`);

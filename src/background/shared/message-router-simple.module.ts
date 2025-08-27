@@ -160,13 +160,13 @@ export class MessageRouterSimpleModule {
                 const tab = await chrome.tabs.get(message.tabId);
                 if (tab.url) {
                   const domain = new URL(tab.url).hostname;
-                  
+
                   // Update both old and new systems
                   const result = await this.extensionState.setSiteSpecificState(domain, message.enabled);
-                  
+
                   // CRITICAL FIX: Also update the unified permission system
                   await this.unifiedPermissionService.handleSetExtensionState(message.enabled, message.tabId);
-                  
+
                   sendResponse(result);
                 } else {
                   sendResponse({ success: false, error: 'Could not get tab URL' });
@@ -177,10 +177,10 @@ export class MessageRouterSimpleModule {
             } else {
               // Global extension state
               const result = await this.extensionState.setExtensionState(message.enabled);
-              
+
               // CRITICAL FIX: Also update the unified permission system
               await this.unifiedPermissionService.handleSetExtensionState(message.enabled);
-              
+
               sendResponse(result);
             }
           } else {
@@ -247,7 +247,7 @@ export class MessageRouterSimpleModule {
           if (message.tabId !== undefined && typeof message.active === 'boolean') {
             try {
               await this.storageManager.setTabNetworkState(message.tabId, message.active);
-              
+
               // CRITICAL FIX: Also update the unified permission system
               await this.unifiedPermissionService.handleSetTabNetworkState(message.tabId, message.active);
 
@@ -277,7 +277,7 @@ export class MessageRouterSimpleModule {
           if (message.tabId !== undefined && typeof message.active === 'boolean') {
             try {
               await this.storageManager.setTabErrorState(message.tabId, message.active);
-              
+
               // CRITICAL FIX: Also update the unified permission system
               await this.unifiedPermissionService.handleSetTabErrorState(message.tabId, message.active);
 
@@ -307,7 +307,7 @@ export class MessageRouterSimpleModule {
           if (message.tabId !== undefined && typeof message.active === 'boolean') {
             try {
               await this.storageManager.setTabTokenState(message.tabId, message.active);
-              
+
               // CRITICAL FIX: Also update the unified permission system
               await this.unifiedPermissionService.handleSetTabTokenState(message.tabId, message.active);
 

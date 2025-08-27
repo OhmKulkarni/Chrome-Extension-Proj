@@ -137,7 +137,11 @@ export class NetworkProcessorModule {
       }
 
       // CHECK PERMISSIONS: Use unified permission system to check if network logging is allowed
-      if (tabId) {
+      if (tabId && tabUrl) {
+        // CRITICAL FIX: Initialize tab permissions from existing user preferences before checking
+        // This ensures new tabs respect previously set user preferences instead of defaulting to enabled
+        await this.unifiedPermissionService.initializeTabPermissions(tabId, tabUrl);
+
         const permissionCheck = await this.unifiedPermissionService.canInterceptOnTab(tabId, 'network');
         if (!permissionCheck.canIntercept) {
           console.log(`🚫 NetworkProcessor: Request blocked - ${permissionCheck.reason}`);

@@ -175,22 +175,22 @@ export class UnifiedPermissionManager {
     if (!this.state) return;
 
     // Check if migration is needed (version < 1.1.0 or defaults are false)
-    const needsMigration = !this.state.version || 
+    const needsMigration = !this.state.version ||
                           this.state.version === '1.0.0';
 
     if (needsMigration) {
       console.log('🔄 UnifiedPermissionManager: Migrating permission system to v1.1.0');
-      
+
       // Don't change the defaults - instead, we need to sync with existing user preferences
       // This will be handled by integrating with the existing popup system
-      
+
       // Update version
       this.state.version = '1.1.0';
       this.state.lastUpdated = Date.now();
 
       // Save migrated state
       await this.saveState();
-      
+
       console.log('✅ UnifiedPermissionManager: Version migration completed');
     }
   }  /**
@@ -203,7 +203,7 @@ export class UnifiedPermissionManager {
       tabControls: {},
       featureDefaults: {
         network: true,  // Enable by default - users expect extension to work
-        console: true,  // Enable by default - users expect extension to work  
+        console: true,  // Enable by default - users expect extension to work
         tokens: true    // Enable by default - users expect extension to work
       },
       version: '1.1.0', // Updated version with enabled-by-default features
@@ -311,6 +311,102 @@ export class UnifiedPermissionManager {
 
     // Fallback to feature default
     return this.state.featureDefaults[feature];
+  }
+
+  /**
+   * Initialize tab permissions from existing popup preferences
+   * This ensures new tabs respect user's previously set preferences
+   */
+  async initializeTabFromExistingPreferences(
+    tabId: number,
+    tabUrl: string
+  ): Promise<void> {
+    await this.ensureState();
+    if (!this.state) return;
+
+    // Skip if tab already has explicit settings
+    if (this.state.tabControls[tabId]) {
+      return;
+    }
+
+    try {
+      console.log(`🔄 UnifiedPermissionManager: Initializing tab ${tabId} from existing preferences`);
+
+      const domain = this.extractDomain(tabUrl);
+
+      // Try to read existing preferences from chrome storage (where popup saves them)
+      // This is a bridge until we fully migrate to unified system
+      const tabPreferences = await this.readExistingTabPreferences(tabUrl);
+
+      // Initialize tab control with user's existing preferences or defaults
+      this.state.tabControls[tabId] = {
+        network: tabPreferences.network ?? this.state.featureDefaults.network,
+        console: tabPreferences.console ?? this.state.featureDefaults.console,
+        tokens: tabPreferences.tokens ?? this.state.featureDefaults.tokens,
+        url: tabUrl,
+        domain,
+        lastUpdated: Date.now()
+      };
+
+      await this.saveState();
+
+      console.log(`✅ UnifiedPermissionManager: Initialized tab ${tabId} permissions:`, {
+        network: this.state.tabControls[tabId].network,
+        console: this.state.tabControls[tabId].console,
+        tokens: this.state.tabControls[tabId].tokens
+      });
+
+    } catch (error) {
+      console.error(`❌ UnifiedPermissionManager: Failed to initialize tab ${tabId}:`, error);
+      // Fall back to defaults if initialization fails
+    }
+  }
+
+  /**
+   * Read existing tab preferences from the popup's storage system
+   * This bridges the gap between old and new permission systems
+   */
+  private async readExistingTabPreferences(tabUrl: string): Promise<{
+    network?: boolean;
+    console?: boolean;
+    tokens?: boolean;
+  }> {
+    try {
+      // The popup uses ChromeSyncService which stores preferences in chrome.storage.sync
+      // with URL-based keys. Let's try to read those.
+
+      const domain = this.extractDomain(tabUrl);
+      const urlKey = `tabPrefs_${tabUrl}`;
+      const domainKey = `tabPrefs_${domain}`;
+
+      // Try both URL and domain-based keys
+      const syncResult = await chrome.storage.sync.get([urlKey, domainKey]);
+
+      // Check URL-specific preferences first, then domain-specific
+      const urlPrefs = syncResult[urlKey];
+      const domainPrefs = syncResult[domainKey];
+
+      const preferences: any = {};
+
+      // Merge preferences (URL-specific overrides domain-specific)
+      if (domainPrefs) {
+        if (domainPrefs.network !== undefined) preferences.network = domainPrefs.network;
+        if (domainPrefs.errors !== undefined) preferences.console = domainPrefs.errors; // popup uses 'errors' key
+        if (domainPrefs.tokens !== undefined) preferences.tokens = domainPrefs.tokens;
+      }
+
+      if (urlPrefs) {
+        if (urlPrefs.network !== undefined) preferences.network = urlPrefs.network;
+        if (urlPrefs.errors !== undefined) preferences.console = urlPrefs.errors; // popup uses 'errors' key
+        if (urlPrefs.tokens !== undefined) preferences.tokens = urlPrefs.tokens;
+      }
+
+      return preferences;
+
+    } catch (error) {
+      console.warn('UnifiedPermissionManager: Could not read existing tab preferences:', error);
+      return {};
+    }
   }
 
   /**
