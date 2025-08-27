@@ -66,6 +66,9 @@ export class BackgroundController {
     // Initialize storage manager with IndexedDB storage
     this.storageManager = new StorageManagerModule(this.chromeApi, this.legacyStorageManager, this.config);
 
+    // Initialize unified permission service (new permission system) - BEFORE other modules that need it
+    this.unifiedPermissionService = new UnifiedPermissionService();
+
     // Initialize specialized modules with IndexedDB storage
     this.tokenTracker = new TokenTrackerModule(
       this.chromeApi,
@@ -78,18 +81,17 @@ export class BackgroundController {
       this.storageManager,
       this.tokenTracker,
       this.legacyStorageManager,
+      this.unifiedPermissionService,
       this.config
     );
     this.consoleHandler = new ConsoleHandlerModule(
       this.chromeApi,
       this.storageManager,
       this.legacyStorageManager,
+      this.unifiedPermissionService,
       this.config
     );
     this.extensionState = new ExtensionStateModule(this.chromeApi, this.storageManager, this.config);
-
-    // Initialize unified permission service (new permission system)
-    this.unifiedPermissionService = new UnifiedPermissionService();
 
     // Initialize message router (handles all communication)
     this.messageRouter = new MessageRouterModule(

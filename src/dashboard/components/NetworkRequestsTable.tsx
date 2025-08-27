@@ -215,14 +215,14 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
     // Calculate stored sizes
     let storedRequestSize = 0;
     let storedResponseSize = 0;
-    
+
     const requestBody = request.requestBody || request.request_body;
     const responseBody = request.responseBody || request.response_body;
-    
+
     if (requestBody && typeof requestBody === 'string') {
       storedRequestSize = new Blob([requestBody]).size;
     }
-    
+
     if (responseBody && typeof responseBody === 'string') {
       storedResponseSize = new Blob([responseBody]).size;
     }
@@ -267,7 +267,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
       if (storedRequestSize > 0) tooltip += `Request Stored: ${formatSize(storedRequestSize)}\n`;
       if (storedResponseSize > 0) tooltip += `Response Stored: ${formatSize(storedResponseSize)}\n`;
       tooltip += `Total Stored: ${formatSize(totalStored)}`;
-      
+
       // Show space saved
       const originalTotal = payloadSize > 0 ? payloadSize : (requestSize + responseSize);
       if (originalTotal > totalStored) {

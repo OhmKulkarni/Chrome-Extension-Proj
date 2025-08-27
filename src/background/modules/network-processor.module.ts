@@ -10,6 +10,7 @@ import { ChromeApiModule } from '../shared/chrome-api.module';
 import { StorageManagerModule } from '../shared/storage-manager.module';
 import { TokenTrackerModule } from './token-tracker.module';
 import { EnvironmentStorageManager } from '../environment-storage-manager';
+import { UnifiedPermissionService } from '../services/unified-permission-service';
 import {
   NetworkRequestData,
   SafetyConfig
@@ -20,6 +21,7 @@ export class NetworkProcessorModule {
   private readonly storageManager: StorageManagerModule;
   private readonly tokenTracker: TokenTrackerModule;
   private readonly indexedDbStorage: EnvironmentStorageManager;
+  private readonly unifiedPermissionService: UnifiedPermissionService;
   private readonly config: SafetyConfig;
   private readonly abortController: AbortController;
   private isInitialized = false;
@@ -30,12 +32,14 @@ export class NetworkProcessorModule {
     storageManager: StorageManagerModule,
     tokenTracker: TokenTrackerModule,
     indexedDbStorage: EnvironmentStorageManager,
+    unifiedPermissionService: UnifiedPermissionService,
     config: Partial<SafetyConfig> = {}
   ) {
     this.chromeApi = chromeApi;
     this.storageManager = storageManager;
     this.tokenTracker = tokenTracker;
     this.indexedDbStorage = indexedDbStorage;
+    this.unifiedPermissionService = unifiedPermissionService;
     this.config = {
       enableAbortController: true,
       maxRetries: 3,
@@ -132,8 +136,18 @@ export class NetworkProcessorModule {
         return { success: false, reason: 'Invalid method' };
       }
 
-      // Skip complex tab logging validation for now - let requests through
-      // (Main branch handles this differently at the message routing level)
+      // CHECK PERMISSIONS: Use unified permission system to check if network logging is allowed
+      if (tabId) {
+        const permissionCheck = await this.unifiedPermissionService.canInterceptOnTab(tabId, 'network');
+        if (!permissionCheck.canIntercept) {
+          console.log(`🚫 NetworkProcessor: Request blocked - ${permissionCheck.reason}`);
+          return { 
+            success: false, 
+            reason: permissionCheck.reason || 'Network logging disabled',
+            blocked: true  // Flag to indicate this was blocked by permissions
+          };
+        }
+      }
 
       // Get settings for filtering and body sanitization
       const settings = await this.storageManager.getSettings();

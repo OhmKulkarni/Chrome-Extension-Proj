@@ -9,6 +9,7 @@
 import { ChromeApiModule } from '../shared/chrome-api.module';
 import { StorageManagerModule } from '../shared/storage-manager.module';
 import { EnvironmentStorageManager } from '../environment-storage-manager';
+import { UnifiedPermissionService } from '../services/unified-permission-service';
 import {
   ConsoleErrorData,
   SafetyConfig
@@ -18,6 +19,7 @@ export class ConsoleHandlerModule {
   private readonly chromeApi: ChromeApiModule;
   private readonly storageManager: StorageManagerModule;
   private readonly indexedDbStorage: EnvironmentStorageManager;
+  private readonly unifiedPermissionService: UnifiedPermissionService;
   private readonly config: SafetyConfig;
   private readonly abortController: AbortController;
   private isInitialized = false;
@@ -27,11 +29,13 @@ export class ConsoleHandlerModule {
     chromeApi: ChromeApiModule,
     storageManager: StorageManagerModule,
     indexedDbStorage: EnvironmentStorageManager,
+    unifiedPermissionService: UnifiedPermissionService,
     config: Partial<SafetyConfig> = {}
   ) {
     this.chromeApi = chromeApi;
     this.storageManager = storageManager;
     this.indexedDbStorage = indexedDbStorage;
+    this.unifiedPermissionService = unifiedPermissionService;
     this.config = {
       enableAbortController: true,
       maxRetries: 3,
@@ -108,12 +112,16 @@ export class ConsoleHandlerModule {
       const tabId = errorData.tabId || sender?.tab?.id;
       const tabUrl = errorData.tabUrl || sender?.tab?.url;
 
-      // Check if tab error logging is active (matching original background script logic)
+      // CHECK PERMISSIONS: Use unified permission system to check if console logging is allowed
       if (tabId) {
-        const isTabLoggingActive = await this.storageManager.getTabErrorState(tabId);
-        if (!isTabLoggingActive) {
-          console.log('🚫 ConsoleHandlerModule: Tab error logging is paused, rejecting error');
-          return { success: false, reason: 'Tab error logging paused' };
+        const permissionCheck = await this.unifiedPermissionService.canInterceptOnTab(tabId, 'console');
+        if (!permissionCheck.canIntercept) {
+          console.log(`🚫 ConsoleHandler: Error blocked - ${permissionCheck.reason}`);
+          return { 
+            success: false, 
+            reason: permissionCheck.reason || 'Console logging disabled',
+            blocked: true  // Flag to indicate this was blocked by permissions
+          };
         }
       }
 
