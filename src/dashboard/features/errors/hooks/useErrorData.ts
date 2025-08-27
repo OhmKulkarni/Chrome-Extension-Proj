@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 
 // Type definitions
 interface ConsoleError {
-  id?: string;
+  id: string;
   message: string;
   url?: string;
   line?: number;
@@ -44,11 +44,11 @@ const checkMemoryPressure = (): { pressure: number; shouldThrottle: boolean } =>
   if (!performanceMemory?.usedJSHeapSize) {
     return { pressure: 0, shouldThrottle: false }
   }
-  
+
   const heapUsed = performanceMemory.usedJSHeapSize
   const heapLimit = performanceMemory.jsHeapSizeLimit
   const pressure = (heapUsed / heapLimit) * 100
-  
+
   return {
     pressure,
     shouldThrottle: pressure > 70
@@ -83,9 +83,9 @@ export const useErrorData = (
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(initialPage)
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ 
-    key: 'timestamp', 
-    direction: 'desc' 
+  const [sortConfig, setSortConfig] = useState<SortConfig>({
+    key: 'timestamp',
+    direction: 'desc'
   })
   const [filters, setFiltersState] = useState({
     searchTerm: '',
@@ -98,21 +98,21 @@ export const useErrorData = (
       console.log(`🔄 Loading console errors page ${page} with limit ${limit}`)
       setLoading(true)
       setError(null)
-      
+
       // Check memory pressure before loading
       const { shouldThrottle } = checkMemoryPressure()
       if (shouldThrottle) {
         console.warn('🚨 High memory pressure, reducing error load')
         limit = Math.min(limit, 5) // Reduce load under pressure
       }
-      
+
       const offset = (page - 1) * limit
-      const response = await sendChromeMessage({ 
-        action: 'getConsoleErrors', 
-        limit, 
-        offset 
+      const response = await sendChromeMessage({
+        action: 'getConsoleErrors',
+        limit,
+        offset
       })
-      
+
       if (response?.success && response?.errors) {
         // Clear previous data to prevent accumulation
         setErrors(response.errors)

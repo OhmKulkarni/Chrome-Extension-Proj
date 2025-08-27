@@ -250,6 +250,7 @@ export class StorageManagerModule {
 
         // Convert ConsoleError format back to ConsoleErrorData format
         return consoleErrors.map(error => ({
+          id: error.id?.toString() || `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           message: error.message,
           severity: error.severity,
           timestamp: new Date(error.timestamp).toISOString(),

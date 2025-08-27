@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Console Error Duplication & Selection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #005a87;
+        }
+        button.warning {
+            background: #f39c12;
+        }
+        button.warning:hover {
+            background: #e67e22;
+        }
+        button.danger {
+            background: #e74c3c;
+        }
+        button.danger:hover {
+            background: #c0392b;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .test-section {
+            border-left: 4px solid #007cba;
+            padding-left: 15px;
+            margin: 20px 0;
+        }
+        .code {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Console Error Fix Test Suite</h1>
+
+        <div class="success">
+            <strong>🎯 Fixes Being Tested:</strong><br>
+            ✅ React Key Fix: Using unique error.id instead of array index<br>
+            ✅ IndexedDB Deduplication: Preventing identical errors within 5 seconds<br>
+            ✅ Selection Behavior: Each error should select independently
+        </div>
+
+        <div class="info">
+            <strong>📋 Testing Instructions:</strong><br>
+            1. Open Chrome DevTools (F12) → Console tab<br>
+            2. Open Extension Dashboard → Console Errors section<br>
+            3. Click test buttons below and observe behavior in both locations<br>
+            4. Test individual selection of errors in the dashboard table
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="test-section">
+            <h2>🚀 Quick Tests</h2>
+            <button onclick="generateUniqueError()">Generate Unique Error</button>
+            <button onclick="generateTimestampedError()" class="warning">Generate Timestamped Error</button>
+        </div>
+
+        <div class="test-section">
+            <h2>📊 Deduplication Tests</h2>
+            <button onclick="testRapidDuplicates()" class="danger">Rapid Duplicates (5x)</button>
+            <button onclick="testSlowDuplicates()" class="warning">Slow Duplicates (3x, 2s apart)</button>
+            <button onclick="testVariedSimilar()">Similar but Different Errors</button>
+        </div>
+
+        <div class="test-section">
+            <h2>🎯 Selection Tests</h2>
+            <button onclick="testIdenticalMessages()">Identical Messages Test</button>
+            <button onclick="testMixedSeverities()">Mixed Severity Test</button>
+            <button onclick="testBulkErrors()">Bulk Error Generation (10x)</button>
+        </div>
+
+        <div class="test-section">
+            <h2>🧪 Edge Case Tests</h2>
+            <button onclick="testLongMessages()">Long Error Messages</button>
+            <button onclick="testSpecialCharacters()">Special Characters</button>
+            <button onclick="testWithStackTrace()">Errors with Stack Traces</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>📝 Test Log</h2>
+        <div class="code" id="errorLog">
+            Test log will appear here...<br>
+        </div>
+        <button onclick="clearLog()">Clear Log</button>
+        <button onclick="downloadLog()">Download Log</button>
+    </div>
+
+    <script>
+        let errorCounter = 1;
+        let testLog = [];
+
+        function logToPage(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}`;
+            testLog.push({ timestamp, message, type });
+
+            const log = document.getElementById('errorLog');
+            const color = type === 'error' ? '#e74c3c' : type === 'warning' ? '#f39c12' : '#007cba';
+            log.innerHTML += `<span style="color: ${color}">${logEntry}</span><br>`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // ===== QUICK TESTS =====
+
+        function generateUniqueError() {
+            const errorMessage = `Unique test error #${errorCounter++} at ${Date.now()}`;
+            console.error(errorMessage);
+            logToPage(`Generated: ${errorMessage}`, 'info');
+        }
+
+        function generateTimestampedError() {
+            const errorMessage = `Timestamped error: ${new Date().toISOString()}`;
+            console.error(errorMessage, { timestamp: Date.now(), source: 'test-suite' });
+            logToPage(`Generated: ${errorMessage}`, 'info');
+        }
+
+        // ===== DEDUPLICATION TESTS =====
+
+        function testRapidDuplicates() {
+            const baseMessage = "Rapid duplicate test error";
+            logToPage('Starting rapid duplicate test (5x within 100ms)', 'warning');
+
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => {
+                    console.error(baseMessage);
+                    logToPage(`Rapid duplicate #${i + 1} sent`, 'info');
+                }, i * 20); // 20ms intervals
+            }
+
+            setTimeout(() => {
+                logToPage('✅ Rapid duplicate test completed - check dashboard for deduplication', 'info');
+            }, 200);
+        }
+
+        function testSlowDuplicates() {
+            const baseMessage = "Slow duplicate test error";
+            logToPage('Starting slow duplicate test (3x, 2 seconds apart)', 'warning');
+
+            for (let i = 0; i < 3; i++) {
+                setTimeout(() => {
+                    console.error(baseMessage);
+                    logToPage(`Slow duplicate #${i + 1} sent (${i * 2}s)`, 'info');
+
+                    if (i === 2) {
+                        logToPage('✅ Slow duplicate test completed - these should NOT be deduplicated', 'info');
+                    }
+                }, i * 2000); // 2 second intervals
+            }
+        }
+
+        function testVariedSimilar() {
+            const messages = [
+                "Similar error - variation A",
+                "Similar error - variation B",
+                "Similar error - variation C"
+            ];
+
+            logToPage('Generating similar but different errors', 'warning');
+            messages.forEach((msg, index) => {
+                setTimeout(() => {
+                    console.error(msg);
+                    logToPage(`Similar error #${index + 1}: ${msg}`, 'info');
+                }, index * 100);
+            });
+        }
+
+        // ===== SELECTION TESTS =====
+
+        function testIdenticalMessages() {
+            const identicalMessage = "Selection test - identical message";
+            logToPage('Testing selection with identical messages (3x)', 'warning');
+
+            // Generate 3 identical messages with slight delays to ensure unique IDs
+            for (let i = 0; i < 3; i++) {
+                setTimeout(() => {
+                    console.error(identicalMessage);
+                    logToPage(`Identical message #${i + 1} for selection test`, 'info');
+                }, i * 50);
+            }
+
+            setTimeout(() => {
+                logToPage('✅ Try selecting each error individually in dashboard', 'info');
+            }, 200);
+        }
+
+        function testMixedSeverities() {
+            const baseMessage = "Mixed severity test";
+            logToPage('Testing mixed severity levels', 'warning');
+
+            console.error(`${baseMessage} - ERROR level`);
+            console.warn(`${baseMessage} - WARN level`);
+            console.info(`${baseMessage} - INFO level`);
+            console.log(`${baseMessage} - LOG level`);
+
+            logToPage('Generated mixed severity messages', 'info');
+        }
+
+        function testBulkErrors() {
+            logToPage('Generating bulk errors (10x)', 'warning');
+
+            for (let i = 1; i <= 10; i++) {
+                setTimeout(() => {
+                    console.error(`Bulk error #${i} of 10`);
+                    logToPage(`Bulk error #${i} generated`, 'info');
+
+                    if (i === 10) {
+                        logToPage('✅ Bulk generation complete - test individual selection', 'info');
+                    }
+                }, i * 100);
+            }
+        }
+
+        // ===== EDGE CASE TESTS =====
+
+        function testLongMessages() {
+            const longMessage = "Long error message test: " + "A".repeat(500) + " - This message is intentionally very long to test how the system handles lengthy error messages and whether they cause any issues with storage, display, or selection behavior.";
+            console.error(longMessage);
+            logToPage('Generated long error message (500+ chars)', 'info');
+        }
+
+        function testSpecialCharacters() {
+            const specialChars = [
+                "Error with 'quotes' and \"double quotes\"",
+                "Error with unicode: 🚨 ❌ ⚠️ 💥",
+                "Error with symbols: !@#$%^&*(){}[]|\\:;\"'<>?,./"
+            ];
+
+            logToPage('Testing special characters', 'warning');
+            specialChars.forEach((msg, index) => {
+                setTimeout(() => {
+                    console.error(msg);
+                    logToPage(`Special char test #${index + 1}`, 'info');
+                }, index * 100);
+            });
+        }
+
+        function testWithStackTrace() {
+            logToPage('Generating error with stack trace', 'warning');
+
+            try {
+                // Intentionally cause an error to get a stack trace
+                throw new Error("Test error with stack trace");
+            } catch (error) {
+                console.error("Caught error:", error);
+                logToPage('Generated error with full stack trace', 'info');
+            }
+        }
+
+        // ===== UTILITY FUNCTIONS =====
+
+        function clearLog() {
+            document.getElementById('errorLog').innerHTML = 'Test log cleared...<br>';
+            testLog = [];
+            logToPage('Log cleared', 'info');
+        }
+
+        function downloadLog() {
+            const logContent = testLog.map(entry =>
+                `[${entry.timestamp}] ${entry.message}`
+            ).join('\n');
+
+            const blob = new Blob([logContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `console-error-test-log-${Date.now()}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            logToPage('Test log downloaded', 'info');
+        }
+
+        // Initialize with a test message
+        setTimeout(() => {
+            logToPage('🚀 Console Error Fix Test Suite Initialized', 'info');
+            console.error("Initial test error - Console Error Fix Test Suite");
+        }, 1000);
+    </script>
+</body>
+</html>

@@ -70,6 +70,7 @@ export interface PerformanceTimingMetrics {
 // ===== CONSOLE SYSTEM TYPES =====
 
 export interface ConsoleErrorData {
+  id: string;
   message: string;
   severity: 'error' | 'warn' | 'info';
   timestamp: string;

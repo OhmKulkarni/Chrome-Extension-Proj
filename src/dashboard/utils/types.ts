@@ -15,7 +15,7 @@ export interface NetworkRequest {
 }
 
 export interface ConsoleError {
-  id?: string;
+  id: string;
   message: string;
   url: string;
   severity: 'error' | 'warn' | 'info';

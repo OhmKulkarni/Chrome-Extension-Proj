@@ -826,6 +826,51 @@ export class IndexedDBStorage implements StorageOperations {
     // MEMORY LEAK FIX: Check memory pressure before inserting
     await this.checkMemoryPressure()
 
+    // DEDUPLICATION: Check for similar errors within the last 5 seconds
+    try {
+      const recentTimeRange = 5000; // 5 seconds in milliseconds
+      const currentTime = data.timestamp;
+      const timeRangeStart = currentTime - recentTimeRange;
+
+      // Query recent errors with same message and severity
+      const transaction = this.db!.transaction(['consoleErrors'], 'readonly');
+      const store = transaction.objectStore('consoleErrors');
+      const index = store.index('timestamp');
+      const range = IDBKeyRange.lowerBound(timeRangeStart);
+
+      const recentErrors: ConsoleError[] = [];
+
+      await new Promise<void>((resolve, reject) => {
+        const request = index.openCursor(range);
+        request.onsuccess = () => {
+          const cursor = request.result;
+          if (cursor) {
+            const error = cursor.value as ConsoleError;
+            // Only check errors within our time range and with same message/severity
+            if (error.timestamp >= timeRangeStart &&
+                error.message === data.message &&
+                error.severity === data.severity &&
+                error.url === data.url) {
+              recentErrors.push(error);
+            }
+            cursor.continue();
+          } else {
+            resolve();
+          }
+        };
+        request.onerror = () => reject(request.error);
+      });
+
+      // If we found identical errors recently, skip insertion
+      if (recentErrors.length > 0) {
+        console.log(`🔄 IndexedDB: Duplicate console error skipped (${recentErrors.length} similar errors found in last 5s)`);
+        return recentErrors[0].id!; // Return ID of existing similar error
+      }
+    } catch (deduplicationError) {
+      // If deduplication check fails, proceed with insertion anyway
+      console.warn('⚠️ IndexedDB: Deduplication check failed, proceeding with insertion:', deduplicationError);
+    }
+
     const result = await this.performTransaction('consoleErrors', 'readwrite',
       (store) => store.add(data)
     )

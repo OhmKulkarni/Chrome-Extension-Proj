@@ -1,6 +1,7 @@
 import React from 'react';
 
 interface ConsoleError {
+  id: string;
   message: string;
   url?: string;
   line?: number;
@@ -249,11 +250,11 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {errors.map((error, index) => {
+                {errors.map((error) => {
                   const isSelected = isErrorSelected(error);
                   return (
                     <tr
-                      key={index}
+                      key={error.id}
                       className={`cursor-pointer transition-all duration-200 ${
                         isSelected
                           ? 'bg-red-50 border-l-4 border-red-500 hover:bg-red-100 shadow-sm'

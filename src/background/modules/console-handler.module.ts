@@ -138,7 +138,9 @@ export class ConsoleHandlerModule {
       const mainDomain = tabUrl ? this.extractMainDomain(tabUrl) : this.extractMainDomain(url || 'unknown');
 
       // Create validated console error data
+      const uniqueId = `console_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const validatedErrorData: ConsoleErrorData = {
+        id: uniqueId,
         message: this.sanitizeMessage(message),
         severity: errorSeverity,
         timestamp: timestamp || new Date().toISOString(),
@@ -202,6 +204,7 @@ export class ConsoleHandlerModule {
 
       // Transform IndexedDB ConsoleError format to ConsoleErrorData format for compatibility
       return consoleErrors.map(error => ({
+        id: error.id?.toString() || `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         message: error.message,
         severity: error.severity,
         timestamp: new Date(error.timestamp).toISOString(),
