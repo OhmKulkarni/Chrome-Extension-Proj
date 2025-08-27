@@ -157,8 +157,8 @@ export class NetworkProcessorModule {
       const settings = await this.storageManager.getSettings();
       const networkConfig = settings.networkInterception || {};
 
-      // Check if request should be filtered as noise (if filtering is enabled)
-      if (networkConfig.privacy?.filterNoise && this.isNoiseRequest(url, method)) {
+      // Check if request should be filtered as noise (if any filtering is enabled)
+      if (networkConfig.privacy?.noiseFilters && this.isNoiseRequest(url, method, networkConfig.privacy.noiseFilters)) {
         return { success: false, reason: 'Request filtered as noise' };
       }
 
@@ -407,56 +407,86 @@ export class NetworkProcessorModule {
   // ===== UTILITY METHODS =====
 
   /**
-   * Check if request should be filtered as noise
+   * Check if request should be filtered as noise based on enabled filter categories
    */
-  private isNoiseRequest(url: string, method: string): boolean {
+  private isNoiseRequest(url: string, method: string, noiseFilters: any): boolean {
     const urlLower = url.toLowerCase();
 
-    // Filter out common noise patterns (enhanced with AWS WAF and more telemetry)
-    const noisePatterns = [
-      'favicon.ico',
-      'google-analytics',
-      'googletagmanager',
-      'doubleclick.net',
-      'googlesyndication',
-      'adsystem.google',
-      'amazon-adsystem',
-      'facebook.com/tr',
-      'connect.facebook.net',
-      'analytics.twitter.com',
-      'ping.chartbeat.net',
-      'quantserve.com',
-      'scorecardresearch.com',
-      'outbrain.com',
-      'taboola.com',
-      'awswaf.com',        // AWS WAF telemetry
-      'edge.sdk.awswaf',   // AWS WAF edge SDK
-      'gcprivacy.com',     // GCP privacy/tracking
-      'p2.gcprivacy.com',  // Specific GCP privacy tracking
-      '/telemetry',        // Telemetry endpoints
-      '/ping',             // Health check endpoints
-      '/health',           // Health check endpoints
-      'telemetry/',        // Telemetry paths
-      '.css',
-      '.js',
-      '.png',
-      '.jpg',
-      '.jpeg',
-      '.gif',
-      '.svg',
-      '.woff',
-      '.woff2',
-      '.ttf',
-      '.eot'
-    ];
+    // Define patterns by category
+    const patternCategories = {
+      analytics: [
+        'google-analytics',
+        'googletagmanager',
+        'mixpanel.com',
+        'amplitude.com',
+        'segment.com',
+        'hotjar.com',
+        'fullstory.com'
+      ],
+      advertising: [
+        'doubleclick.net',
+        'googlesyndication',
+        'adsystem.google',
+        'amazon-adsystem',
+        'facebook.com/tr',
+        'connect.facebook.net',
+        'outbrain.com',
+        'taboola.com',
+        'adsystem.amazon.com'
+      ],
+      socialMedia: [
+        'analytics.twitter.com',
+        'facebook.com/tr',
+        'connect.facebook.net',
+        'linkedin.com/li',
+        'pinterest.com/ct'
+      ],
+      telemetry: [
+        '/telemetry',
+        '/ping',
+        '/health',
+        'telemetry/',
+        'awswaf.com',
+        'edge.sdk.awswaf',
+        'gcprivacy.com',
+        'p2.gcprivacy.com',
+        'sentry.io',
+        'bugsnag.com',
+        'rollbar.com',
+        'ping.chartbeat.net',
+        'quantserve.com',
+        'scorecardresearch.com'
+      ],
+      staticAssets: [
+        'favicon.ico',
+        '.css',
+        '.js',
+        '.png',
+        '.jpg',
+        '.jpeg',
+        '.gif',
+        '.svg',
+        '.woff',
+        '.woff2',
+        '.ttf',
+        '.eot',
+        '.webp',
+        '.ico'
+      ],
+      preflight: [] // Handled separately by method check
+    };
 
-    // Filter requests matching noise patterns
-    if (noisePatterns.some(pattern => urlLower.includes(pattern))) {
-      return true;
+    // Check each enabled filter category
+    for (const [category, patterns] of Object.entries(patternCategories)) {
+      if (noiseFilters[category] === true) {
+        if (patterns.some((pattern: string) => urlLower.includes(pattern))) {
+          return true;
+        }
+      }
     }
 
-    // Filter HEAD and OPTIONS requests (usually preflight)
-    if (method === 'HEAD' || method === 'OPTIONS') {
+    // Handle preflight requests separately (method-based)
+    if (noiseFilters.preflight === true && (method === 'HEAD' || method === 'OPTIONS')) {
       return true;
     }
 

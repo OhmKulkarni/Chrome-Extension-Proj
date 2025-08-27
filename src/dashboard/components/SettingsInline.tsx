@@ -11,7 +11,14 @@ interface SettingsData {
       maxBodySize: number;
     };
     privacy: {
-      filterNoise: boolean;
+      noiseFilters: {
+        analytics: boolean;     // Google Analytics, Tag Manager
+        advertising: boolean;   // Ad networks, tracking
+        socialMedia: boolean;   // Facebook, Twitter pixels  
+        telemetry: boolean;     // Health checks, telemetry
+        staticAssets: boolean;  // CSS, JS, images, fonts
+        preflight: boolean;     // HEAD, OPTIONS requests
+      };
     };
     urlPatterns: {
       enabled: boolean;
@@ -55,7 +62,14 @@ const defaultSettings: SettingsData = {
       maxBodySize: 2000,
     },
     privacy: {
-      filterNoise: true,
+      noiseFilters: {
+        analytics: true,     // Google Analytics, Tag Manager
+        advertising: true,   // Ad networks, tracking
+        socialMedia: true,   // Facebook, Twitter pixels  
+        telemetry: true,     // Health checks, telemetry
+        staticAssets: true,  // CSS, JS, images, fonts
+        preflight: true,     // HEAD, OPTIONS requests
+      },
     },
     urlPatterns: {
       enabled: false,
@@ -566,39 +580,110 @@ const SettingsInline: React.FC = () => {
               )}
 
               <div className="space-y-4">
-                <Switch
-                  checked={settings.networkInterception?.privacy?.filterNoise || false}
-                  onChange={(e) => updateSetting('networkInterception', {
-                    ...settings.networkInterception,
-                    privacy: {
-                      ...settings.networkInterception?.privacy,
-                      filterNoise: e.target.checked
-                    }
-                  })}
-                  label="Filter noise requests"
-                  description="Hide telemetry, analytics, and tracking requests (e.g., Google Analytics, AWS WAF, Facebook Pixel, error tracking services)"
-                />
-
-                {settings.networkInterception?.privacy?.filterNoise && (
-                  <div className="ml-4 mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <p className="text-sm font-medium mb-2">🔇 Noise filtering is active</p>
-                    <p className="text-xs text-gray-600 mb-2">
-                      The following types of requests will be automatically filtered out:
-                    </p>
-                    <ul className="text-xs text-gray-600 space-y-1">
-                      <li>• <strong>Analytics:</strong> Google Analytics, Mixpanel, Amplitude, Segment</li>
-                      <li>• <strong>Advertising:</strong> Google Ads (DoubleClick), Facebook Pixel, tracking pixels</li>
-                      <li>• <strong>Error tracking:</strong> Sentry, Bugsnag, Rollbar</li>
-                      <li>• <strong>Performance monitoring:</strong> New Relic, DataDog</li>
-                      <li>• <strong>CDN health checks:</strong> /health, /ping, /telemetry endpoints</li>
-                      <li>• <strong>Browser telemetry:</strong> Mozilla telemetry, AWS WAF</li>
-                      <li>• <strong>URL tracking parameters:</strong> utm_source, fbclid, gclid</li>
-                    </ul>
-                    <p className="text-xs text-gray-600 mt-2 italic">
-                      Legitimate API calls and application requests will always be captured.
-                    </p>
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900 mb-3">Request Filtering</h4>
+                  <p className="text-xs text-gray-600 mb-4">
+                    Choose which types of requests to filter out from logging. Uncheck categories you want to track.
+                  </p>
+                  
+                  <div className="space-y-3">
+                    <Switch
+                      checked={settings.networkInterception?.privacy?.noiseFilters?.analytics || true}
+                      onChange={(e) => updateSetting('networkInterception', {
+                        ...settings.networkInterception,
+                        privacy: {
+                          ...settings.networkInterception?.privacy,
+                          noiseFilters: {
+                            ...settings.networkInterception?.privacy?.noiseFilters,
+                            analytics: e.target.checked
+                          }
+                        }
+                      })}
+                      label="Analytics & Tracking"
+                      description="Google Analytics, Tag Manager, Mixpanel, Amplitude"
+                    />
+                    
+                    <Switch
+                      checked={settings.networkInterception?.privacy?.noiseFilters?.advertising || true}
+                      onChange={(e) => updateSetting('networkInterception', {
+                        ...settings.networkInterception,
+                        privacy: {
+                          ...settings.networkInterception?.privacy,
+                          noiseFilters: {
+                            ...settings.networkInterception?.privacy?.noiseFilters,
+                            advertising: e.target.checked
+                          }
+                        }
+                      })}
+                      label="Advertising Networks"
+                      description="DoubleClick, Google Ads, Amazon Ads, Facebook Pixel"
+                    />
+                    
+                    <Switch
+                      checked={settings.networkInterception?.privacy?.noiseFilters?.socialMedia || true}
+                      onChange={(e) => updateSetting('networkInterception', {
+                        ...settings.networkInterception,
+                        privacy: {
+                          ...settings.networkInterception?.privacy,
+                          noiseFilters: {
+                            ...settings.networkInterception?.privacy?.noiseFilters,
+                            socialMedia: e.target.checked
+                          }
+                        }
+                      })}
+                      label="Social Media Tracking"
+                      description="Facebook, Twitter analytics, social media pixels"
+                    />
+                    
+                    <Switch
+                      checked={settings.networkInterception?.privacy?.noiseFilters?.telemetry || true}
+                      onChange={(e) => updateSetting('networkInterception', {
+                        ...settings.networkInterception,
+                        privacy: {
+                          ...settings.networkInterception?.privacy,
+                          noiseFilters: {
+                            ...settings.networkInterception?.privacy?.noiseFilters,
+                            telemetry: e.target.checked
+                          }
+                        }
+                      })}
+                      label="Telemetry & Health Checks"
+                      description="/ping, /health, /telemetry, error reporting, GCP Privacy"
+                    />
+                    
+                    <Switch
+                      checked={settings.networkInterception?.privacy?.noiseFilters?.staticAssets || true}
+                      onChange={(e) => updateSetting('networkInterception', {
+                        ...settings.networkInterception,
+                        privacy: {
+                          ...settings.networkInterception?.privacy,
+                          noiseFilters: {
+                            ...settings.networkInterception?.privacy?.noiseFilters,
+                            staticAssets: e.target.checked
+                          }
+                        }
+                      })}
+                      label="Static Assets"
+                      description="CSS, JS, images, fonts, favicon.ico"
+                    />
+                    
+                    <Switch
+                      checked={settings.networkInterception?.privacy?.noiseFilters?.preflight || true}
+                      onChange={(e) => updateSetting('networkInterception', {
+                        ...settings.networkInterception,
+                        privacy: {
+                          ...settings.networkInterception?.privacy,
+                          noiseFilters: {
+                            ...settings.networkInterception?.privacy?.noiseFilters,
+                            preflight: e.target.checked
+                          }
+                        }
+                      })}
+                      label="Preflight Requests"
+                      description="HEAD and OPTIONS requests (CORS preflight)"
+                    />
                   </div>
-                )}
+                </div>
               </div>
 
               <div className="space-y-4">
