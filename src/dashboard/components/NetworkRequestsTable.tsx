@@ -215,6 +215,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
     // Calculate stored sizes
     let storedRequestSize = 0;
     let storedResponseSize = 0;
+    let storedHeaderSize = 0;
 
     const requestBody = request.requestBody || request.request_body;
     const responseBody = request.responseBody || request.response_body;
@@ -225,6 +226,16 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
 
     if (responseBody && typeof responseBody === 'string') {
       storedResponseSize = new Blob([responseBody]).size;
+    }
+
+    // Add header size calculation to match stored size column
+    if (request.headers) {
+      try {
+        const headerStr = typeof request.headers === 'string' ? request.headers : JSON.stringify(request.headers);
+        storedHeaderSize = new Blob([headerStr]).size;
+      } catch (e) {
+        // Ignore header size calculation errors
+      }
     }
 
     let tooltip = 'Original Size (before truncation):\n';
@@ -261,11 +272,12 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
     }
 
     // Add stored size information if different from original
-    const totalStored = storedRequestSize + storedResponseSize;
+    const totalStored = storedRequestSize + storedResponseSize + storedHeaderSize;
     if (totalStored > 0) {
       tooltip += '\n\nStored Size (after truncation):\n';
       if (storedRequestSize > 0) tooltip += `Request Stored: ${formatSize(storedRequestSize)}\n`;
       if (storedResponseSize > 0) tooltip += `Response Stored: ${formatSize(storedResponseSize)}\n`;
+      if (storedHeaderSize > 0) tooltip += `Headers Stored: ${formatSize(storedHeaderSize)}\n`;
       tooltip += `Total Stored: ${formatSize(totalStored)}`;
 
       // Show space saved

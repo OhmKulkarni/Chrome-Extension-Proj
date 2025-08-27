@@ -101,6 +101,7 @@ export const RequestDetailContent: React.FC<{
                     const calculateStoredSize = () => {
                       let storedRequestSize = 0;
                       let storedResponseSize = 0;
+                      let storedHeaderSize = 0;
 
                       const requestBody = request.requestBody || request.request_body;
                       const responseBody = request.responseBody || request.response_body;
@@ -113,10 +114,25 @@ export const RequestDetailContent: React.FC<{
                         storedResponseSize = new Blob([responseBody]).size;
                       }
 
-                      return { storedRequestSize, storedResponseSize, totalStored: storedRequestSize + storedResponseSize };
+                      // Add header size (same calculation as stored size column)
+                      if (request.headers) {
+                        try {
+                          const headerStr = typeof request.headers === 'string' ? request.headers : JSON.stringify(request.headers);
+                          storedHeaderSize = new Blob([headerStr]).size;
+                        } catch (e) {
+                          // Ignore header size calculation errors
+                        }
+                      }
+
+                      return { 
+                        storedRequestSize, 
+                        storedResponseSize, 
+                        storedHeaderSize,
+                        totalStored: storedRequestSize + storedResponseSize + storedHeaderSize 
+                      };
                     };
 
-                    const { storedRequestSize, storedResponseSize, totalStored } = calculateStoredSize();
+                    const { storedRequestSize, storedResponseSize, storedHeaderSize, totalStored } = calculateStoredSize();
 
                     // Logic matching the tooltip
                     if (payloadSize > 0) {
@@ -138,6 +154,7 @@ export const RequestDetailContent: React.FC<{
                               <div><strong>Total Stored:</strong> {formatSize(totalStored)}</div>
                               {storedRequestSize > 0 && <div><strong>Request Stored:</strong> {formatSize(storedRequestSize)}</div>}
                               {storedResponseSize > 0 && <div><strong>Response Stored:</strong> {formatSize(storedResponseSize)}</div>}
+                              {storedHeaderSize > 0 && <div><strong>Headers Stored:</strong> {formatSize(storedHeaderSize)}</div>}
                               {(payloadSize - totalStored > 0) && (
                                 <div className="text-xs text-orange-600 mt-2">
                                   <strong>Truncated:</strong> {formatSize(payloadSize - totalStored)} saved
@@ -165,6 +182,7 @@ export const RequestDetailContent: React.FC<{
                               <div><strong>Total Stored:</strong> {formatSize(totalStored)}</div>
                               {storedRequestSize > 0 && <div><strong>Request Stored:</strong> {formatSize(storedRequestSize)}</div>}
                               {storedResponseSize > 0 && <div><strong>Response Stored:</strong> {formatSize(storedResponseSize)}</div>}
+                              {storedHeaderSize > 0 && <div><strong>Headers Stored:</strong> {formatSize(storedHeaderSize)}</div>}
                               {((requestSize + responseSize) - totalStored > 0) && (
                                 <div className="text-xs text-orange-600 mt-2">
                                   <strong>Truncated:</strong> {formatSize((requestSize + responseSize) - totalStored)} saved

@@ -207,20 +207,20 @@ export class NetworkProcessorModule {
         // Map the request data from main-world-script to storage API format (EXACT COPY FROM MAIN BRANCH)
         // Get body truncation limits from config
         const maxBodySize = networkConfig.bodyCapture?.maxBodySize || 50000; // Default 50KB
-        
+
         // Truncate bodies during storage to prevent memory issues
         const originalRequestBodySize = requestData.requestBody ? new Blob([requestData.requestBody]).size : 0;
         const originalResponseBodySize = requestData.responseBody ? new Blob([requestData.responseBody]).size : 0;
-        
+
         const truncatedRequestBody = this.sanitizeBody(requestData.requestBody, maxBodySize) || '';
         const truncatedResponseBody = this.sanitizeBody(
-          requestData.responseBody || `Status: ${status} ${requestData.statusText || ''}`, 
+          requestData.responseBody || `Status: ${status} ${requestData.statusText || ''}`,
           maxBodySize
         ) || `Status: ${status} ${requestData.statusText || ''}`;
-        
+
         const storedRequestBodySize = truncatedRequestBody ? new Blob([truncatedRequestBody]).size : 0;
         const storedResponseBodySize = truncatedResponseBody ? new Blob([truncatedResponseBody]).size : 0;
-        
+
         // Debug logging for size verification
         if (Math.random() < 0.1) { // Log 10% of requests for debugging
           console.log('🔍 TRUNCATION DEBUG for', validatedRequestData.url?.substring(0, 50), {
@@ -230,7 +230,7 @@ export class NetworkProcessorModule {
             truncationSavings: (originalRequestBodySize + originalResponseBodySize) - (storedRequestBodySize + storedResponseBodySize)
           });
         }
-        
+
         const apiCallData = {
           url: validatedRequestData.url,
           method: validatedRequestData.method || 'GET',
