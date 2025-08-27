@@ -14,7 +14,7 @@ interface SettingsData {
       noiseFilters: {
         analytics: boolean;     // Google Analytics, Tag Manager
         advertising: boolean;   // Ad networks, tracking
-        socialMedia: boolean;   // Facebook, Twitter pixels  
+        socialMedia: boolean;   // Facebook, Twitter pixels
         telemetry: boolean;     // Health checks, telemetry
         staticAssets: boolean;  // CSS, JS, images, fonts
         preflight: boolean;     // HEAD, OPTIONS requests
@@ -65,7 +65,7 @@ const defaultSettings: SettingsData = {
       noiseFilters: {
         analytics: true,     // Google Analytics, Tag Manager
         advertising: true,   // Ad networks, tracking
-        socialMedia: true,   // Facebook, Twitter pixels  
+        socialMedia: true,   // Facebook, Twitter pixels
         telemetry: true,     // Health checks, telemetry
         staticAssets: true,  // CSS, JS, images, fonts
         preflight: true,     // HEAD, OPTIONS requests
@@ -259,6 +259,35 @@ const SettingsInline: React.FC = () => {
           errorLogging: syncSettings.errorLogging || defaultSettings.errorLogging,
           tokenLogging: syncSettings.tokenLogging || defaultSettings.tokenLogging,
         };
+      }
+
+      // MIGRATION: Convert old filterNoise setting to new granular noiseFilters
+      if (loadedSettings.networkInterception?.privacy) {
+        const privacy = loadedSettings.networkInterception.privacy as any;
+        
+        // If we have the old filterNoise setting but no new noiseFilters
+        if (privacy.filterNoise !== undefined && !privacy.noiseFilters) {
+          console.log('📋 Migrating old filterNoise setting to new granular filters');
+          
+          // Migrate based on the old setting value
+          privacy.noiseFilters = {
+            analytics: privacy.filterNoise,
+            advertising: privacy.filterNoise,
+            socialMedia: privacy.filterNoise,
+            telemetry: privacy.filterNoise,
+            staticAssets: privacy.filterNoise,
+            preflight: privacy.filterNoise
+          };
+          
+          // Remove the old setting
+          delete privacy.filterNoise;
+          
+          // Save the migrated settings immediately
+          console.log('💾 Auto-saving migrated settings');
+          setTimeout(() => {
+            updateSetting('networkInterception', loadedSettings.networkInterception);
+          }, 100);
+        }
       }
 
       setSettings(loadedSettings);
@@ -585,7 +614,7 @@ const SettingsInline: React.FC = () => {
                   <p className="text-xs text-gray-600 mb-4">
                     Choose which types of requests to filter out from logging. Uncheck categories you want to track.
                   </p>
-                  
+
                   <div className="space-y-3">
                     <Switch
                       checked={settings.networkInterception?.privacy?.noiseFilters?.analytics || true}
@@ -602,7 +631,7 @@ const SettingsInline: React.FC = () => {
                       label="Analytics & Tracking"
                       description="Google Analytics, Tag Manager, Mixpanel, Amplitude"
                     />
-                    
+
                     <Switch
                       checked={settings.networkInterception?.privacy?.noiseFilters?.advertising || true}
                       onChange={(e) => updateSetting('networkInterception', {
@@ -618,7 +647,7 @@ const SettingsInline: React.FC = () => {
                       label="Advertising Networks"
                       description="DoubleClick, Google Ads, Amazon Ads, Facebook Pixel"
                     />
-                    
+
                     <Switch
                       checked={settings.networkInterception?.privacy?.noiseFilters?.socialMedia || true}
                       onChange={(e) => updateSetting('networkInterception', {
@@ -634,7 +663,7 @@ const SettingsInline: React.FC = () => {
                       label="Social Media Tracking"
                       description="Facebook, Twitter analytics, social media pixels"
                     />
-                    
+
                     <Switch
                       checked={settings.networkInterception?.privacy?.noiseFilters?.telemetry || true}
                       onChange={(e) => updateSetting('networkInterception', {
@@ -650,7 +679,7 @@ const SettingsInline: React.FC = () => {
                       label="Telemetry & Health Checks"
                       description="/ping, /health, /telemetry, error reporting, GCP Privacy"
                     />
-                    
+
                     <Switch
                       checked={settings.networkInterception?.privacy?.noiseFilters?.staticAssets || true}
                       onChange={(e) => updateSetting('networkInterception', {
@@ -666,7 +695,7 @@ const SettingsInline: React.FC = () => {
                       label="Static Assets"
                       description="CSS, JS, images, fonts, favicon.ico"
                     />
-                    
+
                     <Switch
                       checked={settings.networkInterception?.privacy?.noiseFilters?.preflight || true}
                       onChange={(e) => updateSetting('networkInterception', {

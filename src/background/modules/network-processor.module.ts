@@ -157,8 +157,41 @@ export class NetworkProcessorModule {
       const settings = await this.storageManager.getSettings();
       const networkConfig = settings.networkInterception || {};
 
-      // Check if request should be filtered as noise (if any filtering is enabled)
-      if (networkConfig.privacy?.noiseFilters && this.isNoiseRequest(url, method, networkConfig.privacy.noiseFilters)) {
+      // Check if request should be filtered as noise (with backward compatibility)
+      const privacyConfig = networkConfig.privacy || {};
+      
+      // Debug logging to see what settings we have
+      if (url.includes('awswaf') || url.includes('edge.sdk')) {
+        console.log('🔍 AWS WAF REQUEST DEBUG:', {
+          url: url.substring(0, 80),
+          privacyConfig,
+          hasNoiseFilters: !!privacyConfig.noiseFilters,
+          hasOldFilterNoise: !!(privacyConfig as any).filterNoise
+        });
+      }
+      
+      // Backward compatibility: support old filterNoise setting
+      let shouldFilter = false;
+      if (privacyConfig.noiseFilters) {
+        // New granular filtering system
+        shouldFilter = this.isNoiseRequest(url, method, privacyConfig.noiseFilters);
+      } else if ((privacyConfig as any).filterNoise) {
+        // Old simple filtering system - apply all filters
+        const defaultFilters = {
+          analytics: true,
+          advertising: true,
+          socialMedia: true,
+          telemetry: true,
+          staticAssets: true,
+          preflight: true
+        };
+        shouldFilter = this.isNoiseRequest(url, method, defaultFilters);
+      }
+      
+      if (shouldFilter) {
+        if (url.includes('awswaf') || url.includes('edge.sdk')) {
+          console.log('🔇 FILTERED AWS WAF REQUEST:', url.substring(0, 80));
+        }
         return { success: false, reason: 'Request filtered as noise' };
       }
 
@@ -480,6 +513,14 @@ export class NetworkProcessorModule {
     for (const [category, patterns] of Object.entries(patternCategories)) {
       if (noiseFilters[category] === true) {
         if (patterns.some((pattern: string) => urlLower.includes(pattern))) {
+          // Debug logging for AWS WAF specifically
+          if (urlLower.includes('awswaf') || urlLower.includes('edge.sdk')) {
+            console.log(`🔇 FILTER DEBUG: Blocking ${category} request:`, {
+              url: url.substring(0, 80),
+              matchedPattern: patterns.find(p => urlLower.includes(p)),
+              category
+            });
+          }
           return true;
         }
       }
