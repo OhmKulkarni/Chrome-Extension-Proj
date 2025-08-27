@@ -205,6 +205,32 @@ export class NetworkProcessorModule {
         }
 
         // Map the request data from main-world-script to storage API format (EXACT COPY FROM MAIN BRANCH)
+        // Get body truncation limits from config
+        const maxBodySize = networkConfig.bodyCapture?.maxBodySize || 50000; // Default 50KB
+        
+        // Truncate bodies during storage to prevent memory issues
+        const originalRequestBodySize = requestData.requestBody ? new Blob([requestData.requestBody]).size : 0;
+        const originalResponseBodySize = requestData.responseBody ? new Blob([requestData.responseBody]).size : 0;
+        
+        const truncatedRequestBody = this.sanitizeBody(requestData.requestBody, maxBodySize) || '';
+        const truncatedResponseBody = this.sanitizeBody(
+          requestData.responseBody || `Status: ${status} ${requestData.statusText || ''}`, 
+          maxBodySize
+        ) || `Status: ${status} ${requestData.statusText || ''}`;
+        
+        const storedRequestBodySize = truncatedRequestBody ? new Blob([truncatedRequestBody]).size : 0;
+        const storedResponseBodySize = truncatedResponseBody ? new Blob([truncatedResponseBody]).size : 0;
+        
+        // Debug logging for size verification
+        if (Math.random() < 0.1) { // Log 10% of requests for debugging
+          console.log('🔍 TRUNCATION DEBUG for', validatedRequestData.url?.substring(0, 50), {
+            originalSizes: { request: originalRequestBodySize, response: originalResponseBodySize, total: originalRequestBodySize + originalResponseBodySize },
+            storedSizes: { request: storedRequestBodySize, response: storedResponseBodySize, total: storedRequestBodySize + storedResponseBodySize },
+            payloadSizeField: (requestData.requestSize || 0) + (requestData.responseSize || 0),
+            truncationSavings: (originalRequestBodySize + originalResponseBodySize) - (storedRequestBodySize + storedResponseBodySize)
+          });
+        }
+        
         const apiCallData = {
           url: validatedRequestData.url,
           method: validatedRequestData.method || 'GET',
@@ -212,12 +238,12 @@ export class NetworkProcessorModule {
             request: requestData.requestHeaders || {},
             response: requestData.responseHeaders || {}
           }),
-          // Calculate total payload size properly
+          // Calculate total payload size properly (ORIGINAL SIZE before truncation)
           payload_size: (requestData.requestSize || 0) + (requestData.responseSize || 0),
           status: status || 0,
-          response_body: requestData.responseBody || `Status: ${status} ${requestData.statusText || ''}`,
-          // Add request body if captured
-          request_body: requestData.requestBody || null,
+          response_body: truncatedResponseBody,
+          // Add request body if captured (TRUNCATED for storage)
+          request_body: truncatedRequestBody,
           timestamp: requestData.timestamp ? new Date(requestData.timestamp).getTime() : Date.now(),
           // Handle both new and old duration field names
           response_time: requestData.duration || requestData.response_time || null,
