@@ -97,25 +97,84 @@ export const RequestDetailContent: React.FC<{
                     const requestSize = parseSize(request.requestSize || request.request_size);
                     const responseSize = parseSize(request.responseSize || request.response_size);
 
+                    // Calculate stored sizes (size of truncated bodies actually stored)
+                    const calculateStoredSize = () => {
+                      let storedRequestSize = 0;
+                      let storedResponseSize = 0;
+                      
+                      const requestBody = request.requestBody || request.request_body;
+                      const responseBody = request.responseBody || request.response_body;
+                      
+                      if (requestBody && typeof requestBody === 'string') {
+                        storedRequestSize = new Blob([requestBody]).size;
+                      }
+                      
+                      if (responseBody && typeof responseBody === 'string') {
+                        storedResponseSize = new Blob([responseBody]).size;
+                      }
+                      
+                      return { storedRequestSize, storedResponseSize, totalStored: storedRequestSize + storedResponseSize };
+                    };
+
+                    const { storedRequestSize, storedResponseSize, totalStored } = calculateStoredSize();
+
                     // Logic matching the tooltip
                     if (payloadSize > 0) {
                       return (
-                        <div className="text-sm text-gray-900 space-y-1 bg-gray-50 p-3 rounded">
-                          <div><strong>Total:</strong> {formatSize(payloadSize)}</div>
-                          {(requestSize > 0 || responseSize > 0) && (
-                            <>
-                              <div><strong>Request:</strong> {formatSize(requestSize)}</div>
-                              <div><strong>Response:</strong> {formatSize(responseSize)}</div>
-                            </>
+                        <div className="space-y-3">
+                          <div className="text-sm text-gray-900 space-y-1 bg-gray-50 p-3 rounded">
+                            <div className="text-xs text-gray-600 mb-2"><strong>Original Size (before truncation):</strong></div>
+                            <div><strong>Total:</strong> {formatSize(payloadSize)}</div>
+                            {(requestSize > 0 || responseSize > 0) && (
+                              <>
+                                <div><strong>Request:</strong> {formatSize(requestSize)}</div>
+                                <div><strong>Response:</strong> {formatSize(responseSize)}</div>
+                              </>
+                            )}
+                          </div>
+                          {totalStored > 0 && (
+                            <div className="text-sm text-blue-900 space-y-1 bg-blue-50 p-3 rounded border border-blue-200">
+                              <div className="text-xs text-blue-700 mb-2"><strong>Stored Size (after truncation):</strong></div>
+                              <div><strong>Total Stored:</strong> {formatSize(totalStored)}</div>
+                              {storedRequestSize > 0 && <div><strong>Request Stored:</strong> {formatSize(storedRequestSize)}</div>}
+                              {storedResponseSize > 0 && <div><strong>Response Stored:</strong> {formatSize(storedResponseSize)}</div>}
+                              {(payloadSize - totalStored > 0) && (
+                                <div className="text-xs text-orange-600 mt-2">
+                                  <strong>Truncated:</strong> {formatSize(payloadSize - totalStored)} saved
+                                </div>
+                              )}
+                              <div className="text-xs text-blue-600 mt-2 bg-blue-100 p-2 rounded">
+                                💡 <strong>Tip:</strong> Bodies are truncated to prevent memory issues. Default limit is 50KB per request/response.
+                              </div>
+                            </div>
                           )}
                         </div>
                       );
                     } else if (requestSize > 0 || responseSize > 0) {
                       return (
-                        <div className="text-sm text-gray-900 space-y-1 bg-gray-50 p-3 rounded">
-                          <div><strong>Request:</strong> {formatSize(requestSize)}</div>
-                          <div><strong>Response:</strong> {formatSize(responseSize)}</div>
-                          <div><strong>Total:</strong> {formatSize(requestSize + responseSize)}</div>
+                        <div className="space-y-3">
+                          <div className="text-sm text-gray-900 space-y-1 bg-gray-50 p-3 rounded">
+                            <div className="text-xs text-gray-600 mb-2"><strong>Original Size (before truncation):</strong></div>
+                            <div><strong>Request:</strong> {formatSize(requestSize)}</div>
+                            <div><strong>Response:</strong> {formatSize(responseSize)}</div>
+                            <div><strong>Total:</strong> {formatSize(requestSize + responseSize)}</div>
+                          </div>
+                          {totalStored > 0 && (
+                            <div className="text-sm text-blue-900 space-y-1 bg-blue-50 p-3 rounded border border-blue-200">
+                              <div className="text-xs text-blue-700 mb-2"><strong>Stored Size (after truncation):</strong></div>
+                              <div><strong>Total Stored:</strong> {formatSize(totalStored)}</div>
+                              {storedRequestSize > 0 && <div><strong>Request Stored:</strong> {formatSize(storedRequestSize)}</div>}
+                              {storedResponseSize > 0 && <div><strong>Response Stored:</strong> {formatSize(storedResponseSize)}</div>}
+                              {((requestSize + responseSize) - totalStored > 0) && (
+                                <div className="text-xs text-orange-600 mt-2">
+                                  <strong>Truncated:</strong> {formatSize((requestSize + responseSize) - totalStored)} saved
+                                </div>
+                              )}
+                              <div className="text-xs text-blue-600 mt-2 bg-blue-100 p-2 rounded">
+                                💡 <strong>Tip:</strong> Bodies are truncated to prevent memory issues. Default limit is 50KB per request/response.
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     } else {
@@ -132,10 +191,13 @@ export const RequestDetailContent: React.FC<{
                       if (estimatedRequest > 0 || estimatedResponse > 0) {
                         return (
                           <div className="text-sm text-gray-900 space-y-1 bg-yellow-50 p-3 rounded border border-yellow-200">
-                            <div className="text-xs text-yellow-700 mb-2"><strong>Estimated from body content:</strong></div>
+                            <div className="text-xs text-yellow-700 mb-2"><strong>Stored Size (calculated from body content):</strong></div>
                             <div><strong>Request:</strong> {formatSize(estimatedRequest)}</div>
                             <div><strong>Response:</strong> {formatSize(estimatedResponse)}</div>
                             <div><strong>Total:</strong> {formatSize(estimatedRequest + estimatedResponse)}</div>
+                            <div className="text-xs text-yellow-600 mt-2">
+                              Note: Bodies may have been truncated during capture
+                            </div>
                           </div>
                         );
                       } else {

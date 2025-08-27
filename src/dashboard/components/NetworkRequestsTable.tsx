@@ -164,6 +164,40 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
     return '-';
   };
 
+  // Helper function to get stored size (size of data actually saved after truncation)
+  const getStoredSizeDisplay = (request: NetworkRequest): string => {
+    let storedSize = 0;
+
+    // Calculate size of stored request body
+    const requestBody = request.requestBody || request.request_body;
+    if (requestBody && typeof requestBody === 'string') {
+      storedSize += new Blob([requestBody]).size;
+    }
+
+    // Calculate size of stored response body
+    const responseBody = request.responseBody || request.response_body;
+    if (responseBody && typeof responseBody === 'string') {
+      storedSize += new Blob([responseBody]).size;
+    }
+
+    // Add estimated header size if available
+    if (request.headers) {
+      try {
+        const headerStr = typeof request.headers === 'string' ? request.headers : JSON.stringify(request.headers);
+        storedSize += new Blob([headerStr]).size;
+      } catch (e) {
+        // Ignore header size calculation errors
+      }
+    }
+
+    if (storedSize > 0) {
+      const sizeInKB = storedSize / 1024;
+      return sizeInKB >= 1 ? `${sizeInKB.toFixed(1)}KB` : `~${sizeInKB.toFixed(1)}KB`;
+    }
+
+    return '-';
+  };
+
   // Helper function to get size tooltip with detailed breakdown
   const getSizeTooltip = (request: NetworkRequest): string => {
     const parseSize = (value: any): number => {
@@ -178,7 +212,22 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
     const requestSize = parseSize(request.requestSize || request.request_size);
     const responseSize = parseSize(request.responseSize || request.response_size);
 
-    let tooltip = 'Size Breakdown:\n';
+    // Calculate stored sizes
+    let storedRequestSize = 0;
+    let storedResponseSize = 0;
+    
+    const requestBody = request.requestBody || request.request_body;
+    const responseBody = request.responseBody || request.response_body;
+    
+    if (requestBody && typeof requestBody === 'string') {
+      storedRequestSize = new Blob([requestBody]).size;
+    }
+    
+    if (responseBody && typeof responseBody === 'string') {
+      storedResponseSize = new Blob([responseBody]).size;
+    }
+
+    let tooltip = 'Original Size (before truncation):\n';
 
     if (payloadSize > 0) {
       tooltip += `Total: ${formatSize(payloadSize)}\n`;
@@ -208,6 +257,21 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
         tooltip += `Total: ${formatSize(estimatedRequest + estimatedResponse)}`;
       } else {
         tooltip = 'No size data available';
+      }
+    }
+
+    // Add stored size information if different from original
+    const totalStored = storedRequestSize + storedResponseSize;
+    if (totalStored > 0) {
+      tooltip += '\n\nStored Size (after truncation):\n';
+      if (storedRequestSize > 0) tooltip += `Request Stored: ${formatSize(storedRequestSize)}\n`;
+      if (storedResponseSize > 0) tooltip += `Response Stored: ${formatSize(storedResponseSize)}\n`;
+      tooltip += `Total Stored: ${formatSize(totalStored)}`;
+      
+      // Show space saved
+      const originalTotal = payloadSize > 0 ? payloadSize : (requestSize + responseSize);
+      if (originalTotal > totalStored) {
+        tooltip += `\nSpace Saved: ${formatSize(originalTotal - totalStored)}`;
       }
     }
 
@@ -559,6 +623,14 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                     </div>
                   </th>
                   <th
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16"
+                    title="Size of data actually stored (after truncation)"
+                  >
+                    <div className="flex items-center">
+                      Stored
+                    </div>
+                  </th>
+                  <th
                     className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-20"
                     onClick={() => onSort('timestamp')}
                   >
@@ -634,6 +706,11 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-16" title={getSizeTooltip(request)}>
                       {getSizeDisplay(request)}
+                    </td>
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-16" title="Size of data actually stored in our extension database">
+                      <span className="text-blue-600">
+                        {getStoredSizeDisplay(request)}
+                      </span>
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-20">
                       {new Date(request.timestamp).toLocaleTimeString()}
