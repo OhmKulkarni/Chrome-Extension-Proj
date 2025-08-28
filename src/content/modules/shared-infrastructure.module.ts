@@ -43,6 +43,10 @@ export class SharedInfrastructureModule {
   private config: SharedInfrastructureConfig
   private isInitialized = false
 
+  // Bound handlers to prevent duplicate listener registrations
+  private boundNetworkHandler: (request: NetworkRequest) => void
+  private boundConsoleHandler: (event: ConsoleEvent) => void
+
   // Data batching
   private pendingData: DataBatch = {
     networkRequests: [],
@@ -157,6 +161,10 @@ export class SharedInfrastructureModule {
       console: { ...consoleDefaults, ...config.console },
       communication: { ...communicationDefaults, ...config.communication }
     }
+
+    // Initialize bound handlers to prevent duplicate listener registrations
+    this.boundNetworkHandler = this.handleNetworkRequest.bind(this)
+    this.boundConsoleHandler = this.handleConsoleEvent.bind(this)
   }
 
   /**
@@ -209,14 +217,14 @@ export class SharedInfrastructureModule {
           maxBodySize: this.config.network.maxBodySize || 1024
         }
         this.networkModule = new NetworkInterceptorModule(networkConfig)
-        this.networkModule.addListener(this.handleNetworkRequest.bind(this))
+        this.networkModule.addListener(this.boundNetworkHandler)
         await this.networkModule.initialize() // FIXED: Added await
       }
 
       // Initialize console module
       if (this.config.console.enabled && !this.isDestroying) {
         this.consoleModule = new ConsoleInterceptorModule(this.config.console)
-        this.consoleModule.addListener(this.handleConsoleEvent.bind(this))
+        this.consoleModule.addListener(this.boundConsoleHandler)
         await this.consoleModule.initialize() // FIXED: Added await
       }
 
@@ -1462,7 +1470,7 @@ export class SharedInfrastructureModule {
           maxBodySize: this.config.network.maxBodySize || 2048
         }
         this.networkModule = new NetworkInterceptorModule(networkConfig)
-        this.networkModule.addListener(this.handleNetworkRequest.bind(this))
+        this.networkModule.addListener(this.boundNetworkHandler)
         await this.networkModule.initialize()
 
         console.log('✅ Network interceptor reconfigured')
@@ -1473,7 +1481,7 @@ export class SharedInfrastructureModule {
           maxBodySize: this.config.network.maxBodySize || 2048
         }
         this.networkModule = new NetworkInterceptorModule(networkConfig)
-        this.networkModule.addListener(this.handleNetworkRequest.bind(this))
+        this.networkModule.addListener(this.boundNetworkHandler)
         await this.networkModule.initialize()
 
         console.log('✅ Network interceptor enabled')
@@ -1493,14 +1501,14 @@ export class SharedInfrastructureModule {
 
         // Create new module with updated config
         this.consoleModule = new ConsoleInterceptorModule(this.config.console)
-        this.consoleModule.addListener(this.handleConsoleEvent.bind(this))
+        this.consoleModule.addListener(this.boundConsoleHandler)
         await this.consoleModule.initialize()
 
         console.log('✅ Console interceptor reconfigured')
       } else if (newConfig.console?.enabled && !this.consoleModule) {
         // Enable console module if it wasn't enabled before
         this.consoleModule = new ConsoleInterceptorModule(this.config.console)
-        this.consoleModule.addListener(this.handleConsoleEvent.bind(this))
+        this.consoleModule.addListener(this.boundConsoleHandler)
         await this.consoleModule.initialize()
 
         console.log('✅ Console interceptor enabled')
