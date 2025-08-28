@@ -174,15 +174,21 @@ export class UnifiedPermissionManager {
   private async migrateFeatureDefaults(): Promise<void> {
     if (!this.state) return;
 
-    // Check if migration is needed (version < 1.1.0 or defaults are false)
+    // Check if migration is needed (version < 1.1.0 or wrong defaults)
     const needsMigration = !this.state.version ||
-                          this.state.version === '1.0.0';
+                          this.state.version === '1.0.0' ||
+                          this.state.featureDefaults.network === true ||
+                          this.state.featureDefaults.tokens === true;
 
     if (needsMigration) {
-      console.log('🔄 UnifiedPermissionManager: Migrating permission system to v1.1.0');
+      console.log('🔄 UnifiedPermissionManager: Migrating permission defaults to correct values');
 
-      // Don't change the defaults - instead, we need to sync with existing user preferences
-      // This will be handled by integrating with the existing popup system
+      // Fix defaults to match expected behavior
+      this.state.featureDefaults = {
+        network: false, // Disabled by default
+        console: true,  // Enabled by default - console errors are important
+        tokens: false   // Disabled by default
+      };
 
       // Update version
       this.state.version = '1.1.0';
@@ -191,7 +197,7 @@ export class UnifiedPermissionManager {
       // Save migrated state
       await this.saveState();
 
-      console.log('✅ UnifiedPermissionManager: Version migration completed');
+      console.log('✅ UnifiedPermissionManager: Default values migration completed');
     }
   }  /**
    * Reset to safe defaults
@@ -202,9 +208,9 @@ export class UnifiedPermissionManager {
       sitePermissions: {},
       tabControls: {},
       featureDefaults: {
-        network: true,  // Enable by default - users expect extension to work
-        console: true,  // Enable by default - users expect extension to work
-        tokens: true    // Enable by default - users expect extension to work
+        network: false, // Disabled by default - user must opt-in for network logging
+        console: true,  // Enabled by default - console errors are important for debugging
+        tokens: false   // Disabled by default - user must opt-in for token logging
       },
       version: '1.1.0', // Updated version with enabled-by-default features
       lastUpdated: Date.now()
@@ -306,11 +312,14 @@ export class UnifiedPermissionManager {
     // Check tab-specific setting first
     const tabControl = this.state.tabControls[tabId];
     if (tabControl && tabControl[feature] !== undefined) {
+      console.log(`🔍 UnifiedPermissionManager: Tab ${tabId} ${feature} = ${tabControl[feature]} (explicit)`);
       return tabControl[feature];
     }
 
     // Fallback to feature default
-    return this.state.featureDefaults[feature];
+    const defaultValue = this.state.featureDefaults[feature];
+    console.log(`🔍 UnifiedPermissionManager: Tab ${tabId} ${feature} = ${defaultValue} (default)`);
+    return defaultValue;
   }
 
   /**
@@ -459,17 +468,24 @@ export class UnifiedPermissionManager {
   ): Promise<boolean> {
     // 1. Global power check (master switch)
     const globalEnabled = await this.isGlobalEnabled();
-    if (!globalEnabled) return false;
+    if (!globalEnabled) {
+      console.log(`🚫 UnifiedPermissionManager: Global disabled for tab ${tabId} ${feature}`);
+      return false;
+    }
 
     // 2. Site-specific check
     if (tabUrl) {
       const domain = this.extractDomain(tabUrl);
       const siteEnabled = await this.isSiteEnabled(domain);
-      if (!siteEnabled) return false;
+      if (!siteEnabled) {
+        console.log(`🚫 UnifiedPermissionManager: Site ${domain} disabled for tab ${tabId} ${feature}`);
+        return false;
+      }
     }
 
     // 3. Feature-specific check
     const featureEnabled = await this.isFeatureEnabled(tabId, feature);
+    console.log(`🔍 UnifiedPermissionManager: canIntercept tab ${tabId} ${feature} = ${featureEnabled}`);
     return featureEnabled;
   }
 

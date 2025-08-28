@@ -264,11 +264,11 @@ const SettingsInline: React.FC = () => {
       // MIGRATION: Convert old filterNoise setting to new granular noiseFilters
       if (loadedSettings.networkInterception?.privacy) {
         const privacy = loadedSettings.networkInterception.privacy as any;
-        
+
         // If we have the old filterNoise setting but no new noiseFilters
         if (privacy.filterNoise !== undefined && !privacy.noiseFilters) {
           console.log('📋 Migrating old filterNoise setting to new granular filters');
-          
+
           // Migrate based on the old setting value
           privacy.noiseFilters = {
             analytics: privacy.filterNoise,
@@ -278,10 +278,10 @@ const SettingsInline: React.FC = () => {
             staticAssets: privacy.filterNoise,
             preflight: privacy.filterNoise
           };
-          
+
           // Remove the old setting
           delete privacy.filterNoise;
-          
+
           // Save the migrated settings immediately
           console.log('💾 Auto-saving migrated settings');
           setTimeout(() => {

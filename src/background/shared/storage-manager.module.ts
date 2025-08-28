@@ -617,7 +617,13 @@ export class StorageManagerModule {
       try {
         const settings = await this.indexedDbStorage.getSetting('extensionSettings');
         if (settings) {
-          return settings;
+          // Check if migration needed and update if so
+          const migratedSettings = await this.migrateSettingsIfNeeded(settings);
+          if (migratedSettings !== settings) {
+            // Save migrated settings back to IndexedDB
+            await this.indexedDbStorage.setSetting('extensionSettings', migratedSettings, 'extension');
+          }
+          return migratedSettings;
         }
       } catch (error) {
         console.warn('StorageManagerModule: Failed to get settings from IndexedDB, falling back to Chrome storage:', error);
@@ -625,7 +631,16 @@ export class StorageManagerModule {
 
       // Fallback to Chrome storage for backward compatibility
       const result = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.SETTINGS);
-      return result[this.STORAGE_KEYS.SETTINGS] || {};
+      const settings = result[this.STORAGE_KEYS.SETTINGS] || {};
+
+      // Check if migration needed and save back to IndexedDB if so
+      const migratedSettings = await this.migrateSettingsIfNeeded(settings);
+      if (migratedSettings !== settings || Object.keys(migratedSettings).length > 0) {
+        // Save migrated settings to IndexedDB as primary storage
+        await this.indexedDbStorage.setSetting('extensionSettings', migratedSettings, 'extension');
+      }
+
+      return migratedSettings;
     });
   }
 
@@ -642,6 +657,36 @@ export class StorageManagerModule {
         [this.STORAGE_KEYS.SETTINGS]: settings
       });
     });
+  }
+
+  /**
+   * Migrate old settings format to new granular filter format if needed
+   */
+  private async migrateSettingsIfNeeded(settings: any): Promise<any> {
+    if (!settings) return {};
+
+    // Check if migration needed (old filterNoise boolean exists but no noiseFilters object)
+    if (typeof settings.filterNoise === 'boolean' && !settings.noiseFilters) {
+      console.log('StorageManagerModule: Migrating settings from filterNoise to noiseFilters');
+
+      const migratedSettings = {
+        ...settings,
+        noiseFilters: {
+          analytics: settings.filterNoise,
+          advertising: settings.filterNoise,
+          socialMedia: settings.filterNoise,
+          telemetry: settings.filterNoise,
+          staticAssets: settings.filterNoise,
+          preflight: settings.filterNoise
+        }
+      };
+
+      // Remove old property
+      delete migratedSettings.filterNoise;
+      return migratedSettings;
+    }
+
+    return settings;
   }
 
   // ===== BULK OPERATIONS =====

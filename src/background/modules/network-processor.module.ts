@@ -159,7 +159,7 @@ export class NetworkProcessorModule {
 
       // Check if request should be filtered as noise (with backward compatibility)
       const privacyConfig = networkConfig.privacy || {};
-      
+
       // Debug logging to see what settings we have
       if (url.includes('awswaf') || url.includes('edge.sdk')) {
         console.log('🔍 AWS WAF REQUEST DEBUG:', {
@@ -169,7 +169,7 @@ export class NetworkProcessorModule {
           hasOldFilterNoise: !!(privacyConfig as any).filterNoise
         });
       }
-      
+
       // Backward compatibility: support old filterNoise setting
       let shouldFilter = false;
       if (privacyConfig.noiseFilters) {
@@ -187,7 +187,7 @@ export class NetworkProcessorModule {
         };
         shouldFilter = this.isNoiseRequest(url, method, defaultFilters);
       }
-      
+
       if (shouldFilter) {
         if (url.includes('awswaf') || url.includes('edge.sdk')) {
           console.log('🔇 FILTERED AWS WAF REQUEST:', url.substring(0, 80));
