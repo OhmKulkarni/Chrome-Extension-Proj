@@ -713,22 +713,42 @@ const Popup: React.FC = () => {
             Web App Monitor
           </h1>
           <p className="text-slate-300 text-xs mt-1 font-medium">
-            v1.0.0 • {tabInfo.title ? tabInfo.title.substring(0, 30) + (tabInfo.title.length > 30 ? '...' : '') : 'Current Site'}
+            v1.0.0 • Extension Popup
           </p>
         </div>
 
+        {/* Site Information Card */}
+        <Card className="border border-blue-200/50 bg-gradient-to-br from-blue-50/60 to-white shadow-md hover:shadow-lg transition-all duration-300 rounded-2xl">
+          <CardContent className="p-4">
+            <div className="space-y-2">
+              <div>
+                <p className="text-xs font-semibold text-blue-700 mb-1">Site Title</p>
+                <p className="text-sm font-medium text-slate-800 break-words leading-tight">
+                  {tabInfo.title || 'Unknown Page'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-blue-700 mb-1">URL</p>
+                <p className="text-xs text-slate-600 break-all leading-tight font-mono bg-slate-50 px-2 py-1 rounded-lg">
+                  {tabInfo.url || 'about:blank'}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Extension Control */}
         <Card className={`transition-all duration-300 rounded-2xl ${
-          globalPowerEnabled 
-            ? 'border-2 border-green-200 bg-gradient-to-br from-green-50 to-white shadow-lg hover:shadow-xl transform hover:scale-[1.02] ring-1 ring-green-100' 
+          globalPowerEnabled
+            ? 'border-2 border-green-200 bg-gradient-to-br from-green-50 to-white shadow-lg hover:shadow-xl transform hover:scale-[1.02] ring-1 ring-green-100'
             : 'border border-slate-200 bg-white shadow-md hover:shadow-lg'
         }`}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <div className={`w-3 h-3 rounded-full mr-3 transition-all duration-300 ${
-                  globalPowerEnabled 
-                    ? 'bg-green-500 shadow-md shadow-green-200' 
+                  globalPowerEnabled
+                    ? 'bg-green-500 shadow-md shadow-green-200'
                     : 'bg-red-500 shadow-md shadow-red-200'
                 }`}></div>
                 <div>
@@ -748,7 +768,7 @@ const Popup: React.FC = () => {
         {/* Site Control */}
         {globalPowerEnabled && (
           <Card className={`transition-all duration-300 rounded-2xl ${
-            siteToggleState === 'on' 
+            siteToggleState === 'on'
               ? 'border-2 border-green-200 bg-gradient-to-br from-green-50 to-white shadow-lg hover:shadow-xl transform hover:scale-[1.02] ring-1 ring-green-100'
               : siteToggleState === 'mixed'
               ? 'border-2 border-yellow-200 bg-gradient-to-br from-yellow-50 to-white shadow-lg hover:shadow-xl transform hover:scale-[1.02] ring-1 ring-yellow-100'
@@ -758,15 +778,15 @@ const Popup: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
                   <div className={`w-3 h-3 rounded-full mr-3 transition-all duration-300 ${
-                    siteToggleState === 'on' ? 'bg-green-500 shadow-md shadow-green-200' : 
-                    siteToggleState === 'mixed' ? 'bg-yellow-500 shadow-md shadow-yellow-200' : 
+                    siteToggleState === 'on' ? 'bg-green-500 shadow-md shadow-green-200' :
+                    siteToggleState === 'mixed' ? 'bg-yellow-500 shadow-md shadow-yellow-200' :
                     'bg-red-500 shadow-md shadow-red-200'
                   }`}></div>
                   <div>
                     <p className="text-sm font-semibold text-slate-800">Site Logging</p>
                     <p className="text-xs text-slate-600">
-                      {siteToggleState === 'on' ? 'All features enabled' : 
-                       siteToggleState === 'mixed' ? 'Partial features enabled' : 
+                      {siteToggleState === 'on' ? 'All features enabled' :
+                       siteToggleState === 'mixed' ? 'Partial features enabled' :
                        'All features disabled'}
                     </p>
                   </div>
@@ -784,16 +804,16 @@ const Popup: React.FC = () => {
             {/* Network Logging */}
             {settings?.networkInterception?.tabSpecific?.enabled && (
               <Card className={`transition-all duration-300 rounded-xl ${
-                tabLoggingActive 
-                  ? 'border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white shadow-md hover:shadow-lg transform hover:scale-[1.01] ring-1 ring-blue-100' 
+                tabLoggingActive
+                  ? 'border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white shadow-md hover:shadow-lg transform hover:scale-[1.01] ring-1 ring-blue-100'
                   : 'border border-slate-200 bg-white shadow-sm hover:shadow-md'
               }`}>
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
                       <div className={`w-2.5 h-2.5 rounded-full mr-3 transition-all duration-300 ${
-                        tabLoggingActive 
-                          ? 'bg-blue-500 shadow-sm shadow-blue-200' 
+                        tabLoggingActive
+                          ? 'bg-blue-500 shadow-sm shadow-blue-200'
                           : 'bg-gray-400 shadow-sm shadow-gray-200'
                       }`}></div>
                       <div>
@@ -814,16 +834,16 @@ const Popup: React.FC = () => {
             {/* Error Logging */}
             {settings?.errorLogging?.tabSpecific?.enabled && (
               <Card className={`transition-all duration-300 rounded-xl ${
-                tabErrorLoggingActive 
-                  ? 'border-2 border-red-200 bg-gradient-to-br from-red-50 to-white shadow-md hover:shadow-lg transform hover:scale-[1.01] ring-1 ring-red-100' 
+                tabErrorLoggingActive
+                  ? 'border-2 border-red-200 bg-gradient-to-br from-red-50 to-white shadow-md hover:shadow-lg transform hover:scale-[1.01] ring-1 ring-red-100'
                   : 'border border-slate-200 bg-white shadow-sm hover:shadow-md'
               }`}>
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
                       <div className={`w-2.5 h-2.5 rounded-full mr-3 transition-all duration-300 ${
-                        tabErrorLoggingActive 
-                          ? 'bg-red-500 shadow-sm shadow-red-200' 
+                        tabErrorLoggingActive
+                          ? 'bg-red-500 shadow-sm shadow-red-200'
                           : 'bg-gray-400 shadow-sm shadow-gray-200'
                       }`}></div>
                       <div>
@@ -844,16 +864,16 @@ const Popup: React.FC = () => {
             {/* Token Logging */}
             {settings?.tokenLogging?.tabSpecific?.enabled && (
               <Card className={`transition-all duration-300 rounded-xl ${
-                tabTokenLoggingActive 
-                  ? 'border-2 border-yellow-200 bg-gradient-to-br from-yellow-50 to-white shadow-md hover:shadow-lg transform hover:scale-[1.01] ring-1 ring-yellow-100' 
+                tabTokenLoggingActive
+                  ? 'border-2 border-yellow-200 bg-gradient-to-br from-yellow-50 to-white shadow-md hover:shadow-lg transform hover:scale-[1.01] ring-1 ring-yellow-100'
                   : 'border border-slate-200 bg-white shadow-sm hover:shadow-md'
               }`}>
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
                       <div className={`w-2.5 h-2.5 rounded-full mr-3 transition-all duration-300 ${
-                        tabTokenLoggingActive 
-                          ? 'bg-yellow-500 shadow-sm shadow-yellow-200' 
+                        tabTokenLoggingActive
+                          ? 'bg-yellow-500 shadow-sm shadow-yellow-200'
                           : 'bg-gray-400 shadow-sm shadow-gray-200'
                       }`}></div>
                       <div>

@@ -21,12 +21,12 @@ Successfully transformed the popup with dynamic "pop out" effects, modern rounde
 
 **Site Control Card:**
 - **ON**: Green theme with enhanced shadows and ring effects
-- **MIXED**: Yellow theme with amber accents and ring effects  
+- **MIXED**: Yellow theme with amber accents and ring effects
 - **OFF**: Standard slate styling
 
 **Individual Control Cards:**
 - **Network**: Blue theme when capturing (blue-50 to white gradient)
-- **Errors**: Red theme when capturing (red-50 to white gradient)  
+- **Errors**: Red theme when capturing (red-50 to white gradient)
 - **Tokens**: Yellow theme when capturing (yellow-50 to white gradient)
 - **Inactive**: Clean white with slate borders
 
@@ -89,8 +89,8 @@ Successfully transformed the popup with dynamic "pop out" effects, modern rounde
 ### Dynamic Styling Pattern:
 ```tsx
 className={`transition-all duration-300 rounded-xl ${
-  isActive 
-    ? 'border-2 border-color-200 bg-gradient-to-br from-color-50 to-white shadow-lg hover:shadow-xl transform hover:scale-[1.01] ring-1 ring-color-100' 
+  isActive
+    ? 'border-2 border-color-200 bg-gradient-to-br from-color-50 to-white shadow-lg hover:shadow-xl transform hover:scale-[1.01] ring-1 ring-color-100'
     : 'border border-slate-200 bg-white shadow-sm hover:shadow-md'
 }`}
 ```
@@ -136,7 +136,7 @@ className={`transition-all duration-300 rounded-xl ${
 
 ### State Transitions:
 - **Background Changes**: Smooth gradient transitions
-- **Border Updates**: Animated border and ring changes  
+- **Border Updates**: Animated border and ring changes
 - **Dot Shadows**: Status indicators with matching colored shadows
 - **Toggle Movement**: Enhanced thumb animations with better easing
 
@@ -154,7 +154,7 @@ Enhanced interactive UI ready for production deployment!
 ## Visual Impact Summary
 The popup now features:
 - 🎯 **Dynamic Visual Feedback**: Cards "pop out" when features are enabled
-- 💫 **Modern Aesthetics**: Rounded corners and gradient effects throughout  
+- 💫 **Modern Aesthetics**: Rounded corners and gradient effects throughout
 - 🎨 **Consistent Design Language**: Unified styling system with state-based variations
 - ⚡ **Enhanced Interactivity**: Engaging hover effects and smooth transitions
 - 🧹 **Cleaner Layout**: Removed unnecessary elements for focus
