@@ -24,21 +24,21 @@ const ThreeStateToggle = React.forwardRef<HTMLDivElement, ThreeStateToggleProps>
       switch (state) {
         case 'on':
           return {
-            container: "bg-gradient-to-r from-green-500 to-green-600 border-green-400/30 shadow-lg",
-            thumb: "translate-x-5 bg-white border-green-400/20 shadow-xl",
+            container: "bg-gradient-to-r from-green-500 to-green-600 border-green-400/30 shadow-lg ring-1 ring-green-200",
+            thumb: "translate-x-5 bg-white border-green-300/50 shadow-xl ring-1 ring-green-100",
             indicator: "bg-green-500"
           };
         case 'mixed':
           return {
-            container: "bg-gradient-to-r from-yellow-500 to-amber-500 border-yellow-400/30 shadow-lg",
-            thumb: "translate-x-2.5 bg-white border-yellow-400/20 shadow-xl",
+            container: "bg-gradient-to-r from-yellow-500 to-amber-500 border-yellow-400/30 shadow-lg ring-1 ring-yellow-200",
+            thumb: "translate-x-2.5 bg-white border-yellow-300/50 shadow-xl ring-1 ring-yellow-100",
             indicator: "bg-yellow-500"
           };
         case 'off':
         default:
           return {
-            container: "bg-gradient-to-r from-gray-300 to-gray-400 border-gray-400/30 shadow-sm",
-            thumb: "translate-x-0.5 bg-white border-gray-400/30 shadow-md",
+            container: "bg-gradient-to-r from-slate-300 to-slate-400 border-slate-400/30 shadow-sm",
+            thumb: "translate-x-0.5 bg-white border-slate-300/50 shadow-md",
             indicator: "bg-red-500"
           };
       }
@@ -62,7 +62,7 @@ const ThreeStateToggle = React.forwardRef<HTMLDivElement, ThreeStateToggleProps>
         <div
           ref={ref}
           className={cn(
-            "relative inline-flex h-7 w-12 items-center rounded-full border-2 transition-all duration-500 ease-in-out focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background cursor-pointer shadow-sm hover:shadow-lg transform hover:scale-105",
+            "relative inline-flex h-7 w-12 items-center rounded-full border transition-all duration-500 ease-in-out focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background cursor-pointer shadow-md hover:shadow-lg transform hover:scale-105",
             styles.container,
             className
           )}
@@ -71,11 +71,11 @@ const ThreeStateToggle = React.forwardRef<HTMLDivElement, ThreeStateToggleProps>
         >
           <span
             className={cn(
-              "block h-5 w-5 rounded-full shadow-lg ring-0 transition-all duration-500 ease-in-out border-2 flex items-center justify-center backdrop-blur-sm",
+              "block h-5 w-5 rounded-full shadow-lg ring-0 transition-all duration-500 ease-in-out border flex items-center justify-center backdrop-blur-sm",
               styles.thumb
             )}
           >
-            <div className={`w-2 h-2 rounded-full ${styles.indicator}`}></div>
+            <div className={`w-2 h-2 rounded-full ${styles.indicator} shadow-sm`}></div>
           </span>
         </div>
         {(label || description) && (

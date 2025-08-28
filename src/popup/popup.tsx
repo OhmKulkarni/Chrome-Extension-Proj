@@ -708,7 +708,7 @@ const Popup: React.FC = () => {
     <div className="w-96 bg-gradient-to-br from-slate-50 to-gray-100 min-h-[400px]">
       <div className="p-3 space-y-2">
         {/* Header */}
-        <div className="text-center bg-gradient-to-r from-slate-800 to-slate-700 text-white rounded-lg p-3 shadow-xl border border-slate-600/30">
+        <div className="text-center bg-gradient-to-r from-slate-800 to-slate-700 text-white rounded-2xl p-3 shadow-xl border border-slate-600/30">
           <h1 className="text-lg font-bold tracking-tight">
             Web App Monitor
           </h1>
@@ -718,11 +718,19 @@ const Popup: React.FC = () => {
         </div>
 
         {/* Extension Control */}
-        <Card className="border border-slate-200 bg-white shadow-md hover:shadow-lg transition-all duration-300 rounded-lg">
-          <CardContent className="p-3">
+        <Card className={`transition-all duration-300 rounded-2xl ${
+          globalPowerEnabled 
+            ? 'border-2 border-green-200 bg-gradient-to-br from-green-50 to-white shadow-lg hover:shadow-xl transform hover:scale-[1.02] ring-1 ring-green-100' 
+            : 'border border-slate-200 bg-white shadow-md hover:shadow-lg'
+        }`}>
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <div className={`w-3 h-3 rounded-full mr-3 ${globalPowerEnabled ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                <div className={`w-3 h-3 rounded-full mr-3 transition-all duration-300 ${
+                  globalPowerEnabled 
+                    ? 'bg-green-500 shadow-md shadow-green-200' 
+                    : 'bg-red-500 shadow-md shadow-red-200'
+                }`}></div>
                 <div>
                   <p className="text-sm font-semibold text-slate-800">Extension Status</p>
                   <p className="text-xs text-slate-600">{globalPowerEnabled ? 'Active' : 'Disabled'}</p>
@@ -739,14 +747,20 @@ const Popup: React.FC = () => {
 
         {/* Site Control */}
         {globalPowerEnabled && (
-          <Card className="border border-slate-200 bg-white shadow-md hover:shadow-lg transition-all duration-300 rounded-lg">
-            <CardContent className="p-3">
+          <Card className={`transition-all duration-300 rounded-2xl ${
+            siteToggleState === 'on' 
+              ? 'border-2 border-green-200 bg-gradient-to-br from-green-50 to-white shadow-lg hover:shadow-xl transform hover:scale-[1.02] ring-1 ring-green-100'
+              : siteToggleState === 'mixed'
+              ? 'border-2 border-yellow-200 bg-gradient-to-br from-yellow-50 to-white shadow-lg hover:shadow-xl transform hover:scale-[1.02] ring-1 ring-yellow-100'
+              : 'border border-slate-200 bg-white shadow-md hover:shadow-lg'
+          }`}>
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <div className={`w-3 h-3 rounded-full mr-3 ${
-                    siteToggleState === 'on' ? 'bg-green-500' : 
-                    siteToggleState === 'mixed' ? 'bg-yellow-500' : 
-                    'bg-red-500'
+                  <div className={`w-3 h-3 rounded-full mr-3 transition-all duration-300 ${
+                    siteToggleState === 'on' ? 'bg-green-500 shadow-md shadow-green-200' : 
+                    siteToggleState === 'mixed' ? 'bg-yellow-500 shadow-md shadow-yellow-200' : 
+                    'bg-red-500 shadow-md shadow-red-200'
                   }`}></div>
                   <div>
                     <p className="text-sm font-semibold text-slate-800">Site Logging</p>
@@ -764,18 +778,24 @@ const Popup: React.FC = () => {
               </div>
             </CardContent>
           </Card>
-        )}
-
-        {/* Individual Controls */}
+        )}        {/* Individual Controls */}
         {globalPowerEnabled && (
           <div className="space-y-2">
             {/* Network Logging */}
             {settings?.networkInterception?.tabSpecific?.enabled && (
-              <Card className="border border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-300 rounded-lg">
-                <CardContent className="p-2.5">
+              <Card className={`transition-all duration-300 rounded-xl ${
+                tabLoggingActive 
+                  ? 'border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white shadow-md hover:shadow-lg transform hover:scale-[1.01] ring-1 ring-blue-100' 
+                  : 'border border-slate-200 bg-white shadow-sm hover:shadow-md'
+              }`}>
+                <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
-                      <div className={`w-2 h-2 rounded-full mr-3 ${tabLoggingActive ? 'bg-blue-500' : 'bg-gray-400'}`}></div>
+                      <div className={`w-2.5 h-2.5 rounded-full mr-3 transition-all duration-300 ${
+                        tabLoggingActive 
+                          ? 'bg-blue-500 shadow-sm shadow-blue-200' 
+                          : 'bg-gray-400 shadow-sm shadow-gray-200'
+                      }`}></div>
                       <div>
                         <p className="text-sm font-medium text-slate-800">Network Requests</p>
                         <p className="text-xs text-slate-500">{tabLoggingActive ? 'Capturing' : 'Paused'}</p>
@@ -793,11 +813,19 @@ const Popup: React.FC = () => {
 
             {/* Error Logging */}
             {settings?.errorLogging?.tabSpecific?.enabled && (
-              <Card className="border border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-300 rounded-lg">
-                <CardContent className="p-2.5">
+              <Card className={`transition-all duration-300 rounded-xl ${
+                tabErrorLoggingActive 
+                  ? 'border-2 border-red-200 bg-gradient-to-br from-red-50 to-white shadow-md hover:shadow-lg transform hover:scale-[1.01] ring-1 ring-red-100' 
+                  : 'border border-slate-200 bg-white shadow-sm hover:shadow-md'
+              }`}>
+                <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
-                      <div className={`w-2 h-2 rounded-full mr-3 ${tabErrorLoggingActive ? 'bg-red-500' : 'bg-gray-400'}`}></div>
+                      <div className={`w-2.5 h-2.5 rounded-full mr-3 transition-all duration-300 ${
+                        tabErrorLoggingActive 
+                          ? 'bg-red-500 shadow-sm shadow-red-200' 
+                          : 'bg-gray-400 shadow-sm shadow-gray-200'
+                      }`}></div>
                       <div>
                         <p className="text-sm font-medium text-slate-800">Console Errors</p>
                         <p className="text-xs text-slate-500">{tabErrorLoggingActive ? 'Capturing' : 'Paused'}</p>
@@ -815,11 +843,19 @@ const Popup: React.FC = () => {
 
             {/* Token Logging */}
             {settings?.tokenLogging?.tabSpecific?.enabled && (
-              <Card className="border border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-300 rounded-lg">
-                <CardContent className="p-2.5">
+              <Card className={`transition-all duration-300 rounded-xl ${
+                tabTokenLoggingActive 
+                  ? 'border-2 border-yellow-200 bg-gradient-to-br from-yellow-50 to-white shadow-md hover:shadow-lg transform hover:scale-[1.01] ring-1 ring-yellow-100' 
+                  : 'border border-slate-200 bg-white shadow-sm hover:shadow-md'
+              }`}>
+                <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
-                      <div className={`w-2 h-2 rounded-full mr-3 ${tabTokenLoggingActive ? 'bg-yellow-500' : 'bg-gray-400'}`}></div>
+                      <div className={`w-2.5 h-2.5 rounded-full mr-3 transition-all duration-300 ${
+                        tabTokenLoggingActive 
+                          ? 'bg-yellow-500 shadow-sm shadow-yellow-200' 
+                          : 'bg-gray-400 shadow-sm shadow-gray-200'
+                      }`}></div>
                       <div>
                         <p className="text-sm font-medium text-slate-800">Auth Tokens</p>
                         <p className="text-xs text-slate-500">{tabTokenLoggingActive ? 'Capturing' : 'Paused'}</p>
@@ -840,18 +876,11 @@ const Popup: React.FC = () => {
         {/* Dashboard Button */}
         <Button
           onClick={openDashboard}
-          className="w-full bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 text-white shadow-lg hover:shadow-xl transition-all duration-300 rounded-lg font-semibold"
+          className="w-full bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 text-white shadow-lg hover:shadow-xl transition-all duration-300 rounded-2xl font-semibold transform hover:scale-[1.02]"
           size="default"
         >
           Open Dashboard
         </Button>
-
-        {/* Footer */}
-        <div className="text-center border-t border-slate-200 pt-2">
-          <p className="text-xs text-slate-500 font-medium">
-            TypeScript • React • Vite
-          </p>
-        </div>
       </div>
     </div>
   );

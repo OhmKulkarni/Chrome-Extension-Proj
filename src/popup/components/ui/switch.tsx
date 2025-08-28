@@ -25,10 +25,10 @@ const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(
       <div className="flex items-start space-x-3">
         <div
           className={cn(
-            "relative inline-flex h-7 w-12 items-center rounded-full border-2 transition-all duration-300 focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background cursor-pointer shadow-sm hover:shadow-lg transform hover:scale-105",
+            "relative inline-flex h-7 w-12 items-center rounded-full border transition-all duration-300 focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background cursor-pointer shadow-md hover:shadow-lg transform hover:scale-105",
             checked
-              ? "bg-gradient-to-r from-primary to-primary/80 border-primary/20 shadow-lg"
-              : "bg-gradient-to-r from-muted to-muted-foreground/20 border-muted-foreground/20 shadow-sm",
+              ? "bg-gradient-to-r from-green-500 to-green-600 border-green-400/30 shadow-lg ring-1 ring-green-200"
+              : "bg-gradient-to-r from-slate-300 to-slate-400 border-slate-400/30 shadow-sm",
             className
           )}
           onClick={handleClick}
@@ -43,10 +43,10 @@ const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(
           />
           <span
             className={cn(
-              "block h-5 w-5 rounded-full shadow-lg ring-0 transition-all duration-300 ease-in-out border-2 backdrop-blur-sm",
+              "block h-5 w-5 rounded-full shadow-lg ring-0 transition-all duration-300 ease-in-out border backdrop-blur-sm",
               checked
-                ? "translate-x-5 bg-background border-primary/20 shadow-xl"
-                : "translate-x-0.5 bg-background border-muted-foreground/30 shadow-md"
+                ? "translate-x-5 bg-white border-green-300/50 shadow-xl ring-1 ring-green-100"
+                : "translate-x-0.5 bg-white border-slate-300/50 shadow-md"
             )}
           />
         </div>
