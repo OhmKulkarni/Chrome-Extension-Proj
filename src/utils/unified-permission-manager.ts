@@ -312,14 +312,11 @@ export class UnifiedPermissionManager {
     // Check tab-specific setting first
     const tabControl = this.state.tabControls[tabId];
     if (tabControl && tabControl[feature] !== undefined) {
-      console.log(`🔍 UnifiedPermissionManager: Tab ${tabId} ${feature} = ${tabControl[feature]} (explicit)`);
       return tabControl[feature];
     }
 
     // Fallback to feature default
-    const defaultValue = this.state.featureDefaults[feature];
-    console.log(`🔍 UnifiedPermissionManager: Tab ${tabId} ${feature} = ${defaultValue} (default)`);
-    return defaultValue;
+    return this.state.featureDefaults[feature];
   }
 
   /**
@@ -468,24 +465,17 @@ export class UnifiedPermissionManager {
   ): Promise<boolean> {
     // 1. Global power check (master switch)
     const globalEnabled = await this.isGlobalEnabled();
-    if (!globalEnabled) {
-      console.log(`🚫 UnifiedPermissionManager: Global disabled for tab ${tabId} ${feature}`);
-      return false;
-    }
+    if (!globalEnabled) return false;
 
     // 2. Site-specific check
     if (tabUrl) {
       const domain = this.extractDomain(tabUrl);
       const siteEnabled = await this.isSiteEnabled(domain);
-      if (!siteEnabled) {
-        console.log(`🚫 UnifiedPermissionManager: Site ${domain} disabled for tab ${tabId} ${feature}`);
-        return false;
-      }
+      if (!siteEnabled) return false;
     }
 
     // 3. Feature-specific check
     const featureEnabled = await this.isFeatureEnabled(tabId, feature);
-    console.log(`🔍 UnifiedPermissionManager: canIntercept tab ${tabId} ${feature} = ${featureEnabled}`);
     return featureEnabled;
   }
 
