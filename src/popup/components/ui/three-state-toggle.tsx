@@ -24,15 +24,15 @@ const ThreeStateToggle = React.forwardRef<HTMLDivElement, ThreeStateToggleProps>
       switch (state) {
         case 'on':
           return {
-            container: "bg-gradient-to-r from-green-500 to-green-600 border-green-400/30 shadow-lg ring-1 ring-green-200",
-            thumb: "translate-x-5 bg-white border-green-300/50 shadow-xl ring-1 ring-green-100",
-            indicator: "bg-green-500"
+            container: "bg-gradient-to-r from-emerald-500 via-green-500 to-emerald-600 border-emerald-400/40 shadow-xl ring-2 ring-emerald-200/60 backdrop-blur-sm",
+            thumb: "translate-x-5 bg-gradient-to-br from-white via-emerald-50 to-white border-emerald-300/60 shadow-2xl ring-2 ring-emerald-100/80",
+            indicator: "bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-md"
           };
         case 'mixed':
           return {
-            container: "bg-gradient-to-r from-yellow-500 to-amber-500 border-yellow-400/30 shadow-lg ring-1 ring-yellow-200",
-            thumb: "translate-x-2.5 bg-white border-yellow-300/50 shadow-xl ring-1 ring-yellow-100",
-            indicator: "bg-yellow-500"
+            container: "bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 border-amber-400/40 shadow-xl ring-2 ring-amber-200/60 backdrop-blur-sm",
+            thumb: "translate-x-2.5 bg-gradient-to-br from-white via-amber-50 to-white border-amber-300/60 shadow-2xl ring-2 ring-amber-100/80",
+            indicator: "bg-gradient-to-br from-amber-400 to-amber-600 shadow-md"
           };
         case 'off':
         default:
@@ -62,7 +62,7 @@ const ThreeStateToggle = React.forwardRef<HTMLDivElement, ThreeStateToggleProps>
         <div
           ref={ref}
           className={cn(
-            "relative inline-flex h-7 w-12 items-center rounded-full border transition-all duration-500 ease-in-out focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background cursor-pointer shadow-md hover:shadow-lg transform hover:scale-105",
+            "relative inline-flex h-7 w-12 items-center rounded-full border transition-all duration-500 ease-in-out focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background cursor-pointer shadow-md hover:shadow-2xl transform hover:scale-110 active:scale-105",
             styles.container,
             className
           )}
