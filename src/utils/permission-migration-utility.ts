@@ -255,9 +255,9 @@ export class PermissionMigrationUtility {
         const tabId = parseInt(tabIdStr);
 
         // Set each feature individually
-        await this.unifiedManager.setFeatureEnabled(tabId, 'network', tabData?.network ?? false, tabData?.url);
-        await this.unifiedManager.setFeatureEnabled(tabId, 'console', tabData?.console ?? false, tabData?.url);
-        await this.unifiedManager.setFeatureEnabled(tabId, 'tokens', tabData?.tokens ?? false, tabData?.url);
+        await this.unifiedManager.setFeatureEnabled(tabId, 'network', tabData?.network ?? false);
+        await this.unifiedManager.setFeatureEnabled(tabId, 'console', tabData?.console ?? false);
+        await this.unifiedManager.setFeatureEnabled(tabId, 'tokens', tabData?.tokens ?? false);
       }
     }
 

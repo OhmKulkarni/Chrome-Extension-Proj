@@ -6,6 +6,7 @@ import { createRoot } from 'react-dom/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
 import { Button } from './components/ui/button';
 import { Switch } from './components/ui/switch';
+import { ThreeStateToggle, ThreeState } from './components/ui/three-state-toggle';
 import { StorageService } from '../utils/storage-service';
 import { ChromeSyncService } from '../services/chrome-sync-service';
 
@@ -139,12 +140,22 @@ interface StorageData {
 const Popup: React.FC = () => {
   const [tabInfo, setTabInfo] = useState<TabInfo>({});
   const [globalPowerEnabled, setGlobalPowerEnabled] = useState(true); // Global power button
-  const [siteSpecificEnabled, setSiteSpecificEnabled] = useState(true); // Site-specific toggle
+  // const [siteSpecificEnabled, setSiteSpecificEnabled] = useState(true); // Removed - using computed three-state instead
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<StorageData['extensionSettings']>({});
   const [tabLoggingActive, setTabLoggingActive] = useState(false);
   const [tabErrorLoggingActive, setTabErrorLoggingActive] = useState(false);
   const [tabTokenLoggingActive, setTabTokenLoggingActive] = useState(false);
+
+  // Compute three-state value for the UI based on individual toggle states
+  const siteToggleState: ThreeState = (() => {
+    const allEnabled = tabLoggingActive && tabErrorLoggingActive && tabTokenLoggingActive;
+    const allDisabled = !tabLoggingActive && !tabErrorLoggingActive && !tabTokenLoggingActive;
+    
+    if (allEnabled) return 'on';
+    if (allDisabled) return 'off';
+    return 'mixed';
+  })();
 
   useEffect(() => {
     const initializePopup = async () => {
@@ -268,30 +279,7 @@ const Popup: React.FC = () => {
         const tabId = tabs[0].id;
         const tabUrl = tabs[0].url;
 
-        // Get site-specific state first
-        let siteEnabled = true;
-        try {
-          const siteResponse = await sendChromeMessage({
-            action: 'GET_SITE_SPECIFIC_STATE',
-            tabId: tabId
-          });
-          if (siteResponse && 'enabled' in siteResponse) {
-            siteEnabled = siteResponse.enabled;
-            setSiteSpecificEnabled(siteEnabled);
-          }
-        } catch (error) {
-          console.error('Error loading site-specific state:', error);
-        }
-
-        // If site is disabled, set all logging types to false and return early
-        if (!siteEnabled) {
-          setTabLoggingActive(false);
-          setTabErrorLoggingActive(false);
-          setTabTokenLoggingActive(false);
-          return;
-        }
-
-        // Site is enabled, load individual logging preferences
+        // Load individual logging preferences first
         // Get logging preferences from Chrome sync (cross-device)
         const syncPrefs = await chromeSyncService.getTabPreferencesForUrl(tabUrl);
 
@@ -302,36 +290,39 @@ const Popup: React.FC = () => {
           sendChromeMessage({ action: 'getTabTokenState', tabId })
         ]);
 
-        // Set tab logging states based on sync preferences (with IndexedDB overrides if active)
-        setTabLoggingActive(
-          (networkState?.success && typeof networkState.active === 'boolean')
-            ? networkState.active
-            : syncPrefs.network
-        );
+        // Set individual toggle states based on sync preferences (with IndexedDB overrides if active)
+        const networkActive = (networkState?.success && typeof networkState.active === 'boolean')
+          ? networkState.active
+          : syncPrefs.network;
+        const errorActive = (errorState?.success && typeof errorState.active === 'boolean')
+          ? errorState.active
+          : syncPrefs.errors;
+        const tokenActive = (tokenState?.success && typeof tokenState.active === 'boolean')
+          ? tokenState.active
+          : syncPrefs.tokens;
 
-        setTabErrorLoggingActive(
-          (errorState?.success && typeof errorState.active === 'boolean')
-            ? errorState.active
-            : syncPrefs.errors
-        );
+        setTabLoggingActive(networkActive);
+        setTabErrorLoggingActive(errorActive);
+        setTabTokenLoggingActive(tokenActive);
 
-        setTabTokenLoggingActive(
-          (tokenState?.success && typeof tokenState.active === 'boolean')
-            ? tokenState.active
-            : syncPrefs.tokens
-        );
+        // BIDIRECTIONAL: Site toggle state is now computed automatically from individual toggles
+        // No need to manually set it - siteToggleState is derived reactively
+        const allEnabled = networkActive && errorActive && tokenActive;
+        
+        console.log(`🔄 Initial state loaded - Network: ${networkActive}, Error: ${errorActive}, Token: ${tokenActive}, Site: ${allEnabled ? 'on' : (networkActive || errorActive || tokenActive) ? 'mixed' : 'off'}`);
 
       } catch (error) {
         console.error('Error loading tab states:', error);
-        // Set fallback for site-specific state
-        setSiteSpecificEnabled(true);
-
+        
         // Fallback to sync defaults if everything fails
         try {
           const defaults = await chromeSyncService.getTabDefaults();
           setTabLoggingActive(defaults.network);
           setTabErrorLoggingActive(defaults.errors);
           setTabTokenLoggingActive(defaults.tokens);
+
+          // Site toggle is now computed automatically - no manual setting needed
+
         } catch (syncError) {
           console.error('Error loading sync defaults:', syncError);
           // Final fallback: Use settings-based defaults instead of hardcoded ones
@@ -347,6 +338,8 @@ const Popup: React.FC = () => {
             setTabErrorLoggingActive(errorDefault);
             setTabTokenLoggingActive(tokenDefault);
 
+            // Site toggle is now computed automatically from individual states
+
             console.log('🔄 POPUP: Using settings-based defaults - Network:', networkDefault, 'Error:', errorDefault, 'Token:', tokenDefault);
           } catch (settingsError) {
             console.error('Error loading settings defaults:', settingsError);
@@ -354,6 +347,7 @@ const Popup: React.FC = () => {
             setTabLoggingActive(false);
             setTabErrorLoggingActive(false);
             setTabTokenLoggingActive(false);
+            // Site toggle will show 'off' automatically since all individual toggles are off
             console.log('🔄 POPUP: Using ultimate disabled defaults');
           }
         }
@@ -362,47 +356,54 @@ const Popup: React.FC = () => {
 
     loadTabStates();
 
-    // Add storage change listeners to stay synchronized with dashboard
+    // Add storage change listeners to stay synchronized with dashboard and other sources
     const handleStorageChanges = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
       if (areaName === 'local') {
         // Get current tab ID to check for relevant changes
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
           if (tabs[0]?.id) {
             const tabId = tabs[0].id;
+            let hasIndividualChanges = false;
+            let newNetworkState = tabLoggingActive;
+            let newErrorState = tabErrorLoggingActive;
+            let newTokenState = tabTokenLoggingActive;
 
-            // Only update individual logging states if site-specific monitoring is enabled
-            if (siteSpecificEnabled) {
-              // Check for network logging changes
-              const networkLoggingKey = `tabLogging_${tabId}`;
-              if (changes[networkLoggingKey]) {
-                const newValue = changes[networkLoggingKey].newValue;
-                if (newValue && typeof newValue === 'object' && 'active' in newValue) {
-                  setTabLoggingActive(newValue.active);
-                }
+            // Check for network logging changes
+            const networkLoggingKey = `tabLogging_${tabId}`;
+            if (changes[networkLoggingKey]) {
+              const newValue = changes[networkLoggingKey].newValue;
+              if (newValue && typeof newValue === 'object' && 'active' in newValue) {
+                setTabLoggingActive(newValue.active);
+                newNetworkState = newValue.active;
+                hasIndividualChanges = true;
               }
+            }
 
-              // Check for error logging changes
-              const errorLoggingKey = `tabErrorLogging_${tabId}`;
-              if (changes[errorLoggingKey]) {
-                const newValue = changes[errorLoggingKey].newValue;
-                if (newValue && typeof newValue === 'object' && 'active' in newValue) {
-                  setTabErrorLoggingActive(newValue.active);
-                }
+            // Check for error logging changes
+            const errorLoggingKey = `tabErrorLogging_${tabId}`;
+            if (changes[errorLoggingKey]) {
+              const newValue = changes[errorLoggingKey].newValue;
+              if (newValue && typeof newValue === 'object' && 'active' in newValue) {
+                setTabErrorLoggingActive(newValue.active);
+                newErrorState = newValue.active;
+                hasIndividualChanges = true;
               }
+            }
 
-              // Check for token logging changes
-              const tokenLoggingKey = `tabTokenLogging_${tabId}`;
-              if (changes[tokenLoggingKey]) {
-                const newValue = changes[tokenLoggingKey].newValue;
-                if (newValue && typeof newValue === 'object' && 'active' in newValue) {
-                  setTabTokenLoggingActive(newValue.active);
-                }
+            // Check for token logging changes
+            const tokenLoggingKey = `tabTokenLogging_${tabId}`;
+            if (changes[tokenLoggingKey]) {
+              const newValue = changes[tokenLoggingKey].newValue;
+              if (newValue && typeof newValue === 'object' && 'active' in newValue) {
+                setTabTokenLoggingActive(newValue.active);
+                newTokenState = newValue.active;
+                hasIndividualChanges = true;
               }
-            } else {
-              // Site is disabled, ensure all individual toggles remain off
-              setTabLoggingActive(false);
-              setTabErrorLoggingActive(false);
-              setTabTokenLoggingActive(false);
+            }
+
+            // If any individual toggles changed, update site toggle to reflect new state
+            if (hasIndividualChanges) {
+              updateSiteToggleFromIndividualStates(newNetworkState, newErrorState, newTokenState);
             }
           }
         });
@@ -459,111 +460,107 @@ const Popup: React.FC = () => {
     }
   };
 
-  // Helper function to toggle all three logging types
-  const toggleAllLoggingTypes = async (enabled: boolean, tabId: number, tabUrl: string) => {
-    const promises = [];
+  // Helper function to update site toggle based on individual toggle states
+  const updateSiteToggleFromIndividualStates = (networkState: boolean, errorState: boolean, tokenState: boolean) => {
+    const allEnabled = networkState && errorState && tokenState;
+    const allDisabled = !networkState && !errorState && !tokenState;
+    
+    // Site toggle reflects the collective state:
+    // - ON when all 3 individual toggles are ON
+    // - OFF when all 3 individual toggles are OFF
+    // - OFF when mixed states (some on, some off) - this makes the site toggle a true "all or nothing" indicator
+    if (allEnabled) {
+      // setSiteSpecificEnabled(true); // Removed - using computed three-state
+      console.log('� Site toggle: ON (all individual features enabled)');
+    } else {
+      // setSiteSpecificEnabled(false); // Removed - using computed three-state
+      if (allDisabled) {
+        console.log('🔴 Site toggle: OFF (all individual features disabled)');
+      } else {
+        console.log('🟡 Site toggle: OFF (mixed state - some features enabled, some disabled)');
+      }
+    }
+  };
 
-    // Toggle network logging if available
-    if (settings?.networkInterception?.tabSpecific?.enabled) {
+  // Handler for three-state site toggle
+  const handleSiteToggleStateChange = (newState: ThreeState) => {
+    // Three-state toggle only allows off ↔ on transitions (mixed is auto-determined)
+    // Clicking when off or mixed → turn all on
+    // Clicking when on → turn all off
+    const targetState = newState === 'on';
+    
+    console.log(`🔄 Three-state site toggle: ${newState} → Setting all individual toggles to ${targetState}`);
+    toggleSiteSpecificToState(targetState);
+  };
+
+  // Helper to set all individual toggles to a specific state
+  const toggleSiteSpecificToState = async (enabled: boolean) => {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tabs[0]?.id || !tabs[0]?.url) return;
+
+      const tabId = tabs[0].id;
+      const tabUrl = tabs[0].url;
+
+      console.log(`🔄 Site toggle: ${enabled ? 'Enabling' : 'Disabling'} all 3 individual features`);
+
+      // Update all 3 individual toggle states to match target state
       setTabLoggingActive(enabled);
-      promises.push(
-        chromeSyncService.setTabPreferencesForUrl(tabUrl, { network: enabled }),
-        sendChromeMessage({
-          action: 'setTabNetworkState',
-          tabId,
-          active: enabled
-        })
-      );
-
-      // Send message to content script
-      try {
-        await chrome.tabs.sendMessage(tabId, {
-          action: 'toggleLogging',
-          enabled: enabled
-        });
-      } catch (error) {
-        console.log('Could not send network logging message to tab:', error);
-      }
-    }
-
-    // Toggle error logging if available
-    if (settings?.errorLogging?.tabSpecific?.enabled) {
       setTabErrorLoggingActive(enabled);
-      promises.push(
-        chromeSyncService.setTabPreferencesForUrl(tabUrl, { errors: enabled }),
-        sendChromeMessage({
-          action: 'setTabErrorState',
-          tabId,
-          active: enabled
-        })
-      );
-
-      // Send message to content script
-      try {
-        await chrome.tabs.sendMessage(tabId, {
-          action: 'toggleErrorLogging',
-          enabled: enabled
-        });
-      } catch (error) {
-        console.log('Could not send error logging message to tab:', error);
-      }
-    }
-
-    // Toggle token logging if available
-    if (settings?.tokenLogging?.tabSpecific?.enabled) {
       setTabTokenLoggingActive(enabled);
-      promises.push(
-        chromeSyncService.setTabPreferencesForUrl(tabUrl, { tokens: enabled }),
-        sendChromeMessage({
-          action: 'setTabTokenState',
-          tabId,
-          active: enabled
-        })
-      );
-    }
 
-    // Wait for all operations to complete
-    await Promise.allSettled(promises);
-  };
+      // Save all preferences to Chrome sync
+      await chromeSyncService.setTabPreferencesForUrl(tabUrl, {
+        network: enabled,
+        errors: enabled,
+        tokens: enabled
+      });
 
-  // MEMORY LEAK FIX: Toggle site-specific state (current site only)
-  const toggleSiteSpecific = async () => {
-    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
-      if (tabs[0]?.id && tabs[0]?.url) {
-        const newState = !siteSpecificEnabled;
-        setSiteSpecificEnabled(newState);
+      // Update all backend states via individual messages
+      const promises = [
+        sendChromeMessage({ action: 'setTabNetworkState', tabId, active: enabled }),
+        sendChromeMessage({ action: 'setTabErrorState', tabId, active: enabled }),
+        sendChromeMessage({ action: 'setTabTokenState', tabId, active: enabled })
+      ];
 
+      const responses = await Promise.all(promises);
+      const allSucceeded = responses.every(response => response && !response.error);
+
+      if (allSucceeded) {
+        // Send messages to content script for network and error logging
         try {
-          const response = await sendChromeMessage({
-            action: 'SET_EXTENSION_STATE',
-            tabId: tabs[0].id,
-            enabled: newState
-          });
-
-          if (!response?.success) {
-            console.warn('Failed to update site-specific extension state:', response);
-          } else {
-            // Automatically toggle all three logging types to match the site-specific state
-            await toggleAllLoggingTypes(newState, tabs[0].id, tabs[0].url);
-
-            if (newState) {
-              // If we just enabled the site, retry script injection
-              try {
-                await chrome.tabs.sendMessage(tabs[0].id, {
-                  action: 'retryScriptInjection'
-                });
-                console.log('Sent script injection retry request to content script');
-              } catch (error) {
-                console.log('Could not send injection retry message to tab (may not have content script):', error);
-              }
-            }
-          }
+          await Promise.all([
+            chrome.tabs.sendMessage(tabId, { action: 'toggleLogging', enabled }),
+            chrome.tabs.sendMessage(tabId, { action: 'toggleErrorLogging', enabled })
+          ]);
         } catch (error) {
-          console.error('Error updating site-specific extension state:', error);
+          console.log('Could not send messages to tab (may not have content script):', error);
         }
+
+        if (enabled) {
+          // If enabling, retry script injection
+          try {
+            await chrome.tabs.sendMessage(tabId, { action: 'retryScriptInjection' });
+            console.log('Sent script injection retry request to content script');
+          } catch (error) {
+            console.log('Could not send injection retry message to tab:', error);
+          }
+        }
+
+        console.log(`✅ Site toggle complete: All features ${enabled ? 'enabled' : 'disabled'} for this tab`);
+      } else {
+        console.error('Some backend updates failed, reverting states');
+        // Revert all states if any failed
+        setTabLoggingActive(!enabled);
+        setTabErrorLoggingActive(!enabled);
+        setTabTokenLoggingActive(!enabled);
       }
-    });
+    } catch (error) {
+      console.error('Error in site toggle:', error);
+    }
   };
+
+  // Note: toggleSiteSpecific removed - now using handleSiteToggleStateChange with three-state toggle
 
   const toggleTabLogging = async () => {
     try {
@@ -595,6 +592,9 @@ const Popup: React.FC = () => {
         } catch (error) {
           console.log('Could not send message to tab (may not have content script):', error);
         }
+
+        // Update site toggle to reflect new state of all 3 toggles
+        updateSiteToggleFromIndividualStates(newState, tabErrorLoggingActive, tabTokenLoggingActive);
       } else {
         console.error('Failed to toggle tab network state:', response?.error);
         // Revert local state if backend update failed
@@ -637,6 +637,9 @@ const Popup: React.FC = () => {
         } catch (error) {
           console.log('Could not send message to tab (may not have content script):', error);
         }
+
+        // Update site toggle to reflect new state of all 3 toggles
+        updateSiteToggleFromIndividualStates(tabLoggingActive, newState, tabTokenLoggingActive);
       } else {
         console.error('Failed to toggle tab error state:', response?.error);
         // Revert local state if backend update failed
@@ -673,6 +676,9 @@ const Popup: React.FC = () => {
         console.error('Failed to toggle tab token state:', response?.error);
         // Revert local state if backend update failed
         setTabTokenLoggingActive(!newState);
+      } else {
+        // Update site toggle to reflect new state of all 3 toggles
+        updateSiteToggleFromIndividualStates(tabLoggingActive, tabErrorLoggingActive, newState);
       }
 
       // Note: Token logging doesn't require content script communication
@@ -782,17 +788,22 @@ const Popup: React.FC = () => {
                 This Site
               </CardTitle>
               <CardDescription className="text-xs text-purple-700">
-                {siteSpecificEnabled ? '🟢 Site monitoring enabled' : '🟡 Site monitoring disabled'}
+                {siteToggleState === 'on' ? '🟢 All logging features enabled' : 
+                 siteToggleState === 'mixed' ? '� Some logging features enabled' : 
+                 '� All logging features disabled'}
               </CardDescription>
             </CardHeader>
             <CardContent className="px-4 pb-4">
               <div className="bg-white rounded-md p-3 border-2 border-purple-200 shadow-sm">
-                <Switch
-                  checked={siteSpecificEnabled}
-                  onChange={() => toggleSiteSpecific()}
-                  label="Site Monitoring"
-                  description={siteSpecificEnabled ? '🟢 Monitoring enabled for this site' : '🟡 Monitoring disabled for this site'}
-                  className={siteSpecificEnabled ? 'accent-purple-500' : 'accent-gray-400'}
+                <ThreeStateToggle
+                  state={siteToggleState}
+                  onStateChange={handleSiteToggleStateChange}
+                  label="Site Logging"
+                  description={
+                    siteToggleState === 'on' ? 'All logging features are active' :
+                    siteToggleState === 'mixed' ? 'Mixed state - some features on, some off' :
+                    'All logging features are disabled'
+                  }
                 />
               </div>
             </CardContent>
@@ -800,7 +811,7 @@ const Popup: React.FC = () => {
         )}
 
         {/* Tab-Specific Controls */}
-        {globalPowerEnabled && siteSpecificEnabled && (
+        {globalPowerEnabled && (
           <div className="space-y-3">
             {/* Network Logging Control */}
             {settings?.networkInterception?.tabSpecific?.enabled && (

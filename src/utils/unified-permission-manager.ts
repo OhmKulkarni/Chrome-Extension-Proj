@@ -303,13 +303,14 @@ export class UnifiedPermissionManager {
 
   /**
    * Check if a specific feature is enabled for a tab
-   * Uses intelligent fallback: tab-specific > feature defaults
+   * Uses simple fallback: tab-specific > feature defaults
    */
   async isFeatureEnabled(tabId: number, feature: 'network' | 'console' | 'tokens'): Promise<boolean> {
     await this.ensureState();
     if (!this.state) return true; // Safe fallback during initialization
 
-    // Check tab-specific setting first
+    // FIXED: Simple tab-based check, no site-level overrides
+    // Each tab has independent settings
     const tabControl = this.state.tabControls[tabId];
     if (tabControl && tabControl[feature] !== undefined) {
       return tabControl[feature];
@@ -317,9 +318,7 @@ export class UnifiedPermissionManager {
 
     // Fallback to feature default
     return this.state.featureDefaults[feature];
-  }
-
-  /**
+  }  /**
    * Initialize tab permissions from existing popup preferences
    * This ensures new tabs respect user's previously set preferences
    */
@@ -336,25 +335,27 @@ export class UnifiedPermissionManager {
     }
 
     try {
-      console.log(`🔄 UnifiedPermissionManager: Initializing tab ${tabId} from existing preferences`);
+      console.log(`🔄 UnifiedPermissionManager: Initializing tab ${tabId} with fresh defaults`);
 
       const domain = this.extractDomain(tabUrl);
 
-      // Try to read existing preferences from chrome storage (where popup saves them)
-      // This is a bridge until we fully migrate to unified system
-      const tabPreferences = await this.readExistingTabPreferences(tabUrl);
+      // FIXED: Each tab starts fresh with defaults, not domain-based inheritance
+      // This ensures each tab has independent settings
+      const networkEnabled = this.state.featureDefaults.network;
+      const consoleEnabled = this.state.featureDefaults.console;
+      const tokensEnabled = this.state.featureDefaults.tokens;
 
-      // Initialize tab control with user's existing preferences or defaults
+      console.log(`🔄 UnifiedPermissionManager: Tab ${tabId} starting fresh with defaults for ${domain}`);
+
+      // Initialize tab control with fresh default preferences
       this.state.tabControls[tabId] = {
-        network: tabPreferences.network ?? this.state.featureDefaults.network,
-        console: tabPreferences.console ?? this.state.featureDefaults.console,
-        tokens: tabPreferences.tokens ?? this.state.featureDefaults.tokens,
+        network: networkEnabled,
+        console: consoleEnabled,
+        tokens: tokensEnabled,
         url: tabUrl,
         domain,
         lastUpdated: Date.now()
-      };
-
-      await this.saveState();
+      };      await this.saveState();
 
       console.log(`✅ UnifiedPermissionManager: Initialized tab ${tabId} permissions:`, {
         network: this.state.tabControls[tabId].network,
@@ -369,56 +370,12 @@ export class UnifiedPermissionManager {
   }
 
   /**
-   * Read existing tab preferences from the popup's storage system
-   * This bridges the gap between old and new permission systems
-   */
-  private async readExistingTabPreferences(tabUrl: string): Promise<{
-    network?: boolean;
-    console?: boolean;
-    tokens?: boolean;
-  }> {
-    try {
-      // ChromeSyncService stores preferences under 'tabPreferences.domainPreferences[domain]'
-      const domain = this.extractDomain(tabUrl);
-
-      // Read the correct storage structure
-      const result = await chrome.storage.sync.get(['tabPreferences']);
-      const tabPreferences = result.tabPreferences;
-
-      if (!tabPreferences?.domainPreferences) {
-        console.log(`🔍 UnifiedPermissionManager: No existing preferences found for ${domain}`);
-        return {};
-      }
-
-      const domainPrefs = tabPreferences.domainPreferences[domain];
-
-      if (!domainPrefs) {
-        console.log(`🔍 UnifiedPermissionManager: No domain preferences found for ${domain}`);
-        return {};
-      }
-
-      const preferences: any = {};
-
-      // Map from ChromeSyncService format to unified system format
-      if (domainPrefs.network !== undefined) preferences.network = domainPrefs.network;
-      if (domainPrefs.errors !== undefined) preferences.console = domainPrefs.errors; // popup uses 'errors' key
-      if (domainPrefs.tokens !== undefined) preferences.tokens = domainPrefs.tokens;
-
-      console.log(`🔍 UnifiedPermissionManager: Found existing preferences for ${domain}:`, preferences);
-      return preferences;
-
-    } catch (error) {
-      console.warn('UnifiedPermissionManager: Could not read existing tab preferences:', error);
-      return {};
-    }
-  }  /**
    * Set tab-specific feature control
    */
   async setFeatureEnabled(
     tabId: number,
     feature: 'network' | 'console' | 'tokens',
-    enabled: boolean,
-    tabUrl?: string
+    enabled: boolean
   ): Promise<void> {
     await this.ensureState();
     if (!this.state) return;
@@ -427,13 +384,12 @@ export class UnifiedPermissionManager {
 
     // Get or create tab control
     if (!this.state.tabControls[tabId]) {
-      const domain = tabUrl ? this.extractDomain(tabUrl) : 'unknown';
       this.state.tabControls[tabId] = {
         network: this.state.featureDefaults.network,
         console: this.state.featureDefaults.console,
         tokens: this.state.featureDefaults.tokens,
-        url: tabUrl || '',
-        domain,
+        url: '', // Will be updated when tab info is available
+        domain: 'unknown', // Will be updated when tab info is available
         lastUpdated: Date.now()
       };
     }
@@ -456,25 +412,17 @@ export class UnifiedPermissionManager {
   // ===== UNIFIED PERMISSION CHECK =====
 
   /**
-   * Master permission check - combines all permission layers
+   * Master permission check - simplified to global + feature only
    */
   async canIntercept(
     tabId: number,
-    feature: 'network' | 'console' | 'tokens',
-    tabUrl?: string
+    feature: 'network' | 'console' | 'tokens'
   ): Promise<boolean> {
     // 1. Global power check (master switch)
     const globalEnabled = await this.isGlobalEnabled();
     if (!globalEnabled) return false;
 
-    // 2. Site-specific check
-    if (tabUrl) {
-      const domain = this.extractDomain(tabUrl);
-      const siteEnabled = await this.isSiteEnabled(domain);
-      if (!siteEnabled) return false;
-    }
-
-    // 3. Feature-specific check
+    // 2. Feature-specific check (tab-based only)
     const featureEnabled = await this.isFeatureEnabled(tabId, feature);
     return featureEnabled;
   }
@@ -492,19 +440,19 @@ export class UnifiedPermissionManager {
   }> {
     const global = await this.isGlobalEnabled();
 
-    let site = true;
-    let domain: string | undefined;
-
-    if (tabUrl) {
-      domain = this.extractDomain(tabUrl);
-      site = await this.isSiteEnabled(domain);
-    }
-
     const features = {
       network: await this.isFeatureEnabled(tabId, 'network'),
       console: await this.isFeatureEnabled(tabId, 'console'),
       tokens: await this.isFeatureEnabled(tabId, 'tokens')
     };
+
+    // FIXED: Site state is derived from whether all features are enabled
+    const site = features.network && features.console && features.tokens;
+
+    let domain: string | undefined;
+    if (tabUrl) {
+      domain = this.extractDomain(tabUrl);
+    }
 
     return { global, site, features, domain };
   }

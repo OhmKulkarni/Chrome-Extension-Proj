@@ -139,25 +139,25 @@ export class UnifiedPermissionService {
   }
 
   /**
-   * Handle GET_SITE_SPECIFIC_STATE message
+   * Handle GET_SITE_SPECIFIC_STATE message (DEPRECATED - keeping for backwards compatibility)
+   * NOTE: This is no longer used by the bidirectional site toggle.
+   * Site state is now derived in the frontend from individual toggle states.
    */
   async handleGetSiteSpecificState(tabId: number): Promise<{ enabled: boolean }> {
     try {
-      // Get tab URL first
-      const tabs = await chrome.tabs.query({});
-      const tab = tabs.find(t => t.id === tabId);
+      console.warn('⚠️  GET_SITE_SPECIFIC_STATE is deprecated - site state should be derived from individual toggles');
+      
+      // For backwards compatibility, still return the old logic
+      const networkEnabled = await unifiedPermissionManager.isFeatureEnabled(tabId, 'network');
+      const consoleEnabled = await unifiedPermissionManager.isFeatureEnabled(tabId, 'console');
+      const tokensEnabled = await unifiedPermissionManager.isFeatureEnabled(tabId, 'tokens');
 
-      if (!tab?.url) {
-        return { enabled: true }; // Default to enabled if no URL
-      }
-
-      const domain = this.extractDomain(tab.url);
-      const enabled = await unifiedPermissionManager.isSiteEnabled(domain);
-      return { enabled };
+      const siteEnabled = networkEnabled && consoleEnabled && tokensEnabled;
+      return { enabled: siteEnabled };
 
     } catch (error) {
       console.error('Error getting site-specific state:', error);
-      return { enabled: true }; // Safe fallback
+      return { enabled: false }; // Safe fallback
     }
   }
 
@@ -206,10 +206,14 @@ export class UnifiedPermissionService {
   }
 
   /**
-   * Handle SET_EXTENSION_STATE message (backward compatibility)
+   * Handle SET_EXTENSION_STATE message (DEPRECATED - keeping for backwards compatibility)
+   * NOTE: This is no longer used by the bidirectional site toggle.
+   * Site toggle now directly calls individual toggle functions in the frontend.
    */
   async handleSetExtensionState(enabled: boolean, tabId?: number): Promise<{ success: boolean; newState: any }> {
     try {
+      console.warn('⚠️  SET_EXTENSION_STATE is deprecated - site toggle should directly control individual toggles');
+
       if (!tabId) {
         // Set global state
         await unifiedPermissionManager.setGlobalEnabled(enabled);
@@ -219,13 +223,19 @@ export class UnifiedPermissionService {
         };
       }
 
-      // Set site-specific state
+      // For backwards compatibility, still provide the old behavior
       const tabs = await chrome.tabs.query({});
       const tab = tabs.find(t => t.id === tabId);
 
       if (tab?.url) {
         const domain = this.extractDomain(tab.url);
-        await unifiedPermissionManager.setSiteEnabled(domain, enabled);
+        console.log(`🔄 Legacy site toggle for ${domain}: ${enabled ? 'enabling' : 'disabling'} all individual features`);
+
+        await Promise.all([
+          unifiedPermissionManager.setFeatureEnabled(tabId, 'network', enabled),
+          unifiedPermissionManager.setFeatureEnabled(tabId, 'console', enabled),
+          unifiedPermissionManager.setFeatureEnabled(tabId, 'tokens', enabled)
+        ]);
       }
 
       return {
@@ -257,11 +267,7 @@ export class UnifiedPermissionService {
 
   async handleSetTabNetworkState(tabId: number, active: boolean): Promise<{ success: boolean }> {
     try {
-      // Get tab URL for context
-      const tabs = await chrome.tabs.query({});
-      const tab = tabs.find(t => t.id === tabId);
-
-      await unifiedPermissionManager.setFeatureEnabled(tabId, 'network', active, tab?.url);
+      await unifiedPermissionManager.setFeatureEnabled(tabId, 'network', active);
       return { success: true };
     } catch (error) {
       console.error('Error setting tab network state:', error);
@@ -281,10 +287,7 @@ export class UnifiedPermissionService {
 
   async handleSetTabErrorState(tabId: number, active: boolean): Promise<{ success: boolean }> {
     try {
-      const tabs = await chrome.tabs.query({});
-      const tab = tabs.find(t => t.id === tabId);
-
-      await unifiedPermissionManager.setFeatureEnabled(tabId, 'console', active, tab?.url);
+      await unifiedPermissionManager.setFeatureEnabled(tabId, 'console', active);
       return { success: true };
     } catch (error) {
       console.error('Error setting tab error state:', error);
@@ -304,10 +307,7 @@ export class UnifiedPermissionService {
 
   async handleSetTabTokenState(tabId: number, active: boolean): Promise<{ success: boolean }> {
     try {
-      const tabs = await chrome.tabs.query({});
-      const tab = tabs.find(t => t.id === tabId);
-
-      await unifiedPermissionManager.setFeatureEnabled(tabId, 'tokens', active, tab?.url);
+      await unifiedPermissionManager.setFeatureEnabled(tabId, 'tokens', active);
       return { success: true };
     } catch (error) {
       console.error('Error setting tab token state:', error);
@@ -331,19 +331,13 @@ export class UnifiedPermissionService {
         return { canIntercept: false, reason: 'No tab URL found' };
       }
 
-      const canIntercept = await unifiedPermissionManager.canIntercept(tabId, feature, tab.url);
+      const canIntercept = await unifiedPermissionManager.canIntercept(tabId, feature);
 
       if (!canIntercept) {
         // Determine reason
         const globalEnabled = await unifiedPermissionManager.isGlobalEnabled();
         if (!globalEnabled) {
           return { canIntercept: false, reason: 'Global extension disabled' };
-        }
-
-        const domain = this.extractDomain(tab.url);
-        const siteEnabled = await unifiedPermissionManager.isSiteEnabled(domain);
-        if (!siteEnabled) {
-          return { canIntercept: false, reason: `Site ${domain} disabled` };
         }
 
         return { canIntercept: false, reason: `${feature} logging disabled for this tab` };
