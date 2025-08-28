@@ -691,6 +691,48 @@ export class IndexedDBStorage implements StorageOperations {
 
       console.log('📝 InsertApiCall: Attempting to store data:', { url: data.url, method: data.method, timestamp: data.timestamp })
 
+      // DUPLICATE DETECTION: Check for similar requests in the last 5 seconds
+      try {
+        const recentThreshold = Date.now() - 5000; // 5 seconds ago
+        const transaction = this.db!.transaction(['apiCalls'], 'readonly')
+        const store = transaction.objectStore('apiCalls')
+        const index = store.index('timestamp')
+        
+        // Get recent requests
+        const recentRequests: ApiCall[] = []
+        const request = index.openCursor(IDBKeyRange.lowerBound(recentThreshold))
+        
+        await new Promise<void>((resolve, reject) => {
+          request.onsuccess = (event) => {
+            const cursor = (event.target as IDBRequest).result
+            if (cursor) {
+              recentRequests.push(cursor.value)
+              cursor.continue()
+            } else {
+              resolve()
+            }
+          }
+          request.onerror = () => reject(request.error)
+        })
+
+        // Check for duplicates (same URL, method, and similar timestamp within 5s)
+        const duplicates = recentRequests.filter(existing => 
+          existing.url === data.url &&
+          existing.method === data.method &&
+          existing.tab_id === data.tab_id &&
+          Math.abs(existing.timestamp - data.timestamp) < 5000
+        )
+
+        if (duplicates.length > 0) {
+          console.log(`🔄 IndexedDB: Duplicate network request skipped (${duplicates.length} similar requests found in last 5s)`)
+          perfTracker.trackOperation('insertApiCall_duplicate_skipped', performance.now() - startTime)
+          return duplicates[0].id || 0 // Return ID of existing request
+        }
+      } catch (deduplicationError) {
+        // If deduplication check fails, proceed with insertion anyway
+        console.warn('⚠️ IndexedDB: Deduplication check failed, proceeding with insertion:', deduplicationError)
+      }
+
       const result = await this.performTransaction('apiCalls', 'readwrite',
         (store) => store.add(data)
       )
