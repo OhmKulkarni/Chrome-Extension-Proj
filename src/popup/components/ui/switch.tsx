@@ -23,12 +23,12 @@ const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(
 
     return (
       <div className="flex items-start space-x-3">
-        <div 
+        <div
           className={cn(
-            "relative inline-flex h-6 w-11 items-center rounded-full border-2 transition-colors focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background cursor-pointer shadow-sm",
-            checked 
-              ? "bg-primary border-primary/20 shadow-md" 
-              : "bg-muted border-muted-foreground/20",
+            "relative inline-flex h-7 w-12 items-center rounded-full border-2 transition-all duration-300 focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background cursor-pointer shadow-sm hover:shadow-lg transform hover:scale-105",
+            checked
+              ? "bg-gradient-to-r from-primary to-primary/80 border-primary/20 shadow-lg"
+              : "bg-gradient-to-r from-muted to-muted-foreground/20 border-muted-foreground/20 shadow-sm",
             className
           )}
           onClick={handleClick}
@@ -43,22 +43,22 @@ const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(
           />
           <span
             className={cn(
-              "block h-4 w-4 rounded-full shadow-lg ring-0 transition-transform duration-200 ease-in-out border",
-              checked 
-                ? "translate-x-5 bg-background border-primary/20 shadow-lg" 
-                : "translate-x-0.5 bg-background border-muted-foreground/30"
+              "block h-5 w-5 rounded-full shadow-lg ring-0 transition-all duration-300 ease-in-out border-2 backdrop-blur-sm",
+              checked
+                ? "translate-x-5 bg-background border-primary/20 shadow-xl"
+                : "translate-x-0.5 bg-background border-muted-foreground/30 shadow-md"
             )}
           />
         </div>
         {(label || description) && (
           <div className="flex-1">
             {label && (
-              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              <label className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-gray-800 hover:text-gray-700 transition-colors duration-200">
                 {label}
               </label>
             )}
             {description && (
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
                 {description}
               </p>
             )}

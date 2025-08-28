@@ -151,7 +151,7 @@ const Popup: React.FC = () => {
   const siteToggleState: ThreeState = (() => {
     const allEnabled = tabLoggingActive && tabErrorLoggingActive && tabTokenLoggingActive;
     const allDisabled = !tabLoggingActive && !tabErrorLoggingActive && !tabTokenLoggingActive;
-    
+
     if (allEnabled) return 'on';
     if (allDisabled) return 'off';
     return 'mixed';
@@ -308,12 +308,12 @@ const Popup: React.FC = () => {
         // BIDIRECTIONAL: Site toggle state is now computed automatically from individual toggles
         // No need to manually set it - siteToggleState is derived reactively
         const allEnabled = networkActive && errorActive && tokenActive;
-        
+
         console.log(`🔄 Initial state loaded - Network: ${networkActive}, Error: ${errorActive}, Token: ${tokenActive}, Site: ${allEnabled ? 'on' : (networkActive || errorActive || tokenActive) ? 'mixed' : 'off'}`);
 
       } catch (error) {
         console.error('Error loading tab states:', error);
-        
+
         // Fallback to sync defaults if everything fails
         try {
           const defaults = await chromeSyncService.getTabDefaults();
@@ -464,7 +464,7 @@ const Popup: React.FC = () => {
   const updateSiteToggleFromIndividualStates = (networkState: boolean, errorState: boolean, tokenState: boolean) => {
     const allEnabled = networkState && errorState && tokenState;
     const allDisabled = !networkState && !errorState && !tokenState;
-    
+
     // Site toggle reflects the collective state:
     // - ON when all 3 individual toggles are ON
     // - OFF when all 3 individual toggles are OFF
@@ -488,7 +488,7 @@ const Popup: React.FC = () => {
     // Clicking when off or mixed → turn all on
     // Clicking when on → turn all off
     const targetState = newState === 'on';
-    
+
     console.log(`🔄 Three-state site toggle: ${newState} → Setting all individual toggles to ${targetState}`);
     toggleSiteSpecificToState(targetState);
   };
@@ -722,21 +722,21 @@ const Popup: React.FC = () => {
   }
 
   return (
-    <div className="w-96 bg-gradient-to-br from-blue-50 via-white to-purple-50 min-h-[500px]">
-      <div className="p-4 space-y-3">
-        {/* Header with Gradient */}
-        <div className="text-center pb-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg p-4 shadow-lg">
-          <h1 className="text-xl font-bold tracking-tight flex items-center justify-center">
-            <span className="mr-2">📊</span>
+    <div className="w-96 bg-gradient-to-br from-blue-50/80 via-white to-purple-50/80 min-h-[500px] backdrop-blur-sm">
+      <div className="p-5 space-y-4">
+        {/* Header with Enhanced Gradient */}
+        <div className="text-center pb-2 bg-gradient-to-r from-blue-600/95 to-purple-600/95 text-white rounded-xl p-5 shadow-2xl border border-white/20 backdrop-blur-sm">
+          <h1 className="text-xl font-bold tracking-tight flex items-center justify-center drop-shadow-sm">
+            <span className="mr-2 text-2xl">📊</span>
             Web App Monitor
           </h1>
-          <p className="text-blue-100 text-xs mt-1">
+          <p className="text-blue-100/90 text-xs mt-2 font-medium tracking-wide">
             Scaffold v1.0.0 • Extension Popup
           </p>
         </div>
 
         {/* Current Tab Info Card */}
-        <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50">
+        <Card className="border border-blue-200/50 bg-gradient-to-r from-blue-50/60 to-cyan-50/60 shadow-lg hover:shadow-xl transition-all duration-300 backdrop-blur-sm rounded-xl">
           <CardHeader className="pb-3 pt-4 px-4">
             <CardTitle className="text-base flex items-center text-blue-900">
               <span className="mr-2">🌐</span>
@@ -756,7 +756,7 @@ const Popup: React.FC = () => {
         </Card>
 
         {/* Global Power Control Card */}
-        <Card className="border-2 border-green-200 bg-gradient-to-r from-green-50 to-emerald-50">
+        <Card className="border border-green-200/50 bg-gradient-to-r from-green-50/60 to-emerald-50/60 shadow-lg hover:shadow-xl transition-all duration-300 backdrop-blur-sm rounded-xl">
           <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="text-base flex items-center text-green-900">
               <span className="mr-2">⚡</span>
@@ -781,15 +781,15 @@ const Popup: React.FC = () => {
 
         {/* Site-Specific Control Card */}
         {globalPowerEnabled && (
-          <Card className="border-2 border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50">
+          <Card className="border border-purple-200/50 bg-gradient-to-r from-purple-50/60 to-pink-50/60 shadow-lg hover:shadow-xl transition-all duration-300 backdrop-blur-sm rounded-xl">
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-base flex items-center text-purple-900">
                 <span className="mr-2">🏠</span>
                 This Site
               </CardTitle>
               <CardDescription className="text-xs text-purple-700">
-                {siteToggleState === 'on' ? '🟢 All logging features enabled' : 
-                 siteToggleState === 'mixed' ? '� Some logging features enabled' : 
+                {siteToggleState === 'on' ? '🟢 All logging features enabled' :
+                 siteToggleState === 'mixed' ? '� Some logging features enabled' :
                  '� All logging features disabled'}
               </CardDescription>
             </CardHeader>
@@ -815,7 +815,7 @@ const Popup: React.FC = () => {
           <div className="space-y-3">
             {/* Network Logging Control */}
             {settings?.networkInterception?.tabSpecific?.enabled && (
-              <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+              <Card className="border border-blue-200/50 bg-gradient-to-r from-blue-50/60 to-indigo-50/60 shadow-lg hover:shadow-xl transition-all duration-300 backdrop-blur-sm rounded-xl">
                 <CardHeader className="pb-2 pt-4 px-4">
                   <CardTitle className="text-base flex items-center text-blue-900">
                     <span className="mr-2">🌐</span>
@@ -841,7 +841,7 @@ const Popup: React.FC = () => {
 
             {/* Error Logging Control */}
             {settings?.errorLogging?.tabSpecific?.enabled && (
-              <Card className="border-2 border-red-200 bg-gradient-to-r from-red-50 to-orange-50">
+              <Card className="border border-red-200/50 bg-gradient-to-r from-red-50/60 to-orange-50/60 shadow-lg hover:shadow-xl transition-all duration-300 backdrop-blur-sm rounded-xl">
                 <CardHeader className="pb-2 pt-4 px-4">
                   <CardTitle className="text-base flex items-center text-red-900">
                     <span className="mr-2">⚠️</span>
@@ -867,7 +867,7 @@ const Popup: React.FC = () => {
 
             {/* Token Logging Control */}
             {settings?.tokenLogging?.tabSpecific?.enabled && (
-              <Card className="border-2 border-yellow-200 bg-gradient-to-r from-yellow-50 to-amber-50">
+              <Card className="border border-yellow-200/50 bg-gradient-to-r from-yellow-50/60 to-amber-50/60 shadow-lg hover:shadow-xl transition-all duration-300 backdrop-blur-sm rounded-xl">
                 <CardHeader className="pb-2 pt-4 px-4">
                   <CardTitle className="text-base flex items-center text-yellow-900">
                     <span className="mr-2">🔑</span>
@@ -894,10 +894,10 @@ const Popup: React.FC = () => {
         )}
 
         {/* Action Buttons */}
-        <div className="space-y-2 pt-2">
+        <div className="space-y-3 pt-2">
           <Button
             onClick={openDashboard}
-            className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white border-2 border-blue-300 shadow-lg transform hover:scale-105 transition-all duration-200"
+            className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white border-2 border-blue-300/50 shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 rounded-xl font-semibold"
             size="default"
           >
             <span className="mr-2">📊</span>
@@ -906,7 +906,7 @@ const Popup: React.FC = () => {
           <Button
             onClick={openSettings}
             variant="outline"
-            className="w-full border-2 border-purple-300 text-purple-700 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 shadow-lg transform hover:scale-105 transition-all duration-200"
+            className="w-full border-2 border-purple-300/50 text-purple-700 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 rounded-xl font-semibold backdrop-blur-sm"
             size="default"
           >
             <span className="mr-2">⚙️</span>
@@ -915,9 +915,9 @@ const Popup: React.FC = () => {
         </div>
 
         {/* Footer */}
-        <div className="text-center pt-3 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50 rounded-lg p-2">
-          <p className="text-xs text-gray-600 flex items-center justify-center">
-            <span className="mr-1">🛠️</span>
+        <div className="text-center pt-4 border-t border-gray-200/50 bg-gradient-to-r from-gray-50/60 to-slate-50/60 rounded-xl p-3 shadow-sm backdrop-blur-sm">
+          <p className="text-xs text-gray-600/80 flex items-center justify-center font-medium">
+            <span className="mr-1 text-sm">🛠️</span>
             Built with TypeScript, React & Vite
           </p>
         </div>

@@ -146,7 +146,7 @@ export class UnifiedPermissionService {
   async handleGetSiteSpecificState(tabId: number): Promise<{ enabled: boolean }> {
     try {
       console.warn('⚠️  GET_SITE_SPECIFIC_STATE is deprecated - site state should be derived from individual toggles');
-      
+
       // For backwards compatibility, still return the old logic
       const networkEnabled = await unifiedPermissionManager.isFeatureEnabled(tabId, 'network');
       const consoleEnabled = await unifiedPermissionManager.isFeatureEnabled(tabId, 'console');
