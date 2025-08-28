@@ -747,9 +747,9 @@ const Popup: React.FC = () => {
         </Card>
 
         {/* Extension Control */}
-        <Card className={`transition-all duration-300 rounded-2xl ${
+        <Card className={`transition-all duration-200 rounded-2xl ${
           globalPowerEnabled
-            ? 'border-2 border-green-200 bg-gradient-to-br from-green-50 to-white shadow-lg hover:shadow-xl transform active:scale-[1.02] ring-1 ring-green-100'
+            ? 'border-2 border-green-200 bg-gradient-to-br from-green-50 to-white shadow-lg hover:shadow-xl active:shadow-2xl active:border-green-300 ring-1 ring-green-100'
             : 'border border-slate-200 bg-white shadow-md hover:shadow-lg'
         }`}>
           <CardContent className="p-4">
@@ -776,11 +776,11 @@ const Popup: React.FC = () => {
 
         {/* Site Control */}
         {globalPowerEnabled && (
-          <Card className={`transition-all duration-300 rounded-2xl ${
+          <Card className={`transition-all duration-200 rounded-2xl ${
             siteToggleState === 'on'
-              ? 'border-2 border-green-200 bg-gradient-to-br from-green-50 to-white shadow-lg hover:shadow-xl transform active:scale-[1.02] ring-1 ring-green-100'
+              ? 'border-2 border-green-200 bg-gradient-to-br from-green-50 to-white shadow-lg hover:shadow-xl active:shadow-2xl active:border-green-300 ring-1 ring-green-100'
               : siteToggleState === 'mixed'
-              ? 'border-2 border-yellow-200 bg-gradient-to-br from-yellow-50 to-white shadow-lg hover:shadow-xl transform active:scale-[1.02] ring-1 ring-yellow-100'
+              ? 'border-2 border-yellow-200 bg-gradient-to-br from-yellow-50 to-white shadow-lg hover:shadow-xl active:shadow-2xl active:border-yellow-300 ring-1 ring-yellow-100'
               : 'border border-slate-200 bg-white shadow-md hover:shadow-lg'
           }`}>
             <CardContent className="p-4">
@@ -812,9 +812,9 @@ const Popup: React.FC = () => {
           <div className="space-y-2">
             {/* Network Logging */}
             {settings?.networkInterception?.tabSpecific?.enabled && (
-              <Card className={`transition-all duration-300 rounded-xl ${
+              <Card className={`transition-all duration-200 rounded-xl ${
                 tabLoggingActive
-                  ? 'border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white shadow-md hover:shadow-lg transform active:scale-[1.01] ring-1 ring-blue-100'
+                  ? 'border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white shadow-md hover:shadow-lg active:shadow-xl active:border-blue-300 ring-1 ring-blue-100'
                   : 'border border-slate-200 bg-white shadow-sm hover:shadow-md'
               }`}>
                 <CardContent className="p-3">
@@ -842,9 +842,9 @@ const Popup: React.FC = () => {
 
             {/* Error Logging */}
             {settings?.errorLogging?.tabSpecific?.enabled && (
-              <Card className={`transition-all duration-300 rounded-xl ${
+              <Card className={`transition-all duration-200 rounded-xl ${
                 tabErrorLoggingActive
-                  ? 'border-2 border-red-200 bg-gradient-to-br from-red-50 to-white shadow-md hover:shadow-lg transform active:scale-[1.01] ring-1 ring-red-100'
+                  ? 'border-2 border-red-200 bg-gradient-to-br from-red-50 to-white shadow-md hover:shadow-lg active:shadow-xl active:border-red-300 ring-1 ring-red-100'
                   : 'border border-slate-200 bg-white shadow-sm hover:shadow-md'
               }`}>
                 <CardContent className="p-3">
@@ -872,9 +872,9 @@ const Popup: React.FC = () => {
 
             {/* Token Logging */}
             {settings?.tokenLogging?.tabSpecific?.enabled && (
-              <Card className={`transition-all duration-300 rounded-xl ${
+              <Card className={`transition-all duration-200 rounded-xl ${
                 tabTokenLoggingActive
-                  ? 'border-2 border-yellow-200 bg-gradient-to-br from-yellow-50 to-white shadow-md hover:shadow-lg transform active:scale-[1.01] ring-1 ring-yellow-100'
+                  ? 'border-2 border-yellow-200 bg-gradient-to-br from-yellow-50 to-white shadow-md hover:shadow-lg active:shadow-xl active:border-yellow-300 ring-1 ring-yellow-100'
                   : 'border border-slate-200 bg-white shadow-sm hover:shadow-md'
               }`}>
                 <CardContent className="p-3">
@@ -905,7 +905,7 @@ const Popup: React.FC = () => {
         {/* Dashboard Button */}
         <Button
           onClick={openDashboard}
-          className="w-full bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 text-white shadow-lg hover:shadow-xl transition-all duration-300 rounded-2xl font-semibold transform active:scale-[1.02]"
+          className="w-full bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 active:from-slate-900 active:to-slate-950 text-white shadow-lg hover:shadow-xl active:shadow-2xl transition-all duration-200 rounded-2xl font-semibold"
           size="default"
         >
           Open Dashboard
