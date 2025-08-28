@@ -696,23 +696,6 @@ const Popup: React.FC = () => {
     })
   };
 
-  const openSettings = () => {
-    console.log('🔧 Opening settings page...');
-    try {
-      chrome.tabs.create({
-        url: chrome.runtime.getURL('src/settings/settings.html')
-      }, (tab) => {
-        if (chrome.runtime.lastError) {
-          console.error('Error opening settings:', chrome.runtime.lastError);
-        } else {
-          console.log('Settings tab created:', tab);
-        }
-      });
-    } catch (error) {
-      console.error('Exception in openSettings:', error);
-    }
-  };
-
   if (loading) {
     return (
       <div className="w-80 h-96 flex items-center justify-center bg-gray-50">
@@ -722,28 +705,27 @@ const Popup: React.FC = () => {
   }
 
   return (
-    <div className="w-96 bg-gradient-to-br from-blue-50/80 via-white to-purple-50/80 min-h-[400px] backdrop-blur-sm">
+    <div className="w-96 bg-gradient-to-br from-slate-50 to-gray-100 min-h-[400px]">
       <div className="p-3 space-y-2">
-        {/* Compact Header */}
-        <div className="text-center bg-gradient-to-r from-blue-600/95 to-purple-600/95 text-white rounded-lg p-3 shadow-xl border border-white/20 backdrop-blur-sm">
-          <h1 className="text-lg font-bold tracking-tight flex items-center justify-center drop-shadow-sm">
-            <span className="mr-2">📊</span>
+        {/* Header */}
+        <div className="text-center bg-gradient-to-r from-slate-800 to-slate-700 text-white rounded-lg p-3 shadow-xl border border-slate-600/30">
+          <h1 className="text-lg font-bold tracking-tight">
             Web App Monitor
           </h1>
-          <p className="text-blue-100/90 text-xs mt-1 font-medium">
-            v1.0.0 • {tabInfo.title ? tabInfo.title.substring(0, 25) + (tabInfo.title.length > 25 ? '...' : '') : 'Current Site'}
+          <p className="text-slate-300 text-xs mt-1 font-medium">
+            v1.0.0 • {tabInfo.title ? tabInfo.title.substring(0, 30) + (tabInfo.title.length > 30 ? '...' : '') : 'Current Site'}
           </p>
         </div>
 
-        {/* Global Power Control Card */}
-        <Card className="border border-green-200/50 bg-gradient-to-r from-green-50/60 to-emerald-50/60 shadow-lg hover:shadow-xl transition-all duration-300 backdrop-blur-sm rounded-lg">
+        {/* Extension Control */}
+        <Card className="border border-slate-200 bg-white shadow-md hover:shadow-lg transition-all duration-300 rounded-lg">
           <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <span className="mr-2 text-lg">⚡</span>
+                <div className={`w-3 h-3 rounded-full mr-3 ${globalPowerEnabled ? 'bg-green-500' : 'bg-red-500'}`}></div>
                 <div>
-                  <p className="text-sm font-semibold text-green-900">Extension Status</p>
-                  <p className="text-xs text-green-700">{globalPowerEnabled ? '✅ Active' : '🔴 Disabled'}</p>
+                  <p className="text-sm font-semibold text-slate-800">Extension Status</p>
+                  <p className="text-xs text-slate-600">{globalPowerEnabled ? 'Active' : 'Disabled'}</p>
                 </div>
               </div>
               <Switch
@@ -755,19 +737,23 @@ const Popup: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Site-Specific Control Card */}
+        {/* Site Control */}
         {globalPowerEnabled && (
-          <Card className="border border-purple-200/50 bg-gradient-to-r from-purple-50/60 to-pink-50/60 shadow-lg hover:shadow-xl transition-all duration-300 backdrop-blur-sm rounded-lg">
+          <Card className="border border-slate-200 bg-white shadow-md hover:shadow-lg transition-all duration-300 rounded-lg">
             <CardContent className="p-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <span className="mr-2 text-lg">🏠</span>
+                  <div className={`w-3 h-3 rounded-full mr-3 ${
+                    siteToggleState === 'on' ? 'bg-green-500' : 
+                    siteToggleState === 'mixed' ? 'bg-yellow-500' : 
+                    'bg-red-500'
+                  }`}></div>
                   <div>
-                    <p className="text-sm font-semibold text-purple-900">This Site</p>
-                    <p className="text-xs text-purple-700">
-                      {siteToggleState === 'on' ? '🟢 All enabled' : 
-                       siteToggleState === 'mixed' ? '🟡 Some enabled' : 
-                       '🔴 All disabled'}
+                    <p className="text-sm font-semibold text-slate-800">Site Logging</p>
+                    <p className="text-xs text-slate-600">
+                      {siteToggleState === 'on' ? 'All features enabled' : 
+                       siteToggleState === 'mixed' ? 'Partial features enabled' : 
+                       'All features disabled'}
                     </p>
                   </div>
                 </div>
@@ -780,19 +766,19 @@ const Popup: React.FC = () => {
           </Card>
         )}
 
-        {/* Individual Controls - Compact Grid */}
+        {/* Individual Controls */}
         {globalPowerEnabled && (
-          <div className="grid grid-cols-1 gap-2">
-            {/* Network Logging Control */}
+          <div className="space-y-2">
+            {/* Network Logging */}
             {settings?.networkInterception?.tabSpecific?.enabled && (
-              <Card className="border border-blue-200/50 bg-gradient-to-r from-blue-50/60 to-indigo-50/60 shadow-lg hover:shadow-xl transition-all duration-300 backdrop-blur-sm rounded-lg">
-                <CardContent className="p-2">
+              <Card className="border border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-300 rounded-lg">
+                <CardContent className="p-2.5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
-                      <span className="mr-2">🌐</span>
+                      <div className={`w-2 h-2 rounded-full mr-3 ${tabLoggingActive ? 'bg-blue-500' : 'bg-gray-400'}`}></div>
                       <div>
-                        <p className="text-sm font-medium text-blue-900">Network</p>
-                        <p className="text-xs text-blue-700">{tabLoggingActive ? 'Capturing' : 'Paused'}</p>
+                        <p className="text-sm font-medium text-slate-800">Network Requests</p>
+                        <p className="text-xs text-slate-500">{tabLoggingActive ? 'Capturing' : 'Paused'}</p>
                       </div>
                     </div>
                     <Switch
@@ -805,16 +791,16 @@ const Popup: React.FC = () => {
               </Card>
             )}
 
-            {/* Error Logging Control */}
+            {/* Error Logging */}
             {settings?.errorLogging?.tabSpecific?.enabled && (
-              <Card className="border border-red-200/50 bg-gradient-to-r from-red-50/60 to-orange-50/60 shadow-lg hover:shadow-xl transition-all duration-300 backdrop-blur-sm rounded-lg">
-                <CardContent className="p-2">
+              <Card className="border border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-300 rounded-lg">
+                <CardContent className="p-2.5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
-                      <span className="mr-2">⚠️</span>
+                      <div className={`w-2 h-2 rounded-full mr-3 ${tabErrorLoggingActive ? 'bg-red-500' : 'bg-gray-400'}`}></div>
                       <div>
-                        <p className="text-sm font-medium text-red-900">Errors</p>
-                        <p className="text-xs text-red-700">{tabErrorLoggingActive ? 'Capturing' : 'Paused'}</p>
+                        <p className="text-sm font-medium text-slate-800">Console Errors</p>
+                        <p className="text-xs text-slate-500">{tabErrorLoggingActive ? 'Capturing' : 'Paused'}</p>
                       </div>
                     </div>
                     <Switch
@@ -827,16 +813,16 @@ const Popup: React.FC = () => {
               </Card>
             )}
 
-            {/* Token Logging Control */}
+            {/* Token Logging */}
             {settings?.tokenLogging?.tabSpecific?.enabled && (
-              <Card className="border border-yellow-200/50 bg-gradient-to-r from-yellow-50/60 to-amber-50/60 shadow-lg hover:shadow-xl transition-all duration-300 backdrop-blur-sm rounded-lg">
-                <CardContent className="p-2">
+              <Card className="border border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-300 rounded-lg">
+                <CardContent className="p-2.5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
-                      <span className="mr-2">🔑</span>
+                      <div className={`w-2 h-2 rounded-full mr-3 ${tabTokenLoggingActive ? 'bg-yellow-500' : 'bg-gray-400'}`}></div>
                       <div>
-                        <p className="text-sm font-medium text-yellow-900">Tokens</p>
-                        <p className="text-xs text-yellow-700">{tabTokenLoggingActive ? 'Capturing' : 'Paused'}</p>
+                        <p className="text-sm font-medium text-slate-800">Auth Tokens</p>
+                        <p className="text-xs text-slate-500">{tabTokenLoggingActive ? 'Capturing' : 'Paused'}</p>
                       </div>
                     </div>
                     <Switch
@@ -851,31 +837,19 @@ const Popup: React.FC = () => {
           </div>
         )}
 
-        {/* Action Buttons - Compact */}
-        <div className="grid grid-cols-2 gap-2">
-          <Button
-            onClick={openDashboard}
-            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 rounded-lg font-semibold text-sm"
-            size="sm"
-          >
-            <span className="mr-1">📊</span>
-            Dashboard
-          </Button>
-          <Button
-            onClick={openSettings}
-            variant="outline"
-            className="border border-purple-300/50 text-purple-700 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 rounded-lg font-semibold backdrop-blur-sm text-sm"
-            size="sm"
-          >
-            <span className="mr-1">⚙️</span>
-            Settings
-          </Button>
-        </div>
+        {/* Dashboard Button */}
+        <Button
+          onClick={openDashboard}
+          className="w-full bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 text-white shadow-lg hover:shadow-xl transition-all duration-300 rounded-lg font-semibold"
+          size="default"
+        >
+          Open Dashboard
+        </Button>
 
-        {/* Compact Footer */}
-        <div className="text-center border-t border-gray-200/50 pt-2">
-          <p className="text-xs text-gray-600/80 font-medium">
-            🛠️ TypeScript • React • Vite
+        {/* Footer */}
+        <div className="text-center border-t border-slate-200 pt-2">
+          <p className="text-xs text-slate-500 font-medium">
+            TypeScript • React • Vite
           </p>
         </div>
       </div>

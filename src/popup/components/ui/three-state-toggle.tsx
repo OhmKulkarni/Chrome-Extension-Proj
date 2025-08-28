@@ -26,20 +26,20 @@ const ThreeStateToggle = React.forwardRef<HTMLDivElement, ThreeStateToggleProps>
           return {
             container: "bg-gradient-to-r from-green-500 to-green-600 border-green-400/30 shadow-lg",
             thumb: "translate-x-5 bg-white border-green-400/20 shadow-xl",
-            icon: "🟢"
+            indicator: "bg-green-500"
           };
         case 'mixed':
           return {
             container: "bg-gradient-to-r from-yellow-500 to-amber-500 border-yellow-400/30 shadow-lg",
             thumb: "translate-x-2.5 bg-white border-yellow-400/20 shadow-xl",
-            icon: "🟡"
+            indicator: "bg-yellow-500"
           };
         case 'off':
         default:
           return {
             container: "bg-gradient-to-r from-gray-300 to-gray-400 border-gray-400/30 shadow-sm",
             thumb: "translate-x-0.5 bg-white border-gray-400/30 shadow-md",
-            icon: "🔴"
+            indicator: "bg-red-500"
           };
       }
     };
@@ -71,13 +71,11 @@ const ThreeStateToggle = React.forwardRef<HTMLDivElement, ThreeStateToggleProps>
         >
           <span
             className={cn(
-              "block h-5 w-5 rounded-full shadow-lg ring-0 transition-all duration-500 ease-in-out border-2 flex items-center justify-center text-xs backdrop-blur-sm",
+              "block h-5 w-5 rounded-full shadow-lg ring-0 transition-all duration-500 ease-in-out border-2 flex items-center justify-center backdrop-blur-sm",
               styles.thumb
             )}
           >
-            <span className="text-[10px] drop-shadow-sm" style={{ lineHeight: '10px' }}>
-              {styles.icon}
-            </span>
+            <div className={`w-2 h-2 rounded-full ${styles.indicator}`}></div>
           </span>
         </div>
         {(label || description) && (
