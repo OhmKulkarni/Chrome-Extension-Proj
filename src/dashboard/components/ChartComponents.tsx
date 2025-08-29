@@ -101,14 +101,18 @@ export const StatusCodeBreakdownChart: React.FC<ChartProps> = ({ networkRequests
   }
 
   const statusGroups = networkRequests.reduce((acc, req) => {
-    // Add detailed debugging for status field
-    console.log('Processing request status:', {
-      url: req.url,
-      status: req.status,
-      response_status: req.response_status,
-      statusType: typeof req.status,
-      responseStatusType: typeof req.response_status
-    });
+    // PERFORMANCE FIX: Remove excessive per-request logging
+    const DEBUG_INDIVIDUAL_STATUS_PROCESSING = false;
+    
+    if (DEBUG_INDIVIDUAL_STATUS_PROCESSING) {
+      console.log('Processing request status:', {
+        url: req.url,
+        status: req.status,
+        response_status: req.response_status,
+        statusType: typeof req.status,
+        responseStatusType: typeof req.response_status
+      });
+    }
 
     // Try multiple status field names and convert to number
     let status = req.status || req.response_status;
@@ -120,7 +124,9 @@ export const StatusCodeBreakdownChart: React.FC<ChartProps> = ({ networkRequests
 
     // Default to 200 if no valid status found
     if (!status || isNaN(status)) {
-      console.log('Using default status 200 for request:', req.url);
+      if (DEBUG_INDIVIDUAL_STATUS_PROCESSING) {
+        console.log('Using default status 200 for request:', req.url);
+      }
       status = 200;
     }
 
@@ -131,7 +137,9 @@ export const StatusCodeBreakdownChart: React.FC<ChartProps> = ({ networkRequests
     else if (status >= 400 && status < 500) group = '4xx Client Error';
     else if (status >= 500) group = '5xx Server Error';
 
-    console.log('Status', status, 'mapped to group:', group);
+    if (DEBUG_INDIVIDUAL_STATUS_PROCESSING) {
+      console.log('Status', status, 'mapped to group:', group);
+    }
 
     acc[group] = (acc[group] || 0) + 1;
     return acc;
@@ -287,23 +295,35 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
   const routeGroups: { [key: string]: { total: number; count: number; times: number[] } } = {};
   const domainGroups: { [key: string]: { total: number; count: number; times: number[] } } = {};
 
+  // PERFORMANCE FIX: Track processing metrics without individual logging
+  let processedCount = 0;
+  let skippedCount = 0;
+
   networkRequests.forEach(req => {
     const url = req.url || req.request?.url || 'Unknown';
     const responseTime = req.response_time || req.responseTime || 0;
 
-    console.log('Processing request for response time:', {
-      url: url,
-      response_time: req.response_time,
-      responseTime: req.responseTime,
-      finalResponseTime: responseTime,
-      response_time_type: typeof req.response_time,
-      responseTime_type: typeof req.responseTime
-    });
+    // PERFORMANCE FIX: Remove excessive per-request logging
+    // Only log in development if needed for debugging
+    const DEBUG_INDIVIDUAL_REQUESTS = false;
+    if (DEBUG_INDIVIDUAL_REQUESTS) {
+      console.log('Processing request for response time:', {
+        url: url,
+        response_time: req.response_time,
+        responseTime: req.responseTime,
+        finalResponseTime: responseTime,
+        response_time_type: typeof req.response_time,
+        responseTime_type: typeof req.responseTime
+      });
+    }
 
     if (responseTime <= 0) {
-      console.log('Skipping request with no response time:', url);
+      // Only log summary of skipped requests, not individual ones
+      skippedCount++;
       return; // Skip requests without response times
     }
+
+    processedCount++;
 
     // Route processing
     let route = 'Unknown';
@@ -342,8 +362,15 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
       domainGroups[mainDomain].times.push(responseTime);
     }
 
-    console.log('Added response time', responseTime, 'for route', route, 'and domain', mainDomain);
+    // PERFORMANCE FIX: Remove excessive per-request logging
+    // Only log in development if needed for debugging
+    if (DEBUG_INDIVIDUAL_REQUESTS) {
+      console.log('Added response time', responseTime, 'for route', route, 'and domain', mainDomain);
+    }
   });
+
+  // PERFORMANCE FIX: Single summary log instead of 200+ individual logs
+  console.log(`📊 AvgResponseTimePerRouteChart: Processed ${processedCount} requests, skipped ${skippedCount}, found ${Object.keys(routeGroups).length} routes, ${Object.keys(domainGroups).length} domains`);
 
   console.log('AvgResponseTimePerRouteChart - routeGroups:', routeGroups);
   console.log('AvgResponseTimePerRouteChart - domainGroups:', domainGroups);

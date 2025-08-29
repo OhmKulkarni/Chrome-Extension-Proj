@@ -626,7 +626,7 @@ export class MessageRouterSimpleModule {
             // PERFORMANCE FIX: Use array lengths instead of expensive count operations
             // This eliminates 27+ seconds of database counting operations
             const networkCount = networkRequests?.length || 0;
-            const errorCount = consoleErrors?.length || 0; 
+            const errorCount = consoleErrors?.length || 0;
             const tokenCount = tokenEvents?.length || 0;
 
             console.log(`✅ MessageRouter: Retrieved analysis data`, {

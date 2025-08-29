@@ -67,11 +67,11 @@ export const getFeatureFlags = (): FeatureFlags => {
     : DEFAULT_FEATURE_FLAGS;
 
   console.log('🚩 Feature flags active:', flags);
-  
+
   // Cache the flags
   flagCache = flags;
   cacheExpiry = now + CACHE_DURATION;
-  
+
   return flags;
 };
 
