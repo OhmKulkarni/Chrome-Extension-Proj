@@ -1521,7 +1521,7 @@ const DecomposedDashboard: React.FC = () => {
               totalRequests={data.totalRequests}
               totalErrors={data.totalErrors}
               totalTokenEvents={data.totalTokenEvents}
-              onRefreshAnalysisData={loadDashboardData}
+              // REMOVED: onRefreshAnalysisData to eliminate infinite loops
             />
           </div>
         );

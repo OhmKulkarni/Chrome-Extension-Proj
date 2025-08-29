@@ -33,7 +33,7 @@ interface StatisticsCardProps {
   totalRequests?: number;
   totalErrors?: number;
   totalTokenEvents?: number;
-  onRefreshAnalysisData?: () => Promise<void>;
+  // REMOVED: onRefreshAnalysisData to eliminate infinite loops
 }
 
 interface GlobalStats {
@@ -67,8 +67,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   tokenEvents,
   totalRequests,
   totalErrors,
-  totalTokenEvents,
-  onRefreshAnalysisData
+  totalTokenEvents
+  // REMOVED: onRefreshAnalysisData to eliminate infinite loops
 }) => {
   // MEMORY LEAK FIX: AbortController for cleanup
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -182,14 +182,25 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     tokenEvents: number;
   }>({ networkRequests: 0, consoleErrors: 0, tokenEvents: 0 });
 
+  // INFINITE LOOP PROTECTION: Use ref to track loading state without causing function recreations
+  const isLoadingRef = useRef<boolean>(false);
+
   // Load analysis data for statistics calculations (uses selectable limit) - MEMORY LEAK SAFE
   const loadAnalysisData = withPerformanceMonitoring('StatisticsCard.loadAnalysisData',
     useCallback(async (limitOverride?: number) => {
       const limit = typeof limitOverride === 'number' ? limitOverride : analysisLimit;
+      
+      // INFINITE LOOP PROTECTION: Prevent concurrent calls
+      if (isLoadingRef.current) {
+        console.log('📊 StatisticsCard: Skipping load - already in progress');
+        return;
+      }
+      
       try {
         console.log(`📊 StatisticsCard: Loading analysis data with limit ${limit}`);
         
-        // Set loading state
+        // Set loading state in both ref and state
+        isLoadingRef.current = true;
         setAnalysisData(prev => ({ ...prev, loading: true }));
 
         // Use the new getAnalysisData endpoint for efficient chart data loading
@@ -229,11 +240,14 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       } catch (error) {
         console.error('❌ StatisticsCard: Error loading analysis data:', error);
         setAnalysisData(prev => ({ ...prev, loading: false }));
+      } finally {
+        // Always clear the loading ref
+        isLoadingRef.current = false;
       }
     }, [analysisLimit])
   );
 
-  // Smart refresh logic based on chart settings
+  // Smart refresh logic based on chart settings - FIXED: Remove loadAnalysisData dependency to prevent infinite loops
   useEffect(() => {
     // Always load initial data regardless of mode
     if (!analysisData.loaded) {
@@ -264,15 +278,17 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       console.log('📊 StatisticsCard: Cleaning up auto-refresh interval');
       clearInterval(intervalId);
     };
-  }, [loadAnalysisData, chartSettings.refreshMode, chartSettings.refreshInterval, chartSettingsLoading, analysisData.loaded]);
+    // CRITICAL FIX: Remove loadAnalysisData from dependencies to prevent infinite loops
+  }, [chartSettings.refreshMode, chartSettings.refreshInterval, chartSettingsLoading, analysisData.loaded]);
 
-  // Manual refresh effect - triggers when manual refresh is requested
+  // Manual refresh effect - triggers when manual refresh is requested - FIXED: Remove loadAnalysisData dependency
   useEffect(() => {
     if (manualRefreshTrigger > 0) {
       console.log('🔄 StatisticsCard: Manual refresh effect triggered');
       loadAnalysisData();
     }
-  }, [manualRefreshTrigger, loadAnalysisData]);
+    // CRITICAL FIX: Remove loadAnalysisData from dependencies to prevent infinite loops  
+  }, [manualRefreshTrigger]);
 
   // Manual refresh function
   const triggerManualRefresh = useCallback(() => {
@@ -280,34 +296,10 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     setManualRefreshTrigger(prev => prev + 1);
   }, []);
 
-  // MEMORY LEAK FIX: Only refresh when explicitly requested, avoid circular dependencies
-  const refreshAnalysisData = useCallback(async () => {
-    console.log('🔄 StatisticsCard: Refreshing analysis data on user request');
+  // REMOVED: refreshAnalysisData function to eliminate infinite loops
+  // Use triggerManualRefresh for all manual refresh operations
 
-    // Respect manual refresh mode setting
-    if (chartSettings.refreshMode === 'manual') {
-      console.log('📊 Manual refresh mode - skipping automatic refresh');
-      return;
-    }
-
-    await loadAnalysisData();
-  }, [loadAnalysisData, chartSettings.refreshMode]);
-
-  // Expose refresh function to parent via callback ref (MEMORY LEAK SAFE)
-  useEffect(() => {
-    if (onRefreshAnalysisData && typeof onRefreshAnalysisData === 'function') {
-      // Call the parent's refresh function with our refresh method
-      // This allows parent to trigger refresh without causing circular dependencies
-      onRefreshAnalysisData().then(() => {
-        // After parent refreshes, refresh our analysis data too
-        refreshAnalysisData();
-      }).catch(error => {
-        console.warn('StatisticsCard: Parent refresh failed:', error);
-        // Still refresh our data even if parent fails
-        refreshAnalysisData();
-      });
-    }
-  }, [onRefreshAnalysisData, refreshAnalysisData]);
+  // REMOVED: useEffect with onRefreshAnalysisData to eliminate infinite loops and circular dependencies
 
   // Chart definitions based on user requirements
   const chartDefinitions: ChartDefinitions = useMemo(() => ({
