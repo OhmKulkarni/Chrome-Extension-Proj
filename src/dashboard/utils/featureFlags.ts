@@ -11,13 +11,13 @@ export interface FeatureFlags {
   enablePerformanceMonitoring: boolean;
 }
 
-// Default feature flags - conservative approach
+// Default feature flags - enabling critical optimizations
 const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
-  enableSharedChartData: false,       // Phase 1 - Foundation
-  enableGranularMemoization: false,   // Phase 2 - Migration
-  enableManualRefreshMode: true,      // Phase 1 - Safe
-  enableStalenessTracking: false,     // Phase 3 - Advanced
-  enablePerformanceMonitoring: true   // Phase 1 - Observability
+  enableSharedChartData: true,        // ENABLED - Critical for performance at scale
+  enableGranularMemoization: true,    // ENABLED - Prevents redundant processing
+  enableManualRefreshMode: true,      // Safe - User controls refresh
+  enableStalenessTracking: false,     // Phase 3 - Advanced (keep disabled)
+  enablePerformanceMonitoring: true   // Safe - Observability
 };
 
 // Override flags for development/testing

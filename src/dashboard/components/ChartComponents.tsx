@@ -2601,7 +2601,10 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
   const [viewMode, setViewMode] = React.useState<'histogram' | 'timeline'>('histogram');
   const [sizeType, setSizeType] = React.useState<'original' | 'stored'>('original');
 
-  console.log('PayloadSizeDistributionChart - networkRequests:', networkRequests?.length || 0);
+  // Reduce console logging frequency
+  if ((networkRequests?.length || 0) % 50 === 0 || !networkRequests || networkRequests.length === 0) {
+    console.log('PayloadSizeDistributionChart - networkRequests:', networkRequests?.length || 0);
+  }
 
   if (!networkRequests || networkRequests.length === 0) {
     return (
