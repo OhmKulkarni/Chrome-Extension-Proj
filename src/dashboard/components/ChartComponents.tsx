@@ -2619,7 +2619,7 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
       const originalSize = getStandardizedSize(req);
       const storedSize = getStoredSize(req);
       const totalSize = sizeType === 'original' ? originalSize : storedSize;
-      
+
       const requestSize = req.requestSize || req.request_size || 0;
       const responseSize = req.responseSize || req.response_size || 0;
       const timestamp = req.timestamp || req.created_at;
@@ -2775,40 +2775,35 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
   return (
     <div className="space-y-4">
       {/* Chart Info and Controls */}
-      <div className="flex justify-between items-center text-sm text-gray-600">
-        <div>
-          <span className="font-medium">Payload Size Analysis ({sizeType === 'original' ? 'Original Size' : 'Stored Size'}):</span> {requestsWithSizes.length} requests with size data
-          <div className="text-xs text-gray-500 mt-1">
-            {sizeType === 'original' 
-              ? 'Showing actual network payload sizes before truncation' 
-              : 'Showing stored sizes after truncation (memory usage)'
-            }
-          </div>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 text-sm text-gray-600">
+        <div className="flex items-center gap-2">
+          <span className="font-medium">Payload Size ({sizeType === 'original' ? 'Original' : 'Stored'}):</span>
+          <span>{requestsWithSizes.length} requests</span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3">
           {/* Size Type Toggle */}
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">Size:</label>
+          <div className="flex items-center gap-1">
+            <label className="text-xs font-medium text-gray-700">Size:</label>
             <div className="flex border border-gray-300 rounded">
               <button
                 onClick={() => setSizeType('original')}
-                className={`px-3 py-1 text-sm rounded-l ${
+                className={`px-2 py-1 text-xs rounded-l ${
                   sizeType === 'original'
                     ? 'bg-green-500 text-white'
                     : 'bg-white text-gray-700 hover:bg-gray-50'
                 }`}
-                title="Original size before truncation (actual network payload)"
+                title="Original size before truncation"
               >
                 Original
               </button>
               <button
                 onClick={() => setSizeType('stored')}
-                className={`px-3 py-1 text-sm rounded-r ${
+                className={`px-2 py-1 text-xs rounded-r ${
                   sizeType === 'stored'
                     ? 'bg-green-500 text-white'
                     : 'bg-white text-gray-700 hover:bg-gray-50'
                 }`}
-                title="Stored size after truncation (memory usage)"
+                title="Stored size after truncation"
               >
                 Stored
               </button>
@@ -2816,12 +2811,12 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
           </div>
 
           {/* View Mode Toggle */}
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">View:</label>
+          <div className="flex items-center gap-1">
+            <label className="text-xs font-medium text-gray-700">View:</label>
             <div className="flex border border-gray-300 rounded">
               <button
                 onClick={() => setViewMode('histogram')}
-                className={`px-3 py-1 text-sm rounded-l ${
+                className={`px-2 py-1 text-xs rounded-l ${
                   viewMode === 'histogram'
                     ? 'bg-blue-500 text-white'
                     : 'bg-white text-gray-700 hover:bg-gray-50'
@@ -2831,7 +2826,7 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
               </button>
               <button
                 onClick={() => setViewMode('timeline')}
-                className={`px-3 py-1 text-sm rounded-r ${
+                className={`px-2 py-1 text-xs rounded-r ${
                   viewMode === 'timeline'
                     ? 'bg-blue-500 text-white'
                     : 'bg-white text-gray-700 hover:bg-gray-50'
@@ -2842,15 +2837,13 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
             </div>
           </div>
 
-          <div className="flex gap-4">
+          <div className="flex gap-3 text-xs">
             <span><strong>Min:</strong> {formatBytes(minSize)}</span>
-            <span><strong>Median:</strong> {formatBytes(median)}</span>
+            <span><strong>Med:</strong> {formatBytes(median)}</span>
             <span><strong>Max:</strong> {formatBytes(maxSize)}</span>
           </div>
         </div>
-      </div>
-
-      {/* Histogram View */}
+      </div>      {/* Histogram View */}
       {viewMode === 'histogram' && (
         <>
           {/* Main Histogram */}
