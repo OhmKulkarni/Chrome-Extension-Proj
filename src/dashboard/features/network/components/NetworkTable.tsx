@@ -1,5 +1,7 @@
 import React from 'react'
 
+import { getStandardizedSize } from '../../../utils/sizeUtils';
+
 // Type definitions
 interface NetworkRequest {
   id?: string;
@@ -223,7 +225,10 @@ export const NetworkTable: React.FC<NetworkTableProps> = ({
                   <StatusBadge status={request.status} />
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {request.payload_size ? `${Math.round(request.payload_size / 1024)}KB` : '-'}
+                  {(() => {
+                    const size = getStandardizedSize(request);
+                    return size > 0 ? `${Math.round(size / 1024)}KB` : '-';
+                  })()}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {new Date(request.timestamp).toLocaleTimeString()}

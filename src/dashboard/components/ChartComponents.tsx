@@ -2548,6 +2548,8 @@ export const StatusCodeBreakdownChartNew: React.FC<ChartProps> = ({ networkReque
   );
 };
 
+import { getStandardizedSize, getSizeBreakdown } from '../utils/sizeUtils';
+
 // Payload Size Distribution (Histogram with Alternative Box Plot)
 export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequests }) => {
   const [viewMode, setViewMode] = React.useState<'histogram' | 'timeline'>('histogram');
@@ -2566,34 +2568,25 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
   }
 
   // Extract payload sizes from network requests with timestamps
+  // Use standardized size calculation (consistent across all components)
   const payloadSizes = networkRequests
     .map((req, index) => {
       // DEBUG: Log first few requests to see available fields
       if (index < 3) {
         console.log('PayloadSizeDistributionChart - Sample request fields:', Object.keys(req));
-        console.log('PayloadSizeDistributionChart - Sample request:', {
+        const breakdown = getSizeBreakdown(req);
+        console.log('PayloadSizeDistributionChart - Size breakdown:', {
           url: req.url,
-          requestSize: req.requestSize,
-          request_size: req.request_size,
-          responseSize: req.responseSize,
-          response_size: req.response_size,
-          payload_size: req.payload_size,
-          content_length: req.content_length,
+          ...breakdown,
           timestamp: req.timestamp,
           created_at: req.created_at
         });
       }
 
-      // Try to get payload size from various possible fields
+      // Use standardized size calculation
+      const totalSize = getStandardizedSize(req);
       const requestSize = req.requestSize || req.request_size || 0;
       const responseSize = req.responseSize || req.response_size || 0;
-
-      // If no separate request/response sizes, try to use the combined payload_size
-      let totalSize = requestSize + responseSize;
-      if (totalSize === 0 && req.payload_size) {
-        totalSize = req.payload_size;
-      }
-
       const timestamp = req.timestamp || req.created_at;
 
       return {
