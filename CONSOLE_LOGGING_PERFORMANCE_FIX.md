@@ -25,9 +25,9 @@ charts-B5w053Rr.js:1 Added response time 60 for route /api/stats/watchtime and d
 networkRequests.forEach(req => {
   // This ran 200+ times per refresh:
   console.log('Processing request for response time:', { ... }); // Line 294
-  
+
   // ... processing logic ...
-  
+
   console.log('Added response time', responseTime, 'for route', route, 'and domain', mainDomain); // Line 345
 });
 ```
@@ -37,11 +37,11 @@ networkRequests.forEach(req => {
 const statusGroups = networkRequests.reduce((acc, req) => {
   // This ran 200+ times per refresh:
   console.log('Processing request status:', { ... }); // Line 105
-  
+
   if (!status || isNaN(status)) {
     console.log('Using default status 200 for request:', req.url); // Line 123
   }
-  
+
   console.log('Status', status, 'mapped to group:', group); // Line 134
 });
 ```
@@ -102,7 +102,7 @@ Processing request for response time: {...}
 Added response time 51 for route /videoplayback and domain googlevideo.com
 Processing request for response time: {...}
 Added response time 60 for route /api/stats/watchtime and domain youtube.com
-// ... 200+ more lines like this! 
+// ... 200+ more lines like this!
 ```
 
 ### **🎯 Performance Improvement Estimate:**
@@ -136,7 +136,7 @@ Added response time 60 for route /api/stats/watchtime and domain youtube.com
 
 The excessive console logging performance issue has been completely eliminated. Users should now see:
 - **Clean console output** with meaningful summaries
-- **Faster chart rendering** due to reduced logging overhead  
+- **Faster chart rendering** due to reduced logging overhead
 - **Improved UI responsiveness** with less main-thread blocking
 - **Better developer experience** with actionable debug information
 

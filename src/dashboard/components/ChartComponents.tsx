@@ -103,7 +103,7 @@ export const StatusCodeBreakdownChart: React.FC<ChartProps> = ({ networkRequests
   const statusGroups = networkRequests.reduce((acc, req) => {
     // PERFORMANCE FIX: Remove excessive per-request logging
     const DEBUG_INDIVIDUAL_STATUS_PROCESSING = false;
-    
+
     if (DEBUG_INDIVIDUAL_STATUS_PROCESSING) {
       console.log('Processing request status:', {
         url: req.url,
