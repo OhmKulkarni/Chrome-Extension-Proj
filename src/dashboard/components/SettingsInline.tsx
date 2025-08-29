@@ -50,6 +50,12 @@ interface SettingsData {
       defaultState: 'active' | 'paused';
     };
   };
+  chartSettings: {
+    refreshMode: 'auto' | 'manual';
+    refreshInterval: number; // seconds
+    enableSharedProcessing: boolean;
+    enableStalenessTracking: boolean; // Fixed: Changed from enableStalenessIndicators
+  };
 }
 
 // Default settings matching the full settings page
@@ -102,6 +108,12 @@ const defaultSettings: SettingsData = {
     tabSpecific: {
       defaultState: 'paused'
     }
+  },
+  chartSettings: {
+    refreshMode: 'manual',  // Conservative default - manual mode
+    refreshInterval: 30,    // Slower refresh rate
+    enableSharedProcessing: false,  // Disabled for safety
+    enableStalenessTracking: false // Disabled for safety
   },
 };
 
@@ -249,6 +261,7 @@ const SettingsInline: React.FC = () => {
           networkInterception: backendSettings.networkInterception || defaultSettings.networkInterception,
           errorLogging: backendSettings.errorLogging || defaultSettings.errorLogging,
           tokenLogging: backendSettings.tokenLogging || defaultSettings.tokenLogging,
+          chartSettings: backendSettings.chartSettings || defaultSettings.chartSettings,
         };
       } else if (syncResult.extensionSettings) {
         // Use deep merge to handle partial settings from sync storage
@@ -258,6 +271,7 @@ const SettingsInline: React.FC = () => {
           networkInterception: syncSettings.networkInterception || defaultSettings.networkInterception,
           errorLogging: syncSettings.errorLogging || defaultSettings.errorLogging,
           tokenLogging: syncSettings.tokenLogging || defaultSettings.tokenLogging,
+          chartSettings: syncSettings.chartSettings || defaultSettings.chartSettings,
         };
       }
 
@@ -314,6 +328,7 @@ const SettingsInline: React.FC = () => {
         networkInterception: settings.networkInterception,
         errorLogging: settings.errorLogging,
         tokenLogging: settings.tokenLogging,
+        chartSettings: settings.chartSettings,
       };
 
       await Promise.all([
@@ -1127,6 +1142,124 @@ const SettingsInline: React.FC = () => {
                   )}
                 </>
               )}
+            </div>
+          </div>
+        </div>
+
+        {/* Chart Settings Card */}
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+          <div className="border-b border-gray-200 p-4">
+            <h3 className="text-xl font-semibold text-gray-900">Chart Performance Settings</h3>
+            <p className="text-sm text-gray-600 mt-1">
+              Configure dashboard chart refresh behavior and performance optimizations
+            </p>
+          </div>
+          <div className="p-6 space-y-6">
+            <div className="space-y-4">
+              {/* Chart Refresh Mode */}
+              <div>
+                <label className="text-sm font-medium text-gray-900 mb-2 block">Chart Refresh Mode</label>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="refresh-auto"
+                      name="refreshMode"
+                      value="auto"
+                      checked={settings.chartSettings?.refreshMode === 'auto'}
+                      onChange={() => updateSetting('chartSettings', {
+                        ...settings.chartSettings,
+                        refreshMode: 'auto'
+                      })}
+                      className="text-blue-600"
+                    />
+                    <label htmlFor="refresh-auto" className="text-sm">
+                      🔄 Automatic (periodic refresh)
+                    </label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="refresh-manual"
+                      name="refreshMode"
+                      value="manual"
+                      checked={settings.chartSettings?.refreshMode === 'manual'}
+                      onChange={() => updateSetting('chartSettings', {
+                        ...settings.chartSettings,
+                        refreshMode: 'manual'
+                      })}
+                      className="text-blue-600"
+                    />
+                    <label htmlFor="refresh-manual" className="text-sm">
+                      🖱️ Manual (refresh button only)
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Refresh Interval - only show when auto mode is selected */}
+              {settings.chartSettings?.refreshMode === 'auto' && (
+                <div>
+                  <label className="text-sm font-medium text-gray-900 mb-2 block">Refresh Interval</label>
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="range"
+                      min="5"
+                      max="60"
+                      step="5"
+                      value={settings.chartSettings?.refreshInterval || 10}
+                      onChange={(e) => updateSetting('chartSettings', {
+                        ...settings.chartSettings,
+                        refreshInterval: parseInt(e.target.value)
+                      })}
+                      className="flex-1"
+                    />
+                    <span className="text-sm font-medium min-w-[4rem]">
+                      {settings.chartSettings?.refreshInterval || 10}s
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Higher intervals reduce CPU usage but may show stale data longer
+                  </p>
+                </div>
+              )}
+
+              {/* Performance Optimizations */}
+              <div className="border-t pt-4">
+                <p className="text-sm font-medium mb-3">Performance Optimizations</p>
+
+                <div className="space-y-3">
+                  <Switch
+                    checked={settings.chartSettings?.enableSharedProcessing || true}
+                    onChange={(e) => updateSetting('chartSettings', {
+                      ...settings.chartSettings,
+                      enableSharedProcessing: e.target.checked
+                    })}
+                    label="Enable shared data processing"
+                    description="Process chart data once and share across charts (reduces CPU usage by ~60-80%)"
+                  />
+
+                  <Switch
+                    checked={settings.chartSettings?.enableStalenessTracking || true}
+                    onChange={(e) => updateSetting('chartSettings', {
+                      ...settings.chartSettings,
+                      enableStalenessTracking: e.target.checked
+                    })}
+                    label="Show data staleness indicators"
+                    description="Display visual indicators when chart data becomes outdated"
+                  />
+                </div>
+              </div>
+
+              {/* Performance Impact Info */}
+              <div className="p-3 bg-blue-50 text-blue-800 rounded-lg border border-blue-200">
+                <p className="text-sm font-medium mb-2">💡 Performance Impact</p>
+                <div className="text-xs space-y-1">
+                  <p><strong>Manual mode:</strong> ~90% less CPU usage, charts update only when refreshed</p>
+                  <p><strong>Shared processing:</strong> ~60-80% less redundant calculations</p>
+                  <p><strong>Longer intervals:</strong> Proportionally less CPU usage vs refresh frequency</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -3,9 +3,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Button } from './ui/button';
-import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff } from 'lucide-react';
+import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { groupDataByDomain, DomainStats } from './domainUtils';
+// Import the new shared data processing system
+import { useSharedChartData } from '../hooks/useSharedChartData';
+import { useChartSettingsRead } from '../hooks/useChartSettings';
+import { isFeatureEnabled, withPerformanceMonitoring } from '../utils/featureFlags';
 import {
   HttpMethodDistributionChart,
   AvgResponseTimePerRouteChart,
@@ -137,18 +141,36 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   const [showAllCharts, setShowAllCharts] = useState(false);
   const [chartSearch, setChartSearch] = useState('');
 
+  // Chart settings for performance control
+  const { settings: chartSettings, isLoading: chartSettingsLoading } = useChartSettingsRead();
+
   // Analysis data state - larger dataset for accurate statistics
   const [analysisData, setAnalysisData] = useState<{
     networkRequests: any[];
     consoleErrors: any[];
     tokenEvents: any[];
     loaded: boolean;
+    loading: boolean;
   }>({
     networkRequests: [],
     consoleErrors: [],
     tokenEvents: [],
-    loaded: false
+    loaded: false,
+    loading: false
   });
+
+  // Shared chart data processing (when feature flag enabled)
+  const sharedChartData = useSharedChartData(
+    isFeatureEnabled('enableSharedChartData') ? analysisData : {
+      networkRequests: [],
+      consoleErrors: [],
+      tokenEvents: [],
+      loaded: false
+    }
+  );
+
+  // Manual refresh trigger state
+  const [manualRefreshTrigger, setManualRefreshTrigger] = useState(0);
 
   // User-selected analysis sample size (number of records to consider for stats)
   const [analysisLimit, setAnalysisLimit] = useState<number>(200);
@@ -161,65 +183,115 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   }>({ networkRequests: 0, consoleErrors: 0, tokenEvents: 0 });
 
   // Load analysis data for statistics calculations (uses selectable limit) - MEMORY LEAK SAFE
-  const loadAnalysisData = useCallback(async (limitOverride?: number) => {
-    const limit = typeof limitOverride === 'number' ? limitOverride : analysisLimit;
-    try {
-      console.log(`📊 StatisticsCard: Loading analysis data with limit ${limit}`);
+  const loadAnalysisData = withPerformanceMonitoring('StatisticsCard.loadAnalysisData',
+    useCallback(async (limitOverride?: number) => {
+      const limit = typeof limitOverride === 'number' ? limitOverride : analysisLimit;
+      try {
+        console.log(`📊 StatisticsCard: Loading analysis data with limit ${limit}`);
+        
+        // Set loading state
+        setAnalysisData(prev => ({ ...prev, loading: true }));
 
-      // Use the new getAnalysisData endpoint for efficient chart data loading
-      const response = await chrome.runtime.sendMessage({
-        action: 'getAnalysisData',
-        limit
-      });
-
-      if (response?.success && response?.data) {
-        // MEMORY LEAK FIX: Clear previous data before setting new data
-        setAnalysisData({
-          networkRequests: [],
-          consoleErrors: [],
-          tokenEvents: [],
-          loaded: false
+        // Use the new getAnalysisData endpoint for efficient chart data loading
+        const response = await chrome.runtime.sendMessage({
+          action: 'getAnalysisData',
+          limit
         });
 
-        // Set new data after clearing
-        setAnalysisData({
-          networkRequests: response.data.networkRequests || [],
-          consoleErrors: response.data.consoleErrors || [],
-          tokenEvents: response.data.tokenEvents || [],
-          loaded: true
-        });
+        if (response?.success && response?.data) {
+          // Set new data
+          setAnalysisData({
+            networkRequests: response.data.networkRequests || [],
+            consoleErrors: response.data.consoleErrors || [],
+            tokenEvents: response.data.tokenEvents || [],
+            loaded: true,
+            loading: false
+          });
 
-        // Track actual record counts for display
-        setActualRecordCounts({
-          networkRequests: response.data.networkRequests?.length || 0,
-          consoleErrors: response.data.consoleErrors?.length || 0,
-          tokenEvents: response.data.tokenEvents?.length || 0
-        });
+          // Track actual record counts for display
+          setActualRecordCounts({
+            networkRequests: response.data.networkRequests?.length || 0,
+            consoleErrors: response.data.consoleErrors?.length || 0,
+            tokenEvents: response.data.tokenEvents?.length || 0
+          });
 
-        console.log('✅ StatisticsCard: Analysis data loaded:', {
-          limit,
-          networkRequests: response.data.networkRequests?.length || 0,
-          consoleErrors: response.data.consoleErrors?.length || 0,
-          tokenEvents: response.data.tokenEvents?.length || 0
-        });
-      } else {
-        console.warn('⚠️ StatisticsCard: Failed to load analysis data:', response);
+          console.log('✅ StatisticsCard: Analysis data loaded:', {
+            limit,
+            networkRequests: response.data.networkRequests?.length || 0,
+            consoleErrors: response.data.consoleErrors?.length || 0,
+            tokenEvents: response.data.tokenEvents?.length || 0,
+            sharedProcessing: isFeatureEnabled('enableSharedChartData')
+          });
+        } else {
+          console.warn('⚠️ StatisticsCard: Failed to load analysis data:', response);
+          setAnalysisData(prev => ({ ...prev, loading: false }));
+        }
+      } catch (error) {
+        console.error('❌ StatisticsCard: Error loading analysis data:', error);
+        setAnalysisData(prev => ({ ...prev, loading: false }));
       }
-    } catch (error) {
-      console.error('❌ StatisticsCard: Error loading analysis data:', error);
-    }
-  }, [analysisLimit]);
+    }, [analysisLimit])
+  );
 
-  // Load analysis data on component mount and when limit changes
+  // Smart refresh logic based on chart settings
   useEffect(() => {
-    loadAnalysisData();
-  }, [loadAnalysisData]);
+    // Always load initial data regardless of mode
+    if (!analysisData.loaded) {
+      console.log('📊 StatisticsCard: Loading initial data');
+      loadAnalysisData();
+      return;
+    }
+
+    // Only setup auto-refresh if settings are loaded and auto mode is enabled
+    if (chartSettingsLoading || chartSettings.refreshMode !== 'auto') {
+      console.log('📊 StatisticsCard: Skipping auto-refresh setup', {
+        loading: chartSettingsLoading,
+        mode: chartSettings.refreshMode
+      });
+      return;
+    }
+
+    // Setup auto-refresh with memory leak protection
+    const refreshInterval = (chartSettings.refreshInterval || 30) * 1000; // Convert to ms
+    console.log(`📊 StatisticsCard: Setting up auto-refresh every ${refreshInterval}ms`);
+
+    const intervalId = setInterval(() => {
+      console.log('🔄 StatisticsCard: Auto-refresh triggered');
+      loadAnalysisData();
+    }, refreshInterval);
+
+    return () => {
+      console.log('📊 StatisticsCard: Cleaning up auto-refresh interval');
+      clearInterval(intervalId);
+    };
+  }, [loadAnalysisData, chartSettings.refreshMode, chartSettings.refreshInterval, chartSettingsLoading, analysisData.loaded]);
+
+  // Manual refresh effect - triggers when manual refresh is requested
+  useEffect(() => {
+    if (manualRefreshTrigger > 0) {
+      console.log('🔄 StatisticsCard: Manual refresh effect triggered');
+      loadAnalysisData();
+    }
+  }, [manualRefreshTrigger, loadAnalysisData]);
+
+  // Manual refresh function
+  const triggerManualRefresh = useCallback(() => {
+    console.log('🔄 StatisticsCard: Manual refresh triggered by user');
+    setManualRefreshTrigger(prev => prev + 1);
+  }, []);
 
   // MEMORY LEAK FIX: Only refresh when explicitly requested, avoid circular dependencies
   const refreshAnalysisData = useCallback(async () => {
     console.log('🔄 StatisticsCard: Refreshing analysis data on user request');
+
+    // Respect manual refresh mode setting
+    if (chartSettings.refreshMode === 'manual') {
+      console.log('📊 Manual refresh mode - skipping automatic refresh');
+      return;
+    }
+
     await loadAnalysisData();
-  }, [loadAnalysisData]);
+  }, [loadAnalysisData, chartSettings.refreshMode]);
 
   // Expose refresh function to parent via callback ref (MEMORY LEAK SAFE)
   useEffect(() => {
@@ -365,7 +437,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
         data: globalStats,
         networkRequests: effectiveNetworkRequests,
         consoleErrors: effectiveConsoleErrors,
-        tokenEvents: effectiveTokenEvents
+        tokenEvents: effectiveTokenEvents,
+        sharedData: isFeatureEnabled('enableSharedChartData') ? sharedChartData : undefined
       };
 
       console.log('Rendering chart:', chartKey, 'with data:', {
@@ -862,19 +935,79 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="global" className="w-full">
-          {/* Global Record Limit Selector - visible for both tabs */}
-          <div className="flex justify-end mb-4">
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-600">Records considered</label>
-              <select
-                value={analysisLimit}
-                onChange={(e) => {
-                  const value = parseInt(e.target.value, 10);
-                  setAnalysisLimit(isNaN(value) ? 200 : value);
-                }}
-                className="border border-gray-300 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                title="Number of most recent records used to compute all statistics and charts"
+        {/* Global Record Limit Selector and Refresh Controls */}
+        <div className="flex justify-between items-center mb-4">
+          {/* Manual Refresh Button (when manual mode is enabled) */}
+          <div className="flex items-center gap-3">
+            {/* Debug info - remove in production */}
+            <div className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded">
+              Mode: {chartSettings?.refreshMode || 'loading'} | 
+              Loading: {chartSettingsLoading ? 'yes' : 'no'}
+            </div>
+
+            {chartSettings?.refreshMode === 'manual' && (
+              <Button
+                onClick={triggerManualRefresh}
+                variant="outline"
+                size="sm"
+                disabled={analysisData.loading}
+                className={`flex items-center gap-2 text-blue-600 border-blue-200 hover:bg-blue-50 ${
+                  analysisData.loading ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+                title="Manually refresh chart data"
               >
+                <RefreshCw className={`h-4 w-4 ${analysisData.loading ? 'animate-spin' : ''}`} />
+                {analysisData.loading ? 'Refreshing...' : 'Refresh Charts'}
+              </Button>
+            )}
+
+            {/* Show button even when auto mode for testing */}
+            {chartSettings?.refreshMode === 'auto' && (
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={triggerManualRefresh}
+                  variant="outline"
+                  size="sm"
+                  disabled={analysisData.loading}
+                  className={`flex items-center gap-2 text-green-600 border-green-200 hover:bg-green-50 ${
+                    analysisData.loading ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  title="Force refresh (auto mode active)"
+                >
+                  <RefreshCw className={`h-4 w-4 ${analysisData.loading ? 'animate-spin' : ''}`} />
+                  {analysisData.loading ? 'Force Refreshing...' : 'Force Refresh'}
+                </Button>
+                <div className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded font-medium">
+                  🔄 Auto: {chartSettings.refreshInterval}s
+                </div>
+              </div>
+            )}
+
+            {/* Performance indicators */}
+            {isFeatureEnabled('enableSharedChartData') && (
+              <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                ⚡ Shared Processing Active
+              </div>
+            )}
+
+            {sharedChartData.lastProcessed && isFeatureEnabled('enableStalenessTracking') && (
+              <div className="text-xs text-gray-500">
+                Last updated: {new Date(sharedChartData.lastProcessed).toLocaleTimeString()}
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-600">Records considered</label>
+            <select
+              value={analysisLimit}
+              onChange={(e) => {
+                const value = parseInt(e.target.value, 10);
+                setAnalysisLimit(isNaN(value) ? 200 : value);
+              }}
+              className="border border-gray-300 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              title="Number of most recent records used to compute all statistics and charts"
+            >
                 <option value={50}>50</option>
                 <option value={100}>100</option>
                 <option value={200}>200</option>

@@ -18,6 +18,9 @@ import {
   ComposedChart,
   Scatter
 } from 'recharts';
+// Import shared data types
+import { ProcessedChartData } from '../hooks/useSharedChartData';
+import { isFeatureEnabled } from '../utils/featureFlags';
 
 // Color palettes for consistent chart styling
 const COLORS = {
@@ -33,15 +36,31 @@ interface ChartProps {
   networkRequests: any[];
   consoleErrors: any[];
   tokenEvents: any[];
+  // Optional shared processed data
+  sharedData?: ProcessedChartData;
 }
 
 // HTTP Method Distribution (Pie Chart)
-export const HttpMethodDistributionChart: React.FC<ChartProps> = ({ data }) => {
-  const chartData = Object.entries(data.requestsByMethod).map(([method, count]) => ({
-    name: method,
-    value: count as number,
-    percentage: (((count as number) / data.totalRequests) * 100).toFixed(1)
-  }));
+export const HttpMethodDistributionChart: React.FC<ChartProps> = ({ data, sharedData }) => {
+  // Use shared processed data when available and feature flag is enabled
+  const useSharedData = sharedData && isFeatureEnabled('enableSharedChartData');
+
+  const chartData = useSharedData
+    ? Object.entries(sharedData.networkMetrics.methodCounts).map(([method, count]) => ({
+        name: method,
+        value: count,
+        percentage: ((count / sharedData.networkMetrics.totalRequests) * 100).toFixed(1)
+      }))
+    : Object.entries(data.requestsByMethod).map(([method, count]) => ({
+        name: method,
+        value: count as number,
+        percentage: (((count as number) / data.totalRequests) * 100).toFixed(1)
+      }));
+
+  // Log performance info
+  if (useSharedData) {
+    console.log('📊 HttpMethodDistributionChart: Using shared processed data');
+  }
 
   return (
     <ResponsiveContainer width="100%" height={400}>
