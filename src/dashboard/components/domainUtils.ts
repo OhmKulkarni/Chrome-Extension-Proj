@@ -299,9 +299,11 @@ export function groupDataByDomain(data: any[]): DomainStats[] {
       ? group.responseTimes.reduce((sum, time) => sum + time, 0) / group.responseTimes.length
       : 0;
     
-    const successfulRequests = group.requests.filter(req => 
-      !req.status || req.status < 400
-    ).length;
+    const successfulRequests = group.requests.filter(req => {
+      // Use same success criteria as global stats: status 200-399
+      const status = req.status ?? req.response_status ?? req.response?.status ?? req.statusCode ?? 0;
+      return status >= 200 && status < 400;
+    }).length;
     const successRate = totalRequests > 0 ? (successfulRequests / totalRequests) * 100 : 100;
     
     const isGrouped = group.subdomains.size > 0 || group.allGroupedDomains.size > 1;
@@ -325,9 +327,11 @@ export function groupDataByDomain(data: any[]): DomainStats[] {
         ? stats.responseTimes.reduce((sum, time) => sum + time, 0) / stats.responseTimes.length
         : 0;
       
-      const subSuccessfulRequests = stats.requests.filter(req => 
-        !req.status || req.status < 400
-      ).length;
+      const subSuccessfulRequests = stats.requests.filter(req => {
+        // Use same success criteria as global stats: status 200-399
+        const status = req.status ?? req.response_status ?? req.response?.status ?? req.statusCode ?? 0;
+        return status >= 200 && status < 400;
+      }).length;
       const subSuccessRate = stats.requests.length > 0 ? (subSuccessfulRequests / stats.requests.length) * 100 : 100;
       
       return {
