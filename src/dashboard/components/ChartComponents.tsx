@@ -2553,6 +2553,7 @@ import { getStandardizedSize, getSizeBreakdown } from '../utils/sizeUtils';
 // Payload Size Distribution (Histogram with Alternative Box Plot)
 export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequests }) => {
   const [viewMode, setViewMode] = React.useState<'histogram' | 'timeline'>('histogram');
+  const [sizeType, setSizeType] = React.useState<'original' | 'stored'>('original');
 
   console.log('PayloadSizeDistributionChart - networkRequests:', networkRequests?.length || 0);
 
@@ -2567,6 +2568,35 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
     );
   }
 
+  // Helper function to calculate stored size (size of data actually saved after truncation)
+  const getStoredSize = (req: any): number => {
+    let storedSize = 0;
+
+    // Calculate size of stored request body
+    const requestBody = req.requestBody || req.request_body;
+    if (requestBody && typeof requestBody === 'string') {
+      storedSize += new Blob([requestBody]).size;
+    }
+
+    // Calculate size of stored response body
+    const responseBody = req.responseBody || req.response_body;
+    if (responseBody && typeof responseBody === 'string') {
+      storedSize += new Blob([responseBody]).size;
+    }
+
+    // Add estimated header size if available
+    if (req.headers) {
+      try {
+        const headerStr = typeof req.headers === 'string' ? req.headers : JSON.stringify(req.headers);
+        storedSize += new Blob([headerStr]).size;
+      } catch (e) {
+        // Ignore header size calculation errors
+      }
+    }
+
+    return storedSize;
+  };
+
   // Extract payload sizes from network requests with timestamps
   // Use standardized size calculation (consistent across all components)
   const payloadSizes = networkRequests
@@ -2578,13 +2608,18 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
         console.log('PayloadSizeDistributionChart - Size breakdown:', {
           url: req.url,
           ...breakdown,
+          storedSizeCalculated: getStoredSize(req),
+          sizeTypeSelected: sizeType,
           timestamp: req.timestamp,
           created_at: req.created_at
         });
       }
 
-      // Use standardized size calculation
-      const totalSize = getStandardizedSize(req);
+      // Use size calculation based on selected type
+      const originalSize = getStandardizedSize(req);
+      const storedSize = getStoredSize(req);
+      const totalSize = sizeType === 'original' ? originalSize : storedSize;
+      
       const requestSize = req.requestSize || req.request_size || 0;
       const responseSize = req.responseSize || req.response_size || 0;
       const timestamp = req.timestamp || req.created_at;
@@ -2593,6 +2628,8 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
         requestSize,
         responseSize,
         totalSize,
+        originalSize,
+        storedSize,
         timestamp,
         url: req.url || 'Unknown'
       };
@@ -2602,8 +2639,11 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
   console.log('PayloadSizeDistributionChart - payloadSizes after filtering:', payloadSizes.length);
   console.log('PayloadSizeDistributionChart - all processed items count:', networkRequests.length);
   console.log('PayloadSizeDistributionChart - size distribution:', {
+    sizeType: sizeType,
     withSizes: payloadSizes.filter(item => item.totalSize > 0).length,
     withoutSizes: payloadSizes.filter(item => item.totalSize === 0).length,
+    withOriginalSize: payloadSizes.filter(item => item.originalSize > 0).length,
+    withStoredSize: payloadSizes.filter(item => item.storedSize > 0).length,
     withRequestSize: payloadSizes.filter(item => item.requestSize > 0).length,
     withResponseSize: payloadSizes.filter(item => item.responseSize > 0).length
   });
@@ -2737,9 +2777,44 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
       {/* Chart Info and Controls */}
       <div className="flex justify-between items-center text-sm text-gray-600">
         <div>
-          <span className="font-medium">Payload Size Analysis:</span> {requestsWithSizes.length} requests with size data
+          <span className="font-medium">Payload Size Analysis ({sizeType === 'original' ? 'Original Size' : 'Stored Size'}):</span> {requestsWithSizes.length} requests with size data
+          <div className="text-xs text-gray-500 mt-1">
+            {sizeType === 'original' 
+              ? 'Showing actual network payload sizes before truncation' 
+              : 'Showing stored sizes after truncation (memory usage)'
+            }
+          </div>
         </div>
         <div className="flex items-center gap-4">
+          {/* Size Type Toggle */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">Size:</label>
+            <div className="flex border border-gray-300 rounded">
+              <button
+                onClick={() => setSizeType('original')}
+                className={`px-3 py-1 text-sm rounded-l ${
+                  sizeType === 'original'
+                    ? 'bg-green-500 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+                title="Original size before truncation (actual network payload)"
+              >
+                Original
+              </button>
+              <button
+                onClick={() => setSizeType('stored')}
+                className={`px-3 py-1 text-sm rounded-r ${
+                  sizeType === 'stored'
+                    ? 'bg-green-500 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+                title="Stored size after truncation (memory usage)"
+              >
+                Stored
+              </button>
+            </div>
+          </div>
+
           {/* View Mode Toggle */}
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-gray-700">View:</label>

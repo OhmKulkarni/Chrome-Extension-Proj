@@ -8,17 +8,17 @@ export interface NetworkRequestWithSize {
   payload_size?: number;
   request_size?: number;
   response_size?: number;
-  
-  // JavaScript size fields (camelCase)  
+
+  // JavaScript size fields (camelCase)
   requestSize?: number;
   responseSize?: number;
-  
+
   // Body content (for fallback estimation) - flexible types
   requestBody?: string | object;
   request_body?: string | object;
   responseBody?: string | object;
   response_body?: string | object;
-  
+
   // Headers (for additional size estimation)
   headers?: string | object;
 }
@@ -35,28 +35,28 @@ export function getStandardizedSize(req: NetworkRequestWithSize): number {
   if (req.payload_size && req.payload_size > 0) {
     return req.payload_size;
   }
-  
+
   // Priority 2: Calculate from separate size fields (try both naming conventions)
   const requestSize = req.requestSize || req.request_size || 0;
   const responseSize = req.responseSize || req.response_size || 0;
   const totalSize = requestSize + responseSize;
-  
+
   if (totalSize > 0) {
     return totalSize;
   }
-  
+
   // Priority 3: Estimate from body content if available
   let estimatedSize = 0;
   const requestBody = req.requestBody || req.request_body;
   const responseBody = req.responseBody || req.response_body;
-  
+
   if (requestBody && typeof requestBody === 'string') {
     estimatedSize += new Blob([requestBody]).size;
   }
   if (responseBody && typeof responseBody === 'string') {
     estimatedSize += new Blob([responseBody]).size;
   }
-  
+
   return estimatedSize;
 }
 
@@ -97,21 +97,21 @@ export function getSizeBreakdown(req: NetworkRequestWithSize): {
   const requestSize = parseSize(req.requestSize || req.request_size);
   const responseSize = parseSize(req.responseSize || req.response_size);
   const totalCalculated = requestSize + responseSize;
-  
+
   // Estimate from body content
   let estimatedFromBody = 0;
   const requestBody = req.requestBody || req.request_body;
   const responseBody = req.responseBody || req.response_body;
-  
+
   if (requestBody && typeof requestBody === 'string') {
     estimatedFromBody += new Blob([requestBody]).size;
   }
   if (responseBody && typeof responseBody === 'string') {
     estimatedFromBody += new Blob([responseBody]).size;
   }
-  
+
   const standardizedSize = getStandardizedSize(req);
-  
+
   let source: 'payload_size' | 'calculated' | 'estimated' | 'none' = 'none';
   if (payloadSize > 0) {
     source = 'payload_size';
@@ -120,7 +120,7 @@ export function getSizeBreakdown(req: NetworkRequestWithSize): {
   } else if (estimatedFromBody > 0) {
     source = 'estimated';
   }
-  
+
   return {
     payloadSize,
     requestSize,
