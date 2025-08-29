@@ -12,7 +12,7 @@ interface LazyStatisticsCardProps {
   // REMOVED: onRefreshAnalysisData to eliminate infinite loops
 }
 
-export const LazyStatisticsCard: React.FC<LazyStatisticsCardProps> = ({ 
+export const LazyStatisticsCard: React.FC<LazyStatisticsCardProps> = ({
   networkRequests,
   consoleErrors,
   tokenEvents,
@@ -30,7 +30,7 @@ export const LazyStatisticsCard: React.FC<LazyStatisticsCardProps> = ({
         </div>
       </div>
     }>
-      <StatisticsCard 
+      <StatisticsCard
         networkRequests={networkRequests}
         consoleErrors={consoleErrors}
         tokenEvents={tokenEvents}

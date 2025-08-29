@@ -22,15 +22,15 @@ const DEFAULT_CHART_SETTINGS: ChartSettings = {
   enableStalenessTracking: false // Disabled by default
 };
 
+// Storage service singleton to prevent recreation on every render
+const storageService = new StorageService();
+
 /**
  * Hook to manage chart settings with real-time updates
  */
 export const useChartSettings = () => {
   const [settings, setSettings] = useState<ChartSettings>(DEFAULT_CHART_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
-
-  // Storage service instance
-  const storageService = new StorageService();
 
   // Load settings from storage
   const loadSettings = useCallback(async () => {
@@ -127,7 +127,9 @@ export const useChartSettings = () => {
   // Load settings on mount
   useEffect(() => {
     loadSettings();
-  }, [loadSettings]);
+    // CRITICAL FIX: Remove loadSettings from dependencies to prevent infinite loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return {
     settings,

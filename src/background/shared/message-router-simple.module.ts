@@ -623,17 +623,16 @@ export class MessageRouterSimpleModule {
               this.tokenTracker.getTokenEvents(actualLimit, 0)
             ]);
 
-            // Get total counts for statistics
-            const [networkCount, errorCount, tokenCount] = await Promise.all([
-              this.networkProcessor.getNetworkRequestsCount(),
-              this.consoleHandler.getConsoleErrorsCount(),
-              this.tokenTracker.getTokenEventsCount()
-            ]);
+            // PERFORMANCE FIX: Use array lengths instead of expensive count operations
+            // This eliminates 27+ seconds of database counting operations
+            const networkCount = networkRequests?.length || 0;
+            const errorCount = consoleErrors?.length || 0; 
+            const tokenCount = tokenEvents?.length || 0;
 
             console.log(`✅ MessageRouter: Retrieved analysis data`, {
-              networkRequests: networkRequests?.length || 0,
-              consoleErrors: consoleErrors?.length || 0,
-              tokenEvents: tokenEvents?.length || 0,
+              networkRequests: networkCount,
+              consoleErrors: errorCount,
+              tokenEvents: tokenCount,
               totalCounts: { networkCount, errorCount, tokenCount }
             });
 
@@ -656,9 +655,9 @@ export class MessageRouterSimpleModule {
                 networkRequests: networkRequests || [],
                 consoleErrors: consoleErrors || [],
                 tokenEvents: tokenEvents || [],
-                totalRequests: networkCount || 0,
-                totalErrors: errorCount || 0,
-                totalTokenEvents: tokenCount || 0
+                totalRequests: networkCount,
+                totalErrors: errorCount,
+                totalTokenEvents: tokenCount
               }
             });
           } catch (error) {

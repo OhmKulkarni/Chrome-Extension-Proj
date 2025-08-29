@@ -21,7 +21,7 @@ useEffect(() => {
 
 // ✅ AFTER - Stable dependencies
 useEffect(() => {
-  // ... logic  
+  // ... logic
 }, [chartSettings.refreshMode, chartSettings.refreshInterval]); // Removed loadAnalysisData dependency
 ```
 
@@ -58,7 +58,7 @@ const loadAnalysisData = useCallback(async () => {
     console.log('📊 Skipping load - already in progress');
     return; // Prevent concurrent calls
   }
-  
+
   try {
     isLoadingRef.current = true;
     // ... loading logic
@@ -72,7 +72,7 @@ const loadAnalysisData = useCallback(async () => {
 
 #### **Before Fix:**
 - ❌ Analysis data loading: 14,000ms+ per call
-- ❌ Backend queries: 9,000ms+ each  
+- ❌ Backend queries: 9,000ms+ each
 - ❌ Continuous recursive calls consuming memory
 - ❌ CPU usage: 100% on dashboard load
 
@@ -120,13 +120,13 @@ Enhanced debug UI shows:
 
 ### ❌ **Console Should NOT Show:**
 ```
-🐌 NetworkProcessorModule: getNetworkRequestsCount took 9000ms+  
+🐌 NetworkProcessorModule: getNetworkRequestsCount took 9000ms+
 ⏱️ StatisticsCard.loadAnalysisData: 14000ms+ (repeating)
 ```
 
 ## Next Steps
 1. Test manual refresh button functionality
-2. Enable auto mode in settings and verify 30s intervals work properly  
+2. Enable auto mode in settings and verify 30s intervals work properly
 3. Monitor memory usage stays stable
 4. Verify no recursive calling patterns in console
 

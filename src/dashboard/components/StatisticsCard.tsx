@@ -189,16 +189,16 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   const loadAnalysisData = withPerformanceMonitoring('StatisticsCard.loadAnalysisData',
     useCallback(async (limitOverride?: number) => {
       const limit = typeof limitOverride === 'number' ? limitOverride : analysisLimit;
-      
+
       // INFINITE LOOP PROTECTION: Prevent concurrent calls
       if (isLoadingRef.current) {
         console.log('📊 StatisticsCard: Skipping load - already in progress');
         return;
       }
-      
+
       try {
         console.log(`📊 StatisticsCard: Loading analysis data with limit ${limit}`);
-        
+
         // Set loading state in both ref and state
         isLoadingRef.current = true;
         setAnalysisData(prev => ({ ...prev, loading: true }));
@@ -287,7 +287,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       console.log('🔄 StatisticsCard: Manual refresh effect triggered');
       loadAnalysisData();
     }
-    // CRITICAL FIX: Remove loadAnalysisData from dependencies to prevent infinite loops  
+    // CRITICAL FIX: Remove loadAnalysisData from dependencies to prevent infinite loops
   }, [manualRefreshTrigger]);
 
   // Manual refresh function
@@ -933,7 +933,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
           <div className="flex items-center gap-3">
             {/* Debug info - remove in production */}
             <div className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded">
-              Mode: {chartSettings?.refreshMode || 'loading'} | 
+              Mode: {chartSettings?.refreshMode || 'loading'} |
               Loading: {chartSettingsLoading ? 'yes' : 'no'}
             </div>
 

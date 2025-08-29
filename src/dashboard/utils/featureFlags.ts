@@ -27,11 +27,22 @@ const DEV_FEATURE_FLAGS: Partial<FeatureFlags> = {
   enableStalenessTracking: true
 };
 
+// Feature flag cache to prevent localStorage parsing on every call
+let flagCache: FeatureFlags | null = null;
+let cacheExpiry = 0;
+const CACHE_DURATION = 5000; // 5 seconds
+
 /**
  * Get current feature flags
  * Can be overridden via localStorage in development
  */
 export const getFeatureFlags = (): FeatureFlags => {
+  // Return cached flags if still valid
+  const now = Date.now();
+  if (flagCache && now < cacheExpiry) {
+    return flagCache as FeatureFlags;
+  }
+
   // Check for development override
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
@@ -39,7 +50,9 @@ export const getFeatureFlags = (): FeatureFlags => {
       if (override) {
         const flags = JSON.parse(override);
         console.log('🚩 Using override feature flags:', flags);
-        return { ...DEFAULT_FEATURE_FLAGS, ...flags };
+        flagCache = { ...DEFAULT_FEATURE_FLAGS, ...flags };
+        cacheExpiry = now + CACHE_DURATION;
+        return flagCache as FeatureFlags;
       }
     } catch (error) {
       console.warn('Invalid feature flags in localStorage:', error);
@@ -54,6 +67,11 @@ export const getFeatureFlags = (): FeatureFlags => {
     : DEFAULT_FEATURE_FLAGS;
 
   console.log('🚩 Feature flags active:', flags);
+  
+  // Cache the flags
+  flagCache = flags;
+  cacheExpiry = now + CACHE_DURATION;
+  
   return flags;
 };
 
