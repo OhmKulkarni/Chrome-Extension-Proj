@@ -373,7 +373,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
         networkRequests: effectiveNetworkRequests?.length || 0,
         consoleErrors: effectiveConsoleErrors?.length || 0,
         tokenEvents: effectiveTokenEvents?.length || 0,
-        dataSource: useAnalysisData ? 'analysis (200 records)' : 'current page (10 records)'
+        dataSource: useAnalysisData ? `analysis (${analysisLimit} records)` : 'current page (10 records)'
       });
 
       // MEMORY LEAK FIX: Add detailed logging for method-usage-daily chart
@@ -515,7 +515,11 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   // Calculate global statistics - MEMORY LEAK FIX: Batch processing with abort signal
   const globalStats: GlobalStats = useMemo(() => {
     // Check if we should abort processing
-    if (abortControllerRef.current?.signal.aborted) {
+    const isAborted = abortControllerRef.current?.signal.aborted;
+    console.log('🔍 GlobalStats useMemo starting:', { isAborted, analysisDataLoaded: analysisData.loaded });
+
+    if (isAborted) {
+      console.log('⚠️ GlobalStats calculation aborted');
       return {
         totalRequests: 0,
         totalErrors: 0,
@@ -530,37 +534,39 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       };
     }
 
-    // Use analysis data for statistics calculations if available, otherwise fall back to current page data
+    // CONSISTENCY FIX: Use the exact same logic as charts for data source selection
     const useAnalysisData = analysisData.loaded && analysisData.networkRequests.length > 0;
 
     const effectiveNetworkRequests = useAnalysisData
       ? analysisData.networkRequests
-      : (DEBUG_MODE && (!networkRequests || networkRequests.length === 0) ? mockNetworkRequests : networkRequests);
+      : (DEBUG_MODE ? mockNetworkRequests : []);
 
     const effectiveConsoleErrors = useAnalysisData
       ? analysisData.consoleErrors
-      : (DEBUG_MODE && (!consoleErrors || consoleErrors.length === 0) ? mockConsoleErrors : consoleErrors);
+      : (DEBUG_MODE ? mockConsoleErrors : []);
 
     const effectiveTokenEvents = useAnalysisData
       ? analysisData.tokenEvents
-      : (DEBUG_MODE && (!tokenEvents || tokenEvents.length === 0) ? mockTokenEvents : tokenEvents);
+      : (DEBUG_MODE ? mockTokenEvents : []);
 
     console.log('GlobalStats calculation with data:', {
       useAnalysisData,
       networkRequests: effectiveNetworkRequests?.length || 0,
       consoleErrors: effectiveConsoleErrors?.length || 0,
       tokenEvents: effectiveTokenEvents?.length || 0,
-      dataSource: useAnalysisData ? 'analysis (last 200 records)' : 'current page (10 records)'
+      analysisLoaded: analysisData.loaded,
+      analysisNetworkLength: analysisData.networkRequests?.length || 0,
+      dataSource: useAnalysisData ? 'analysis (latest N records)' : 'current page'
     });
 
     const calculatedTotalRequests = effectiveNetworkRequests.length;
     const calculatedTotalErrors = effectiveConsoleErrors.length;
     const calculatedTotalTokenEvents = effectiveTokenEvents.length;
 
-    // Use provided totals if available, otherwise use calculated totals from current data
-    const finalTotalRequests = totalRequests ?? calculatedTotalRequests;
-    const finalTotalErrors = totalErrors ?? calculatedTotalErrors;
-    const finalTotalTokenEvents = totalTokenEvents ?? calculatedTotalTokenEvents;
+    // CONSISTENCY FIX: When using analysis data, use calculated totals from that data, not global props
+    const finalTotalRequests = useAnalysisData ? calculatedTotalRequests : (totalRequests ?? calculatedTotalRequests);
+    const finalTotalErrors = useAnalysisData ? calculatedTotalErrors : (totalErrors ?? calculatedTotalErrors);
+    const finalTotalTokenEvents = useAnalysisData ? calculatedTotalTokenEvents : (totalTokenEvents ?? calculatedTotalTokenEvents);
 
     // MEMORY EFFICIENT: Process data in batches to avoid blocking UI
     const batchSize = 50;
@@ -605,8 +611,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
           maxResponseTimeCalculated = Math.max(maxResponseTimeCalculated, responseTime);
         }
 
-        // Success rate tracking
-        const status = req.status || req.response_status || 0;
+        // Success rate tracking - use same status field detection as chart
+        const status = req.status ?? req.response_status ?? req.response?.status ?? req.statusCode ?? 0;
         if (status >= 200 && status < 400) {
           successCount++;
         }
@@ -679,6 +685,19 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     const avgResponseTime = responseTimeCount > 0 ? Math.round(totalResponseTime / responseTimeCount) : 0;
     const successRate = finalTotalRequests > 0 ? Math.round((successCount / finalTotalRequests) * 100) : 0;
 
+    console.log('Success Rate Debug:', {
+      successCount,
+      finalTotalRequests,
+      successRate,
+      sampleStatuses: effectiveNetworkRequests.slice(0, 5).map(req => ({
+        status: req.status,
+        response_status: req.response_status,
+        statusCode: req.statusCode,
+        response: req.response?.status,
+        finalStatus: req.status ?? req.response_status ?? req.response?.status ?? req.statusCode ?? 0
+      }))
+    });
+
     return {
       totalRequests: finalTotalRequests,
       totalErrors: finalTotalErrors,
@@ -692,28 +711,28 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       successRate
     };
 
-  }, [analysisData, networkRequests, consoleErrors, tokenEvents, totalRequests, totalErrors, totalTokenEvents]);
+  }, [analysisData]);
 
   // Calculate domain-specific statistics with enhanced grouping
   const domainStats: DomainStats[] = useMemo(() => {
-    // Use analysis data for more accurate domain statistics
+    // CONSISTENCY FIX: Use the exact same logic as charts for data source selection
     const useAnalysisData = analysisData.loaded && analysisData.networkRequests.length > 0;
 
     const effectiveNetworkRequests = useAnalysisData
       ? analysisData.networkRequests
-      : (DEBUG_MODE && (!networkRequests || networkRequests.length === 0) ? mockNetworkRequests : networkRequests);
+      : (DEBUG_MODE ? mockNetworkRequests : []);
 
     const effectiveConsoleErrors = useAnalysisData
       ? analysisData.consoleErrors
-      : (DEBUG_MODE && (!consoleErrors || consoleErrors.length === 0) ? mockConsoleErrors : consoleErrors);
+      : (DEBUG_MODE ? mockConsoleErrors : []);
 
     const effectiveTokenEvents = useAnalysisData
       ? analysisData.tokenEvents
-      : (DEBUG_MODE && (!tokenEvents || tokenEvents.length === 0) ? mockTokenEvents : tokenEvents);
+      : (DEBUG_MODE ? mockTokenEvents : []);
 
     const allData = [...effectiveNetworkRequests, ...effectiveConsoleErrors, ...effectiveTokenEvents];
     return groupDataByDomain(allData);
-  }, [analysisData, networkRequests, consoleErrors, tokenEvents]);
+  }, [analysisData]);
 
   // Sorting functions
   const handleGlobalSort = (key: string) => {

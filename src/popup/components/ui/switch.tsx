@@ -53,7 +53,7 @@ const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(
         {(label || description) && (
           <div className="flex-1">
             {label && (
-              <label 
+              <label
                 className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-gray-800 hover:text-gray-700 transition-colors duration-200 cursor-pointer"
                 onClick={handleClick}
               >
