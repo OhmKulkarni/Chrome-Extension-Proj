@@ -186,7 +186,7 @@ export class UnifiedPermissionManager {
       // Fix defaults to match expected behavior
       this.state.featureDefaults = {
         network: false, // Disabled by default
-        console: true,  // Enabled by default - console errors are important
+        console: false, // FIXED: Disabled by default - consistent with other systems
         tokens: false   // Disabled by default
       };
 

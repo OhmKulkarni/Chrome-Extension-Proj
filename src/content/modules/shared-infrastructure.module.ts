@@ -721,11 +721,13 @@ export class SharedInfrastructureModule {
   }
 
   /**
-   * Resume interception
+   * Resume interception (query actual tab states instead of hardcoding)
    */
   private resumeInterception(): void {
-    this.config.network.enabled = true
-    this.config.console.enabled = true
+    // FIXED: Don't hardcode states - let the state checking logic handle this
+    // The actual states will be determined by the tab-specific configuration
+    // during the next state check cycle
+    console.log('📨 CONTENT: Extension resumed, states will be determined by tab configuration');
   }
 
   /**
@@ -1168,8 +1170,8 @@ export class SharedInfrastructureModule {
               const tabNetworkLogging = result[`tabLogging_${stateTabId}`]
               const tabConsoleLogging = result[`tabErrorLogging_${stateTabId}`]
 
-              const networkEnabled = globalEnabled && (!tabNetworkLogging || tabNetworkLogging.active === true)
-              const consoleEnabled = globalEnabled && (!tabConsoleLogging || tabConsoleLogging.active === true)
+              const networkEnabled = globalEnabled && (tabNetworkLogging?.active === true)
+              const consoleEnabled = globalEnabled && (tabConsoleLogging?.active === true)
 
               console.log('📨 CONTENT: Current state - Network:', networkEnabled, 'Console:', consoleEnabled)
 
@@ -1305,7 +1307,7 @@ export class SharedInfrastructureModule {
         if (networkEnabled === undefined) {
           const networkState = await chrome.storage.local.get([networkLoggingKey])
           const tabNetworkLogging = networkState[networkLoggingKey]
-          networkEnabled = globalEnabled && (!tabNetworkLogging || tabNetworkLogging.active === true || tabNetworkLogging.status === 'active')
+          networkEnabled = globalEnabled && (tabNetworkLogging?.active === true || tabNetworkLogging?.status === 'active')
         } else {
           networkEnabled = globalEnabled && networkEnabled
         }
@@ -1313,7 +1315,7 @@ export class SharedInfrastructureModule {
         if (consoleEnabled === undefined) {
           const consoleState = await chrome.storage.local.get([consoleLoggingKey])
           const tabConsoleLogging = consoleState[consoleLoggingKey]
-          consoleEnabled = globalEnabled && (!tabConsoleLogging || tabConsoleLogging.active === true)
+          consoleEnabled = globalEnabled && (tabConsoleLogging?.active === true)
         } else {
           consoleEnabled = globalEnabled && consoleEnabled
         }
@@ -1378,11 +1380,11 @@ export class SharedInfrastructureModule {
 
         // Check network logging state
         const tabNetworkLogging = result[`tabLogging_${tabId}`]
-        const networkEnabled = globalEnabled && (!tabNetworkLogging || tabNetworkLogging.active === true)
+        const networkEnabled = globalEnabled && (tabNetworkLogging?.active === true)
 
         // Check console logging state
         const tabConsoleLogging = result[`tabErrorLogging_${tabId}`]
-        const consoleEnabled = globalEnabled && (!tabConsoleLogging || tabConsoleLogging.active === true)
+        const consoleEnabled = globalEnabled && (tabConsoleLogging?.active === true)
 
         // Notify main-world script about state changes
         window.dispatchEvent(new CustomEvent('tabLoggingStateChange', {
