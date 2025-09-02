@@ -317,7 +317,7 @@ const DecomposedDashboard: React.FC = () => {
 
       for (const tab of tabs) {
         if (tab.id && tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
-          // Get logging status for this tab using IndexedDB via message router
+          // Get logging status for this tab using Chrome storage via message router
           const [networkStateResponse, errorStateResponse, tokenStateResponse] = await Promise.all([
             sendChromeMessage({ action: 'getTabNetworkState', tabId: tab.id }),
             sendChromeMessage({ action: 'getTabErrorState', tabId: tab.id }),

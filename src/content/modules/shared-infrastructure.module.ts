@@ -1126,27 +1126,33 @@ export class SharedInfrastructureModule {
               const result = await chrome.storage.local.get([
                 `tabErrorLogging_${currentTabId}`, // FIXED: Use correct key for error logging
                 'extensionEnabled',
-                'settings'
+                'settings',
+                'unifiedPermissionManager'
               ])
 
-              const globalEnabled = result.extensionEnabled !== false
+              // MAJOR FIX: Use unified permission manager for console feature state, not master switch
+              const masterSwitchEnabled = result.extensionEnabled !== false
+              const unifiedManager = result.unifiedPermissionManager
+              const globalConsoleEnabled = unifiedManager?.featureDefaults?.console ?? false
               const tabLogging = result[`tabErrorLogging_${currentTabId}`] // FIXED: Use correct key
               const settings = result.settings
 
-              // PERMISSION FIX: Default to disabled when no tab state exists
-              // This respects the defaultState: 'paused' configuration
-              let tabEnabled = false
+              // MAJOR FIX: Different logic for explicit tab state vs defaults
+              let finalEnabled = false
               if (tabLogging) {
-                // Tab has explicit state, use it
-                tabEnabled = tabLogging.active === true
+                // Tab has explicit state - ignore global console feature default
+                // Only check: master switch && explicit tab toggle
+                finalEnabled = masterSwitchEnabled && (tabLogging.active === true)
+                console.log('📨 CONTENT: Using explicit tab state:', tabLogging.active, 'Final:', finalEnabled)
               } else {
-                // No tab state exists, check settings for default
-                const defaultState = settings?.errorLogging?.tabSpecific?.defaultState || 'paused'
-                tabEnabled = defaultState === 'active'
+                // No explicit tab state - use console feature default
+                finalEnabled = masterSwitchEnabled && globalConsoleEnabled
+                console.log('📨 CONTENT: Using feature default:', globalConsoleEnabled, 'Final:', finalEnabled)
               }
 
-              console.log('📨 CONTENT: Console logging state - Global:', globalEnabled, 'Tab:', tabEnabled, 'TabData:', tabLogging, 'DefaultFromSettings:', settings?.errorLogging?.tabSpecific?.defaultState)
-              response = { enabled: globalEnabled && tabEnabled }
+              console.log('📨 CONTENT: Console logging state - Master:', masterSwitchEnabled, 'ConsoleFeature:', globalConsoleEnabled, 'TabData:', tabLogging, 'DefaultFromSettings:', settings?.errorLogging?.tabSpecific?.defaultState)
+
+              response = { enabled: finalEnabled }
             } else {
               console.log('📨 CONTENT: No tab ID available for console, returning false')
               response = { enabled: false }

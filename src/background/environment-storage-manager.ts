@@ -225,24 +225,6 @@ export class EnvironmentStorageManager implements StorageOperations {
     return this.ensureInitialized().deleteSetting(key)
   }
 
-  // ===== TAB STATE OPERATIONS =====
-
-  async setTabState(tabId: number, state: any): Promise<void> {
-    return this.ensureInitialized().setTabState(tabId, state)
-  }
-
-  async getTabState(tabId: number): Promise<any> {
-    return this.ensureInitialized().getTabState(tabId)
-  }
-
-  async getAllTabStates(): Promise<any[]> {
-    return this.ensureInitialized().getAllTabStates()
-  }
-
-  async deleteTabState(tabId: number): Promise<void> {
-    return this.ensureInitialized().deleteTabState(tabId)
-  }
-
   // MEMORY LEAK FIX: Add cleanup method to properly close storage connections
   async cleanup(): Promise<void> {
     if (this.storage && 'cleanup' in this.storage) {

@@ -30,7 +30,6 @@ export class StorageManagerModule {
     CONSOLE_ERRORS: 'consoleErrors',
     TOKEN_EVENTS: 'tokenEvents',
     SETTINGS: 'settings',
-    TAB_STATES: 'tabStates',
     TAB_NETWORK_LOGGING: 'tabLogging', // Fixed to match UI
     TAB_ERROR_LOGGING: 'tabErrorLogging',
     TAB_TOKEN_LOGGING: 'tabTokenLogging'
@@ -395,21 +394,11 @@ export class StorageManagerModule {
   // ===== TAB STATE MANAGEMENT =====
 
   /**
-   * Get tab logging state (network) - Uses IndexedDB
+   * Get tab logging state (network) - Uses Chrome storage only
    */
   async getTabNetworkState(tabId: number): Promise<boolean> {
     return this.executeWithSafety('getTabNetworkState', async () => {
-      // Try IndexedDB first
-      try {
-        const tabState = await this.indexedDbStorage.getTabState(tabId);
-        if (tabState) {
-          return tabState.networkActive;
-        }
-      } catch (error) {
-        console.warn('StorageManagerModule: Failed to get tab state from IndexedDB, falling back to Chrome storage:', error);
-      }
-
-      // Fallback to Chrome storage for backward compatibility
+      // MAJOR FIX: Use ONLY Chrome storage, not IndexedDB
       const key = `${this.STORAGE_KEYS.TAB_NETWORK_LOGGING}_${tabId}`;
       const result = await this.chromeApi.getFromStorage(key);
       const tabState = result[key];
@@ -428,31 +417,11 @@ export class StorageManagerModule {
   }
 
   /**
-   * Set tab logging state (network) - Uses IndexedDB
+   * Set tab logging state (network) - Uses Chrome storage only
    */
   async setTabNetworkState(tabId: number, active: boolean): Promise<void> {
     return this.executeWithSafety('setTabNetworkState', async () => {
-      // Get existing tab state or create new one
-      let existingState;
-      try {
-        existingState = await this.indexedDbStorage.getTabState(tabId);
-      } catch (error) {
-        existingState = null;
-      }
-
-      const tabState = {
-        networkActive: active,
-        errorActive: existingState?.errorActive || false,
-        networkStartTime: active ? Date.now() : undefined,
-        errorStartTime: existingState?.errorStartTime,
-        networkRequestCount: active ? 0 : existingState?.networkRequestCount || 0,
-        errorCount: existingState?.errorCount || 0
-      };
-
-      // Save to IndexedDB as primary storage
-      await this.indexedDbStorage.setTabState(tabId, tabState);
-
-      // Also save to Chrome storage for backward compatibility
+      // MAJOR FIX: Use ONLY Chrome storage, not IndexedDB
       const chromeKey = `${this.STORAGE_KEYS.TAB_NETWORK_LOGGING}_${tabId}`;
       await this.chromeApi.setInStorage({
         [chromeKey]: {
@@ -465,21 +434,11 @@ export class StorageManagerModule {
   }
 
   /**
-   * Get tab error logging state - Uses IndexedDB
+   * Get tab error logging state - Uses Chrome storage only
    */
   async getTabErrorState(tabId: number): Promise<boolean> {
     return this.executeWithSafety('getTabErrorState', async () => {
-      // Try IndexedDB first
-      try {
-        const tabState = await this.indexedDbStorage.getTabState(tabId);
-        if (tabState) {
-          return tabState.errorActive;
-        }
-      } catch (error) {
-        console.warn('StorageManagerModule: Failed to get error tab state from IndexedDB, falling back to Chrome storage:', error);
-      }
-
-      // Fallback to Chrome storage for backward compatibility
+      // MAJOR FIX: Use ONLY Chrome storage, not IndexedDB
       const key = `${this.STORAGE_KEYS.TAB_ERROR_LOGGING}_${tabId}`;
       const result = await this.chromeApi.getFromStorage(key);
       const tabState = result[key];
@@ -490,39 +449,19 @@ export class StorageManagerModule {
         return tabState.active || false;
       }
 
-      // Check global settings for default behavior
-      const settings = await this.getSettings();
-      const defaultState = settings.errorLogging?.tabSpecific?.defaultState || 'paused';
-      return defaultState === 'active';
+      // MAJOR FIX: Force console logging to default to 'paused' for security
+      // Always use 'paused' default regardless of what's in settings to prevent
+      // console logging from being enabled by default on new pages
+      return false; // Hardcoded to always return false (disabled by default)
     });
   }
 
   /**
-   * Set tab error logging state - Uses IndexedDB
+   * Set tab error logging state - Uses Chrome storage only
    */
   async setTabErrorState(tabId: number, active: boolean): Promise<void> {
     return this.executeWithSafety('setTabErrorState', async () => {
-      // Get existing tab state or create new one
-      let existingState;
-      try {
-        existingState = await this.indexedDbStorage.getTabState(tabId);
-      } catch (error) {
-        existingState = null;
-      }
-
-      const tabState = {
-        networkActive: existingState?.networkActive || false,
-        errorActive: active,
-        networkStartTime: existingState?.networkStartTime,
-        errorStartTime: active ? Date.now() : undefined,
-        networkRequestCount: existingState?.networkRequestCount || 0,
-        errorCount: active ? 0 : existingState?.errorCount || 0
-      };
-
-      // Save to IndexedDB as primary storage
-      await this.indexedDbStorage.setTabState(tabId, tabState);
-
-      // Also save to Chrome storage for backward compatibility
+      // MAJOR FIX: Use ONLY Chrome storage, not IndexedDB
       const chromeKey = `${this.STORAGE_KEYS.TAB_ERROR_LOGGING}_${tabId}`;
       await this.chromeApi.setInStorage({
         [chromeKey]: {
@@ -537,21 +476,11 @@ export class StorageManagerModule {
   // ===== TAB TOKEN STATE MANAGEMENT =====
 
   /**
-   * Get tab token logging state - Uses IndexedDB with Chrome storage fallback
+   * Get tab token logging state - Uses Chrome storage only
    */
   async getTabTokenState(tabId: number): Promise<boolean> {
     return this.executeWithSafety('getTabTokenState', async () => {
-      // Try to get from IndexedDB first
-      try {
-        const tabState = await this.indexedDbStorage.getTabState(tabId);
-        if (tabState && typeof tabState.tokenActive === 'boolean') {
-          return tabState.tokenActive;
-        }
-      } catch (error) {
-        console.warn('StorageManagerModule: Failed to get token tab state from IndexedDB, falling back to Chrome storage:', error);
-      }
-
-      // Fallback to Chrome storage for backward compatibility
+      // MAJOR FIX: Use ONLY Chrome storage, not IndexedDB
       const key = `${this.STORAGE_KEYS.TAB_TOKEN_LOGGING}_${tabId}`;
       const result = await this.chromeApi.getFromStorage(key);
       const tabState = result[key];
@@ -567,34 +496,16 @@ export class StorageManagerModule {
   }
 
   /**
-   * Set tab token logging state - Uses IndexedDB
+   * Set tab token logging state - Uses Chrome storage only
    */
   async setTabTokenState(tabId: number, active: boolean): Promise<void> {
     return this.executeWithSafety('setTabTokenState', async () => {
-      // Get existing tab state or create new one
-      let existingState;
-      try {
-        existingState = await this.indexedDbStorage.getTabState(tabId);
-      } catch (error) {
-        existingState = null;
+      // Validate the tabId
+      if (!Number.isInteger(tabId) || tabId <= 0) {
+        throw new Error(`Invalid tabId for token state: ${tabId}`);
       }
 
-      const tabState = {
-        networkActive: existingState?.networkActive || false,
-        errorActive: existingState?.errorActive || false,
-        tokenActive: active,
-        networkStartTime: existingState?.networkStartTime,
-        errorStartTime: existingState?.errorStartTime,
-        tokenStartTime: active ? Date.now() : undefined,
-        networkRequestCount: existingState?.networkRequestCount || 0,
-        errorCount: existingState?.errorCount || 0,
-        tokenCount: active ? 0 : existingState?.tokenCount || 0
-      };
-
-      // Save to IndexedDB as primary storage
-      await this.indexedDbStorage.setTabState(tabId, tabState);
-
-      // Also save to Chrome storage for backward compatibility
+      // Use Chrome storage only
       const chromeKey = `${this.STORAGE_KEYS.TAB_TOKEN_LOGGING}_${tabId}`;
       await this.chromeApi.setInStorage({
         [chromeKey]: {

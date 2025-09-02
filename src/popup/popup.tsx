@@ -171,7 +171,7 @@ const Popup: React.FC = () => {
           setTabInfo({ title: 'Error', url: 'Failed to get tab info' })
         })
 
-        // Get extension settings and tab-specific state using StorageService (IndexedDB)
+        // Get extension settings and tab-specific state using StorageService (Chrome storage)
         const result = await storageService.get(['settings']);
         const settings = result.settings || {};
 
@@ -277,7 +277,6 @@ const Popup: React.FC = () => {
         if (!tabs[0]?.id || !tabs[0]?.url) return;
 
         const tabId = tabs[0].id;
-        const tabUrl = tabs[0].url;
 
         // Primary: Try atomic operation first for consistent state
         try {
@@ -299,26 +298,24 @@ const Popup: React.FC = () => {
         }
 
         // Fallback: Use individual calls if atomic operation fails
-        // Get logging preferences from Chrome sync (cross-device)
-        const syncPrefs = await chromeSyncService.getTabPreferencesForUrl(tabUrl);
-
-        // Get real-time state data from IndexedDB (device-specific counters)
+        // Get real-time state data from storage manager (Chrome extension storage)
         const [networkState, errorState, tokenState] = await Promise.all([
           sendChromeMessage({ action: 'getTabNetworkState', tabId }),
           sendChromeMessage({ action: 'getTabErrorState', tabId }),
           sendChromeMessage({ action: 'getTabTokenState', tabId })
         ]);
 
-        // Set individual toggle states based on sync preferences (with IndexedDB overrides if active)
+        // Set individual toggle states based on actual storage manager state ONLY
+        // MAJOR FIX: Use storage manager as source of truth, fallback to FALSE (not sync preferences)
         const networkActive = (networkState?.success && typeof networkState.active === 'boolean')
           ? networkState.active
-          : syncPrefs.network;
+          : false; // Always default to FALSE for new pages
         const errorActive = (errorState?.success && typeof errorState.active === 'boolean')
           ? errorState.active
-          : syncPrefs.errors;
+          : false; // Always default to FALSE for new pages - SECURITY FIX
         const tokenActive = (tokenState?.success && typeof tokenState.active === 'boolean')
           ? tokenState.active
-          : syncPrefs.tokens;
+          : false; // Always default to FALSE for new pages
 
         setTabLoggingActive(networkActive);
         setTabErrorLoggingActive(errorActive);

@@ -1,5 +1,5 @@
 // IndexedDB implementation with performance monitoring
-import type { StorageOperations, ApiCall, ConsoleError, TokenEvent, MinifiedLibrary, StorageConfig, PerformanceStats, SettingsData, TabState } from './storage-types'
+import type { StorageOperations, ApiCall, ConsoleError, TokenEvent, MinifiedLibrary, StorageConfig, PerformanceStats, SettingsData } from './storage-types'
 
 // MEMORY LEAK FIX: Extract Promise constructor functions outside class to prevent context capture
 function createOpenRequestPromise(request: IDBOpenDBRequest): Promise<IDBDatabase> {
@@ -486,7 +486,7 @@ export class IndexedDBStorage implements StorageOperations {
       console.log('🔧 IndexedDB: Starting database initialization...')
 
       // MEMORY LEAK FIX: Replace Promise constructor with direct event-to-promise pattern
-      const request = indexedDB.open('DevToolsExtension', 4) // Increment version to trigger schema upgrade for settings & tabStates
+      const request = indexedDB.open('DevToolsExtension', 5) // Increment version to trigger schema upgrade - removed tabStates
 
       // Handle database upgrade first
       request.onupgradeneeded = () => {
@@ -530,14 +530,10 @@ export class IndexedDBStorage implements StorageOperations {
           console.log('📦 IndexedDB: Settings store already exists')
         }
 
-        // Add tab states store
-        if (!db.objectStoreNames.contains('tabStates')) {
-          const tabStatesStore = db.createObjectStore('tabStates', { keyPath: 'tabId' })
-          tabStatesStore.createIndex('active', 'networkActive', { unique: false })
-          tabStatesStore.createIndex('errorActive', 'errorActive', { unique: false })
-          console.log('📦 IndexedDB: Created tabStates store')
-        } else {
-          console.log('📦 IndexedDB: TabStates store already exists')
+        // Remove tabStates store if it exists (cleanup from previous versions)
+        if (db.objectStoreNames.contains('tabStates')) {
+          db.deleteObjectStore('tabStates')
+          console.log('🧹 IndexedDB: Removed tabStates store (no longer used)')
         }
 
         console.log('🔄 IndexedDB: Final stores after upgrade:', Array.from(db.objectStoreNames))
@@ -697,11 +693,11 @@ export class IndexedDBStorage implements StorageOperations {
         const transaction = this.db!.transaction(['apiCalls'], 'readonly')
         const store = transaction.objectStore('apiCalls')
         const index = store.index('timestamp')
-        
+
         // Get recent requests
         const recentRequests: ApiCall[] = []
         const request = index.openCursor(IDBKeyRange.lowerBound(recentThreshold))
-        
+
         await new Promise<void>((resolve, reject) => {
           request.onsuccess = (event) => {
             const cursor = (event.target as IDBRequest).result
@@ -716,7 +712,7 @@ export class IndexedDBStorage implements StorageOperations {
         })
 
         // Check for duplicates (same URL, method, and similar timestamp within 5s)
-        const duplicates = recentRequests.filter(existing => 
+        const duplicates = recentRequests.filter(existing =>
           existing.url === data.url &&
           existing.method === data.method &&
           existing.tab_id === data.tab_id &&
@@ -1042,7 +1038,7 @@ export class IndexedDBStorage implements StorageOperations {
   async clearAllData(): Promise<void> {
     if (!this.db) throw new Error('Database not initialized')
 
-    const stores = ['apiCalls', 'consoleErrors', 'tokenEvents', 'minifiedLibraries', 'settings', 'tabStates']
+    const stores = ['apiCalls', 'consoleErrors', 'tokenEvents', 'minifiedLibraries', 'settings']
     console.log('🧹 Starting clearAllData operation for stores:', stores)
 
     // Get initial counts for logging
@@ -1126,7 +1122,7 @@ export class IndexedDBStorage implements StorageOperations {
   async getTableCounts(): Promise<{[table: string]: number}> {
     if (!this.db) throw new Error('Database not initialized')
 
-    const stores = ['apiCalls', 'consoleErrors', 'tokenEvents', 'minifiedLibraries', 'settings', 'tabStates']
+    const stores = ['apiCalls', 'consoleErrors', 'tokenEvents', 'minifiedLibraries', 'settings']
     const counts: {[table: string]: number} = {}
 
     for (const storeName of stores) {
@@ -1249,7 +1245,7 @@ export class IndexedDBStorage implements StorageOperations {
     console.log('📊 Available stores:', Array.from(this.db.objectStoreNames))
 
     // Test each store
-    const stores = ['apiCalls', 'consoleErrors', 'tokenEvents', 'minifiedLibraries', 'settings', 'tabStates']
+    const stores = ['apiCalls', 'consoleErrors', 'tokenEvents', 'minifiedLibraries', 'settings']
 
     for (const storeName of stores) {
       try {
@@ -1307,55 +1303,6 @@ export class IndexedDBStorage implements StorageOperations {
     const transaction = this.db.transaction(['settings'], 'readwrite')
     const store = transaction.objectStore('settings')
     const request = store.delete(key)
-
-    await createRequestPromise(request, transaction)
-  }
-
-  // ===== TAB STATE OPERATIONS =====
-
-  async setTabState(tabId: number, state: Omit<TabState, 'tabId' | 'lastUpdated'>): Promise<void> {
-    if (!this.db) throw new Error('Database not initialized')
-
-    const transaction = this.db.transaction(['tabStates'], 'readwrite')
-    const store = transaction.objectStore('tabStates')
-
-    const tabState: TabState = {
-      ...state,
-      tabId,
-      lastUpdated: Date.now()
-    }
-
-    const request = store.put(tabState)
-    await createRequestPromise(request, transaction)
-  }
-
-  async getTabState(tabId: number): Promise<TabState | null> {
-    if (!this.db) throw new Error('Database not initialized')
-
-    const transaction = this.db.transaction(['tabStates'], 'readonly')
-    const store = transaction.objectStore('tabStates')
-    const request = store.get(tabId)
-
-    const result = await createRequestPromise(request, transaction)
-    return result || null
-  }
-
-  async getAllTabStates(): Promise<TabState[]> {
-    if (!this.db) throw new Error('Database not initialized')
-
-    const transaction = this.db.transaction(['tabStates'], 'readonly')
-    const store = transaction.objectStore('tabStates')
-    const request = store.getAll()
-
-    return await createRequestPromise(request, transaction) || []
-  }
-
-  async deleteTabState(tabId: number): Promise<void> {
-    if (!this.db) throw new Error('Database not initialized')
-
-    const transaction = this.db.transaction(['tabStates'], 'readwrite')
-    const store = transaction.objectStore('tabStates')
-    const request = store.delete(tabId)
 
     await createRequestPromise(request, transaction)
   }

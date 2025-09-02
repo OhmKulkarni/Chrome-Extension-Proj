@@ -174,30 +174,33 @@ export class UnifiedPermissionManager {
   private async migrateFeatureDefaults(): Promise<void> {
     if (!this.state) return;
 
-    // Check if migration is needed (version < 1.1.0 or wrong defaults)
+    // MAJOR FIX: Always migrate console to false regardless of version
+    // Check if migration is needed (version < 1.2.0 or console is true)
     const needsMigration = !this.state.version ||
                           this.state.version === '1.0.0' ||
+                          this.state.version === '1.1.0' ||
+                          this.state.featureDefaults.console === true ||
                           this.state.featureDefaults.network === true ||
                           this.state.featureDefaults.tokens === true;
 
     if (needsMigration) {
-      console.log('🔄 UnifiedPermissionManager: Migrating permission defaults to correct values');
+      console.log('🔄 UnifiedPermissionManager: Migrating permission defaults to secure values');
 
-      // Fix defaults to match expected behavior
+      // Fix defaults to match expected behavior - ALWAYS FORCE CONSOLE TO FALSE
       this.state.featureDefaults = {
         network: false, // Disabled by default
-        console: false, // FIXED: Disabled by default - consistent with other systems
+        console: false, // SECURITY FIX: Always false regardless of stored value
         tokens: false   // Disabled by default
       };
 
-      // Update version
-      this.state.version = '1.1.0';
+      // Update version to trigger this migration
+      this.state.version = '1.2.0';
       this.state.lastUpdated = Date.now();
 
       // Save migrated state
       await this.saveState();
 
-      console.log('✅ UnifiedPermissionManager: Default values migration completed');
+      console.log('✅ UnifiedPermissionManager: Console logging forced to FALSE - migration completed');
     }
   }  /**
    * Reset to safe defaults
@@ -209,15 +212,15 @@ export class UnifiedPermissionManager {
       tabControls: {},
       featureDefaults: {
         network: false, // Disabled by default - user must opt-in for network logging
-        console: false, // FIXED: Disabled by default - consistent with other systems
+        console: false, // SECURITY FIX: Always disabled by default
         tokens: false   // Disabled by default - user must opt-in for token logging
       },
-      version: '1.1.0', // Updated version with enabled-by-default features
+      version: '1.2.0', // Updated version to force console migration
       lastUpdated: Date.now()
     };
 
     await this.saveState();
-    console.log('🔄 UnifiedPermissionManager: Reset to defaults (features enabled by default)');
+    console.log('🔄 UnifiedPermissionManager: Reset to secure defaults (console logging disabled by default)');
   }
 
   // ===== GLOBAL PERMISSION METHODS =====

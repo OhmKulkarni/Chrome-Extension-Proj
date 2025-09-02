@@ -6,7 +6,7 @@
  *
  * Migration Sources:
  * - chrome.storage.local: extensionEnabled, tabLogging_*, tabErrorLogging_*, tabTokenLogging_*
- * - IndexedDB settings: networkInterception, errorLogging, tokenLogging defaults
+ * - Chrome settings: networkInterception, errorLogging, tokenLogging defaults
  * - ExtensionState: site-specific permissions
  */
 

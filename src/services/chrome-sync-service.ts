@@ -47,20 +47,26 @@ export class ChromeSyncService {
       const result = await chrome.storage.sync.get(['tabPreferences']);
       const tabPrefs = result.tabPreferences || DEFAULT_TAB_PREFERENCES;
 
-      // Return domain-specific preferences or defaults with timestamp
+      // Return domain-specific preferences or safe defaults with timestamp
       const domainPrefs = tabPrefs.domainPreferences[domain];
       if (domainPrefs) {
         return domainPrefs;
       } else {
+        // MAJOR FIX: Always return safe defaults for new domains
         return {
-          ...tabPrefs.defaults,
+          network: false,
+          errors: false, // Hardcoded to false for security
+          tokens: false,
           lastUpdated: Date.now()
         };
       }
     } catch (error) {
       console.warn('ChromeSyncService: Failed to get tab preferences, using defaults:', error);
+      // MAJOR FIX: Return safe hardcoded defaults
       return {
-        ...DEFAULT_TAB_PREFERENCES.defaults,
+        network: false,
+        errors: false, // Hardcoded to false for security
+        tokens: false,
         lastUpdated: Date.now()
       };
     }
@@ -112,14 +118,13 @@ export class ChromeSyncService {
    * Get global tab logging defaults
    */
   async getTabDefaults(): Promise<Omit<DomainLoggingPreferences, 'lastUpdated'>> {
-    try {
-      const result = await chrome.storage.sync.get(['tabPreferences']);
-      const tabPrefs = result.tabPreferences || DEFAULT_TAB_PREFERENCES;
-      return tabPrefs.defaults;
-    } catch (error) {
-      console.warn('ChromeSyncService: Failed to get tab defaults, using fallback:', error);
-      return DEFAULT_TAB_PREFERENCES.defaults;
-    }
+    // MAJOR FIX: Always return safe defaults regardless of stored sync data
+    // This prevents console logging from being enabled by default due to old cached sync data
+    return {
+      network: false,
+      errors: false, // Hardcoded to false for security
+      tokens: false
+    };
   }
 
   /**

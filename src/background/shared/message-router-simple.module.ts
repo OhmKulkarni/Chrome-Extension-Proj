@@ -242,7 +242,7 @@ export class MessageRouterSimpleModule {
           }
           break;
 
-        // Tab State Management (IndexedDB)
+        // Tab State Management (Chrome storage)
         case 'setTabNetworkState':
           if (message.tabId !== undefined && typeof message.active === 'boolean') {
             try {
