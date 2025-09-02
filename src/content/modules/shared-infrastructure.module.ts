@@ -650,8 +650,27 @@ export class SharedInfrastructureModule {
         // Handle logging state changes from background script
         console.log('📨 CONTENT: Received logging state change:', message)
 
-        // Immediately notify main-world script about the state change
-        if (message.type === 'network' && message.networkEnabled !== undefined) {
+        // Check for atomic site toggle (all three states provided)
+        if (message.type === 'atomic' &&
+            message.networkEnabled !== undefined &&
+            message.consoleEnabled !== undefined &&
+            message.tokenEnabled !== undefined) {
+          // Send combined event for atomic operations
+          window.dispatchEvent(new CustomEvent('tabLoggingStateChange', {
+            detail: {
+              networkEnabled: message.networkEnabled,
+              consoleEnabled: message.consoleEnabled,
+              tokenEnabled: message.tokenEnabled
+            }
+          }))
+          console.log('📨 CONTENT: Sent atomic state change to main-world:', {
+            network: message.networkEnabled,
+            console: message.consoleEnabled,
+            tokens: message.tokenEnabled
+          })
+        }
+        // Handle individual feature changes
+        else if (message.type === 'network' && message.networkEnabled !== undefined) {
           window.dispatchEvent(new CustomEvent('tabLoggingStateChange', {
             detail: {
               networkEnabled: message.networkEnabled,
@@ -1071,13 +1090,24 @@ export class SharedInfrastructureModule {
 
             if (tabId) {
               // Get extension and tab logging state from storage
-              const result = await chrome.storage.local.get([`tabLogging_${tabId}`, 'extensionEnabled'])
+              const result = await chrome.storage.local.get([`tabLogging_${tabId}`, 'extensionEnabled', 'settings'])
               const globalEnabled = result.extensionEnabled !== false
               const tabLogging = result[`tabLogging_${tabId}`]
-              // FIXED: Background saves {active: boolean}, not {status: 'active'}
-              const tabEnabled = !tabLogging || tabLogging.active === true
+              const settings = result.settings
 
-              console.log('📨 CONTENT: Network logging state - Global:', globalEnabled, 'Tab:', tabEnabled, 'TabData:', tabLogging)
+              // PERMISSION FIX: Default to disabled when no tab state exists
+              // This respects the defaultState: 'paused' configuration
+              let tabEnabled = false
+              if (tabLogging) {
+                // Tab has explicit state, use it
+                tabEnabled = tabLogging.active === true
+              } else {
+                // No tab state exists, check settings for default
+                const defaultState = settings?.networkInterception?.tabSpecific?.defaultState || 'paused'
+                tabEnabled = defaultState === 'active'
+              }
+
+              console.log('📨 CONTENT: Network logging state - Global:', globalEnabled, 'Tab:', tabEnabled, 'TabData:', tabLogging, 'DefaultFromSettings:', settings?.networkInterception?.tabSpecific?.defaultState)
               response = { enabled: globalEnabled && tabEnabled }
             } else {
               console.log('📨 CONTENT: No tab ID available, returning false')
@@ -1099,10 +1129,21 @@ export class SharedInfrastructureModule {
 
               const globalEnabled = result.extensionEnabled !== false
               const tabLogging = result[`tabErrorLogging_${currentTabId}`] // FIXED: Use correct key
-              // FIXED: Background saves {active: boolean}, not {status: 'active'}
-              const tabEnabled = !tabLogging || tabLogging.active === true
+              const settings = result.settings
 
-              console.log('📨 CONTENT: Console logging state - Global:', globalEnabled, 'Tab:', tabEnabled, 'TabData:', tabLogging)
+              // PERMISSION FIX: Default to disabled when no tab state exists
+              // This respects the defaultState: 'paused' configuration
+              let tabEnabled = false
+              if (tabLogging) {
+                // Tab has explicit state, use it
+                tabEnabled = tabLogging.active === true
+              } else {
+                // No tab state exists, check settings for default
+                const defaultState = settings?.errorLogging?.tabSpecific?.defaultState || 'paused'
+                tabEnabled = defaultState === 'active'
+              }
+
+              console.log('📨 CONTENT: Console logging state - Global:', globalEnabled, 'Tab:', tabEnabled, 'TabData:', tabLogging, 'DefaultFromSettings:', settings?.errorLogging?.tabSpecific?.defaultState)
               response = { enabled: globalEnabled && tabEnabled }
             } else {
               console.log('📨 CONTENT: No tab ID available for console, returning false')

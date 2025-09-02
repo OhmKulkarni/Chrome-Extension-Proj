@@ -409,6 +409,80 @@ export class UnifiedPermissionManager {
     console.log(`🎛️ UnifiedPermissionManager: Tab ${tabId} ${feature} ${enabled ? 'enabled' : 'disabled'}`);
   }
 
+  /**
+   * Set all features at once for a tab (site toggle functionality)
+   */
+  async setAllFeaturesEnabled(
+    tabId: number,
+    enabled: boolean,
+    tabUrl?: string
+  ): Promise<void> {
+    await this.ensureState();
+    if (!this.state) return;
+
+    const domain = tabUrl ? this.extractDomain(tabUrl) : 'unknown';
+
+    // Get or create tab control
+    if (!this.state.tabControls[tabId]) {
+      this.state.tabControls[tabId] = {
+        network: this.state.featureDefaults.network,
+        console: this.state.featureDefaults.console,
+        tokens: this.state.featureDefaults.tokens,
+        url: tabUrl || '',
+        domain: domain,
+        lastUpdated: Date.now()
+      };
+    }
+
+    // Store previous state for event emission
+    const wasAllEnabled = this.state.tabControls[tabId].network &&
+                         this.state.tabControls[tabId].console &&
+                         this.state.tabControls[tabId].tokens;
+
+    // Update all features atomically
+    this.state.tabControls[tabId].network = enabled;
+    this.state.tabControls[tabId].console = enabled;
+    this.state.tabControls[tabId].tokens = enabled;
+    this.state.tabControls[tabId].lastUpdated = Date.now();
+
+    // Update URL and domain if provided
+    if (tabUrl) {
+      this.state.tabControls[tabId].url = tabUrl;
+      this.state.tabControls[tabId].domain = domain;
+    }
+
+    await this.saveState();
+
+    // Emit unified site toggle event
+    this.emitEvent({
+      type: 'siteToggled',
+      data: {
+        tabId,
+        domain,
+        enabled,
+        wasEnabled: wasAllEnabled,
+        features: { network: enabled, console: enabled, tokens: enabled }
+      }
+    });
+
+    console.log(`🌐 UnifiedPermissionManager: Tab ${tabId} all features ${enabled ? 'enabled' : 'disabled'} for ${domain}`);
+  }
+
+  /**
+   * Get all feature states for a tab
+   */
+  async getAllFeatures(tabId: number): Promise<{
+    network: boolean;
+    console: boolean;
+    tokens: boolean;
+  }> {
+    const network = await this.isFeatureEnabled(tabId, 'network');
+    const console = await this.isFeatureEnabled(tabId, 'console');
+    const tokens = await this.isFeatureEnabled(tabId, 'tokens');
+
+    return { network, console, tokens };
+  }
+
   // ===== UNIFIED PERMISSION CHECK =====
 
   /**

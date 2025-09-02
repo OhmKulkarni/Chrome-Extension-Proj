@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Permission State Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .test-results {
+            background: #f8f8f8;
+            padding: 10px;
+            border-left: 4px solid #007acc;
+        }
+        button {
+            margin: 5px;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 3px;
+            background: #007acc;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover { background: #005a9e; }
+        button.success { background: #4caf50; }
+        button.error { background: #f44336; }
+        button.warning { background: #ff9800; }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            overflow-x: auto;
+            font-size: 12px;
+            border-radius: 3px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success { color: #0a8043; }
+        .error { color: #d93025; }
+        .warning { color: #f9ab00; }
+        .info { color: #1a73e8; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Permission System Debug</h1>
+
+    <div class="section">
+        <h2>🎯 Site Toggle Test</h2>
+        <p>Test the site toggle functionality and state persistence:</p>
+        <button onclick="testSiteToggleEnable()" class="success">🟢 Enable Site Logging</button>
+        <button onclick="testSiteToggleDisable()" class="error">🔴 Disable Site Logging</button>
+        <button onclick="testStateLoad()" class="warning">🔄 Test State Loading</button>
+    </div>
+
+    <div class="section">
+        <h2>🎲 Individual State Tests</h2>
+        <p>Test individual logging feature states:</p>
+        <button onclick="testNetworkState()">🌐 Network State</button>
+        <button onclick="testErrorState()">❌ Error State</button>
+        <button onclick="testTokenState()">🔑 Token State</button>
+        <button onclick="testAllStates()">🔍 Check All States</button>
+    </div>
+
+    <div class="section">
+        <h2>💾 Storage Investigation</h2>
+        <p>Deep dive into storage systems:</p>
+        <button onclick="checkIndexedDB()">🗄️ IndexedDB States</button>
+        <button onclick="checkChromeStorage()">🔧 Chrome Storage</button>
+        <button onclick="checkSyncStorage()">☁️ Sync Storage</button>
+        <button onclick="compareAllSources()">⚖️ Compare Sources</button>
+    </div>
+
+    <div class="section test-results">
+        <h3>🐛 Debug Results</h3>
+        <pre id="results">Ready to debug permission system...\n\nThis tool will help identify why the site toggle shows random states.\n</pre>
+    </div>
+
+    <script>
+        const results = document.getElementById('results');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'success' ? 'success' :
+                             type === 'error' ? 'error' :
+                             type === 'warning' ? 'warning' : 'info';
+
+            results.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            results.scrollTop = results.scrollHeight;
+
+            console.log(`🐛 DEBUG: ${message}`);
+        }
+
+        async function getCurrentTabId() {
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            return tabs[0]?.id;
+        }
+
+        // Site toggle tests
+        async function testSiteToggleEnable() {
+            log('🟢 Testing site toggle ENABLE...', 'info');
+
+            try {
+                const tabId = await getCurrentTabId();
+                if (!tabId) {
+                    log('❌ No current tab ID', 'error');
+                    return;
+                }
+
+                // Simulate the site toggle enable sequence
+                const promises = [
+                    chrome.runtime.sendMessage({ action: 'setTabNetworkState', tabId, active: true }),
+                    chrome.runtime.sendMessage({ action: 'setTabErrorState', tabId, active: true }),
+                    chrome.runtime.sendMessage({ action: 'setTabTokenState', tabId, active: true })
+                ];
+
+                log(`📤 Sending enable requests for tab ${tabId}...`, 'info');
+                const responses = await Promise.all(promises);
+
+                log('📥 Responses:', 'info');
+                responses.forEach((response, index) => {
+                    const types = ['Network', 'Error', 'Token'];
+                    if (response?.success) {
+                        log(`✅ ${types[index]}: Success`, 'success');
+                    } else {
+                        log(`❌ ${types[index]}: Failed - ${response?.error || 'Unknown error'}`, 'error');
+                    }
+                });
+
+                // Wait a moment then check states
+                setTimeout(() => testStateLoad(), 500);
+
+            } catch (error) {
+                log(`❌ Enable test failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testSiteToggleDisable() {
+            log('🔴 Testing site toggle DISABLE...', 'info');
+
+            try {
+                const tabId = await getCurrentTabId();
+                if (!tabId) {
+                    log('❌ No current tab ID', 'error');
+                    return;
+                }
+
+                const promises = [
+                    chrome.runtime.sendMessage({ action: 'setTabNetworkState', tabId, active: false }),
+                    chrome.runtime.sendMessage({ action: 'setTabErrorState', tabId, active: false }),
+                    chrome.runtime.sendMessage({ action: 'setTabTokenState', tabId, active: false })
+                ];
+
+                log(`📤 Sending disable requests for tab ${tabId}...`, 'info');
+                const responses = await Promise.all(promises);
+
+                responses.forEach((response, index) => {
+                    const types = ['Network', 'Error', 'Token'];
+                    if (response?.success) {
+                        log(`✅ ${types[index]}: Disabled`, 'success');
+                    } else {
+                        log(`❌ ${types[index]}: Failed - ${response?.error || 'Unknown error'}`, 'error');
+                    }
+                });
+
+                setTimeout(() => testStateLoad(), 500);
+
+            } catch (error) {
+                log(`❌ Disable test failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testStateLoad() {
+            log('🔄 Testing state loading (popup simulation)...', 'warning');
+
+            try {
+                const tabId = await getCurrentTabId();
+                if (!tabId) {
+                    log('❌ No current tab ID', 'error');
+                    return;
+                }
+
+                // Simulate popup state loading
+                log(`📤 Loading states for tab ${tabId}...`, 'info');
+                const [networkState, errorState, tokenState] = await Promise.all([
+                    chrome.runtime.sendMessage({ action: 'getTabNetworkState', tabId }),
+                    chrome.runtime.sendMessage({ action: 'getTabErrorState', tabId }),
+                    chrome.runtime.sendMessage({ action: 'getTabTokenState', tabId })
+                ]);
+
+                log('📥 IndexedDB Results:', 'info');
+                log(`🌐 Network: ${JSON.stringify(networkState)}`, networkState?.success ? 'success' : 'error');
+                log(`❌ Error: ${JSON.stringify(errorState)}`, errorState?.success ? 'success' : 'error');
+                log(`🔑 Token: ${JSON.stringify(tokenState)}`, tokenState?.success ? 'success' : 'error');
+
+                // Also get sync preferences to see fallback values
+                const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+                const tabUrl = tabs[0]?.url;
+                if (tabUrl) {
+                    // This would require access to ChromeSyncService - simulate the defaults
+                    const syncDefaults = {
+                        network: false,
+                        errors: true,
+                        tokens: false
+                    };
+
+                    log('☁️ Sync Fallback Values:', 'info');
+                    log(`🌐 Network fallback: ${syncDefaults.network}`, 'warning');
+                    log(`❌ Error fallback: ${syncDefaults.errors}`, 'warning');
+                    log(`🔑 Token fallback: ${syncDefaults.tokens}`, 'warning');
+
+                    // Simulate popup logic
+                    const networkActive = (networkState?.success && typeof networkState.active === 'boolean')
+                        ? networkState.active
+                        : syncDefaults.network;
+                    const errorActive = (errorState?.success && typeof errorState.active === 'boolean')
+                        ? errorState.active
+                        : syncDefaults.errors;
+                    const tokenActive = (tokenState?.success && typeof tokenState.active === 'boolean')
+                        ? tokenState.active
+                        : syncDefaults.tokens;
+
+                    log('🎯 Final Popup States (after fallback logic):', 'warning');
+                    log(`🌐 Network: ${networkActive}`, networkActive ? 'success' : 'error');
+                    log(`❌ Error: ${errorActive}`, errorActive ? 'success' : 'error');
+                    log(`🔑 Token: ${tokenActive}`, tokenActive ? 'success' : 'error');
+
+                    const allEnabled = networkActive && errorActive && tokenActive;
+                    const allDisabled = !networkActive && !errorActive && !tokenActive;
+                    const siteToggleState = allEnabled ? 'ON' : (allDisabled ? 'OFF' : 'MIXED');
+                    log(`🎛️ Site Toggle State: ${siteToggleState}`, allEnabled ? 'success' : (allDisabled ? 'error' : 'warning'));
+                }
+
+            } catch (error) {
+                log(`❌ State load test failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Individual state tests
+        async function testNetworkState() {
+            await testIndividualState('getTabNetworkState', 'setTabNetworkState', 'Network', '🌐');
+        }
+
+        async function testErrorState() {
+            await testIndividualState('getTabErrorState', 'setTabErrorState', 'Error', '❌');
+        }
+
+        async function testTokenState() {
+            await testIndividualState('getTabTokenState', 'setTabTokenState', 'Token', '🔑');
+        }
+
+        async function testIndividualState(getAction, setAction, typeName, emoji) {
+            log(`${emoji} Testing ${typeName} state...`, 'info');
+
+            try {
+                const tabId = await getCurrentTabId();
+                if (!tabId) {
+                    log('❌ No current tab ID', 'error');
+                    return;
+                }
+
+                // Get current state
+                const currentState = await chrome.runtime.sendMessage({ action: getAction, tabId });
+                log(`${emoji} Current state: ${JSON.stringify(currentState)}`, currentState?.success ? 'success' : 'error');
+
+                // Toggle state
+                const newState = !currentState?.active;
+                log(`${emoji} Setting to ${newState}...`, 'info');
+
+                const setResponse = await chrome.runtime.sendMessage({ action: setAction, tabId, active: newState });
+                log(`${emoji} Set response: ${JSON.stringify(setResponse)}`, setResponse?.success ? 'success' : 'error');
+
+                // Verify the change
+                await new Promise(resolve => setTimeout(resolve, 200));
+                const verifyState = await chrome.runtime.sendMessage({ action: getAction, tabId });
+                log(`${emoji} Verified state: ${JSON.stringify(verifyState)}`, 'info');
+
+                if (verifyState?.active === newState) {
+                    log(`${emoji} ✅ State change successful`, 'success');
+                } else {
+                    log(`${emoji} ❌ State change failed - expected ${newState}, got ${verifyState?.active}`, 'error');
+                }
+
+            } catch (error) {
+                log(`${emoji} ❌ ${typeName} test failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAllStates() {
+            log('🔍 Testing all states...', 'info');
+            await testNetworkState();
+            await new Promise(resolve => setTimeout(resolve, 100));
+            await testErrorState();
+            await new Promise(resolve => setTimeout(resolve, 100));
+            await testTokenState();
+        }
+
+        // Storage investigation
+        async function checkIndexedDB() {
+            log('🗄️ Checking IndexedDB states...', 'info');
+
+            try {
+                const tabId = await getCurrentTabId();
+                if (!tabId) {
+                    log('❌ No current tab ID', 'error');
+                    return;
+                }
+
+                // Get all states directly from IndexedDB via background
+                const states = await Promise.all([
+                    chrome.runtime.sendMessage({ action: 'getTabNetworkState', tabId }),
+                    chrome.runtime.sendMessage({ action: 'getTabErrorState', tabId }),
+                    chrome.runtime.sendMessage({ action: 'getTabTokenState', tabId })
+                ]);
+
+                log('🗄️ IndexedDB Results:', 'info');
+                states.forEach((state, index) => {
+                    const types = ['Network', 'Error', 'Token'];
+                    const emojis = ['🌐', '❌', '🔑'];
+                    log(`${emojis[index]} ${types[index]}: ${JSON.stringify(state)}`, state?.success ? 'success' : 'error');
+                });
+
+            } catch (error) {
+                log(`🗄️ ❌ IndexedDB check failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkChromeStorage() {
+            log('🔧 Checking Chrome Storage...', 'info');
+
+            try {
+                const tabId = await getCurrentTabId();
+                if (!tabId) {
+                    log('❌ No current tab ID', 'error');
+                    return;
+                }
+
+                const keys = [
+                    `tabLogging_${tabId}`,
+                    `tabErrorLogging_${tabId}`,
+                    `tabTokenLogging_${tabId}`,
+                    'extensionEnabled',
+                    'settings'
+                ];
+
+                const storageData = await chrome.storage.local.get(keys);
+                log('🔧 Chrome Storage Results:', 'info');
+                Object.entries(storageData).forEach(([key, value]) => {
+                    log(`🔑 ${key}: ${JSON.stringify(value, null, 2)}`, 'info');
+                });
+
+            } catch (error) {
+                log(`🔧 ❌ Chrome Storage check failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkSyncStorage() {
+            log('☁️ Checking Sync Storage...', 'info');
+
+            try {
+                const syncData = await chrome.storage.sync.get(null);
+                log('☁️ Sync Storage Results:', 'info');
+                log(JSON.stringify(syncData, null, 2), 'info');
+
+            } catch (error) {
+                log(`☁️ ❌ Sync Storage check failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function compareAllSources() {
+            log('⚖️ Comparing all storage sources...', 'warning');
+
+            await checkIndexedDB();
+            await new Promise(resolve => setTimeout(resolve, 100));
+            await checkChromeStorage();
+            await new Promise(resolve => setTimeout(resolve, 100));
+            await checkSyncStorage();
+
+            log('⚖️ Comparison complete - look for inconsistencies above', 'warning');
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            log('🚀 Permission system debug tool loaded', 'success');
+            log('Current URL: ' + window.location.href, 'info');
+            log('', 'info');
+            log('🎯 Quick Test Sequence:', 'info');
+            log('1. Click "Enable Site Logging" button', 'info');
+            log('2. Click "Test State Loading" to see what popup would see', 'info');
+            log('3. Compare IndexedDB vs Sync fallback values', 'info');
+            log('4. Use "Compare Sources" to check for inconsistencies', 'info');
+        });
+    </script>
+</body>
+</html>

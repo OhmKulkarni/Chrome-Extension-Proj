@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Console Permission Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .test-results {
+            background: #f8f8f8;
+            padding: 10px;
+            border-left: 4px solid #007acc;
+        }
+        button {
+            margin: 5px;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 3px;
+            background: #007acc;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover { background: #005a9e; }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            overflow-x: auto;
+            font-size: 12px;
+            border-radius: 3px;
+        }
+        .success { color: #0a8043; }
+        .error { color: #d93025; }
+        .warning { color: #f9ab00; }
+        .info { color: #1a73e8; }
+    </style>
+</head>
+<body>
+    <h1>Console Permission Testing</h1>
+
+    <div class="section">
+        <h2>Test Console Logging</h2>
+        <p>Generate different types of console messages to test permission enforcement:</p>
+        <button onclick="testConsoleError()">Generate Console Error</button>
+        <button onclick="testConsoleWarn()">Generate Console Warning</button>
+        <button onclick="testConsoleInfo()">Generate Console Info</button>
+        <button onclick="testConsoleLog()">Generate Console Log</button>
+        <button onclick="testUncaughtError()">Generate Uncaught Error</button>
+    </div>
+
+    <div class="section">
+        <h2>Permission State Check</h2>
+        <button onclick="checkExtensionPermissions()">Check Extension Permission State</button>
+        <button onclick="checkStorageState()">Check Storage State</button>
+        <button onclick="simulateTabReopen()">Simulate Tab Reopen Scenario</button>
+    </div>
+
+    <div class="section test-results">
+        <h3>Test Results</h3>
+        <pre id="results">Ready to test...\n\nThis page will help debug console permission issues.\nOpen DevTools to see both the console messages and extension behavior.\n</pre>
+    </div>
+
+    <script>
+        const results = document.getElementById('results');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'success' ? 'success' :
+                             type === 'error' ? 'error' :
+                             type === 'warning' ? 'warning' : 'info';
+
+            results.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            results.scrollTop = results.scrollHeight;
+
+            // Also log to console for debugging
+            console.log(`🧪 PERMISSION TEST: ${message}`);
+        }
+
+        function testConsoleError() {
+            log('🔴 Generating console.error...', 'info');
+            console.error('🧪 TEST ERROR: This is a test console error for permission checking', {
+                testType: 'error',
+                domain: window.location.hostname,
+                timestamp: new Date().toISOString(),
+                expectedBehavior: 'Should only be logged if console logging is enabled'
+            });
+            log('✅ Console error generated', 'success');
+        }
+
+        function testConsoleWarn() {
+            log('🟡 Generating console.warn...', 'info');
+            console.warn('🧪 TEST WARNING: This is a test console warning for permission checking', {
+                testType: 'warning',
+                domain: window.location.hostname,
+                timestamp: new Date().toISOString(),
+                expectedBehavior: 'Should only be logged if console logging is enabled'
+            });
+            log('✅ Console warning generated', 'success');
+        }
+
+        function testConsoleInfo() {
+            log('🔵 Generating console.info...', 'info');
+            console.info('🧪 TEST INFO: This is a test console info for permission checking', {
+                testType: 'info',
+                domain: window.location.hostname,
+                timestamp: new Date().toISOString(),
+                expectedBehavior: 'Should only be logged if console logging is enabled'
+            });
+            log('✅ Console info generated', 'success');
+        }
+
+        function testConsoleLog() {
+            log('⚪ Generating console.log...', 'info');
+            console.log('🧪 TEST LOG: This is a test console log for permission checking', {
+                testType: 'log',
+                domain: window.location.hostname,
+                timestamp: new Date().toISOString(),
+                expectedBehavior: 'Should only be logged if console logging is enabled'
+            });
+            log('✅ Console log generated', 'success');
+        }
+
+        function testUncaughtError() {
+            log('💥 Generating uncaught error...', 'warning');
+            setTimeout(() => {
+                throw new Error('🧪 TEST UNCAUGHT ERROR: This is a test uncaught error for permission checking');
+            }, 100);
+            log('⚠️ Uncaught error will be thrown in 100ms', 'warning');
+        }
+
+        async function checkExtensionPermissions() {
+            log('🔍 Checking extension permission state...', 'info');
+
+            try {
+                if (typeof chrome === 'undefined' || !chrome.runtime) {
+                    log('❌ Chrome extension API not available', 'error');
+                    return;
+                }
+
+                // Try to get permission state through extension messaging
+                const response = await chrome.runtime.sendMessage({
+                    action: 'debugGetPermissions',
+                    domain: window.location.hostname
+                });
+
+                if (response && response.success) {
+                    log('✅ Permission state retrieved:', 'success');
+                    log(JSON.stringify(response.permissions, null, 2), 'info');
+                } else {
+                    log('❌ Failed to get permission state: ' + (response?.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                log('❌ Permission check failed: ' + error.message, 'error');
+            }
+        }
+
+        async function checkStorageState() {
+            log('💾 Checking storage state...', 'info');
+
+            try {
+                if (typeof chrome === 'undefined' || !chrome.storage) {
+                    log('❌ Chrome storage API not available', 'error');
+                    return;
+                }
+
+                // Get current tab ID
+                const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+                const currentTab = tabs[0];
+
+                if (!currentTab) {
+                    log('❌ Could not get current tab', 'error');
+                    return;
+                }
+
+                log(`📍 Current tab ID: ${currentTab.id}`, 'info');
+
+                // Check relevant storage keys
+                const keys = [
+                    `tabErrorLogging_${currentTab.id}`,
+                    `tabLogging_${currentTab.id}`,
+                    `tabTokenLogging_${currentTab.id}`,
+                    'extensionEnabled',
+                    'settings'
+                ];
+
+                const storageData = await chrome.storage.local.get(keys);
+                log('💾 Storage state:', 'success');
+                log(JSON.stringify(storageData, null, 2), 'info');
+
+            } catch (error) {
+                log('❌ Storage check failed: ' + error.message, 'error');
+            }
+        }
+
+        function simulateTabReopenScenario() {
+            log('🔄 Simulating tab reopen scenario...', 'info');
+            log('This simulates what happens when you open Chrome and visit a site for the first time', 'info');
+
+            // Generate console messages that might appear during initial page load
+            console.log('🏁 PAGE LOAD: Initial page load started');
+            console.info('📄 PAGE LOAD: DOM content loaded');
+            console.warn('⚠️ PAGE LOAD: Some resource failed to load (simulated)');
+            console.error('❌ PAGE LOAD: Simulated error during initial load');
+
+            log('✅ Tab reopen scenario simulated - check if these are logged in extension', 'success');
+            log('Expected: These should NOT be logged if site logging is disabled', 'warning');
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            log('🚀 Console permission test page loaded', 'success');
+            log('Domain: ' + window.location.hostname, 'info');
+            log('URL: ' + window.location.href, 'info');
+            log('', 'info');
+            log('Instructions:', 'info');
+            log('1. Open the extension dashboard to see current logging state', 'info');
+            log('2. Toggle site logging ON/OFF in the dashboard', 'info');
+            log('3. Use the buttons above to test console message generation', 'info');
+            log('4. Check if messages appear in extension only when logging is enabled', 'info');
+        });
+
+        // Add error handler to catch any uncaught errors
+        window.addEventListener('error', (event) => {
+            log(`💥 Uncaught error detected: ${event.message}`, 'error');
+            log(`📍 Location: ${event.filename}:${event.lineno}:${event.colno}`, 'info');
+        });
+
+        // Add unhandled rejection handler
+        window.addEventListener('unhandledrejection', (event) => {
+            log(`💥 Unhandled rejection detected: ${event.reason}`, 'error');
+        });
+    </script>
+</body>
+</html>

@@ -373,6 +373,59 @@ export class MessageRouterSimpleModule {
           }
           break;
 
+        // Atomic Operations for Site Toggle
+        case 'setAllFeaturesEnabled':
+          if (message.tabId !== undefined && typeof message.enabled === 'boolean') {
+            try {
+              await unifiedPermissionManager.setAllFeaturesEnabled(message.tabId, message.enabled);
+
+              // CRITICAL: Also update legacy storage systems
+              await this.storageManager.setTabNetworkState(message.tabId, message.enabled);
+              await this.storageManager.setTabErrorState(message.tabId, message.enabled);
+              await this.storageManager.setTabTokenState(message.tabId, message.enabled);
+
+              // Update unified permission service
+              await this.unifiedPermissionService.handleSetTabNetworkState(message.tabId, message.enabled);
+              await this.unifiedPermissionService.handleSetTabErrorState(message.tabId, message.enabled);
+              await this.unifiedPermissionService.handleSetTabTokenState(message.tabId, message.enabled);
+
+              // CRITICAL: Send single atomic notification to content script
+              try {
+                await this.chromeApi.sendMessageToTab(message.tabId, {
+                  action: 'loggingStateChanged',
+                  type: 'atomic',
+                  networkEnabled: message.enabled,
+                  consoleEnabled: message.enabled,
+                  tokenEnabled: message.enabled
+                });
+                console.log(`📨 MESSAGE ROUTER: Sent atomic state change notification to tab ${message.tabId}: all features = ${message.enabled}`);
+              } catch (notificationError) {
+                console.log(`📨 MESSAGE ROUTER: Could not notify tab ${message.tabId} (content script may not be ready):`, notificationError);
+                // Don't fail the main operation if notification fails
+              }
+
+              sendResponse({ success: true });
+            } catch (error) {
+              sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to set all features enabled' });
+            }
+          } else {
+            sendResponse({ success: false, error: 'Tab ID and enabled state required' });
+          }
+          break;
+
+        case 'getAllFeaturesState':
+          if (message.tabId !== undefined) {
+            try {
+              const features = await unifiedPermissionManager.getAllFeatures(message.tabId);
+              sendResponse({ success: true, features });
+            } catch (error) {
+              sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to get all features state' });
+            }
+          } else {
+            sendResponse({ success: false, error: 'Tab ID required' });
+          }
+          break;
+
         case 'getTabStats':
           if (message.tabId !== undefined) {
             try {

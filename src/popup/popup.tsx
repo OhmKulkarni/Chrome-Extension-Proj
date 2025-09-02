@@ -269,7 +269,7 @@ const Popup: React.FC = () => {
     loadExtensionState();
 
     // Get current tab's logging state (network, error, and token)
-    // NEW: Uses Chrome sync for preferences, IndexedDB for real-time counters
+    // NEW: Uses atomic operations for consistent state loading
     // UPDATED: Now respects site-specific toggle state
     const loadTabStates = async () => {
       try {
@@ -279,7 +279,26 @@ const Popup: React.FC = () => {
         const tabId = tabs[0].id;
         const tabUrl = tabs[0].url;
 
-        // Load individual logging preferences first
+        // Primary: Try atomic operation first for consistent state
+        try {
+          const response = await sendChromeMessage({ action: 'getAllFeaturesState', tabId });
+
+          if (response?.success && response.features) {
+            const { network, console: errors, tokens } = response.features;
+
+            setTabLoggingActive(network);
+            setTabErrorLoggingActive(errors);
+            setTabTokenLoggingActive(tokens);
+
+            const allEnabled = network && errors && tokens;
+            console.log(`🔄 Atomic state loaded - Network: ${network}, Error: ${errors}, Token: ${tokens}, Site: ${allEnabled ? 'on' : (network || errors || tokens) ? 'mixed' : 'off'}`);
+            return; // Success - exit early
+          }
+        } catch (atomicError) {
+          console.log('Atomic state loading failed, falling back to individual calls:', atomicError);
+        }
+
+        // Fallback: Use individual calls if atomic operation fails
         // Get logging preferences from Chrome sync (cross-device)
         const syncPrefs = await chromeSyncService.getTabPreferencesForUrl(tabUrl);
 
@@ -502,9 +521,9 @@ const Popup: React.FC = () => {
       const tabId = tabs[0].id;
       const tabUrl = tabs[0].url;
 
-      console.log(`🔄 Site toggle: ${enabled ? 'Enabling' : 'Disabling'} all 3 individual features`);
+      console.log(`🔄 Site toggle: ${enabled ? 'Enabling' : 'Disabling'} all 3 individual features using atomic operation`);
 
-      // Update all 3 individual toggle states to match target state
+      // Update all frontend states immediately for responsive UI
       setTabLoggingActive(enabled);
       setTabErrorLoggingActive(enabled);
       setTabTokenLoggingActive(enabled);
@@ -516,17 +535,14 @@ const Popup: React.FC = () => {
         tokens: enabled
       });
 
-      // Update all backend states via individual messages
-      const promises = [
-        sendChromeMessage({ action: 'setTabNetworkState', tabId, active: enabled }),
-        sendChromeMessage({ action: 'setTabErrorState', tabId, active: enabled }),
-        sendChromeMessage({ action: 'setTabTokenState', tabId, active: enabled })
-      ];
+      // Use atomic operation instead of individual calls
+      const response = await sendChromeMessage({
+        action: 'setAllFeaturesEnabled',
+        tabId,
+        enabled
+      });
 
-      const responses = await Promise.all(promises);
-      const allSucceeded = responses.every(response => response && !response.error);
-
-      if (allSucceeded) {
+      if (response && !response.error) {
         // Send messages to content script for network and error logging
         try {
           await Promise.all([
@@ -547,10 +563,10 @@ const Popup: React.FC = () => {
           }
         }
 
-        console.log(`✅ Site toggle complete: All features ${enabled ? 'enabled' : 'disabled'} for this tab`);
+        console.log(`✅ Site toggle complete: All features ${enabled ? 'enabled' : 'disabled'} for this tab using atomic operation`);
       } else {
-        console.error('Some backend updates failed, reverting states');
-        // Revert all states if any failed
+        console.error('Atomic backend update failed, reverting states');
+        // Revert all states if the atomic operation failed
         setTabLoggingActive(!enabled);
         setTabErrorLoggingActive(!enabled);
         setTabTokenLoggingActive(!enabled);
