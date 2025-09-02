@@ -209,7 +209,7 @@ export class UnifiedPermissionManager {
       tabControls: {},
       featureDefaults: {
         network: false, // Disabled by default - user must opt-in for network logging
-        console: true,  // Enabled by default - console errors are important for debugging
+        console: false, // FIXED: Disabled by default - consistent with other systems
         tokens: false   // Disabled by default - user must opt-in for token logging
       },
       version: '1.1.0', // Updated version with enabled-by-default features
