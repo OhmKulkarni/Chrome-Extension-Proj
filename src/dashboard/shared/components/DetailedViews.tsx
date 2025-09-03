@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 
 // Detail Content Components
-export const RequestDetailContent: React.FC<{ 
-  request: any; 
+export const RequestDetailContent: React.FC<{
+  request: any;
   selectedField: string;
   settings?: any;
 }> = ({ request, selectedField, settings }) => {
@@ -10,11 +10,11 @@ export const RequestDetailContent: React.FC<{
     // Use settings-based limit or fallback to 10KB
     const maxClipboardSize = settings?.networkInterception?.bodyCapture?.maxBodySize || 10000;
     const safeSize = maxClipboardSize === 0 ? 50000 : maxClipboardSize; // 0 means no limit, but use 50KB safety
-    
-    const copyText = text.length > safeSize ? 
-      text.substring(0, safeSize) + '\n[Truncated for clipboard - check settings to adjust limit]' : 
+
+    const copyText = text.length > safeSize ?
+      text.substring(0, safeSize) + '\n[Truncated for clipboard - check settings to adjust limit]' :
       text;
-    
+
     navigator.clipboard.writeText(copyText).catch(error => {
       console.warn('Failed to copy to clipboard:', error);
     });
@@ -25,7 +25,7 @@ export const RequestDetailContent: React.FC<{
       // Use settings-based safety limits
       const maxDisplaySize = settings?.networkInterception?.bodyCapture?.maxBodySize || 5000;
       const safeSize = maxDisplaySize === 0 ? 50000 : maxDisplaySize; // 0 means no limit, but use 50KB safety
-      
+
       const seen = new WeakSet();
       const safeStringify = (_key: string, value: any) => {
         if (typeof value === 'object' && value !== null) {
@@ -36,7 +36,7 @@ export const RequestDetailContent: React.FC<{
         }
         return value;
       };
-      
+
       // Enhanced JSON formatting with proper indentation
       const jsonString = JSON.stringify(obj, safeStringify, 2);
       return jsonString.length > safeSize ? jsonString.substring(0, safeSize) + '...\n[Truncated - check settings to adjust limit]' : jsonString;
@@ -79,10 +79,75 @@ export const RequestDetailContent: React.FC<{
                 {request.status || 'N/A'}
               </span>
             </div>
-            {request.payload_size && (
+            {(request.payload_size || request.request_size || request.response_size || request.requestSize || request.responseSize || request.requestBody || request.request_body || request.responseBody || request.response_body) && (
               <div>
-                <span className="text-sm font-medium text-gray-700">Payload Size:</span>
-                <p className="text-sm text-gray-900 mt-1">{Math.round(request.payload_size / 1024)}KB</p>
+                <span className="text-sm font-medium text-gray-700">Size Breakdown:</span>
+                <div className="mt-1 space-y-2">
+                  {(() => {
+                    const parseSize = (value: any): number => {
+                      if (value === null || value === undefined) return 0;
+                      const parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
+                      return isNaN(parsed) || parsed < 0 ? 0 : parsed;
+                    };
+
+                    const formatSize = (bytes: number): string =>
+                      bytes > 0 ? `${(bytes / 1024).toFixed(2)}KB (${bytes} bytes)` : '0KB (0 bytes)';
+
+                    const payloadSize = parseSize(request.payload_size);
+                    const requestSize = parseSize(request.requestSize || request.request_size);
+                    const responseSize = parseSize(request.responseSize || request.response_size);
+
+                    // Logic matching the tooltip
+                    if (payloadSize > 0) {
+                      return (
+                        <div className="text-sm text-gray-900 space-y-1 bg-gray-50 p-3 rounded">
+                          <div><strong>Total:</strong> {formatSize(payloadSize)}</div>
+                          {(requestSize > 0 || responseSize > 0) && (
+                            <>
+                              <div><strong>Request:</strong> {formatSize(requestSize)}</div>
+                              <div><strong>Response:</strong> {formatSize(responseSize)}</div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    } else if (requestSize > 0 || responseSize > 0) {
+                      return (
+                        <div className="text-sm text-gray-900 space-y-1 bg-gray-50 p-3 rounded">
+                          <div><strong>Request:</strong> {formatSize(requestSize)}</div>
+                          <div><strong>Response:</strong> {formatSize(responseSize)}</div>
+                          <div><strong>Total:</strong> {formatSize(requestSize + responseSize)}</div>
+                        </div>
+                      );
+                    } else {
+                      // Try to estimate from body content
+                      const requestBody = request.requestBody || request.request_body;
+                      const responseBody = request.responseBody || request.response_body;
+
+                      let estimatedRequest = 0;
+                      let estimatedResponse = 0;
+
+                      if (requestBody) estimatedRequest = new Blob([requestBody]).size;
+                      if (responseBody) estimatedResponse = new Blob([responseBody]).size;
+
+                      if (estimatedRequest > 0 || estimatedResponse > 0) {
+                        return (
+                          <div className="text-sm text-gray-900 space-y-1 bg-yellow-50 p-3 rounded border border-yellow-200">
+                            <div className="text-xs text-yellow-700 mb-2"><strong>Estimated from body content:</strong></div>
+                            <div><strong>Request:</strong> {formatSize(estimatedRequest)}</div>
+                            <div><strong>Response:</strong> {formatSize(estimatedResponse)}</div>
+                            <div><strong>Total:</strong> {formatSize(estimatedRequest + estimatedResponse)}</div>
+                          </div>
+                        );
+                      } else {
+                        return (
+                          <div className="text-sm text-gray-500 italic bg-gray-50 p-3 rounded">
+                            No size data available
+                          </div>
+                        );
+                      }
+                    }
+                  })()}
+                </div>
               </div>
             )}
             {request.response_time && (
@@ -110,7 +175,7 @@ export const RequestDetailContent: React.FC<{
   if (selectedField === 'headers') {
     let requestHeaders = {};
     let responseHeaders = {};
-    
+
     try {
       // Try the new unified format first
       if (request.headers) {
@@ -138,7 +203,7 @@ export const RequestDetailContent: React.FC<{
       const [expanded, setExpanded] = useState(false);
       const stringValue = String(value);
       const shouldTruncate = stringValue.length > 50;
-      
+
       return (
         <div className="space-y-1">
           <div className="text-sm text-gray-600">
@@ -169,7 +234,7 @@ export const RequestDetailContent: React.FC<{
         </div>
       );
     };
-    
+
     return (
       <div className="space-y-6">
         {/* Request Headers */}
@@ -296,7 +361,7 @@ export const RequestDetailContent: React.FC<{
           return String(str);
         }
       }
-      
+
       // If it's a string, try to parse and reformat it
       try {
         const obj = JSON.parse(str);
@@ -317,17 +382,71 @@ export const RequestDetailContent: React.FC<{
       }
     };
 
-    // Check if response body looks like a status-only response (encrypted/non-JSON content)
+    // Get context-specific common reasons for status-only responses
+    const getCommonReasons = (body: any, status?: number): string[] => {
+      // Check if it's an 'ok' response
+      if (typeof body === 'string' && body.trim().toLowerCase() === 'ok') {
+        return [
+          "Simple confirmation of successful operation",
+          "API designed for minimal response payloads",
+          "Action completed without needing to return data",
+          "Lightweight response to reduce bandwidth usage",
+          "Server acknowledges request completion"
+        ];
+      }
+
+      // Status code specific reasons
+      if (status) {
+        if (status >= 200 && status < 300) {
+          return [
+            "Successful operation with minimal response data",
+            "Server confirmation without detailed payload",
+            "Action completed successfully",
+            "Empty response body by design",
+            "Status confirmation only"
+          ];
+        }
+
+        if (status >= 400 && status < 500) {
+          return [
+            "Error details may be in HTML format",
+            "Authentication or authorization failure",
+            "Client request validation error",
+            "Protected error information",
+            "Custom error response format"
+          ];
+        }
+
+        if (status >= 500) {
+          return [
+            "Server error with minimal details",
+            "Internal processing failure",
+            "Error response may be encrypted",
+            "Server-side exception occurred",
+            "System error with limited information"
+          ];
+        }
+      }
+
+      // Default reasons for other status-only responses
+      return [
+        "HTTPS encrypted responses",
+        "Binary content (images, files, etc.)",
+        "Compressed responses (gzip, deflate)",
+        "Protected API endpoints",
+        "Non-text content types"
+      ];
+    };
     const isStatusOnlyResponse = (body: any): boolean => {
       if (!body || typeof body !== 'string') return false;
-      
+
       const trimmedBody = body.trim();
-      
+
       // If it's empty or very short, it might be a status response
       if (trimmedBody.length === 0 || trimmedBody.length > 200) {
         return false; // Empty or very long content is probably not a simple status
       }
-      
+
       // First check if it's valid JSON - if so, it's not a status-only response
       try {
         JSON.parse(trimmedBody);
@@ -336,9 +455,11 @@ export const RequestDetailContent: React.FC<{
       } catch {
         // Not valid JSON, continue with status pattern checks
       }
-      
+
       // Check if the entire body is just a status message (no additional content)
       const statusOnlyPatterns = [
+        // Simple success responses
+        /^(ok|OK|Ok)\s*$/,
         // Exact status format matches (entire string)
         /^Status:\s*\d+\s*$/i,
         /^status:\s*\d+\s*$/i, // lowercase variant
@@ -352,16 +473,16 @@ export const RequestDetailContent: React.FC<{
         // Browser/network generated messages
         /^(net::|ERR_|NETWORK_|Connection)/i
       ];
-      
+
       // More specific JSON indicator check - look for actual JSON structure, not just colons
-      const hasActualJsonStructure = /^[\s]*[{\[].*[}\]][\s]*$/.test(trimmedBody) || 
+      const hasActualJsonStructure = /^[\s]*[{\[].*[}\]][\s]*$/.test(trimmedBody) ||
                                    /^[\s]*".*"[\s]*$/.test(trimmedBody) ||
                                    /[{}\[\]]/.test(trimmedBody);
-      
+
       if (hasActualJsonStructure) {
         return false; // Contains actual JSON structure, not a status-only response
       }
-      
+
       // Check if it matches our strict status-only patterns
       return statusOnlyPatterns.some(pattern => pattern.test(trimmedBody));
     };
@@ -369,22 +490,67 @@ export const RequestDetailContent: React.FC<{
     // Get explanation for why we can't show JSON content
     const getBodyExplanation = (body: any, status?: number): string => {
       if (isStatusOnlyResponse(body)) {
-        const explanations = [
-          "🔒 Response content is encrypted or binary",
-          "📄 Server returned protected/encoded content", 
-          "📡 Content-Type indicates non-JSON response",
-          "🛡️ Response body was compressed or encrypted",
-          "🚫 Binary content cannot be displayed as text"
-        ];
-        
+        // Special handling for 'ok' response
+        if (typeof body === 'string' && body.trim().toLowerCase() === 'ok') {
+          return "👌 Simple Success Response - Server returned 'ok' indicating successful operation without additional data";
+        }
+
         if (status) {
-          if (status >= 400) {
-            return "❌ Error response - content may be encrypted or in binary format";
-          } else if (status >= 300) {
-            return "↪️ Redirect response - no readable content body";
+          // Special case for status code 0 (network/connection errors)
+          if (status === 0) {
+            return "🔌 Network Error - Connection failed, request was blocked, or network is unreachable";
+          }
+
+          // 2xx Success responses
+          if (status >= 200 && status < 300) {
+            if (status === 200) return "✅ Success - Response body is empty or contains non-JSON data";
+            if (status === 201) return "✅ Created successfully - Response may contain status confirmation only";
+            if (status === 202) return "✅ Request accepted - Processing in background, minimal response body";
+            if (status === 204) return "✅ No Content - Request successful but no response body to display";
+            if (status === 206) return "✅ Partial Content - Response contains binary or encrypted data";
+            return "✅ Success - Response body contains non-displayable content";
+          }
+
+          // 3xx Redirection responses
+          if (status >= 300 && status < 400) {
+            if (status === 301) return "↪️ Moved Permanently - Response body contains minimal redirect information";
+            if (status === 302) return "↪️ Found - Temporary redirect with minimal response body";
+            if (status === 304) return "📦 Not Modified - Browser used cached version, no response body";
+            return "↪️ Redirect - Response body contains location/redirect information";
+          }
+
+          // 4xx Client Error responses
+          if (status >= 400 && status < 500) {
+            if (status === 400) return "❌ Bad Request - Error details may be encrypted or in HTML format";
+            if (status === 401) return "� Unauthorized - Authentication error, response may contain encrypted data";
+            if (status === 403) return "🚫 Forbidden - Access denied, error details may be protected";
+            if (status === 404) return "🔍 Not Found - Resource doesn't exist, minimal error response";
+            if (status === 429) return "⏳ Too Many Requests - Rate limited, simple status response";
+            return "❌ Client Error - Error details may be in HTML/XML format rather than JSON";
+          }
+
+          // 5xx Server Error responses
+          if (status >= 500) {
+            if (status === 500) return "💥 Internal Server Error - Server error, response may be encrypted/compressed";
+            if (status === 502) return "🔧 Bad Gateway - Proxy error, minimal response content";
+            if (status === 503) return "⚠️ Service Unavailable - Server down, simple status message";
+            if (status === 504) return "⏰ Gateway Timeout - Request timed out, minimal response";
+            return "💥 Server Error - Error response may be in non-JSON format";
           }
         }
-        
+
+        // Generic explanations for status-only responses without status code
+        const explanations = [
+          "🔒 Response content may be encrypted, compressed, or binary",
+          "📄 Server returned content in HTML, XML, or other non-JSON format",
+          "📡 Content-Type indicates binary or encoded response",
+          "🛡️ Response body was compressed with gzip/deflate encoding",
+          "🚫 Binary content (images, files, etc.) cannot be displayed as text",
+          "🗜️ Response was compressed and requires decompression to view",
+          "🎭 Content is protected or obfuscated by the server",
+          "📋 Response is in a proprietary format that requires special parsing"
+        ];
+
         return explanations[Math.floor(Math.random() * explanations.length)];
       }
       return "";
@@ -420,8 +586,8 @@ export const RequestDetailContent: React.FC<{
                 )}
               </div>
             </div>
-            <div className="code-block bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto text-sm font-mono max-h-96">
-              <pre className="whitespace-pre-wrap break-words">{typeof requestBody === 'string' ? prettyPrintIfJson(requestBody) : formatJSON(requestBody)}</pre>
+            <div className="bg-gray-900 rounded-lg p-4">
+              <pre className="text-sm text-green-400 whitespace-pre-wrap overflow-auto max-h-96">{typeof requestBody === 'string' ? prettyPrintIfJson(requestBody) : formatJSON(requestBody)}</pre>
             </div>
           </div>
         )}
@@ -470,7 +636,7 @@ export const RequestDetailContent: React.FC<{
                 )}
               </div>
             </div>
-            
+
             {/* Enhanced response body display with status explanation */}
             {isStatusOnlyResponse(responseBody) ? (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -489,30 +655,320 @@ export const RequestDetailContent: React.FC<{
                     <div className="mt-2 text-xs text-yellow-600">
                       <p><strong>Common reasons:</strong></p>
                       <ul className="list-disc list-inside space-y-1 mt-1">
-                        <li>HTTPS encrypted responses</li>
-                        <li>Binary content (images, files, etc.)</li>
-                        <li>Compressed responses (gzip, deflate)</li>
-                        <li>Protected API endpoints</li>
-                        <li>Non-text content types</li>
+                        {getCommonReasons(responseBody, request.status).map((reason, index) => (
+                          <li key={index}>{reason}</li>
+                        ))}
                       </ul>
                     </div>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="code-block bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto text-sm font-mono max-h-96">
-                <pre className="whitespace-pre-wrap break-words">{typeof responseBody === 'string' ? prettyPrintIfJson(responseBody) : formatJSON(responseBody)}</pre>
+              <div className="bg-gray-900 rounded-lg p-4">
+                <pre className="text-sm text-green-400 whitespace-pre-wrap overflow-auto max-h-96">{typeof responseBody === 'string' ? prettyPrintIfJson(responseBody) : formatJSON(responseBody)}</pre>
               </div>
             )}
           </div>
         )}
-        
+
         {/* Show message if no body data */}
         {!requestBody && !responseBody && (
           <div className="text-center py-8">
             <div className="text-gray-500">No request or response body data available</div>
           </div>
         )}
+      </div>
+    );
+  }
+
+  if (selectedField === 'performance') {
+    const metrics = request.performanceMetrics;
+
+    if (!metrics) {
+      return (
+        <div className="text-center py-8">
+          <div className="text-gray-500">No performance timing data available for this request</div>
+          <div className="text-sm text-gray-400 mt-2">
+            Performance metrics are captured from the Resource Timing API and may not be available for all requests.
+          </div>
+        </div>
+      );
+    }
+
+    // Calculate percentages for visualization - now includes requestWaiting
+    const total = metrics.totalTime || (
+      metrics.dnsLookup +
+      metrics.tcpConnect +
+      metrics.sslHandshake +
+      (metrics.requestWaiting || 0) +
+      metrics.timeToFirstByte +
+      metrics.contentDownload
+    );
+
+    // Helper to format size with proper units
+    const formatSize = (bytes: number): string => {
+      if (bytes === 0) return '0 B';
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    };
+
+    // Helper to create progress bars
+    const ProgressBar: React.FC<{ value: number; total: number; color: string; label: string }> = ({ value, total, color, label }) => {
+      const percentage = total > 0 ? (value / total) * 100 : 0;
+      return (
+        <div className="flex items-center space-x-3">
+          <div className="w-32 text-sm font-medium text-gray-700">{label}:</div>
+          <div className="flex-1 bg-gray-200 rounded-full h-4 relative overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-300 ${color}`}
+              style={{ width: `${Math.max(percentage, 2)}%` }}
+            ></div>
+          </div>
+          <div className="w-16 text-sm text-gray-600 text-right">
+            {value > 0 ? `${value}ms` : '-'}
+          </div>
+          <div className="w-12 text-xs text-gray-500 text-right">
+            {percentage > 0 ? `${Math.round(percentage)}%` : '-'}
+          </div>
+        </div>
+      );
+    };
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-900">Performance Timing Breakdown</h3>
+            <button
+              onClick={() => copyToClipboard(formatJSON(metrics))}
+              className="copy-button text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+            >
+              Copy Metrics
+            </button>
+          </div>
+
+          <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+            <ProgressBar value={metrics.dnsLookup} total={total} color="bg-blue-500" label="DNS Lookup" />
+            <ProgressBar value={metrics.tcpConnect} total={total} color="bg-green-500" label="TCP Connect" />
+            <ProgressBar value={metrics.sslHandshake} total={total} color="bg-yellow-500" label="SSL Handshake" />
+            <ProgressBar value={metrics.requestWaiting} total={total} color="bg-indigo-500" label="Request Waiting" />
+            <ProgressBar value={metrics.timeToFirstByte} total={total} color="bg-orange-500" label="Time to First Byte" />
+            <ProgressBar value={metrics.contentDownload} total={total} color="bg-purple-500" label="Content Download" />
+            <ProgressBar value={metrics.redirectTime} total={total} color="bg-gray-500" label="Redirect Time" />
+
+            <div className="border-t border-gray-300 pt-3 mt-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-32 text-sm font-bold text-gray-900">Total Time:</div>
+                <div className="flex-1 bg-gray-300 rounded-full h-5 relative overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-blue-500 via-green-500 via-yellow-500 via-indigo-500 via-orange-500 to-purple-500 rounded-full"></div>
+                </div>
+                <div className="w-16 text-sm font-bold text-gray-900 text-right">
+                  {total > 0 ? `${total}ms` : '-'}
+                </div>
+                <div className="w-12 text-xs text-gray-500 text-right">100%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">Transfer Information</h3>
+          <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+
+            {/* Size Breakdown Explanation */}
+            <div className="bg-blue-50 border-l-4 border-blue-400 p-3 mb-4">
+              <h4 className="text-sm font-medium text-blue-900 mb-2">📊 Size Breakdown</h4>
+              <div className="text-xs text-blue-800 space-y-1">
+                <div><strong>Transfer Size:</strong> Total bytes over network (headers + compressed body)</div>
+                <div><strong>Encoded Body:</strong> Response body size (compressed/as-received)</div>
+                <div><strong>Decoded Body:</strong> Response body size (uncompressed/final)</div>
+                <div className="mt-2 text-blue-600">
+                  <strong>Why Transfer Size is larger:</strong> Includes HTTP headers (~200-400 bytes)
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <span className="text-sm font-medium text-gray-700">Transfer Size:</span>
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm text-gray-900">{formatSize(metrics.transferSize)}</p>
+                  <span className="text-xs text-gray-500">(headers + body)</span>
+                </div>
+                {metrics.transferSize > 0 && metrics.encodedBodySize >= 0 && (
+                  <div className="text-xs text-gray-500">
+                    Headers: ~{formatSize(Math.max(0, metrics.transferSize - metrics.encodedBodySize))}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-sm font-medium text-gray-700">Encoded Body Size:</span>
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm text-gray-900">{formatSize(metrics.encodedBodySize)}</p>
+                  <span className="text-xs text-gray-500">(compressed)</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-sm font-medium text-gray-700">Decoded Body Size:</span>
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm text-gray-900">{formatSize(metrics.decodedBodySize)}</p>
+                  <span className="text-xs text-gray-500">(uncompressed)</span>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-sm font-medium text-gray-700">Cache Status:</span>
+                <div className="mt-1">
+                  <span className={`inline-block px-2 py-1 text-xs rounded-full ${
+                    metrics.cacheStatus === 'hit' ? 'bg-green-100 text-green-800' :
+                    metrics.cacheStatus === 'miss' ? 'bg-red-100 text-red-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {metrics.cacheStatus}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Compression Analysis */}
+            {metrics.encodedBodySize > 0 && metrics.decodedBodySize > 0 && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <h4 className="text-sm font-medium text-green-900 mb-2">🗜️ Compression Analysis</h4>
+                {metrics.encodedBodySize < metrics.decodedBodySize ? (
+                  <div className="space-y-1">
+                    <p className="text-sm text-green-800">
+                      <strong>{Math.round((1 - metrics.encodedBodySize / metrics.decodedBodySize) * 100)}% compression savings</strong>
+                    </p>
+                    <p className="text-xs text-green-700">
+                      Saved {formatSize(metrics.decodedBodySize - metrics.encodedBodySize)} through compression
+                    </p>
+                  </div>
+                ) : metrics.encodedBodySize === metrics.decodedBodySize ? (
+                  <p className="text-sm text-gray-600">No compression applied (sizes match)</p>
+                ) : (
+                  <p className="text-sm text-orange-600">Encoded size larger than decoded (unusual)</p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Size Metrics Comparison */}
+        {(() => {
+          const parseSize = (value: any): number => {
+            if (value === null || value === undefined) return 0;
+            const parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
+            return isNaN(parsed) || parsed < 0 ? 0 : parsed;
+          };
+
+          const payloadSize = parseSize(request.payload_size);
+          const requestSize = parseSize(request.requestSize || request.request_size);
+          const responseSize = parseSize(request.responseSize || request.response_size);
+          const transferSize = metrics.transferSize || 0;
+          const encodedBodySize = metrics.encodedBodySize || 0;
+          const decodedBodySize = metrics.decodedBodySize || 0;
+
+          // Show section if we have any size data
+          if (payloadSize > 0 || requestSize > 0 || responseSize > 0 || transferSize > 0 || encodedBodySize > 0 || decodedBodySize > 0) {
+            const maxSize = Math.max(payloadSize, requestSize, responseSize, transferSize, encodedBodySize, decodedBodySize);
+
+            const SizeBar: React.FC<{ value: number; label: string; color: string; tooltip: string }> = ({ value, label, color, tooltip }) => {
+              const percentage = maxSize > 0 ? (value / maxSize) * 100 : 0;
+              return (
+                <div className="flex items-center space-x-3" title={tooltip}>
+                  <div className="w-32 text-sm font-medium text-gray-700">{label}:</div>
+                  <div className="flex-1 bg-gray-200 rounded-full h-4 relative overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${color}`}
+                      style={{ width: `${Math.max(percentage, value > 0 ? 2 : 0)}%` }}
+                    ></div>
+                  </div>
+                  <div className="w-16 text-sm text-gray-600 text-right">
+                    {value > 0 ? formatSize(value) : '-'}
+                  </div>
+                  <div className="w-12 text-xs text-gray-500 text-right">
+                    {percentage > 0 ? `${Math.round(percentage)}%` : '-'}
+                  </div>
+                </div>
+              );
+            };
+
+            return (
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold text-gray-900">Size Metrics Comparison</h4>
+                <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                  {/* Application-level sizes */}
+                  {payloadSize > 0 && (
+                    <SizeBar
+                      value={payloadSize}
+                      label="Total Size"
+                      color="bg-blue-500"
+                      tooltip="Total payload size calculated by our extension from intercepted request/response bodies"
+                    />
+                  )}
+                  {requestSize > 0 && (
+                    <SizeBar
+                      value={requestSize}
+                      label="Request Size"
+                      color="bg-green-500"
+                      tooltip="Size of request body data captured by our extension"
+                    />
+                  )}
+                  {responseSize > 0 && (
+                    <SizeBar
+                      value={responseSize}
+                      label="Response Size"
+                      color="bg-purple-500"
+                      tooltip="Size of response body data captured by our extension"
+                    />
+                  )}
+
+                  {/* Browser Resource Timing API sizes */}
+                  {transferSize > 0 && (
+                    <SizeBar
+                      value={transferSize}
+                      label="Transfer Size"
+                      color="bg-orange-500"
+                      tooltip="Total bytes transferred over the network including headers and compression (from Resource Timing API)"
+                    />
+                  )}
+                  {encodedBodySize > 0 && (
+                    <SizeBar
+                      value={encodedBodySize}
+                      label="Encoded Body"
+                      color="bg-yellow-500"
+                      tooltip="Size of response body after compression/encoding but before decompression (from Resource Timing API)"
+                    />
+                  )}
+                  {decodedBodySize > 0 && (
+                    <SizeBar
+                      value={decodedBodySize}
+                      label="Decoded Body"
+                      color="bg-red-500"
+                      tooltip="Size of response body after decompression/decoding (from Resource Timing API)"
+                    />
+                  )}
+                </div>
+                <div className="text-xs text-gray-500 bg-blue-50 border border-blue-200 rounded p-3">
+                  <p><strong>Size Metrics Info:</strong></p>
+                  <ul className="list-disc list-inside mt-1 space-y-1">
+                    <li><strong>Transfer Size</strong> includes headers and represents actual network bytes</li>
+                    <li><strong>Encoded vs Decoded</strong> shows compression effectiveness (gzip, deflate, etc.)</li>
+                  </ul>
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
+
+        <div className="text-xs text-gray-500">
+          <p><strong>Note:</strong> Performance metrics are captured using the Resource Timing API.</p>
+          <p>Some values may be zero for cross-origin requests without proper CORS timing headers.</p>
+        </div>
       </div>
     );
   }
@@ -555,10 +1011,10 @@ export const ErrorDetailContent: React.FC<{
   const copyToClipboard = (text: string) => {
     // For errors, use smaller limits since raw JSON is not as useful
     const maxClipboardSize = 5000;
-    const copyText = text.length > maxClipboardSize ? 
-      text.substring(0, maxClipboardSize) + '\n[Truncated for clipboard]' : 
+    const copyText = text.length > maxClipboardSize ?
+      text.substring(0, maxClipboardSize) + '\n[Truncated for clipboard]' :
       text;
-    
+
     navigator.clipboard.writeText(copyText).catch(error => {
       console.warn('Failed to copy to clipboard:', error);
     });
@@ -634,7 +1090,7 @@ export const ErrorDetailContent: React.FC<{
             Copy
           </button>
         </div>
-        
+
         {(error.stack_trace || error.stack) ? (
           <div className="text-sm text-gray-500">
             <details className="cursor-pointer" open>
@@ -651,6 +1107,80 @@ export const ErrorDetailContent: React.FC<{
             <div className="text-gray-500">No stack trace available</div>
           </div>
         )}
+      </div>
+    );
+  }
+
+  if (selectedField === 'message') {
+    const formatJSON = (obj: any) => {
+      try {
+        const maxDisplaySize = 10000; // 10KB limit for console error message display
+        const seen = new WeakSet();
+        const safeStringify = (_key: string, value: any) => {
+          if (typeof value === 'object' && value !== null) {
+            if (seen.has(value)) {
+              return '[Circular Reference]';
+            }
+            seen.add(value);
+          }
+          return value;
+        };
+
+        const jsonString = JSON.stringify(obj, safeStringify, 2);
+        return jsonString.length > maxDisplaySize ?
+          jsonString.substring(0, maxDisplaySize) + '...\n[Truncated for display]' :
+          jsonString;
+      } catch (e) {
+        return String(obj);
+      }
+    };
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-gray-900">Console Error Message & Data</h3>
+          <button
+            onClick={() => copyToClipboard(formatJSON(error))}
+            className="copy-button text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+          >
+            Copy Full Error Data
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {/* Primary Message */}
+          <div>
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Error Message</h4>
+            <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+              <pre className="text-sm text-red-800 whitespace-pre-wrap font-mono">{error.message || 'No message available'}</pre>
+            </div>
+          </div>
+
+          {/* Raw Error Object */}
+          <div>
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Complete Error Object</h4>
+            <div className="bg-gray-900 rounded-lg p-4">
+              <pre className="text-sm text-green-400 whitespace-pre-wrap overflow-auto max-h-96">{formatJSON(error)}</pre>
+            </div>
+          </div>
+
+          {/* Additional Context if Available */}
+          {error.url && (
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Source Context</h4>
+              <div className="bg-gray-50 rounded-lg p-3">
+                <div className="text-sm">
+                  <span className="font-medium">URL:</span> <span className="text-blue-600 break-all">{error.url}</span>
+                </div>
+                {error.line && (
+                  <div className="text-sm mt-1">
+                    <span className="font-medium">Location:</span> Line {error.line}{error.column ? `:${error.column}` : ''}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -672,14 +1202,14 @@ export const analyzeTokenEvent = (event: any) => {
       return {};
     }
   })();
-  
+
   // Enhanced event type detection based on comprehensive analysis
   const getEventType = (): string => {
     const method = (event.method || event.request_method || '').toUpperCase();
     const status = event.status || event.response_status;
     const responseBody = event.response_body || event.responseBody || '';
     const requestBody = event.request_body || event.requestBody || '';
-    
+
     // Check for Login events
     if (method === 'POST' && (url.includes('/auth/login') || url.includes('/login') || url.includes('/signin'))) {
       // Successful login (200) or token acquisition
@@ -687,12 +1217,12 @@ export const analyzeTokenEvent = (event: any) => {
         return 'Login';
       }
     }
-    
+
     // Check for Logout events
     if ((method === 'POST' || method === 'DELETE') && (url.includes('/auth/logout') || url.includes('/logout') || url.includes('/signout'))) {
       return 'Logout';
     }
-    
+
     // Check for Token Refresh events
     if (method === 'POST' && (url.includes('/auth/refresh') || url.includes('/refresh') || url.includes('/token'))) {
       // Check if request body contains refresh_token grant type
@@ -704,7 +1234,7 @@ export const analyzeTokenEvent = (event: any) => {
         return 'Token Refresh';
       }
     }
-    
+
     // Check for Expiry Check events
     if (status === 401) {
       // If there's a token present but request failed with 401
@@ -712,12 +1242,12 @@ export const analyzeTokenEvent = (event: any) => {
         return 'Expiry Check';
       }
     }
-    
+
     // Check for silent token validation endpoints
     if (method === 'GET' && (url.includes('/auth/validate') || url.includes('/auth/verify') || url.includes('/token/verify'))) {
       return 'Expiry Check';
     }
-    
+
     // Check for token acquisition (successful auth responses with tokens)
     if (event.type === 'acquire' || (status >= 200 && status < 300 && (
       url.includes('/auth') || url.includes('/login') || url.includes('/token')
@@ -728,7 +1258,7 @@ export const analyzeTokenEvent = (event: any) => {
       }
       return 'Login';
     }
-    
+
     // Check for Access events (using token to access protected routes)
     if (hasToken(headers) && status >= 200 && status < 300) {
       // If it's not an auth endpoint, it's likely accessing a protected resource
@@ -736,13 +1266,13 @@ export const analyzeTokenEvent = (event: any) => {
         return 'Access';
       }
     }
-    
+
     // Legacy fallbacks for backward compatibility
     if (event.type === 'refresh_error') return 'Token Refresh';
     if (url.includes('/auth/login') || url.includes('/login')) return 'Login';
     if (url.includes('/auth/logout') || url.includes('/logout')) return 'Logout';
     if (url.includes('/auth/refresh') || url.includes('/refresh')) return 'Token Refresh';
-    
+
     // Default to Access if token is present, otherwise generic
     return hasToken(headers) ? 'Access' : 'Token Event';
   };
@@ -754,10 +1284,10 @@ export const analyzeTokenEvent = (event: any) => {
     const csrfHeader = headers['x-csrf-token'] || headers['X-CSRF-Token'] || '';
     const apiKeyHeader = headers['x-api-key'] || headers['X-API-Key'] || headers['api-key'] || '';
     const contentType = headers['content-type'] || headers['Content-Type'] || '';
-    
+
     // Helper function to check if token is JWT format
     const isJwt = (token: string): boolean => token.split('.').length === 3;
-    
+
     // Helper function to decode JWT header for additional analysis
     const getJwtInfo = (token: string): any => {
       try {
@@ -769,24 +1299,24 @@ export const analyzeTokenEvent = (event: any) => {
         return null;
       }
     };
-    
+
     // 0. Token Acquisition Analysis (for events where tokens are being acquired/issued)
     if (event.type === 'acquire' || url.includes('/auth') || url.includes('/login') || url.includes('/signin') || url.includes('/token')) {
       // Check for refresh token acquisition
       if (url.includes('/refresh') || url.includes('/renew')) {
         return 'Refresh Token (Acquired)';
       }
-      
+
       // Check for OAuth/OIDC endpoints
       if (url.includes('/oauth') || url.includes('/oidc') || url.includes('/openid')) {
         return 'OAuth Token (Acquired)';
       }
-      
+
       // Check for API key endpoints
       if (url.includes('/api-key') || url.includes('/apikey') || url.includes('/key')) {
         return 'API Key (Acquired)';
       }
-      
+
       // General authentication endpoint - likely access token
       if (url.includes('/auth') || url.includes('/login') || url.includes('/signin')) {
         // If response is JSON, likely JWT or structured token
@@ -795,30 +1325,30 @@ export const analyzeTokenEvent = (event: any) => {
         }
         return 'Auth Token (Acquired)';
       }
-      
+
       // Generic token endpoint
       if (url.includes('/token')) {
         return 'Access Token (Acquired)';
       }
     }
-    
+
     // 1. Bearer Token Analysis (for existing tokens in requests)
     if (authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
-      
+
       if (isJwt(token)) {
         const jwtInfo = getJwtInfo(token);
-        
+
         // ID Token detection (OIDC)
         if (jwtInfo?.payload && ('sub' in jwtInfo.payload && 'email' in jwtInfo.payload || 'aud' in jwtInfo.payload)) {
           return 'ID Token (JWT)';
         }
-        
+
         // Refresh Token (JWT format but used for refresh)
         if (url.includes('/refresh') || url.includes('/token') || url.includes('/renew')) {
           return 'Refresh Token (JWT)';
         }
-        
+
         // Access Token (JWT)
         return 'Access Token (JWT)';
       } else {
@@ -829,17 +1359,17 @@ export const analyzeTokenEvent = (event: any) => {
         return 'Access Token (Opaque)';
       }
     }
-    
+
     // 2. Basic Authentication
     if (authHeader.startsWith('Basic ')) {
       return 'Basic Auth';
     }
-    
+
     // 3. API Key Authentication
     if (authHeader.startsWith('ApiKey ') || authHeader.startsWith('API-Key ')) {
       return 'API Key';
     }
-    
+
     // 4. Custom API Key Headers
     if (apiKeyHeader) {
       const key = apiKeyHeader;
@@ -848,44 +1378,44 @@ export const analyzeTokenEvent = (event: any) => {
       }
       return 'API Key';
     }
-    
+
     // 5. CSRF Token Detection
     if (csrfHeader) {
       return 'CSRF Token';
     }
-    
+
     // 6. Session Token Detection (Cookies)
     if (cookieHeader) {
-      if (cookieHeader.includes('sessionid=') || 
-          cookieHeader.includes('session=') || 
+      if (cookieHeader.includes('sessionid=') ||
+          cookieHeader.includes('session=') ||
           cookieHeader.includes('JSESSIONID=') ||
           cookieHeader.includes('PHPSESSID=') ||
           cookieHeader.includes('ASP.NET_SessionId=')) {
         return 'Session Token';
       }
-      
+
       // Access token in cookie
       if (cookieHeader.includes('access_token=')) {
         return 'Access Token (Cookie)';
       }
     }
-    
+
     // 7. State Token Detection (usually in OAuth flows)
     if (url.includes('state=') || headers['x-state-token']) {
       return 'State Token';
     }
-    
+
     // 8. Custom Authorization schemes
     if (authHeader && !authHeader.startsWith('Bearer ') && !authHeader.startsWith('Basic ')) {
       const scheme = authHeader.split(' ')[0];
       return `${scheme} Token`;
     }
-    
+
     // 9. Fallback for acquisition events without clear patterns
     if (event.type === 'acquire') {
       return 'Token (Acquired)';
     }
-    
+
     // Final fallback to event type or unknown
     return event.token_type || 'Unknown';
   };
@@ -910,8 +1440,8 @@ export const analyzeTokenEvent = (event: any) => {
   };
 };
 
-export const TokenDetailContent: React.FC<{ 
-  tokenEvent: any; 
+export const TokenDetailContent: React.FC<{
+  tokenEvent: any;
   selectedField: string;
   showFullTokenHash?: boolean;
   settings?: any;
@@ -920,11 +1450,11 @@ export const TokenDetailContent: React.FC<{
     // Use settings-based limit for tokens
     const maxClipboardSize = settings?.networkInterception?.bodyCapture?.maxBodySize || 10000;
     const safeSize = maxClipboardSize === 0 ? 50000 : maxClipboardSize;
-    
-    const copyText = text.length > safeSize ? 
-      text.substring(0, safeSize) + '\n[Truncated for clipboard - check settings]' : 
+
+    const copyText = text.length > safeSize ?
+      text.substring(0, safeSize) + '\n[Truncated for clipboard - check settings]' :
       text;
-    
+
     navigator.clipboard.writeText(copyText).catch(error => {
       console.warn('Failed to copy to clipboard:', error);
     });
@@ -934,7 +1464,7 @@ export const TokenDetailContent: React.FC<{
     try {
       const maxDisplaySize = settings?.networkInterception?.bodyCapture?.maxBodySize || 5000;
       const safeSize = maxDisplaySize === 0 ? 50000 : maxDisplaySize;
-      
+
       const seen = new WeakSet();
       const safeStringify = (_key: string, value: any) => {
         if (typeof value === 'object' && value !== null) {
@@ -945,10 +1475,10 @@ export const TokenDetailContent: React.FC<{
         }
         return value;
       };
-      
+
       const jsonString = JSON.stringify(obj, safeStringify, 2);
-      return jsonString.length > safeSize ? 
-        jsonString.substring(0, safeSize) + '...[Truncated - check settings]' : 
+      return jsonString.length > safeSize ?
+        jsonString.substring(0, safeSize) + '...[Truncated - check settings]' :
         jsonString;
     } catch {
       return String(obj);
@@ -958,19 +1488,19 @@ export const TokenDetailContent: React.FC<{
   // Helper function to format hash values in git-style
   const formatHashValue = (hash: string | null | undefined): string => {
     if (!hash) return 'N/A';
-    
+
     // Handle special status cases - keep them as-is
     if (hash === 'expired' || hash === 'redacted' || hash === 'N/A') {
       return hash;
     }
-    
+
     // For actual hash values (typically long hex strings), use git-style format
     // Only apply git-style formatting if it looks like a hash (long string, mostly hex characters)
     if (hash.length > 16 && /^[a-fA-F0-9]+$/.test(hash)) {
       // Use showFullTokenHash setting to determine display format
       return showFullTokenHash ? hash : formatGitStyleHash(hash);
     }
-    
+
     // For other values, return as-is
     return hash;
   };
@@ -1022,7 +1552,16 @@ export const TokenDetailContent: React.FC<{
             {(tokenEvent.valueHash || tokenEvent.value_hash) && (
               <div>
                 <span className="text-sm font-medium text-gray-700">Value Hash:</span>
-                <p className="text-sm text-gray-900 mt-1 font-mono">{formatHashValue(tokenEvent.valueHash || tokenEvent.value_hash)}</p>
+                <div className="mt-1 flex items-center space-x-2">
+                  <p className="text-sm text-gray-900 font-mono">
+                    {formatHashValue(tokenEvent.valueHash || tokenEvent.value_hash)}
+                  </p>
+                  {!showFullTokenHash && (tokenEvent.valueHash || tokenEvent.value_hash) &&
+                   (tokenEvent.valueHash || tokenEvent.value_hash).length > 16 &&
+                   /^[a-fA-F0-9]+$/.test(tokenEvent.valueHash || tokenEvent.value_hash) && (
+                    <span className="text-xs text-gray-500 italic">(truncated - see Raw JSON for full value)</span>
+                  )}
+                </div>
               </div>
             )}
             {tokenEvent.timestamp && (
@@ -1039,11 +1578,11 @@ export const TokenDetailContent: React.FC<{
 
   if (selectedField === 'headers') {
     // Get headers from various possible locations in the token event
-    const headers = tokenEvent.headers || 
-                   tokenEvent.request_headers || 
-                   tokenEvent.response_headers || 
+    const headers = tokenEvent.headers ||
+                   tokenEvent.request_headers ||
+                   tokenEvent.response_headers ||
                    {};
-    
+
     return (
       <div className="space-y-6">
         {Object.keys(headers).length > 0 ? (

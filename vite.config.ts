@@ -27,13 +27,13 @@ export default defineConfig({
           default_popup: "src/popup/popup.html"
         },
         background: {
-          service_worker: "src/background/background.ts",
+          service_worker: "src/background/background-controller.ts",
           type: "module"
         },
         content_scripts: [
           {
             matches: ["<all_urls>"],
-            js: ["src/content/content-simple.ts"]
+            js: ["src/content/content-modular.ts"]
           }
         ],
         options_page: "src/settings/settings.html",

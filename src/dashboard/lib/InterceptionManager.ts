@@ -87,7 +87,7 @@ export class NetworkInterceptionManager {
 
   async start(): Promise<void> {
     if (this.isActive) return;
-    
+
     console.log('🔗 NetworkInterceptionManager: Starting network interception');
     this.isActive = true;
 
@@ -155,7 +155,7 @@ export class NetworkInterceptionManager {
 
   stop(): void {
     if (!this.isActive) return;
-    
+
     console.log('🔗 NetworkInterceptionManager: Stopping network interception');
     this.isActive = false;
     chrome.runtime.onMessage.removeListener(this.handleNetworkMessage.bind(this));
@@ -174,7 +174,7 @@ export class ConsoleErrorManager {
 
   async start(): Promise<void> {
     if (this.isActive) return;
-    
+
     console.log('📝 ConsoleErrorManager: Starting console error interception');
     this.isActive = true;
 
@@ -229,154 +229,9 @@ export class ConsoleErrorManager {
 
   stop(): void {
     if (!this.isActive) return;
-    
+
     console.log('📝 ConsoleErrorManager: Stopping console error interception');
     this.isActive = false;
     chrome.runtime.onMessage.removeListener(this.handleConsoleMessage.bind(this));
-  }
-}
-
-// Token Detection Manager - Independent token analysis
-export class TokenDetectionManager {
-  private eventBus: InterceptionEventBus;
-  private isActive: boolean = false;
-  private tokenIdCounter: number = 0;
-  private unsubscribeFromNetwork?: () => void;
-
-  constructor(eventBus: InterceptionEventBus) {
-    this.eventBus = eventBus;
-  }
-
-  async start(): Promise<void> {
-    if (this.isActive) return;
-    
-    console.log('🔐 TokenDetectionManager: Starting token detection');
-    this.isActive = true;
-
-    // Listen to network requests for token analysis
-    this.unsubscribeFromNetwork = this.eventBus.subscribe('network_request_captured', 
-      this.analyzeNetworkRequestForTokens.bind(this)
-    );
-  }
-
-  private async analyzeNetworkRequestForTokens(eventData: any): Promise<void> {
-    const { request, sender, tabId } = eventData;
-    
-    try {
-      const tokenEvent = await this.detectTokenFromRequest(request);
-      if (tokenEvent) {
-        // Emit token event
-        this.eventBus.emit('token_event_detected', {
-          token: tokenEvent,
-          sender,
-          tabId,
-          originalRequest: request
-        });
-      }
-    } catch (error) {
-      console.error('Error analyzing request for tokens:', error);
-    }
-  }
-
-  private async detectTokenFromRequest(request: NetworkRequest): Promise<TokenEvent | null> {
-    const { url, method, status } = request;
-    
-    // Token endpoint detection
-    const isTokenEndpoint = (urlStr: string, type: 'acquire' | 'refresh'): boolean => {
-      const lowerUrl = urlStr.toLowerCase();
-      if (type === 'acquire') {
-        return lowerUrl.includes('/auth') || lowerUrl.includes('/login') || lowerUrl.includes('/token');
-      } else {
-        return lowerUrl.includes('/refresh') || lowerUrl.includes('/renew');
-      }
-    };
-
-    const generateTokenHash = async (url: string, timestamp: string, tokenType: string, method: string): Promise<string> => {
-      const data = `${url}:${timestamp}:${tokenType}:${method}`;
-      const encoder = new TextEncoder();
-      const dataBuffer = encoder.encode(data);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 16);
-    };
-
-    // Token acquisition detection
-    if (method === 'POST' && status >= 200 && status < 300 && isTokenEndpoint(url, 'acquire')) {
-      const valueHash = await generateTokenHash(url, request.timestamp, 'acquire', method);
-      return {
-        id: this.generateTokenId(),
-        type: 'acquire',
-        url,
-        method,
-        status,
-        timestamp: request.timestamp,
-        source_url: url,
-        valueHash: valueHash,
-        domain: request.domain
-      };
-    }
-
-    // Token refresh detection
-    if ((method === 'POST' || method === 'GET') && isTokenEndpoint(url, 'refresh')) {
-      if (status >= 200 && status < 300) {
-        const valueHash = await generateTokenHash(url, request.timestamp, 'refresh', method);
-        return {
-          id: this.generateTokenId(),
-          type: 'refresh',
-          url,
-          method,
-          status,
-          timestamp: request.timestamp,
-          source_url: url,
-          valueHash: valueHash,
-          domain: request.domain
-        };
-      } else if (status >= 400) {
-        return {
-          id: this.generateTokenId(),
-          type: 'refresh_error',
-          url,
-          method,
-          status,
-          timestamp: request.timestamp,
-          source_url: url,
-          valueHash: 'refresh_error',
-          domain: request.domain
-        };
-      }
-    }
-
-    // Token expiration detection
-    if (status === 401 || status === 403) {
-      return {
-        id: this.generateTokenId(),
-        type: 'expired',
-        url,
-        method,
-        status,
-        timestamp: request.timestamp,
-        source_url: url,
-        valueHash: 'expired',
-        domain: request.domain
-      };
-    }
-
-    return null;
-  }
-
-  private generateTokenId(): string {
-    return `token_${Date.now()}_${++this.tokenIdCounter}`;
-  }
-
-  stop(): void {
-    if (!this.isActive) return;
-    
-    console.log('🔐 TokenDetectionManager: Stopping token detection');
-    this.isActive = false;
-    
-    if (this.unsubscribeFromNetwork) {
-      this.unsubscribeFromNetwork();
-      this.unsubscribeFromNetwork = undefined;
-    }
   }
 }

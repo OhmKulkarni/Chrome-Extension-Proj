@@ -3,6 +3,8 @@
  * Prevents memory leaks through proper cleanup and state management
  */
 
+import { StorageService } from './storage-service';
+
 interface TabState {
   enabled: boolean;
   url: string;
@@ -22,6 +24,7 @@ export class ExtensionStateController {
   private cleanupInterval: number | null = null;
   private readonly CLEANUP_INTERVAL = 5 * 60 * 1000; // 5 minutes
   private readonly TAB_STATE_TTL = 60 * 60 * 1000; // 1 hour
+  private readonly storageService = new StorageService();
 
   private constructor() {
     // Initialize state asynchronously but don't wait
@@ -56,8 +59,8 @@ export class ExtensionStateController {
 
   private async initializeState(): Promise<void> {
     try {
-      const data = await chrome.storage.local.get(['extensionState']);
-      this.state = data.extensionState || {
+      const result = await this.storageService.get<ExtensionState>('extensionState');
+      this.state = result.extensionState || {
         globalEnabled: true, // Default to enabled for backward compatibility
         tabStates: {}
       };
@@ -78,7 +81,7 @@ export class ExtensionStateController {
 
   async isExtensionEnabled(tabId?: number): Promise<boolean> {
     await this.loadState();
-    
+
     if (!this.state) {
       return false; // Fail safe
     }
@@ -102,7 +105,7 @@ export class ExtensionStateController {
    */
   async isGlobalPowerEnabled(): Promise<boolean> {
     await this.loadState();
-    
+
     if (!this.state) {
       return true; // Default to enabled
     }
@@ -115,7 +118,7 @@ export class ExtensionStateController {
    */
   async isSiteSpecificEnabled(tabId: number): Promise<boolean> {
     await this.loadState();
-    
+
     if (!this.state) {
       return true; // Default to enabled
     }
@@ -131,16 +134,16 @@ export class ExtensionStateController {
 
   async setGlobalState(enabled: boolean): Promise<void> {
     await this.loadState();
-    
+
     if (!this.state) {
       return;
     }
 
     this.state.globalEnabled = enabled;
-    
+
     try {
-      await chrome.storage.local.set({ extensionState: this.state });
-      
+      await this.storageService.set({ extensionState: this.state });
+
       // Notify all tabs of state change
       await this.notifyAllTabs(enabled);
     } catch (error) {
@@ -162,7 +165,7 @@ export class ExtensionStateController {
         }
         return Promise.resolve();
       });
-      
+
       await Promise.allSettled(notifications);
     } catch (error) {
       // Fail silently for tab notification errors
@@ -171,7 +174,7 @@ export class ExtensionStateController {
 
   async setTabState(tabId: number, enabled: boolean, url: string): Promise<void> {
     await this.loadState();
-    
+
     if (!this.state) {
       return;
     }
@@ -183,8 +186,8 @@ export class ExtensionStateController {
     };
 
     try {
-      await chrome.storage.local.set({ extensionState: this.state });
-      
+      await this.storageService.set({ extensionState: this.state });
+
       // Notify the specific tab of site-specific state change
       await this.notifyTabStateChange(tabId, enabled);
     } catch (error) {
@@ -206,7 +209,7 @@ export class ExtensionStateController {
 
   async removeTabState(tabId: number): Promise<void> {
     await this.loadState();
-    
+
     if (!this.state || !this.state.tabStates[tabId]) {
       return;
     }
@@ -214,7 +217,7 @@ export class ExtensionStateController {
     delete this.state.tabStates[tabId];
 
     try {
-      await chrome.storage.local.set({ extensionState: this.state });
+      await this.storageService.set({ extensionState: this.state });
     } catch (error) {
       console.error('Failed to remove tab state:', error);
     }
@@ -222,7 +225,7 @@ export class ExtensionStateController {
 
   private async cleanupOldTabStates(): Promise<void> {
     await this.loadState();
-    
+
     if (!this.state) {
       return;
     }
@@ -233,7 +236,7 @@ export class ExtensionStateController {
     for (const tabIdStr in this.state.tabStates) {
       const tabId = parseInt(tabIdStr, 10);
       const tabState = this.state.tabStates[tabId];
-      
+
       if (now - tabState.timestamp > this.TAB_STATE_TTL) {
         delete this.state.tabStates[tabId];
         hasChanges = true;
@@ -242,7 +245,7 @@ export class ExtensionStateController {
 
     if (hasChanges) {
       try {
-        await chrome.storage.local.set({ extensionState: this.state });
+        await this.storageService.set({ extensionState: this.state });
       } catch (error) {
         console.error('Failed to cleanup tab states:', error);
       }

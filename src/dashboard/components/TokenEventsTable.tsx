@@ -7,6 +7,7 @@ interface TokenEvent {
   method?: string;
   status?: number;
   valueHash?: string;
+  value_hash?: string; // Database field name
   expiry?: string;
   timestamp: string;
 }
@@ -28,6 +29,7 @@ interface TokenEventsTableProps {
   onDetailClick: (event: TokenEvent) => void;
   showFullTokenHash: boolean;
   onToggleTokenHash: () => void;
+  selectedToken?: TokenEvent | null;
 }
 
 export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
@@ -46,7 +48,8 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
   onTypeFilterChange,
   onDetailClick,
   showFullTokenHash,
-  onToggleTokenHash
+  onToggleTokenHash,
+  selectedToken
 }) => {
   const indexOfLastEvent = currentPage * eventsPerPage;
   const indexOfFirstEvent = indexOfLastEvent - eventsPerPage;
@@ -56,10 +59,23 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
     onTypeFilterChange('all');
   };
 
+  // Helper function to check if a token event is selected
+  const isTokenSelected = (event: TokenEvent): boolean => {
+    if (!selectedToken) return false;
+
+    // Compare key properties to determine if it's the same token event
+    return (
+      event.url === selectedToken.url &&
+      event.type === selectedToken.type &&
+      event.timestamp === selectedToken.timestamp &&
+      event.valueHash === selectedToken.valueHash
+    );
+  };
+
   const generatePageNumbers = () => {
     const pageNumbers: (number | string)[] = [];
     const maxVisiblePages = 7;
-    
+
     if (totalPages <= maxVisiblePages) {
       // Show all pages if total is small
       for (let i = 1; i <= totalPages; i++) {
@@ -94,7 +110,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
         pageNumbers.push(totalPages);
       }
     }
-    
+
     return pageNumbers;
   };
 
@@ -161,7 +177,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
             />
           </div>
         </div>
-        
+
         {/* Enhanced Type Filter */}
         <div className="flex items-center space-x-3">
           <label className="text-sm font-medium text-gray-700">Type:</label>
@@ -188,7 +204,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
         >
           {showFullTokenHash ? 'Hide Full Hash' : 'Show Full Hash'}
         </button>
-        
+
         {/* Clear Filters */}
         {(searchTerm || filterType !== 'all') && (
           <button
@@ -199,7 +215,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
           </button>
         )}
       </div>
-      
+
       {/* Table */}
       {events.length > 0 ? (
         <div className="overflow-hidden">
@@ -207,7 +223,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
             <table className="w-full table-fixed divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th 
+                  <th
                     className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-24"
                     onClick={() => onSort('type')}
                   >
@@ -220,7 +236,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                       )}
                     </div>
                   </th>
-                  <th 
+                  <th
                     className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-24"
                     onClick={() => onSort('tokenType')}
                   >
@@ -233,7 +249,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                       )}
                     </div>
                   </th>
-                  <th 
+                  <th
                     className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-1/3"
                     onClick={() => onSort('url')}
                   >
@@ -252,7 +268,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
                     Value Hash
                   </th>
-                  <th 
+                  <th
                     className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-20"
                     onClick={() => onSort('timestamp')}
                   >
@@ -268,13 +284,19 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {events.map((event, index) => (
-                  <tr 
-                    key={index} 
-                    className="hover:bg-gray-50 cursor-pointer" 
-                    onDoubleClick={() => onDetailClick(event)}
-                    title="Double-click to view detailed information"
-                  >
+                {events.map((event, index) => {
+                  const isSelected = isTokenSelected(event);
+                  return (
+                    <tr
+                      key={index}
+                      className={`cursor-pointer transition-all duration-200 ${
+                        isSelected
+                          ? 'bg-yellow-50 border-l-4 border-yellow-500 hover:bg-yellow-100 shadow-sm'
+                          : 'hover:bg-gray-50'
+                      }`}
+                      onDoubleClick={() => onDetailClick(event)}
+                      title={isSelected ? "Currently viewing in detail panel - Double-click to refresh" : "Double-click to view detailed information"}
+                    >
                     <td className="px-3 py-3 whitespace-nowrap w-24">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEventTypeColor(event.type)}`}>
                         {event.type.toUpperCase()}
@@ -284,25 +306,39 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                       {event.tokenType || 'Unknown'}
                     </td>
                     <td className="px-3 py-3 w-1/3">
-                      <div className="text-sm text-gray-900 truncate max-w-sm" title={event.url}>
+                      <div className={`text-sm truncate max-w-sm flex items-center ${isSelected ? 'text-yellow-900 font-medium' : 'text-gray-900'}`} title={event.url}>
+                        {isSelected && (
+                          <div className="w-2 h-2 bg-yellow-500 rounded-full mr-2 flex-shrink-0"></div>
+                        )}
                         {event.url || 'N/A'}
                       </div>
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-16">
                       {event.method || 'N/A'}
                     </td>
-                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 font-mono w-1/4">
-                      {formatHash(event.valueHash || '')}
+                    <td
+                      className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 font-mono w-1/4"
+                      title={
+                        (event.valueHash || event.value_hash) && !showFullTokenHash
+                          ? `${event.valueHash || event.value_hash} (click Toggle Full Hash to see complete value)`
+                          : (event.valueHash || event.value_hash) || 'No hash available'
+                      }
+                    >
+                      {(() => {
+                        const hashValue = event.valueHash || event.value_hash || '';
+                        return formatHash(hashValue);
+                      })()}
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-20">
                       {new Date(event.timestamp).toLocaleTimeString()}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
-          
+
           {/* Pagination Controls */}
           {totalPages > 1 && (
             <div className="mt-6 flex items-center justify-between">
@@ -371,7 +407,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
           </svg>
           <h3 className="mt-2 text-sm font-medium text-gray-900">No token events found</h3>
           <p className="mt-1 text-sm text-gray-500">
-            {searchTerm || filterType !== 'all' 
+            {searchTerm || filterType !== 'all'
               ? 'Try adjusting your search criteria or filters'
               : 'Token events will appear here when they are captured'
             }
