@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Activity, BarChart3, Clock } from 'lucide-react';
 
 interface DomainChartsPanelProps {
@@ -20,7 +20,6 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
   // Filter data for this specific domain - IMPROVED FILTERING LOGIC
   const domainData = useMemo(() => {
     console.log(`[DomainChartsPanel] Filtering data for domain: ${domain}`);
-    console.log(`[DomainChartsPanel] Network requests: ${networkRequests.length}, Console errors: ${consoleErrors.length}, Token events: ${tokenEvents.length}`);
 
     const matchesDomain = (itemDomain: string) => {
       if (!itemDomain) return false;
@@ -38,27 +37,21 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
       const reqDomain = req.main_domain ||
                        req.domain ||
                        (req.url ? req.url.match(/https?:\/\/([^\/]+)/)?.[1] : '') || '';
-      const matches = matchesDomain(reqDomain);
-      if (matches) console.log(`[DomainChartsPanel] Matched request:`, { reqDomain, req });
-      return matches;
+      return matchesDomain(reqDomain);
     });
 
     const filteredErrors = consoleErrors.filter(error => {
       const errorDomain = error.main_domain ||
                          error.domain ||
                          (error.url ? error.url.match(/https?:\/\/([^\/]+)/)?.[1] : '') || '';
-      const matches = matchesDomain(errorDomain);
-      if (matches) console.log(`[DomainChartsPanel] Matched error:`, { errorDomain, error });
-      return matches;
+      return matchesDomain(errorDomain);
     });
 
     const filteredTokens = tokenEvents.filter(token => {
       const tokenDomain = token.main_domain ||
                          token.domain ||
                          (token.url ? token.url.match(/https?:\/\/([^\/]+)/)?.[1] : '') || '';
-      const matches = matchesDomain(tokenDomain);
-      if (matches) console.log(`[DomainChartsPanel] Matched token:`, { tokenDomain, token });
-      return matches;
+      return matchesDomain(tokenDomain);
     });
 
     console.log(`[DomainChartsPanel] Filtered results - Requests: ${filteredRequests.length}, Errors: ${filteredErrors.length}, Tokens: ${filteredTokens.length}`);
@@ -74,44 +67,67 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
   const chartData = useMemo(() => {
     const { requests } = domainData;
 
-    // 1. Requests Over Time (last 24 hours, hourly buckets)
+    if (requests.length === 0) {
+      return {
+        timeline: [],
+        methods: [],
+        status: [],
+        endpoints: [],
+        successRate: 0,
+        avgResponseTime: 0
+      };
+    }
+
+    // Calculate success rate - FIXED CALCULATION to match column value
+    const successfulRequests = requests.filter(req => {
+      const status = req.status ?? req.response_status ?? req.response?.status ?? req.statusCode ?? 200;
+      return status >= 200 && status < 400;
+    }).length;
+    const successRate = (successfulRequests / requests.length) * 100;
+
+    // Calculate average response time
+    const responseTimes = requests
+      .map(req => req.response_time || req.responseTime || 0)
+      .filter(time => time > 0);
+    const avgResponseTime = responseTimes.length > 0 
+      ? responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length 
+      : 0;
+
+    // 1. Requests Over Time (last 24 hours, 4-hour buckets for better visibility)
     const timelineData = [];
     const now = Date.now();
-    const hourMs = 60 * 60 * 1000;
+    const bucketMs = 4 * 60 * 60 * 1000; // 4-hour buckets
 
-    for (let i = 23; i >= 0; i--) {
-      const hourStart = now - (i * hourMs);
-      const hourEnd = hourStart + hourMs;
+    for (let i = 5; i >= 0; i--) {
+      const bucketStart = now - (i * bucketMs);
+      const bucketEnd = bucketStart + bucketMs;
 
-      const hourRequests = requests.filter(req => {
+      const bucketRequests = requests.filter(req => {
         const timestamp = req.timestamp || Date.now();
-        return timestamp >= hourStart && timestamp < hourEnd;
+        return timestamp >= bucketStart && timestamp < bucketEnd;
       });
 
+      const hour = new Date(bucketStart).getHours();
+      const label = `${hour}:00-${(hour + 4) % 24}:00`;
+
       timelineData.push({
-        hour: new Date(hourStart).getHours(),
-        requests: hourRequests.length,
-        errors: hourRequests.filter(req => (req.status || 200) >= 400).length
+        time: label,
+        requests: bucketRequests.length,
+        successful: bucketRequests.filter(req => {
+          const status = req.status ?? req.response_status ?? 200;
+          return status >= 200 && status < 400;
+        }).length,
+        errors: bucketRequests.filter(req => {
+          const status = req.status ?? req.response_status ?? 200;
+          return status >= 400;
+        }).length
       });
     }
 
-    // 2. HTTP Methods Distribution
-    const methodCounts: { [method: string]: number } = {};
-    requests.forEach(req => {
-      const method = req.method || 'GET';
-      methodCounts[method] = (methodCounts[method] || 0) + 1;
-    });
-
-    const methodsData = Object.entries(methodCounts).map(([method, count]) => ({
-      method,
-      count,
-      percentage: ((count / requests.length) * 100).toFixed(1)
-    })).sort((a, b) => b.count - a.count);
-
-    // 3. Status Code Distribution
+    // 2. Status Code Distribution - Using proven chart patterns
     const statusCounts: { [status: string]: number } = {};
     requests.forEach(req => {
-      const status = req.status || 200;
+      const status = req.status ?? req.response_status ?? 200;
       const statusGroup = status < 300 ? '2xx Success' :
                          status < 400 ? '3xx Redirect' :
                          status < 500 ? '4xx Client Error' : '5xx Server Error';
@@ -119,17 +135,30 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
     });
 
     const statusData = Object.entries(statusCounts).map(([status, count]) => ({
-      status,
-      count,
+      name: status,
+      value: count,
       percentage: ((count / requests.length) * 100).toFixed(1)
     }));
 
-    // 4. Top Endpoints
+    // 3. HTTP Methods Distribution - Vertical bars work better
+    const methodCounts: { [method: string]: number } = {};
+    requests.forEach(req => {
+      const method = req.method || 'GET';
+      methodCounts[method] = (methodCounts[method] || 0) + 1;
+    });
+
+    const methodsData = Object.entries(methodCounts).map(([method, count]) => ({
+      name: method,
+      count,
+      percentage: ((count / requests.length) * 100).toFixed(1)
+    })).sort((a, b) => b.count - a.count).slice(0, 6); // Top 6 methods
+
+    // 4. Top Endpoints - Vertical bars instead of horizontal
     const endpointCounts: { [endpoint: string]: number } = {};
     requests.forEach(req => {
       try {
         const endpoint = new URL(req.url || '').pathname || '/';
-        const shortEndpoint = endpoint.length > 30 ? endpoint.substring(0, 30) + '...' : endpoint;
+        const shortEndpoint = endpoint.length > 20 ? endpoint.substring(0, 17) + '...' : endpoint;
         endpointCounts[shortEndpoint] = (endpointCounts[shortEndpoint] || 0) + 1;
       } catch {
         endpointCounts['/'] = (endpointCounts['/'] || 0) + 1;
@@ -137,15 +166,21 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
     });
 
     const endpointsData = Object.entries(endpointCounts)
-      .map(([endpoint, count]) => ({ endpoint, count }))
+      .map(([endpoint, count]) => ({ 
+        name: endpoint, 
+        count,
+        percentage: ((count / requests.length) * 100).toFixed(1)
+      }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 8); // Top 8 endpoints only
+      .slice(0, 6); // Top 6 endpoints only
 
     return {
       timeline: timelineData,
-      methods: methodsData.slice(0, 6), // Top 6 methods
+      methods: methodsData,
       status: statusData,
-      endpoints: endpointsData
+      endpoints: endpointsData,
+      successRate: Math.round(successRate * 100) / 100,
+      avgResponseTime: Math.round(avgResponseTime)
     };
   }, [domainData]);
 
@@ -197,103 +232,152 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
       {/* Charts Grid - 2x2 layout */}
       <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-        {/* 1. Requests Timeline */}
+        {/* 1. Requests Timeline - Fixed dataKey */}
         <div className="bg-white border border-gray-100 rounded-lg p-3">
           <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
             <Clock className="h-4 w-4" />
-            Requests Over Time (24h)
+            Request Timeline (24h)
           </h4>
-          <div className="h-32">
+          <div className="h-40">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData.timeline}>
+                <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
-                  dataKey="hour"
-                  tick={{ fontSize: 12 }}
-                  tickFormatter={(hour) => `${hour}:00`}
+                  dataKey="time"
+                  tick={{ fontSize: 10 }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={50}
                 />
-                <YAxis tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 10 }} />
                 <Tooltip
-                  labelFormatter={(hour) => `${hour}:00 - ${hour + 1}:00`}
-                  formatter={(value: any, name: string) => [value, name === 'requests' ? 'Requests' : 'Errors']}
+                  formatter={(value: any, name: string) => [
+                    value, 
+                    name === 'requests' ? 'Total' : name === 'successful' ? 'Success' : 'Errors'
+                  ]}
                 />
                 <Line
                   type="monotone"
                   dataKey="requests"
                   stroke={colors.primary}
                   strokeWidth={2}
-                  dot={false}
+                  dot={{ fill: colors.primary, r: 3 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="successful"
+                  stroke={colors.secondary}
+                  strokeWidth={2}
+                  dot={{ fill: colors.secondary, r: 2 }}
                 />
                 <Line
                   type="monotone"
                   dataKey="errors"
                   stroke={colors.danger}
                   strokeWidth={2}
-                  dot={false}
+                  dot={{ fill: colors.danger, r: 2 }}
                 />
+                <Legend />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* 2. Status Code Distribution */}
+        {/* 2. Status Code Distribution - Fixed data structure */}
         <div className="bg-white border border-gray-100 rounded-lg p-3">
           <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
             Status Code Distribution
           </h4>
-          <div className="h-32">
+          <div className="h-40">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={chartData.status}
-                  dataKey="count"
-                  nameKey="status"
+                  dataKey="value"
+                  nameKey="name"
                   cx="50%"
                   cy="50%"
-                  innerRadius={20}
-                  outerRadius={50}
+                  innerRadius={30}
+                  outerRadius={60}
                   paddingAngle={2}
                 >
                   {chartData.status.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={colors.status[entry.status] || colors.primary} />
+                    <Cell key={`cell-${index}`} fill={colors.status[entry.name] || colors.primary} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value: any, name: string) => [`${value} (${chartData.status.find(s => s.status === name)?.percentage}%)`, name]} />
+                <Tooltip 
+                  formatter={(value: any, name: string) => [
+                    `${value} (${chartData.status.find(s => s.name === name)?.percentage}%)`, 
+                    name
+                  ]} 
+                />
+                <Legend />
               </PieChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* 3. HTTP Methods */}
+        {/* 3. HTTP Methods - Vertical Bar Chart (proven successful) */}
         <div className="bg-white border border-gray-100 rounded-lg p-3">
           <h4 className="text-sm font-medium text-gray-700 mb-3">HTTP Methods</h4>
-          <div className="h-32">
+          <div className="h-40">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData.methods} layout="horizontal">
-                <XAxis type="number" tick={{ fontSize: 12 }} />
-                <YAxis type="category" dataKey="method" tick={{ fontSize: 12 }} width={50} />
-                <Tooltip formatter={(value: any, _name: string, props: any) => [`${value} (${props.payload.percentage}%)`, 'Requests']} />
-                <Bar dataKey="count" fill={colors.secondary} radius={[0, 2, 2, 0]} />
+              <BarChart data={chartData.methods}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="name" 
+                  tick={{ fontSize: 10 }}
+                />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip 
+                  formatter={(value: any, _name: string, props: any) => [
+                    `${value} (${props.payload.percentage}%)`, 
+                    'Requests'
+                  ]} 
+                />
+                <Bar 
+                  dataKey="count" 
+                  radius={[4, 4, 0, 0]}
+                >
+                  {chartData.methods.map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={colors.methods[index % colors.methods.length]} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* 4. Top Endpoints */}
+        {/* 4. Top Endpoints - Vertical Bar Chart (proven successful) */}
         <div className="bg-white border border-gray-100 rounded-lg p-3">
           <h4 className="text-sm font-medium text-gray-700 mb-3">Top Endpoints</h4>
-          <div className="h-32">
+          <div className="h-40">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData.endpoints} layout="horizontal">
-                <XAxis type="number" tick={{ fontSize: 12 }} />
-                <YAxis
-                  type="category"
-                  dataKey="endpoint"
-                  tick={{ fontSize: 10 }}
-                  width={80}
+              <BarChart data={chartData.endpoints}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="name"
+                  tick={{ fontSize: 9 }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={50}
                 />
-                <Tooltip />
-                <Bar dataKey="count" fill={colors.accent} radius={[0, 2, 2, 0]} />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip 
+                  formatter={(value: any, _name: string, props: any) => [
+                    `${value} (${props.payload.percentage}%)`, 
+                    'Requests'
+                  ]} 
+                />
+                <Bar 
+                  dataKey="count" 
+                  radius={[4, 4, 0, 0]}
+                >
+                  {chartData.endpoints.map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={colors.methods[index % colors.methods.length]} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -301,18 +385,17 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
 
       </div>
 
-      {/* Footer with summary stats */}
+      {/* Footer with summary stats - CORRECTED SUCCESS RATE */}
       <div className="border-t border-gray-200 bg-gray-50 px-4 py-2 text-xs text-gray-600 rounded-b-lg">
         <div className="flex justify-between">
           <span>
-            Avg Response Time: {domainData.requests.length > 0 ?
-              Math.round(domainData.requests.reduce((sum, req) => sum + (req.response_time || 0), 0) / domainData.requests.length)
-              : 0}ms
+            Avg Response Time: {chartData.avgResponseTime}ms
           </span>
           <span>
-            Error Rate: {domainData.requests.length > 0 ?
-              (((domainData.requests.filter(req => (req.status || 200) >= 400).length / domainData.requests.length) * 100).toFixed(1))
-              : 0}%
+            Success Rate: {chartData.successRate}%
+          </span>
+          <span>
+            Total Activity: {domainData.requests.length + domainData.errors.length + domainData.tokens.length}
           </span>
         </div>
       </div>
