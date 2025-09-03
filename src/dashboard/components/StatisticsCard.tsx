@@ -3,13 +3,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Button } from './ui/button';
-import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw } from 'lucide-react';
+import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { groupDataByDomain, DomainStats } from './domainUtils';
 // Import the new shared data processing system
 import { useSharedChartData } from '../hooks/useSharedChartData';
 import { useChartSettingsRead } from '../hooks/useChartSettings';
 import { isFeatureEnabled, withPerformanceMonitoring } from '../utils/featureFlags';
+// Import domain chart components
+import DomainChartsPanel from './DomainChartsPanel';
+import DomainModal from './DomainModal';
+import { DomainMiniCharts } from './MiniChart';
+import { useExpandedRows } from '../hooks/useExpandedRows';
 import {
   HttpMethodDistributionChart,
   AvgResponseTimePerRouteChart,
@@ -86,33 +91,83 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     };
   }, []);
   // Debug mode: Add mock data for testing charts
-  const DEBUG_MODE = false; // Set to false to disable debug data
+  const DEBUG_MODE = false; // Set to true to enable debug data for testing
 
-  const mockNetworkRequests = [
-    { method: 'GET', url: 'https://api.example.com/users', status: 200, response_status: 200, response_time: 150 },
-    { method: 'POST', url: 'https://api.example.com/login', status: 401, response_status: 401, response_time: 200 },
-    { method: 'GET', url: 'https://api.example.com/products', status: 200, response_status: 200, response_time: 100 },
-    { method: 'PUT', url: 'https://api.example.com/users/123', status: 500, response_status: 500, response_time: 300 },
-    { method: 'DELETE', url: 'https://api.example.com/users/456', status: 404, response_status: 404, response_time: 80 },
-    { method: 'GET', url: 'https://api.example.com/orders', status: 200, response_status: 200, response_time: 120 },
-    { method: 'POST', url: 'https://api.example.com/register', status: 400, response_status: 400, response_time: 180 }
-  ];
+  const generateMockData = () => {
+    const now = Date.now();
+    const domains = ['api.example.com', 'cdn.example.com', 'analytics.google.com', 'github.com', 'stackoverflow.com'];
+    const methods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
+    const statuses = [200, 201, 400, 401, 403, 404, 500, 502];
 
-  const mockConsoleErrors = [
-    { message: 'TypeError: Cannot read property of undefined', error: 'TypeError' },
-    { message: 'ReferenceError: variable is not defined', error: 'ReferenceError' },
-    { message: 'NetworkError: Failed to fetch', error: 'NetworkError' },
-    { message: 'TypeError: null is not an object', error: 'TypeError' },
-    { message: 'SyntaxError: Unexpected token', error: 'SyntaxError' }
-  ];
+    const mockNetworkRequests = [];
+    const mockConsoleErrors = [];
+    const mockTokenEvents = [];
 
-  const mockTokenEvents = [
-    { type: 'token_validated', success: true },
-    { type: 'token_expired', success: false },
-    { type: 'token_validated', success: true },
-    { type: 'token_validation_failed', success: false },
-    { type: 'token_validated', success: true }
-  ];
+    // Generate network requests for the last 24 hours
+    for (let i = 0; i < 100; i++) {
+      const domain = domains[Math.floor(Math.random() * domains.length)];
+      const method = methods[Math.floor(Math.random() * methods.length)];
+      const status = statuses[Math.floor(Math.random() * statuses.length)];
+      const timestamp = now - Math.random() * 24 * 60 * 60 * 1000; // Random time in last 24h
+
+      mockNetworkRequests.push({
+        method,
+        url: `https://${domain}/api/endpoint${Math.floor(Math.random() * 100)}`,
+        main_domain: domain,
+        domain,
+        status,
+        response_status: status,
+        response_time: Math.floor(Math.random() * 500) + 50, // 50-550ms
+        responseTime: Math.floor(Math.random() * 500) + 50,
+        timestamp
+      });
+    }
+
+    // Generate console errors
+    const errorTypes = ['TypeError', 'ReferenceError', 'NetworkError', 'SyntaxError'];
+    for (let i = 0; i < 20; i++) {
+      const domain = domains[Math.floor(Math.random() * domains.length)];
+      const errorType = errorTypes[Math.floor(Math.random() * errorTypes.length)];
+      const timestamp = now - Math.random() * 24 * 60 * 60 * 1000;
+
+      mockConsoleErrors.push({
+        message: `${errorType}: Sample error message ${i}`,
+        error: errorType,
+        type: errorType.toLowerCase(),
+        level: 'error',
+        main_domain: domain,
+        domain,
+        url: `https://${domain}/page${Math.floor(Math.random() * 10)}`,
+        timestamp
+      });
+    }
+
+    // Generate token events
+    const tokenTypes = ['session', 'auth', 'api_key', 'csrf'];
+    for (let i = 0; i < 30; i++) {
+      const domain = domains[Math.floor(Math.random() * domains.length)];
+      const tokenType = tokenTypes[Math.floor(Math.random() * tokenTypes.length)];
+      const timestamp = now - Math.random() * 24 * 60 * 60 * 1000;
+
+      mockTokenEvents.push({
+        type: tokenType,
+        success: Math.random() > 0.2, // 80% success rate
+        main_domain: domain,
+        domain,
+        url: `https://${domain}/auth/endpoint`,
+        value: `${tokenType}_token_${Math.random().toString(36).substr(2, 9)}`,
+        timestamp
+      });
+    }
+
+    return { mockNetworkRequests, mockConsoleErrors, mockTokenEvents };
+  };
+
+  const { mockNetworkRequests, mockConsoleErrors, mockTokenEvents } = DEBUG_MODE ? generateMockData() : {
+    mockNetworkRequests: [],
+    mockConsoleErrors: [],
+    mockTokenEvents: []
+  };
 
   // Use mock data in debug mode, otherwise use real data
   const debugNetworkRequests = DEBUG_MODE && (!networkRequests || networkRequests.length === 0) ? mockNetworkRequests : networkRequests;
@@ -133,7 +188,31 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     direction: 'desc'
   });
 
-  const [expandedDomains, setExpandedDomains] = useState<Set<string>>(new Set());
+  // PERFORMANCE: Use our optimized expansion hook with safety limits
+  const {
+    isExpanded: isDomainExpanded,
+    toggleRow: toggleDomainExpansion
+  } = useExpandedRows(2); // Limit subdomain expansion to 2 domains
+
+  // PERFORMANCE: Separate hook for chart expansion with stricter limits
+  const {
+    isExpanded: isDomainChartExpanded,
+    toggleRow: toggleDomainCharts
+  } = useExpandedRows(3); // Allow up to 3 domain charts simultaneously
+
+  // Modal state for Tier 3 full domain analysis
+  const [modalDomain, setModalDomain] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openDomainModal = (domain: string) => {
+    setModalDomain(domain);
+    setIsModalOpen(true);
+  };
+
+  const closeDomainModal = () => {
+    setModalDomain(null);
+    setIsModalOpen(false);
+  };
 
   // Chart system state
   const [viewMode, setViewMode] = useState<'list' | 'charts'>('list');
@@ -816,17 +895,6 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     });
   };
 
-  // Toggle expanded state for grouped domains
-  const toggleDomainExpansion = (domain: string) => {
-    const newExpanded = new Set(expandedDomains);
-    if (expandedDomains.has(domain)) {
-      newExpanded.delete(domain);
-    } else {
-      newExpanded.add(domain);
-    }
-    setExpandedDomains(newExpanded);
-  };
-
   // Prepare sorted global stats for table
   const globalStatsTable = useMemo(() => {
     const stats = [
@@ -1261,6 +1329,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                     Domains are intelligently grouped by tab context and subdomain patterns.
                     <Layers className="h-3 w-3 inline mx-1" /> indicates grouped subdomains,
                     <Monitor className="h-3 w-3 inline mx-1" /> shows main tab domains.
+                    <BarChart3 className="h-3 w-3 inline mx-1" /> opens domain-specific charts.
                     Hover for details.
                   </p>
                 </div>
@@ -1307,10 +1376,10 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                         <SortButton column="avgResponseTime" currentSort={domainSortConfig} onSort={handleDomainSort} />
                       </div>
                     </TableHead>
-                    <TableHead className="font-semibold w-36 text-center">
-                      <div className="flex items-center gap-2">
-                        Last Activity
-                        <SortButton column="lastSeen" currentSort={domainSortConfig} onSort={handleDomainSort} />
+                    <TableHead className="font-semibold w-32 text-center">
+                      <div className="flex items-center gap-2 justify-center">
+                        <Activity className="h-4 w-4" />
+                        Analysis
                       </div>
                     </TableHead>
                   </TableRow>
@@ -1330,15 +1399,24 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                 <button
                                   onClick={() => toggleDomainExpansion(stat.domain)}
                                   className="p-0.5 hover:bg-gray-100 rounded"
-                                  title={expandedDomains.has(stat.domain) ? "Collapse grouped domains" : "Expand grouped domains"}
+                                  title={isDomainExpanded(stat.domain) ? "Collapse grouped domains" : "Expand grouped domains"}
                                 >
-                                  {expandedDomains.has(stat.domain) ?
+                                  {isDomainExpanded(stat.domain) ?
                                     <ChevronDown className="h-3 w-3" /> :
                                     <ChevronRight className="h-3 w-3" />
                                   }
                                 </button>
                               )}
                               <span className="truncate font-semibold">{stat.domain}</span>
+                              {/* Tier 1: Inline mini-chart */}
+                              <DomainMiniCharts
+                                domain={stat.domain}
+                                allData={analysisData.loaded ?
+                                  [...analysisData.networkRequests, ...analysisData.consoleErrors, ...analysisData.tokenEvents] :
+                                  [...mockNetworkRequests, ...mockConsoleErrors, ...mockTokenEvents]
+                                }
+                                className="ml-2"
+                              />
                               {stat.tabContext?.isMainDomain && (
                                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800" title="Primary domain for tab">
                                   <Monitor className="h-3 w-3 mr-1" />
@@ -1380,13 +1458,52 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                       <TableCell className="font-medium text-blue-700 w-24 text-center">
                         {stat.avgResponseTime > 0 ? `${stat.avgResponseTime}ms` : 'N/A'}
                       </TableCell>
-                      <TableCell className="text-sm text-gray-600 w-36 truncate" title={new Date(stat.lastSeen).toLocaleString()}>
-                        {new Date(stat.lastSeen).toLocaleString()}
+                      <TableCell className="w-32 text-center">
+                        <div className="flex items-center gap-1">
+                          {/* Tier 2: Inline expandable charts */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleDomainCharts(stat.domain)}
+                            className="h-6 w-6 p-0 hover:bg-blue-100"
+                            title={isDomainChartExpanded(stat.domain) ? "Hide inline charts" : "Show inline charts"}
+                          >
+                            {isDomainChartExpanded(stat.domain) ?
+                              <EyeOff className="h-3 w-3 text-blue-600" /> :
+                              <BarChart3 className="h-3 w-3 text-gray-600" />
+                            }
+                          </Button>
+                          {/* Tier 3: Full modal analysis */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openDomainModal(stat.domain)}
+                            className="h-6 w-6 p-0 hover:bg-green-100"
+                            title="Open detailed domain analysis"
+                          >
+                            <LineChart className="h-3 w-3 text-green-600" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
 
+                    {/* Domain-specific charts panel - TIER 2 IMPLEMENTATION */}
+                    {isDomainChartExpanded(stat.domain) && (
+                      <TableRow key={`${index}-charts`}>
+                        <TableCell colSpan={7} className="p-0 bg-gray-50">
+                          <DomainChartsPanel
+                            domain={stat.domain}
+                            networkRequests={analysisData.loaded ? analysisData.networkRequests : []}
+                            consoleErrors={analysisData.loaded ? analysisData.consoleErrors : []}
+                            tokenEvents={analysisData.loaded ? analysisData.tokenEvents : []}
+                            className="m-4"
+                          />
+                        </TableCell>
+                      </TableRow>
+                    )}
+
                     {/* Expanded grouped domains with stats */}
-                    {stat.isGrouped && expandedDomains.has(stat.domain) && stat.subdomainStats.map((subStat, subIndex: number) => (
+                    {stat.isGrouped && isDomainExpanded(stat.domain) && stat.subdomainStats.map((subStat, subIndex: number) => (
                       <TableRow key={`${index}-${subIndex}`} className="bg-blue-50/30 border-l-2 border-l-blue-200">
                         <TableCell className="pl-8 text-sm text-gray-600">
                           <div className="flex items-center gap-2">
@@ -1409,7 +1526,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                         <TableCell className="text-sm font-medium text-blue-600">
                           {subStat.avgResponseTime > 0 ? `${subStat.avgResponseTime}ms` : 'N/A'}
                         </TableCell>
-                        <TableCell className="text-sm text-gray-400">-</TableCell>
+                        <TableCell className="text-sm text-gray-400 text-center">-</TableCell>
                       </TableRow>
                     ))}
                   </React.Fragment>
@@ -1428,6 +1545,18 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
           </TabsContent>
         </Tabs>
       </CardContent>
+
+      {/* Tier 3: Full Domain Analysis Modal */}
+      {modalDomain && (
+        <DomainModal
+          isOpen={isModalOpen}
+          onClose={closeDomainModal}
+          domain={modalDomain}
+          networkRequests={analysisData.loaded ? analysisData.networkRequests : []}
+          consoleErrors={analysisData.loaded ? analysisData.consoleErrors : []}
+          tokenEvents={analysisData.loaded ? analysisData.tokenEvents : []}
+        />
+      )}
     </Card>
   );
 };
