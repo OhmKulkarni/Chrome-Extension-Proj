@@ -17,6 +17,18 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
   tokenEvents,
   className = ''
 }) => {
+  // Helper function to create time buckets (same as global chart)
+  const getTimeKey = (timestamp: Date, interval: 'hour' | 'day' | 'minute'): number => {
+    if (interval === 'minute') {
+      return new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(),
+                      timestamp.getHours(), timestamp.getMinutes()).getTime();
+    } else if (interval === 'hour') {
+      return new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(),
+                      timestamp.getHours()).getTime();
+    } else { // day
+      return new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate()).getTime();
+    }
+  };
   // Filter data for this specific domain - IMPROVED FILTERING LOGIC
   const domainData = useMemo(() => {
     console.log(`[DomainChartsPanel] Filtering data for domain: ${domain}`);
@@ -89,39 +101,103 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
     const responseTimes = requests
       .map(req => req.response_time || req.responseTime || 0)
       .filter(time => time > 0);
-    const avgResponseTime = responseTimes.length > 0 
-      ? responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length 
+    const avgResponseTime = responseTimes.length > 0
+      ? responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length
       : 0;
 
-    // 1. Requests Over Time (last 24 hours, 4-hour buckets for better visibility)
-    const timelineData = [];
-    const now = Date.now();
-    const bucketMs = 4 * 60 * 60 * 1000; // 4-hour buckets
+    // 1. Requests Over Time - SPAN ALL RECORDS (like global chart)
+    // Collect ALL timestamps from requests, errors, and tokens
+    const allTimestamps = [
+      ...requests.map(req => req.timestamp ? new Date(req.timestamp).getTime() : Date.now()),
+      ...domainData.errors.map(error => error.timestamp ? new Date(error.timestamp).getTime() : Date.now()),
+      ...domainData.tokens.map(token => token.timestamp ? new Date(token.timestamp).getTime() : Date.now())
+    ].sort((a, b) => a - b);
 
-    for (let i = 5; i >= 0; i--) {
-      const bucketStart = now - (i * bucketMs);
-      const bucketEnd = bucketStart + bucketMs;
+    let timelineData: Array<{
+      time: string;
+      timestamp: number;
+      requests: number;
+      errors: number;
+      tokens: number;
+      total: number;
+    }> = [];
 
-      const bucketRequests = requests.filter(req => {
-        const timestamp = req.timestamp || Date.now();
-        return timestamp >= bucketStart && timestamp < bucketEnd;
+    if (allTimestamps.length > 0) {
+      const oldestTime = allTimestamps[0];
+      const newestTime = allTimestamps[allTimestamps.length - 1];
+      const timeSpan = newestTime - oldestTime;
+
+      // Choose appropriate time interval (same logic as global chart)
+      let interval: 'hour' | 'day' | 'minute' = 'hour';
+      let timeFormat: Intl.DateTimeFormatOptions;
+
+      if (timeSpan <= 2 * 60 * 60 * 1000) { // Less than 2 hours
+        interval = 'minute';
+        timeFormat = { hour: 'numeric', minute: '2-digit', hour12: true };
+      } else if (timeSpan <= 7 * 24 * 60 * 60 * 1000) { // Less than 7 days
+        interval = 'hour';
+        timeFormat = { month: 'short', day: 'numeric', hour: 'numeric', hour12: true };
+      } else {
+        interval = 'day';
+        timeFormat = { month: 'short', day: 'numeric' };
+      }
+
+      // Group ALL data by time intervals
+      const timeGroups = {} as { [key: number]: {
+        timestamp: number;
+        requests: number;
+        errors: number;
+        tokens: number;
+        total: number;
+      }};
+
+      // Process requests
+      requests.forEach(req => {
+        const timestamp = req.timestamp ? new Date(req.timestamp) : new Date();
+        const timeKey = getTimeKey(timestamp, interval);
+
+        if (!timeGroups[timeKey]) {
+          timeGroups[timeKey] = { timestamp: timeKey, requests: 0, errors: 0, tokens: 0, total: 0 };
+        }
+        timeGroups[timeKey].requests += 1;
+        timeGroups[timeKey].total += 1;
       });
 
-      const hour = new Date(bucketStart).getHours();
-      const label = `${hour}:00-${(hour + 4) % 24}:00`;
+      // Process errors
+      domainData.errors.forEach(error => {
+        const timestamp = error.timestamp ? new Date(error.timestamp) : new Date();
+        const timeKey = getTimeKey(timestamp, interval);
 
-      timelineData.push({
-        time: label,
-        requests: bucketRequests.length,
-        successful: bucketRequests.filter(req => {
-          const status = req.status ?? req.response_status ?? 200;
-          return status >= 200 && status < 400;
-        }).length,
-        errors: bucketRequests.filter(req => {
-          const status = req.status ?? req.response_status ?? 200;
-          return status >= 400;
-        }).length
+        if (!timeGroups[timeKey]) {
+          timeGroups[timeKey] = { timestamp: timeKey, requests: 0, errors: 0, tokens: 0, total: 0 };
+        }
+        timeGroups[timeKey].errors += 1;
+        timeGroups[timeKey].total += 1;
       });
+
+      // Process tokens
+      domainData.tokens.forEach(token => {
+        const timestamp = token.timestamp ? new Date(token.timestamp) : new Date();
+        const timeKey = getTimeKey(timestamp, interval);
+
+        if (!timeGroups[timeKey]) {
+          timeGroups[timeKey] = { timestamp: timeKey, requests: 0, errors: 0, tokens: 0, total: 0 };
+        }
+        timeGroups[timeKey].tokens += 1;
+        timeGroups[timeKey].total += 1;
+      });
+
+      // Convert to chart data and sort by time
+      timelineData = Object.values(timeGroups)
+        .sort((a, b) => a.timestamp - b.timestamp)
+        .map(group => ({
+          time: new Date(group.timestamp).toLocaleString('en-US', timeFormat),
+          timestamp: group.timestamp,
+          requests: group.requests,
+          errors: group.errors,
+          tokens: group.tokens,
+          total: group.total
+        }));
     }
 
     // 2. Status Code Distribution - Using proven chart patterns
@@ -166,8 +242,8 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
     });
 
     const endpointsData = Object.entries(endpointCounts)
-      .map(([endpoint, count]) => ({ 
-        name: endpoint, 
+      .map(([endpoint, count]) => ({
+        name: endpoint,
         count,
         percentage: ((count / requests.length) * 100).toFixed(1)
       }))
@@ -232,11 +308,11 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
       {/* Charts Grid - 2x2 layout */}
       <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-        {/* 1. Requests Timeline - Fixed dataKey */}
+        {/* 1. Activity Timeline - SPANS ALL RECORDS (requests, errors, tokens) */}
         <div className="bg-white border border-gray-100 rounded-lg p-3">
           <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
             <Clock className="h-4 w-4" />
-            Request Timeline (24h)
+            Activity Timeline (All Records)
           </h4>
           <div className="h-40">
             <ResponsiveContainer width="100%" height="100%">
@@ -253,7 +329,9 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
                 <Tooltip
                   formatter={(value: any, name: string) => [
                     value, 
-                    name === 'requests' ? 'Total' : name === 'successful' ? 'Success' : 'Errors'
+                    name === 'requests' ? 'Network Requests' : 
+                    name === 'errors' ? 'Console Errors' : 
+                    name === 'tokens' ? 'Token Events' : 'Total'
                   ]}
                 />
                 <Line
@@ -262,13 +340,7 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
                   stroke={colors.primary}
                   strokeWidth={2}
                   dot={{ fill: colors.primary, r: 3 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="successful"
-                  stroke={colors.secondary}
-                  strokeWidth={2}
-                  dot={{ fill: colors.secondary, r: 2 }}
+                  name="Requests"
                 />
                 <Line
                   type="monotone"
@@ -276,14 +348,21 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
                   stroke={colors.danger}
                   strokeWidth={2}
                   dot={{ fill: colors.danger, r: 2 }}
+                  name="Errors"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="tokens"
+                  stroke={colors.accent}
+                  strokeWidth={2}
+                  dot={{ fill: colors.accent, r: 2 }}
+                  name="Tokens"
                 />
                 <Legend />
               </LineChart>
             </ResponsiveContainer>
           </div>
-        </div>
-
-        {/* 2. Status Code Distribution - Fixed data structure */}
+        </div>        {/* 2. Status Code Distribution - Fixed data structure */}
         <div className="bg-white border border-gray-100 rounded-lg p-3">
           <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
@@ -306,11 +385,11 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
                     <Cell key={`cell-${index}`} fill={colors.status[entry.name] || colors.primary} />
                   ))}
                 </Pie>
-                <Tooltip 
+                <Tooltip
                   formatter={(value: any, name: string) => [
-                    `${value} (${chartData.status.find(s => s.name === name)?.percentage}%)`, 
+                    `${value} (${chartData.status.find(s => s.name === name)?.percentage}%)`,
                     name
-                  ]} 
+                  ]}
                 />
                 <Legend />
               </PieChart>
@@ -325,19 +404,19 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData.methods}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="name" 
+                <XAxis
+                  dataKey="name"
                   tick={{ fontSize: 10 }}
                 />
                 <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip 
+                <Tooltip
                   formatter={(value: any, _name: string, props: any) => [
-                    `${value} (${props.payload.percentage}%)`, 
+                    `${value} (${props.payload.percentage}%)`,
                     'Requests'
-                  ]} 
+                  ]}
                 />
-                <Bar 
-                  dataKey="count" 
+                <Bar
+                  dataKey="count"
                   radius={[4, 4, 0, 0]}
                 >
                   {chartData.methods.map((_, index) => (
@@ -356,7 +435,7 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData.endpoints}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
+                <XAxis
                   dataKey="name"
                   tick={{ fontSize: 9 }}
                   angle={-45}
@@ -364,14 +443,14 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
                   height={50}
                 />
                 <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip 
+                <Tooltip
                   formatter={(value: any, _name: string, props: any) => [
-                    `${value} (${props.payload.percentage}%)`, 
+                    `${value} (${props.payload.percentage}%)`,
                     'Requests'
-                  ]} 
+                  ]}
                 />
-                <Bar 
-                  dataKey="count" 
+                <Bar
+                  dataKey="count"
                   radius={[4, 4, 0, 0]}
                 >
                   {chartData.endpoints.map((_, index) => (
