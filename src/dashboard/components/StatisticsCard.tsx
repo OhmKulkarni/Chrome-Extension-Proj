@@ -1440,7 +1440,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                         {stat.avgResponseTime > 0 ? `${stat.avgResponseTime}ms` : 'N/A'}
                       </TableCell>
                       <TableCell className="w-32 text-center">
-                        <div className="flex items-center gap-1">
+                        <div className="w-full flex items-center justify-end pr-4">
                           {/* Tier 2: Inline expandable charts */}
                           <Button
                             variant="ghost"
