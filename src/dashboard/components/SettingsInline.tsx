@@ -1204,10 +1204,10 @@ const SettingsInline: React.FC = () => {
                   <div className="flex items-center space-x-3">
                     <input
                       type="range"
-                      min="5"
+                      min="15"
                       max="60"
                       step="5"
-                      value={settings.chartSettings?.refreshInterval || 10}
+                      value={Math.max(settings.chartSettings?.refreshInterval || 30, 15)}
                       onChange={(e) => updateSetting('chartSettings', {
                         ...settings.chartSettings,
                         refreshInterval: parseInt(e.target.value)
@@ -1215,7 +1215,7 @@ const SettingsInline: React.FC = () => {
                       className="flex-1"
                     />
                     <span className="text-sm font-medium min-w-[4rem]">
-                      {settings.chartSettings?.refreshInterval || 10}s
+                      {Math.max(settings.chartSettings?.refreshInterval || 30, 15)}s
                     </span>
                   </div>
                   <p className="text-xs text-gray-600 mt-1">

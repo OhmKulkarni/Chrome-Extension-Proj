@@ -252,7 +252,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     // Always load initial data regardless of mode
     if (!analysisData.loaded) {
       console.log('📊 StatisticsCard: Loading initial data');
-      loadAnalysisData();
+      loadAnalysisData(analysisLimit);
       return;
     }
 
@@ -271,7 +271,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
 
     const intervalId = setInterval(() => {
       console.log('🔄 StatisticsCard: Auto-refresh triggered');
-      loadAnalysisData();
+      loadAnalysisData(analysisLimit);
     }, refreshInterval);
 
     return () => {
@@ -279,16 +279,18 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       clearInterval(intervalId);
     };
     // CRITICAL FIX: Remove loadAnalysisData from dependencies to prevent infinite loops
-  }, [chartSettings.refreshMode, chartSettings.refreshInterval, chartSettingsLoading, analysisData.loaded]);
+    // FIXED: Added analysisLimit dependency to ensure refresh uses current limit
+  }, [chartSettings.refreshMode, chartSettings.refreshInterval, chartSettingsLoading, analysisData.loaded, analysisLimit]);
 
   // Manual refresh effect - triggers when manual refresh is requested - FIXED: Remove loadAnalysisData dependency
   useEffect(() => {
     if (manualRefreshTrigger > 0) {
       console.log('🔄 StatisticsCard: Manual refresh effect triggered');
-      loadAnalysisData();
+      loadAnalysisData(analysisLimit);
     }
     // CRITICAL FIX: Remove loadAnalysisData from dependencies to prevent infinite loops
-  }, [manualRefreshTrigger]);
+    // FIXED: Added analysisLimit dependency to ensure manual refresh uses current limit
+  }, [manualRefreshTrigger, analysisLimit]);
 
   // Manual refresh function
   const triggerManualRefresh = useCallback(() => {
