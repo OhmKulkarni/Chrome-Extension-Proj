@@ -470,6 +470,9 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
                     color: 'white',
                     fontSize: '12px'
                   }}
+                  labelStyle={{
+                    color: 'white'
+                  }}
                   formatter={(value: any, name: string) => [
                     value,
                     name === 'requests' ? '🌐 Network Requests' :
@@ -553,6 +556,9 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
                         color: 'white',
                         fontSize: '12px'
                       }}
+                      labelStyle={{
+                        color: 'white'
+                      }}
                       formatter={(value: any, name: string) => [
                         `${value} (${chartData.status.find(s => s.name === name)?.percentage}%)`,
                         name
@@ -616,6 +622,9 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
                         color: 'white',
                         fontSize: '12px'
                       }}
+                      labelStyle={{
+                        color: 'white'
+                      }}
                       formatter={(value: any, _name: string, props: any) => [
                         `${value} requests (${props.payload.percentage}%)`,
                         'Distribution'
@@ -666,6 +675,9 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
                         borderRadius: '8px',
                         color: 'white',
                         fontSize: '12px'
+                      }}
+                      labelStyle={{
+                        color: 'white'
                       }}
                       formatter={(value: any, _name: string, props: any) => [
                         `${value} requests (${props.payload.percentage}%)`,
