@@ -1420,9 +1420,9 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                 </span>
                               )}
                               {stat.isGrouped && (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800" title={`Grouped from: ${stat.groupedDomains.join(', ')}`}>
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800" title={`Grouped subdomains: ${stat.subdomainStats.map(s => s.domain).join(', ')}`}>
                                   <Layers className="h-3 w-3 mr-1" />
-                                  {stat.groupedDomains.length}
+                                  {stat.subdomainStats.length}
                                 </span>
                               )}
                               {stat.tabContext?.tabIds && stat.tabContext.tabIds.length > 1 && (
