@@ -664,7 +664,7 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
                   <Clock className="h-8 w-8 mb-2 opacity-50" />
                   <div className="text-sm font-medium">No Response Time Data</div>
                   <div className="text-xs mt-1 text-center">
-                    {domainData.requests.length > 0 ? 
+                    {domainData.requests.length > 0 ?
                       'Requests found but no response times recorded' :
                       'No network requests available'
                     }
@@ -731,7 +731,7 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
                   <BarChart3 className="h-8 w-8 mb-2 opacity-50" />
                   <div className="text-sm font-medium">No URL Path Data</div>
                   <div className="text-xs mt-1 text-center">
-                    {domainData.requests.length > 0 ? 
+                    {domainData.requests.length > 0 ?
                       'Requests found but no valid URLs to parse' :
                       'No network requests to analyze'
                     }
