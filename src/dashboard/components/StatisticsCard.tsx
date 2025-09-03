@@ -91,7 +91,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     };
   }, []);
   // Debug mode: Add mock data for testing charts
-  const DEBUG_MODE = false; // Set to true to enable debug data for testing
+  const DEBUG_MODE = true; // Set to true to enable debug data for testing
 
   const generateMockData = () => {
     const now = Date.now();
@@ -1411,10 +1411,9 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                               {/* Tier 1: Inline mini-chart */}
                               <DomainMiniCharts
                                 domain={stat.domain}
-                                allData={analysisData.loaded ?
-                                  [...analysisData.networkRequests, ...analysisData.consoleErrors, ...analysisData.tokenEvents] :
-                                  [...mockNetworkRequests, ...mockConsoleErrors, ...mockTokenEvents]
-                                }
+                                networkRequests={analysisData.loaded ? analysisData.networkRequests : mockNetworkRequests}
+                                consoleErrors={analysisData.loaded ? analysisData.consoleErrors : mockConsoleErrors}
+                                tokenEvents={analysisData.loaded ? analysisData.tokenEvents : mockTokenEvents}
                                 className="ml-2"
                               />
                               {stat.tabContext?.isMainDomain && (

@@ -17,22 +17,51 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
   tokenEvents,
   className = ''
 }) => {
-  // Filter data for this specific domain - PERFORMANCE: Memoized to prevent recalculation
+  // Filter data for this specific domain - IMPROVED FILTERING LOGIC
   const domainData = useMemo(() => {
+    console.log(`[DomainChartsPanel] Filtering data for domain: ${domain}`);
+    console.log(`[DomainChartsPanel] Network requests: ${networkRequests.length}, Console errors: ${consoleErrors.length}, Token events: ${tokenEvents.length}`);
+
+    const matchesDomain = (itemDomain: string) => {
+      if (!itemDomain) return false;
+
+      const normalizeForComparison = (d: string) => d.toLowerCase().replace(/^www\./, '');
+      const normalizedTarget = normalizeForComparison(domain);
+      const normalizedItem = normalizeForComparison(itemDomain);
+
+      return normalizedItem === normalizedTarget ||
+             normalizedItem.endsWith('.' + normalizedTarget) ||
+             normalizedTarget.endsWith('.' + normalizedItem);
+    };
+
     const filteredRequests = networkRequests.filter(req => {
-      const reqDomain = req.main_domain || req.url?.match(/https?:\/\/([^\/]+)/)?.[1] || '';
-      return reqDomain === domain;
+      const reqDomain = req.main_domain ||
+                       req.domain ||
+                       (req.url ? req.url.match(/https?:\/\/([^\/]+)/)?.[1] : '') || '';
+      const matches = matchesDomain(reqDomain);
+      if (matches) console.log(`[DomainChartsPanel] Matched request:`, { reqDomain, req });
+      return matches;
     });
 
     const filteredErrors = consoleErrors.filter(error => {
-      const errorDomain = error.main_domain || error.url?.match(/https?:\/\/([^\/]+)/)?.[1] || '';
-      return errorDomain === domain;
+      const errorDomain = error.main_domain ||
+                         error.domain ||
+                         (error.url ? error.url.match(/https?:\/\/([^\/]+)/)?.[1] : '') || '';
+      const matches = matchesDomain(errorDomain);
+      if (matches) console.log(`[DomainChartsPanel] Matched error:`, { errorDomain, error });
+      return matches;
     });
 
     const filteredTokens = tokenEvents.filter(token => {
-      const tokenDomain = token.main_domain || token.url?.match(/https?:\/\/([^\/]+)/)?.[1] || '';
-      return tokenDomain === domain;
+      const tokenDomain = token.main_domain ||
+                         token.domain ||
+                         (token.url ? token.url.match(/https?:\/\/([^\/]+)/)?.[1] : '') || '';
+      const matches = matchesDomain(tokenDomain);
+      if (matches) console.log(`[DomainChartsPanel] Matched token:`, { tokenDomain, token });
+      return matches;
     });
+
+    console.log(`[DomainChartsPanel] Filtered results - Requests: ${filteredRequests.length}, Errors: ${filteredErrors.length}, Tokens: ${filteredTokens.length}`);
 
     return {
       requests: filteredRequests,
