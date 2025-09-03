@@ -13,7 +13,6 @@ import { isFeatureEnabled, withPerformanceMonitoring } from '../utils/featureFla
 // Import domain chart components
 import DomainChartsPanel from './DomainChartsPanel';
 import DomainModal from './DomainModal';
-import { DomainMiniCharts } from './MiniChart';
 import { useExpandedRows } from '../hooks/useExpandedRows';
 import {
   HttpMethodDistributionChart,
@@ -1408,14 +1407,12 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                 </button>
                               )}
                               <span className="truncate font-semibold">{stat.domain}</span>
-                              {/* Tier 1: Inline mini-chart */}
-                              <DomainMiniCharts
-                                domain={stat.domain}
-                                networkRequests={analysisData.loaded ? analysisData.networkRequests : mockNetworkRequests}
-                                consoleErrors={analysisData.loaded ? analysisData.consoleErrors : mockConsoleErrors}
-                                tokenEvents={analysisData.loaded ? analysisData.tokenEvents : mockTokenEvents}
-                                className="ml-2"
-                              />
+                              {/* Single total event count */}
+                              <div className="flex items-center ml-2">
+                                <span className="inline-flex items-center px-2 py-1 rounded bg-gray-100 text-gray-700 font-mono text-xs" title="Total Events: Requests + Errors + Tokens">
+                                  {stat.totalRequests + stat.errors + stat.tokens}
+                                </span>
+                              </div>
                               {stat.tabContext?.isMainDomain && (
                                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800" title="Primary domain for tab">
                                   <Monitor className="h-3 w-3 mr-1" />

@@ -82,9 +82,9 @@ const DomainModal: React.FC<DomainModalProps> = ({
       totalSize: totalDataSize
     });
 
-    // PERFORMANCE: Very aggressive limits for large datasets  
+    // PERFORMANCE: Very aggressive limits for large datasets
     const maxItems = totalDataSize > 3000 ? 200 : totalDataSize > 1000 ? 500 : 1000;
-    
+
     console.log(`[DomainModal] Using limit: ${maxItems} items for processing`);
 
     // SAFETY: Ensure arrays exist and are valid
