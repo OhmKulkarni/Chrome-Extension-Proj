@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { BarChart, Bar, LineChart, Line, PieChart, Pie, AreaChart, Area, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Activity, BarChart3, Clock } from 'lucide-react';
 
 interface DomainChartsPanelProps {
@@ -82,11 +82,17 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
     if (requests.length === 0) {
       return {
         timeline: [],
-        methods: [],
+        responseTime: [],
         status: [],
         endpoints: [],
         successRate: 0,
-        avgResponseTime: 0
+        avgResponseTime: 0,
+        responseTimeStats: {
+          total: 0,
+          average: '0',
+          min: 0,
+          max: 0
+        }
       };
     }
 
@@ -216,18 +222,65 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
       percentage: ((count / requests.length) * 100).toFixed(1)
     }));
 
-    // 3. HTTP Methods Distribution - Vertical bars work better
-    const methodCounts: { [method: string]: number } = {};
+    // 3. Response Time Breakdown - More granular histogram for better accuracy
+    const responseTimeBuckets = {
+      '0-50ms': 0,
+      '50-100ms': 0,
+      '100-200ms': 0,
+      '200-300ms': 0,
+      '300-500ms': 0,
+      '500-1000ms': 0,
+      '1000-2000ms': 0,
+      '2000ms+': 0
+    };
+
+    let totalResponseTimes = 0;
+    let sumResponseTimes = 0;
+    let minResponseTime = Infinity;
+    let maxResponseTime = 0;
+    
     requests.forEach(req => {
-      const method = req.method || 'GET';
-      methodCounts[method] = (methodCounts[method] || 0) + 1;
+      const responseTime = req.response_time || req.responseTime || 0;
+      if (responseTime > 0) {
+        totalResponseTimes++;
+        sumResponseTimes += responseTime;
+        minResponseTime = Math.min(minResponseTime, responseTime);
+        maxResponseTime = Math.max(maxResponseTime, responseTime);
+        
+        if (responseTime <= 50) {
+          responseTimeBuckets['0-50ms']++;
+        } else if (responseTime <= 100) {
+          responseTimeBuckets['50-100ms']++;
+        } else if (responseTime <= 200) {
+          responseTimeBuckets['100-200ms']++;
+        } else if (responseTime <= 300) {
+          responseTimeBuckets['200-300ms']++;
+        } else if (responseTime <= 500) {
+          responseTimeBuckets['300-500ms']++;
+        } else if (responseTime <= 1000) {
+          responseTimeBuckets['500-1000ms']++;
+        } else if (responseTime <= 2000) {
+          responseTimeBuckets['1000-2000ms']++;
+        } else {
+          responseTimeBuckets['2000ms+']++;
+        }
+      }
     });
 
-    const methodsData = Object.entries(methodCounts).map(([method, count]) => ({
-      name: method,
-      count,
-      percentage: ((count / requests.length) * 100).toFixed(1)
-    })).sort((a, b) => b.count - a.count).slice(0, 6); // Top 6 methods
+    const chartAvgResponseTime = totalResponseTimes > 0 ? (sumResponseTimes / totalResponseTimes).toFixed(1) : '0';
+    const minTime = minResponseTime === Infinity ? 0 : minResponseTime;
+
+    const responseTimeData = Object.entries(responseTimeBuckets)
+      .map(([range, count]) => ({
+        name: range,
+        count,
+        percentage: totalResponseTimes > 0 ? ((count / totalResponseTimes) * 100).toFixed(1) : '0.0',
+        // Color coding for performance assessment
+        performance: range.includes('0-50ms') || range.includes('50-100ms') ? 'excellent' :
+                    range.includes('100-200ms') || range.includes('200-300ms') ? 'good' :
+                    range.includes('300-500ms') || range.includes('500-1000ms') ? 'slow' : 'critical'
+      }))
+      .filter(item => item.count > 0); // Only show ranges with data
 
     // 4. Top Endpoints - Vertical bars instead of horizontal
     const endpointCounts: { [endpoint: string]: number } = {};
@@ -252,11 +305,18 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
 
     return {
       timeline: timelineData,
-      methods: methodsData,
+      responseTime: responseTimeData,
       status: statusData,
       endpoints: endpointsData,
       successRate: Math.round(successRate * 100) / 100,
-      avgResponseTime: Math.round(avgResponseTime)
+      avgResponseTime: Math.round(avgResponseTime),
+      // Response time statistics for display
+      responseTimeStats: {
+        total: totalResponseTimes,
+        average: chartAvgResponseTime,
+        min: minTime,
+        max: maxResponseTime
+      }
     };
   }, [domainData]);
 
@@ -328,9 +388,9 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
                 <YAxis tick={{ fontSize: 10 }} />
                 <Tooltip
                   formatter={(value: any, name: string) => [
-                    value, 
-                    name === 'requests' ? 'Network Requests' : 
-                    name === 'errors' ? 'Console Errors' : 
+                    value,
+                    name === 'requests' ? 'Network Requests' :
+                    name === 'errors' ? 'Console Errors' :
                     name === 'tokens' ? 'Token Events' : 'Total'
                   ]}
                 />
@@ -397,34 +457,52 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
           </div>
         </div>
 
-        {/* 3. HTTP Methods - Vertical Bar Chart (proven successful) */}
+        {/* 3. Response Time Distribution - Histogram for accurate performance analysis */}
         <div className="bg-white border border-gray-100 rounded-lg p-3">
-          <h4 className="text-sm font-medium text-gray-700 mb-3">HTTP Methods</h4>
+          <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            Response Time Distribution
+          </h4>
+          {chartData.responseTimeStats && chartData.responseTimeStats.total > 0 && (
+            <div className="text-xs text-gray-500 mb-2">
+              Avg: {chartData.responseTimeStats.average}ms | Min: {chartData.responseTimeStats.min}ms | Max: {chartData.responseTimeStats.max}ms | Total: {chartData.responseTimeStats.total}
+            </div>
+          )}
           <div className="h-40">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData.methods}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="name"
-                  tick={{ fontSize: 10 }}
-                />
-                <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip
-                  formatter={(value: any, _name: string, props: any) => [
-                    `${value} (${props.payload.percentage}%)`,
-                    'Requests'
-                  ]}
-                />
-                <Bar
-                  dataKey="count"
-                  radius={[4, 4, 0, 0]}
-                >
-                  {chartData.methods.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={colors.methods[index % colors.methods.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            {chartData.responseTime && chartData.responseTime.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData.responseTime}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 9 }}
+                    angle={-15}
+                    textAnchor="end"
+                    height={45}
+                  />
+                  <YAxis tick={{ fontSize: 10 }} />
+                  <Tooltip
+                    formatter={(value: any, _name: string, props: any) => [
+                      `${value} requests (${props.payload.percentage}%)`,
+                      'Distribution'
+                    ]}
+                    labelFormatter={(label) => `Response Time: ${label}`}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="count"
+                    stroke="#8884d8"
+                    fill="#8884d8"
+                    fillOpacity={0.6}
+                    strokeWidth={2}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+                No response time data
+              </div>
+            )}
           </div>
         </div>
 
