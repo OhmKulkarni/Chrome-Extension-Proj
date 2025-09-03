@@ -12,7 +12,6 @@ import { useChartSettingsRead } from '../hooks/useChartSettings';
 import { isFeatureEnabled, withPerformanceMonitoring } from '../utils/featureFlags';
 // Import domain chart components
 import DomainChartsPanel from './DomainChartsPanel';
-import DomainModal from './DomainModal';
 import { useExpandedRows } from '../hooks/useExpandedRows';
 import {
   HttpMethodDistributionChart,
@@ -198,20 +197,6 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     isExpanded: isDomainChartExpanded,
     toggleRow: toggleDomainCharts
   } = useExpandedRows(3); // Allow up to 3 domain charts simultaneously
-
-  // Modal state for Tier 3 full domain analysis
-  const [modalDomain, setModalDomain] = useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const openDomainModal = (domain: string) => {
-    setModalDomain(domain);
-    setIsModalOpen(true);
-  };
-
-  const closeDomainModal = () => {
-    setModalDomain(null);
-    setIsModalOpen(false);
-  };
 
   // Chart system state
   const [viewMode, setViewMode] = useState<'list' | 'charts'>('list');
@@ -1469,16 +1454,6 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                               <BarChart3 className="h-3 w-3 text-gray-600" />
                             }
                           </Button>
-                          {/* Tier 3: Full modal analysis */}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openDomainModal(stat.domain)}
-                            className="h-6 w-6 p-0 hover:bg-green-100"
-                            title="Open detailed domain analysis"
-                          >
-                            <LineChart className="h-3 w-3 text-green-600" />
-                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -1541,18 +1516,6 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
           </TabsContent>
         </Tabs>
       </CardContent>
-
-      {/* Tier 3: Full Domain Analysis Modal */}
-      {modalDomain && (
-        <DomainModal
-          isOpen={isModalOpen}
-          onClose={closeDomainModal}
-          domain={modalDomain}
-          networkRequests={analysisData.loaded ? analysisData.networkRequests : []}
-          consoleErrors={analysisData.loaded ? analysisData.consoleErrors : []}
-          tokenEvents={analysisData.loaded ? analysisData.tokenEvents : []}
-        />
-      )}
     </Card>
   );
 };
