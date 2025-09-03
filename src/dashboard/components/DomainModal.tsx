@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Download, BarChart3, Activity, Clock, CheckCircle, XCircle, TrendingUp } from 'lucide-react';
+import { Download, BarChart3, Activity, Clock, CheckCircle, XCircle, TrendingUp, AlertTriangle } from 'lucide-react';
 import { BarChart, Bar, LineChart as RechartsLineChart, Line, PieChart as RechartsPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart } from 'recharts';
 
 interface DomainModalProps {
@@ -14,6 +14,41 @@ interface DomainModalProps {
   networkRequests: any[];
   consoleErrors: any[];
   tokenEvents: any[];
+}
+
+// Error Boundary Component for Charts
+class ChartErrorBoundary extends React.Component<
+  { children: React.ReactNode; fallback?: React.ReactNode },
+  { hasError: boolean; error?: Error }
+> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Chart rendering error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback || (
+        <div className="h-64 bg-red-50 border border-red-200 rounded flex items-center justify-center">
+          <div className="text-center text-red-600">
+            <AlertTriangle className="h-8 w-8 mx-auto mb-2" />
+            <p className="font-medium">Chart Error</p>
+            <p className="text-sm">Unable to render chart</p>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
 }
 
 /**
@@ -32,8 +67,24 @@ const DomainModal: React.FC<DomainModalProps> = ({
   const [selectedTimeRange, setSelectedTimeRange] = useState<'1h' | '6h' | '24h' | '7d'>('24h');
   const [activeTab, setActiveTab] = useState<'overview' | 'performance' | 'errors' | 'security'>('overview');
 
-  // Filter data for this specific domain - PERFORMANCE: Memoized
+  // Filter data for this specific domain - PERFORMANCE: Memoized with safety checks
   const domainData = useMemo(() => {
+    console.log(`[DomainModal] Processing data for domain: ${domain}`, {
+      requests: networkRequests?.length || 0,
+      errors: consoleErrors?.length || 0,
+      tokens: tokenEvents?.length || 0
+    });
+
+    // SAFETY: Ensure arrays exist and are valid
+    const safeNetworkRequests = Array.isArray(networkRequests) ? networkRequests : [];
+    const safeConsoleErrors = Array.isArray(consoleErrors) ? consoleErrors : [];
+    const safeTokenEvents = Array.isArray(tokenEvents) ? tokenEvents : [];
+
+    // PERFORMANCE: Limit processing to prevent crashes (max 1000 items each)
+    const limitedRequests = safeNetworkRequests.slice(0, 1000);
+    const limitedErrors = safeConsoleErrors.slice(0, 1000);
+    const limitedTokens = safeTokenEvents.slice(0, 1000);
+
     const now = Date.now();
     const timeRanges = {
       '1h': 60 * 60 * 1000,
@@ -43,9 +94,9 @@ const DomainModal: React.FC<DomainModalProps> = ({
     };
     const cutoff = now - timeRanges[selectedTimeRange];
 
-    // Enhanced domain matching function
+    // Enhanced domain matching function with safety checks
     const matchesDomain = (itemDomain: string) => {
-      if (!itemDomain) return false;
+      if (!itemDomain || typeof itemDomain !== 'string') return false;
 
       // Normalize domain for comparison (remove www, convert to lowercase)
       const normalizeForComparison = (d: string) => d.toLowerCase().replace(/^www\./, '');
@@ -59,28 +110,53 @@ const DomainModal: React.FC<DomainModalProps> = ({
       return normalizedItem.endsWith('.' + normalizedTarget) || normalizedTarget.endsWith('.' + normalizedItem);
     };
 
-    const filteredRequests = networkRequests.filter(req => {
+    // Filter using limited safe data arrays
+    const filteredRequests = limitedRequests.filter(req => {
+      if (!req || typeof req !== 'object') return false;
+      
       const reqDomain = req.main_domain ||
-                       req.url?.match(/https?:\/\/([^\/]+)/)?.[1] ||
+                       (req.url ? req.url.match(/https?:\/\/([^\/]+)/)?.[1] : '') ||
                        req.domain || '';
       const timestamp = req.timestamp || Date.now();
-      return matchesDomain(reqDomain) && timestamp >= cutoff;
+      
+      try {
+        return matchesDomain(reqDomain) && timestamp >= cutoff;
+      } catch (e) {
+        console.warn('[DomainModal] Error filtering request:', e);
+        return false;
+      }
     });
 
-    const filteredErrors = consoleErrors.filter(error => {
+    const filteredErrors = limitedErrors.filter(error => {
+      if (!error || typeof error !== 'object') return false;
+      
       const errorDomain = error.main_domain ||
-                         error.url?.match(/https?:\/\/([^\/]+)/)?.[1] ||
+                         (error.url ? error.url.match(/https?:\/\/([^\/]+)/)?.[1] : '') ||
                          error.domain || '';
       const timestamp = error.timestamp || Date.now();
-      return matchesDomain(errorDomain) && timestamp >= cutoff;
+      
+      try {
+        return matchesDomain(errorDomain) && timestamp >= cutoff;
+      } catch (e) {
+        console.warn('[DomainModal] Error filtering error:', e);
+        return false;
+      }
     });
 
-    const filteredTokens = tokenEvents.filter(token => {
+    const filteredTokens = limitedTokens.filter(token => {
+      if (!token || typeof token !== 'object') return false;
+      
       const tokenDomain = token.main_domain ||
-                         token.url?.match(/https?:\/\/([^\/]+)/)?.[1] ||
+                         (token.url ? token.url.match(/https?:\/\/([^\/]+)/)?.[1] : '') ||
                          token.domain || '';
       const timestamp = token.timestamp || Date.now();
-      return matchesDomain(tokenDomain) && timestamp >= cutoff;
+      
+      try {
+        return matchesDomain(tokenDomain) && timestamp >= cutoff;
+      } catch (e) {
+        console.warn('[DomainModal] Error filtering token:', e);
+        return false;
+      }
     });
 
     // Debug logging for domain filtering
@@ -112,121 +188,212 @@ const DomainModal: React.FC<DomainModalProps> = ({
     };
   }, [domain, networkRequests, consoleErrors, tokenEvents, selectedTimeRange]);
 
-  // Advanced analytics - PERFORMANCE: Memoized calculations
+  // Advanced analytics - PERFORMANCE: Memoized calculations with error handling
   const analytics = useMemo(() => {
-    const { requests, errors, tokens } = domainData;
+    try {
+      console.log(`[DomainModal] Computing analytics for ${domain}...`);
+      
+      const { requests, errors, tokens } = domainData;
 
-    // Performance metrics
-    const responseTimes = requests
-      .map(req => req.response_time || req.responseTime || 0)
-      .filter(t => t > 0);
+      // SAFETY: Validate data arrays
+      const safeRequests = Array.isArray(requests) ? requests : [];
+      const safeErrors = Array.isArray(errors) ? errors : [];
+      const safeTokens = Array.isArray(tokens) ? tokens : [];
 
-    const avgResponseTime = responseTimes.length > 0
-      ? responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length
-      : 0;
+      // Performance metrics with error handling
+      const responseTimes = safeRequests
+        .map(req => {
+          const time = req?.response_time || req?.responseTime || 0;
+          return typeof time === 'number' && time > 0 ? time : 0;
+        })
+        .filter(t => t > 0);
 
-    const p95ResponseTime = responseTimes.length > 0
-      ? responseTimes.sort((a, b) => a - b)[Math.floor(responseTimes.length * 0.95)] || 0
-      : 0;
+      const avgResponseTime = responseTimes.length > 0
+        ? responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length
+        : 0;
 
-    // Error analysis - check multiple status fields
-    const errorRequests = requests.filter(req => {
-      const status = req.status || req.response_status || req.statusCode || 200;
-      return status >= 400;
-    });
-    const errorRate = requests.length > 0 ? (errorRequests.length / requests.length) * 100 : 0;
+      const p95ResponseTime = responseTimes.length > 0
+        ? (responseTimes.sort((a, b) => a - b)[Math.floor(responseTimes.length * 0.95)] || 0)
+        : 0;
 
-    // Traffic patterns - method distribution
-    const methodDistribution = requests.reduce((acc, req) => {
-      const method = req.method || req.requestMethod || 'GET';
-      acc[method] = (acc[method] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    // Status code distribution
-    const statusDistribution = requests.reduce((acc, req) => {
-      const status = req.status || req.response_status || req.statusCode || 200;
-      const statusGroup = status < 300 ? '2xx' :
-                         status < 400 ? '3xx' :
-                         status < 500 ? '4xx' : '5xx';
-      acc[statusGroup] = (acc[statusGroup] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    // Timeline data (hourly buckets)
-    const timelineData = [];
-    const now = Date.now();
-    const hourMs = 60 * 60 * 1000;
-    const hours = selectedTimeRange === '1h' ? 1 :
-                  selectedTimeRange === '6h' ? 6 :
-                  selectedTimeRange === '24h' ? 24 : 168; // 7 days
-
-    for (let i = hours - 1; i >= 0; i--) {
-      const hourStart = now - (i * hourMs);
-      const hourEnd = hourStart + hourMs;
-
-      const hourRequests = requests.filter(req => {
-        const timestamp = req.timestamp || req.time || Date.now();
-        return timestamp >= hourStart && timestamp < hourEnd;
+      // Error analysis with safety checks
+      const errorRequests = safeRequests.filter(req => {
+        try {
+          const status = req?.status || req?.response_status || req?.statusCode || 200;
+          return typeof status === 'number' && status >= 400;
+        } catch (e) {
+          return false;
+        }
       });
+      const errorRate = safeRequests.length > 0 ? (errorRequests.length / safeRequests.length) * 100 : 0;
 
-      const hourErrors = hourRequests.filter(req => {
-        const status = req.status || req.response_status || req.statusCode || 200;
-        return status >= 400;
-      });
-
-      timelineData.push({
-        time: new Date(hourStart).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        requests: hourRequests.length,
-        errors: hourErrors.length,
-        avgResponseTime: hourRequests.length > 0
-          ? Math.round(hourRequests.reduce((sum, req) => sum + (req.response_time || req.responseTime || 0), 0) / hourRequests.length)
-          : 0
-      });
-    }
-
-    // Security insights
-    const securityInsights = {
-      httpsRatio: requests.length > 0
-        ? Math.round((requests.filter(req => req.url?.startsWith('https')).length / requests.length) * 100)
-        : 100,
-      suspiciousTokens: tokens.filter(token =>
-        token.type === 'session' || token.type === 'auth' || token.value?.includes('token')
-      ).length,
-      errorTypes: errors.reduce((acc, error) => {
-        const type = error.type || error.level || 'unknown';
-        acc[type] = (acc[type] || 0) + 1;
+      // Traffic patterns - method distribution with safety
+      const methodDistribution = safeRequests.reduce((acc, req) => {
+        try {
+          const method = req?.method || req?.requestMethod || 'GET';
+          if (typeof method === 'string') {
+            acc[method] = (acc[method] || 0) + 1;
+          }
+        } catch (e) {
+          // Skip invalid requests
+        }
         return acc;
-      }, {} as Record<string, number>)
-    };
+      }, {} as Record<string, number>);
 
-    // Debug logging for analytics
-    console.log('📊 DomainModal: Analytics calculated', {
-      domain,
-      dataStats: {
-        requests: requests.length,
-        errors: errors.length,
-        tokens: tokens.length
-      },
-      metrics: {
+      // Status code distribution with safety
+      const statusDistribution = safeRequests.reduce((acc, req) => {
+        try {
+          const status = req?.status || req?.response_status || req?.statusCode || 200;
+          if (typeof status === 'number') {
+            const statusGroup = status < 300 ? '2xx' :
+                               status < 400 ? '3xx' :
+                               status < 500 ? '4xx' : '5xx';
+            acc[statusGroup] = (acc[statusGroup] || 0) + 1;
+          }
+        } catch (e) {
+          // Skip invalid requests
+        }
+        return acc;
+      }, {} as Record<string, number>);
+
+      // Timeline data (hourly buckets) with error handling
+      const timelineData = [];
+      const now = Date.now();
+      const hourMs = 60 * 60 * 1000;
+      const hours = selectedTimeRange === '1h' ? 1 :
+                    selectedTimeRange === '6h' ? 6 :
+                    selectedTimeRange === '24h' ? 24 : 168; // 7 days
+
+      // PERFORMANCE: Limit timeline processing to prevent crashes
+      const maxHours = Math.min(hours, 168); // Max 7 days
+
+      for (let i = maxHours - 1; i >= 0; i--) {
+        try {
+          const hourStart = now - (i * hourMs);
+          const hourEnd = hourStart + hourMs;
+
+          const hourRequests = safeRequests.filter(req => {
+            try {
+              const timestamp = req?.timestamp || req?.time || Date.now();
+              return typeof timestamp === 'number' && timestamp >= hourStart && timestamp < hourEnd;
+            } catch (e) {
+              return false;
+            }
+          });
+
+          const hourErrors = hourRequests.filter(req => {
+            try {
+              const status = req?.status || req?.response_status || req?.statusCode || 200;
+              return typeof status === 'number' && status >= 400;
+            } catch (e) {
+              return false;
+            }
+          });
+
+          timelineData.push({
+            time: new Date(hourStart).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            requests: hourRequests.length,
+            errors: hourErrors.length,
+            avgResponseTime: hourRequests.length > 0
+              ? Math.round(hourRequests.reduce((sum, req) => {
+                  try {
+                    return sum + (req?.response_time || req?.responseTime || 0);
+                  } catch (e) {
+                    return sum;
+                  }
+                }, 0) / hourRequests.length)
+              : 0
+          });
+        } catch (e) {
+          console.warn(`[DomainModal] Error processing hour ${i}:`, e);
+          // Add empty data point to maintain timeline structure
+          timelineData.push({
+            time: new Date(now - (i * hourMs)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            requests: 0,
+            errors: 0,
+            avgResponseTime: 0
+          });
+        }
+      }
+
+      // Security insights with error handling
+      const securityInsights = {
+        httpsRatio: safeRequests.length > 0
+          ? Math.round((safeRequests.filter(req => {
+              try {
+                return req?.url?.startsWith('https');
+              } catch (e) {
+                return false;
+              }
+            }).length / safeRequests.length) * 100)
+          : 100,
+        suspiciousTokens: safeTokens.filter(token => {
+          try {
+            return token?.type === 'session' || token?.type === 'auth' || token?.value?.includes('token');
+          } catch (e) {
+            return false;
+          }
+        }).length,
+        errorTypes: safeErrors.reduce((acc, error) => {
+          try {
+            const type = error?.type || error?.level || 'unknown';
+            if (typeof type === 'string') {
+              acc[type] = (acc[type] || 0) + 1;
+            }
+          } catch (e) {
+            // Skip invalid errors
+          }
+          return acc;
+        }, {} as Record<string, number>)
+      };
+
+      // Debug logging for analytics
+      console.log('📊 DomainModal: Analytics calculated', {
+        domain,
+        dataStats: {
+          requests: safeRequests.length,
+          errors: safeErrors.length,
+          tokens: safeTokens.length
+        },
+        metrics: {
+          avgResponseTime: Math.round(avgResponseTime),
+          p95ResponseTime: Math.round(p95ResponseTime),
+          errorRate: Math.round(errorRate * 100) / 100,
+          totalRequests: safeRequests.length
+        },
+        timelinePoints: timelineData.length
+      });
+
+      return {
         avgResponseTime: Math.round(avgResponseTime),
         p95ResponseTime: Math.round(p95ResponseTime),
         errorRate: Math.round(errorRate * 100) / 100,
-        totalRequests: requests.length
-      },
-      timelinePoints: timelineData.length
-    });
+        totalRequests: safeRequests.length,
+        methodDistribution,
+        statusDistribution,
+        timelineData,
+        securityInsights
+      };
 
-    return {
-      avgResponseTime: Math.round(avgResponseTime),
-      p95ResponseTime: Math.round(p95ResponseTime),
-      errorRate: Math.round(errorRate * 100) / 100,
-      totalRequests: requests.length,
-      methodDistribution,
-      statusDistribution,
-      timelineData,
-      securityInsights
-    };
+    } catch (error) {
+      console.error('🚨 DomainModal: Analytics computation failed:', error);
+      
+      // Return safe fallback data to prevent crashes
+      return {
+        avgResponseTime: 0,
+        p95ResponseTime: 0,
+        errorRate: 0,
+        totalRequests: 0,
+        methodDistribution: {},
+        statusDistribution: {},
+        timelineData: [],
+        securityInsights: {
+          httpsRatio: 100,
+          suspiciousTokens: 0,
+          errorTypes: {}
+        }
+      };
+    }
   }, [domainData, selectedTimeRange, domain]);
 
   if (!isOpen) return null;
@@ -343,16 +510,18 @@ const DomainModal: React.FC<DomainModalProps> = ({
                   <h3 className="text-lg font-semibold mb-4">Traffic Over Time</h3>
                   <div className="h-64">
                     {analytics.timelineData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={analytics.timelineData}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="time" tick={{ fontSize: 12 }} />
-                          <YAxis tick={{ fontSize: 12 }} />
-                          <Tooltip />
-                          <Area type="monotone" dataKey="requests" stroke={colors.primary} fill={colors.primary} fillOpacity={0.3} />
-                          <Area type="monotone" dataKey="errors" stroke={colors.error} fill={colors.error} fillOpacity={0.3} />
-                        </AreaChart>
-                      </ResponsiveContainer>
+                      <ChartErrorBoundary>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={analytics.timelineData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="time" tick={{ fontSize: 12 }} />
+                            <YAxis tick={{ fontSize: 12 }} />
+                            <Tooltip />
+                            <Area type="monotone" dataKey="requests" stroke={colors.primary} fill={colors.primary} fillOpacity={0.3} />
+                            <Area type="monotone" dataKey="errors" stroke={colors.error} fill={colors.error} fillOpacity={0.3} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </ChartErrorBoundary>
                     ) : (
                       <div className="flex items-center justify-center h-full text-gray-500">
                         <div className="text-center">
