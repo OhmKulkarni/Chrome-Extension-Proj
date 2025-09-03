@@ -238,7 +238,7 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
     let sumResponseTimes = 0;
     let minResponseTime = Infinity;
     let maxResponseTime = 0;
-    
+
     requests.forEach(req => {
       const responseTime = req.response_time || req.responseTime || 0;
       if (responseTime > 0) {
@@ -246,7 +246,7 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
         sumResponseTimes += responseTime;
         minResponseTime = Math.min(minResponseTime, responseTime);
         maxResponseTime = Math.max(maxResponseTime, responseTime);
-        
+
         if (responseTime <= 50) {
           responseTimeBuckets['0-50ms']++;
         } else if (responseTime <= 100) {
@@ -331,7 +331,7 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
           <h3 className="text-xl font-semibold text-gray-900 mb-2">No Data Available</h3>
           <p className="text-gray-600 mb-1">No activity detected for <span className="font-mono font-semibold">{domain}</span></p>
           <p className="text-sm text-gray-500">Charts will appear when domain activity is detected</p>
-          
+
           <div className="mt-8 grid grid-cols-3 gap-4 max-w-sm mx-auto">
             <div className="text-center p-3 bg-white/60 rounded-lg">
               <div className="w-3 h-3 rounded-full bg-blue-300 mx-auto mb-1"></div>
@@ -380,20 +380,22 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
               <p className="text-sm text-gray-600 font-mono">{domain}</p>
             </div>
           </div>
-          
-          {/* Performance Badge */}
+
+          {/* Performance Badge with Safe Fallbacks */}
           <div className="flex items-center gap-2">
             <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
-              chartData.successRate >= 95 ? 'bg-green-100 text-green-800' :
-              chartData.successRate >= 85 ? 'bg-yellow-100 text-yellow-800' :
-              'bg-red-100 text-red-800'
+              (chartData.successRate ?? 0) >= 95 ? 'bg-green-100 text-green-800' :
+              (chartData.successRate ?? 0) >= 85 ? 'bg-yellow-100 text-yellow-800' :
+              chartData.successRate !== undefined ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-600'
             }`}>
-              {chartData.successRate >= 95 ? '✅ Excellent' :
-               chartData.successRate >= 85 ? '⚠️ Good' : '🚨 Poor'} Performance
+              {chartData.successRate !== undefined ? (
+                chartData.successRate >= 95 ? '✅ Excellent' :
+                chartData.successRate >= 85 ? '⚠️ Good' : '🚨 Poor'
+              ) : '📊 Analyzing'} Performance
             </div>
           </div>
         </div>
-        
+
         {/* Quick Stats Cards */}
         <div className="grid grid-cols-3 gap-4">
           <div className="bg-white/70 backdrop-blur-sm rounded-lg p-3 border border-white/50">
@@ -403,7 +405,7 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
             </div>
             <p className="text-2xl font-bold text-gray-900 mt-1">{domainData.requests.length}</p>
           </div>
-          
+
           <div className="bg-white/70 backdrop-blur-sm rounded-lg p-3 border border-white/50">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-red-500"></div>
@@ -411,7 +413,7 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
             </div>
             <p className="text-2xl font-bold text-gray-900 mt-1">{domainData.errors.length}</p>
           </div>
-          
+
           <div className="bg-white/70 backdrop-blur-sm rounded-lg p-3 border border-white/50">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-amber-500"></div>
@@ -424,7 +426,7 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
 
       {/* Enhanced Charts Grid - Better Visual Hierarchy */}
       <div className="p-6 space-y-6">
-        
+
         {/* Primary Chart - Activity Timeline (Full Width) */}
         <div className="bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-shadow p-4">
           <div className="flex items-center justify-between mb-4">
@@ -440,82 +442,90 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
             </div>
           </div>
           <div className="h-48 bg-gradient-to-br from-gray-50 to-white rounded-lg p-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData.timeline}>
-                <defs>
-                  <linearGradient id="gradientRequests" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={colors.primary} stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor={colors.primary} stopOpacity={0.1}/>
-                  </linearGradient>
-                  <linearGradient id="gradientErrors" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={colors.danger} stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor={colors.danger} stopOpacity={0.1}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis
-                  dataKey="time"
-                  tick={{ fontSize: 11, fill: '#64748b' }}
-                  angle={-30}
-                  textAnchor="end"
-                  height={60}
-                  stroke="#94a3b8"
-                />
-                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} stroke="#94a3b8" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: 'white',
-                    fontSize: '12px'
-                  }}
-                  labelStyle={{
-                    color: 'white'
-                  }}
-                  itemStyle={{
-                    color: 'white'
-                  }}
-                  formatter={(value: any, name: string) => [
-                    value,
-                    name === 'requests' ? '🌐 Network Requests' :
-                    name === 'errors' ? '❌ Console Errors' :
-                    name === 'tokens' ? '🔑 Token Events' : 'Total'
-                  ]}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="requests"
-                  stroke={colors.primary}
-                  strokeWidth={3}
-                  dot={{ fill: colors.primary, r: 4, strokeWidth: 2, stroke: 'white' }}
-                  activeDot={{ r: 6, stroke: colors.primary, strokeWidth: 2, fill: 'white' }}
-                  name="requests"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="errors"
-                  stroke={colors.danger}
-                  strokeWidth={3}
-                  dot={{ fill: colors.danger, r: 3, strokeWidth: 2, stroke: 'white' }}
-                  activeDot={{ r: 6, stroke: colors.danger, strokeWidth: 2, fill: 'white' }}
-                  name="errors"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="tokens"
-                  stroke={colors.accent}
-                  strokeWidth={3}
-                  dot={{ fill: colors.accent, r: 3, strokeWidth: 2, stroke: 'white' }}
-                  activeDot={{ r: 6, stroke: colors.accent, strokeWidth: 2, fill: 'white' }}
-                  name="tokens"
-                />
-                <Legend 
-                  wrapperStyle={{ paddingTop: '20px' }}
-                  iconType="circle"
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {chartData.timeline && chartData.timeline.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData.timeline}>
+                  <defs>
+                    <linearGradient id="gradientRequests" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={colors.primary} stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor={colors.primary} stopOpacity={0.1}/>
+                    </linearGradient>
+                    <linearGradient id="gradientErrors" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={colors.danger} stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor={colors.danger} stopOpacity={0.1}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis
+                    dataKey="time"
+                    tick={{ fontSize: 11, fill: '#64748b' }}
+                    angle={-30}
+                    textAnchor="end"
+                    height={60}
+                    stroke="#94a3b8"
+                  />
+                  <YAxis tick={{ fontSize: 11, fill: '#64748b' }} stroke="#94a3b8" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: 'white',
+                      fontSize: '12px'
+                    }}
+                    labelStyle={{
+                      color: 'white'
+                    }}
+                    itemStyle={{
+                      color: 'white'
+                    }}
+                    formatter={(value: any, name: string) => [
+                      value,
+                      name === 'requests' ? '🌐 Network Requests' :
+                      name === 'errors' ? '❌ Console Errors' :
+                      name === 'tokens' ? '🔑 Token Events' : 'Total'
+                    ]}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="requests"
+                    stroke={colors.primary}
+                    strokeWidth={3}
+                    dot={{ fill: colors.primary, r: 4, strokeWidth: 2, stroke: 'white' }}
+                    activeDot={{ r: 6, stroke: colors.primary, strokeWidth: 2, fill: 'white' }}
+                    name="requests"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="errors"
+                    stroke={colors.danger}
+                    strokeWidth={3}
+                    dot={{ fill: colors.danger, r: 3, strokeWidth: 2, stroke: 'white' }}
+                    activeDot={{ r: 6, stroke: colors.danger, strokeWidth: 2, fill: 'white' }}
+                    name="errors"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="tokens"
+                    stroke={colors.accent}
+                    strokeWidth={3}
+                    dot={{ fill: colors.accent, r: 3, strokeWidth: 2, stroke: 'white' }}
+                    activeDot={{ r: 6, stroke: colors.accent, strokeWidth: 2, fill: 'white' }}
+                    name="tokens"
+                  />
+                  <Legend
+                    wrapperStyle={{ paddingTop: '20px' }}
+                    iconType="circle"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                <Clock className="h-8 w-8 mb-2 opacity-50" />
+                <div className="text-sm font-medium">No Activity Timeline</div>
+                <div className="text-xs mt-1">No temporal data available</div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -545,9 +555,9 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
                       strokeWidth={2}
                     >
                       {chartData.status.map((entry, index) => (
-                        <Cell 
-                          key={`cell-${index}`} 
-                          fill={colors.status[entry.name] || colors.primary} 
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={colors.status[entry.name] || colors.primary}
                         />
                       ))}
                     </Pie>
@@ -570,7 +580,7 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
                         name
                       ]}
                     />
-                    <Legend 
+                    <Legend
                       wrapperStyle={{ fontSize: '12px' }}
                       iconType="circle"
                     />
@@ -650,8 +660,15 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex items-center justify-center h-full text-gray-500 text-sm">
-                  No response time data
+                <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                  <Clock className="h-8 w-8 mb-2 opacity-50" />
+                  <div className="text-sm font-medium">No Response Time Data</div>
+                  <div className="text-xs mt-1 text-center">
+                    {domainData.requests.length > 0 ? 
+                      'Requests found but no response times recorded' :
+                      'No network requests available'
+                    }
+                  </div>
                 </div>
               )}
             </div>
@@ -701,17 +718,24 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
                       radius={[6, 6, 0, 0]}
                     >
                       {chartData.endpoints.map((_, index) => (
-                        <Cell 
-                          key={`cell-${index}`} 
-                          fill={colors.methods[index % colors.methods.length]} 
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={colors.methods[index % colors.methods.length]}
                         />
                       ))}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex items-center justify-center h-full text-gray-500 text-sm">
-                  No endpoint data
+                <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                  <BarChart3 className="h-8 w-8 mb-2 opacity-50" />
+                  <div className="text-sm font-medium">No URL Path Data</div>
+                  <div className="text-xs mt-1 text-center">
+                    {domainData.requests.length > 0 ? 
+                      'Requests found but no valid URLs to parse' :
+                      'No network requests to analyze'
+                    }
+                  </div>
                 </div>
               )}
             </div>
@@ -728,21 +752,21 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
               <div className="text-2xl font-bold text-blue-600">{chartData.avgResponseTime}ms</div>
               <div className="text-xs text-gray-600 font-medium">Avg Response Time</div>
             </div>
-            
+
             <div className="bg-white/80 rounded-lg p-3 text-center">
               <div className={`text-2xl font-bold ${chartData.successRate >= 95 ? 'text-green-600' : chartData.successRate >= 85 ? 'text-yellow-600' : 'text-red-600'}`}>
                 {chartData.successRate}%
               </div>
               <div className="text-xs text-gray-600 font-medium">Success Rate</div>
             </div>
-            
+
             <div className="bg-white/80 rounded-lg p-3 text-center">
               <div className="text-2xl font-bold text-purple-600">
                 {domainData.requests.length + domainData.errors.length + domainData.tokens.length}
               </div>
               <div className="text-xs text-gray-600 font-medium">Total Events</div>
             </div>
-            
+
             <div className="bg-white/80 rounded-lg p-3 text-center">
               <div className="text-2xl font-bold text-orange-600">
                 {chartData.endpoints?.length || 0}
