@@ -67,23 +67,30 @@ const DomainModal: React.FC<DomainModalProps> = ({
   const [selectedTimeRange, setSelectedTimeRange] = useState<'1h' | '6h' | '24h' | '7d'>('24h');
   const [activeTab, setActiveTab] = useState<'overview' | 'performance' | 'errors' | 'security'>('overview');
 
-  // Filter data for this specific domain - PERFORMANCE: Memoized with safety checks
+  // PERFORMANCE: Early exit if data is too large
+  const totalDataSize = (networkRequests?.length || 0) + (consoleErrors?.length || 0) + (tokenEvents?.length || 0);
+  if (totalDataSize > 5000) {
+    console.warn(`[DomainModal] Dataset too large (${totalDataSize}), showing limited view`);
+  }
+
+  // Filter data for this specific domain - PERFORMANCE: Memoized with aggressive limits
   const domainData = useMemo(() => {
     console.log(`[DomainModal] Processing data for domain: ${domain}`, {
       requests: networkRequests?.length || 0,
       errors: consoleErrors?.length || 0,
-      tokens: tokenEvents?.length || 0
+      tokens: tokenEvents?.length || 0,
+      totalSize: totalDataSize
     });
 
-    // SAFETY: Ensure arrays exist and are valid
-    const safeNetworkRequests = Array.isArray(networkRequests) ? networkRequests : [];
-    const safeConsoleErrors = Array.isArray(consoleErrors) ? consoleErrors : [];
-    const safeTokenEvents = Array.isArray(tokenEvents) ? tokenEvents : [];
+    // PERFORMANCE: Very aggressive limits for large datasets  
+    const maxItems = totalDataSize > 3000 ? 200 : totalDataSize > 1000 ? 500 : 1000;
+    
+    console.log(`[DomainModal] Using limit: ${maxItems} items for processing`);
 
-    // PERFORMANCE: Limit processing to prevent crashes (max 1000 items each)
-    const limitedRequests = safeNetworkRequests.slice(0, 1000);
-    const limitedErrors = safeConsoleErrors.slice(0, 1000);
-    const limitedTokens = safeTokenEvents.slice(0, 1000);
+    // SAFETY: Ensure arrays exist and are valid
+    const safeNetworkRequests = Array.isArray(networkRequests) ? networkRequests.slice(0, maxItems) : [];
+    const safeConsoleErrors = Array.isArray(consoleErrors) ? consoleErrors.slice(0, maxItems) : [];
+    const safeTokenEvents = Array.isArray(tokenEvents) ? tokenEvents.slice(0, maxItems) : [];
 
     const now = Date.now();
     const timeRanges = {
@@ -110,51 +117,48 @@ const DomainModal: React.FC<DomainModalProps> = ({
       return normalizedItem.endsWith('.' + normalizedTarget) || normalizedTarget.endsWith('.' + normalizedItem);
     };
 
-    // Filter using limited safe data arrays
-    const filteredRequests = limitedRequests.filter(req => {
+    // Filter using safe limited data arrays
+    const filteredRequests = safeNetworkRequests.filter((req: any) => {
       if (!req || typeof req !== 'object') return false;
-      
+
       const reqDomain = req.main_domain ||
                        (req.url ? req.url.match(/https?:\/\/([^\/]+)/)?.[1] : '') ||
                        req.domain || '';
       const timestamp = req.timestamp || Date.now();
-      
+
       try {
         return matchesDomain(reqDomain) && timestamp >= cutoff;
       } catch (e) {
-        console.warn('[DomainModal] Error filtering request:', e);
         return false;
       }
     });
 
-    const filteredErrors = limitedErrors.filter(error => {
+    const filteredErrors = safeConsoleErrors.filter((error: any) => {
       if (!error || typeof error !== 'object') return false;
-      
+
       const errorDomain = error.main_domain ||
                          (error.url ? error.url.match(/https?:\/\/([^\/]+)/)?.[1] : '') ||
                          error.domain || '';
       const timestamp = error.timestamp || Date.now();
-      
+
       try {
         return matchesDomain(errorDomain) && timestamp >= cutoff;
       } catch (e) {
-        console.warn('[DomainModal] Error filtering error:', e);
         return false;
       }
     });
 
-    const filteredTokens = limitedTokens.filter(token => {
+    const filteredTokens = safeTokenEvents.filter((token: any) => {
       if (!token || typeof token !== 'object') return false;
-      
+
       const tokenDomain = token.main_domain ||
                          (token.url ? token.url.match(/https?:\/\/([^\/]+)/)?.[1] : '') ||
                          token.domain || '';
       const timestamp = token.timestamp || Date.now();
-      
+
       try {
         return matchesDomain(tokenDomain) && timestamp >= cutoff;
       } catch (e) {
-        console.warn('[DomainModal] Error filtering token:', e);
         return false;
       }
     });
@@ -192,7 +196,7 @@ const DomainModal: React.FC<DomainModalProps> = ({
   const analytics = useMemo(() => {
     try {
       console.log(`[DomainModal] Computing analytics for ${domain}...`);
-      
+
       const { requests, errors, tokens } = domainData;
 
       // SAFETY: Validate data arrays
@@ -377,7 +381,7 @@ const DomainModal: React.FC<DomainModalProps> = ({
 
     } catch (error) {
       console.error('🚨 DomainModal: Analytics computation failed:', error);
-      
+
       // Return safe fallback data to prevent crashes
       return {
         avgResponseTime: 0,
@@ -397,6 +401,31 @@ const DomainModal: React.FC<DomainModalProps> = ({
   }, [domainData, selectedTimeRange, domain]);
 
   if (!isOpen) return null;
+
+  // PERFORMANCE: Show simplified view for large datasets to prevent crashes
+  if (totalDataSize > 3000) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-yellow-600" />
+              Dataset Too Large
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 text-center">
+            <p className="text-gray-600">
+              This domain has {totalDataSize.toLocaleString()} data points, which is too large to display safely.
+            </p>
+            <p className="text-sm text-gray-500">
+              Try selecting a smaller record limit (1000 or less) in the main dashboard to view domain details.
+            </p>
+            <Button onClick={onClose}>Close</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   const colors = {
     primary: '#3B82F6',
