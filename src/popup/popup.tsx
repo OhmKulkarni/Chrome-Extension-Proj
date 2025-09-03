@@ -3,9 +3,10 @@
 import './popup.css';
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
+import { Card, CardContent } from './components/ui/card';
 import { Button } from './components/ui/button';
 import { Switch } from './components/ui/switch';
+import { ThreeStateToggle, ThreeState } from './components/ui/three-state-toggle';
 import { StorageService } from '../utils/storage-service';
 import { ChromeSyncService } from '../services/chrome-sync-service';
 
@@ -139,12 +140,22 @@ interface StorageData {
 const Popup: React.FC = () => {
   const [tabInfo, setTabInfo] = useState<TabInfo>({});
   const [globalPowerEnabled, setGlobalPowerEnabled] = useState(true); // Global power button
-  const [siteSpecificEnabled, setSiteSpecificEnabled] = useState(true); // Site-specific toggle
+  // const [siteSpecificEnabled, setSiteSpecificEnabled] = useState(true); // Removed - using computed three-state instead
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<StorageData['extensionSettings']>({});
   const [tabLoggingActive, setTabLoggingActive] = useState(false);
   const [tabErrorLoggingActive, setTabErrorLoggingActive] = useState(false);
   const [tabTokenLoggingActive, setTabTokenLoggingActive] = useState(false);
+
+  // Compute three-state value for the UI based on individual toggle states
+  const siteToggleState: ThreeState = (() => {
+    const allEnabled = tabLoggingActive && tabErrorLoggingActive && tabTokenLoggingActive;
+    const allDisabled = !tabLoggingActive && !tabErrorLoggingActive && !tabTokenLoggingActive;
+
+    if (allEnabled) return 'on';
+    if (allDisabled) return 'off';
+    return 'mixed';
+  })();
 
   useEffect(() => {
     const initializePopup = async () => {
@@ -160,7 +171,7 @@ const Popup: React.FC = () => {
           setTabInfo({ title: 'Error', url: 'Failed to get tab info' })
         })
 
-        // Get extension settings and tab-specific state using StorageService (IndexedDB)
+        // Get extension settings and tab-specific state using StorageService (Chrome storage)
         const result = await storageService.get(['settings']);
         const settings = result.settings || {};
 
@@ -258,7 +269,7 @@ const Popup: React.FC = () => {
     loadExtensionState();
 
     // Get current tab's logging state (network, error, and token)
-    // NEW: Uses Chrome sync for preferences, IndexedDB for real-time counters
+    // NEW: Uses atomic operations for consistent state loading
     // UPDATED: Now respects site-specific toggle state
     const loadTabStates = async () => {
       try {
@@ -266,65 +277,58 @@ const Popup: React.FC = () => {
         if (!tabs[0]?.id || !tabs[0]?.url) return;
 
         const tabId = tabs[0].id;
-        const tabUrl = tabs[0].url;
 
-        // Get site-specific state first
-        let siteEnabled = true;
+        // Primary: Try atomic operation first for consistent state
         try {
-          const siteResponse = await sendChromeMessage({
-            action: 'GET_SITE_SPECIFIC_STATE',
-            tabId: tabId
-          });
-          if (siteResponse && 'enabled' in siteResponse) {
-            siteEnabled = siteResponse.enabled;
-            setSiteSpecificEnabled(siteEnabled);
+          const response = await sendChromeMessage({ action: 'getAllFeaturesState', tabId });
+
+          if (response?.success && response.features) {
+            const { network, console: errors, tokens } = response.features;
+
+            setTabLoggingActive(network);
+            setTabErrorLoggingActive(errors);
+            setTabTokenLoggingActive(tokens);
+
+            const allEnabled = network && errors && tokens;
+            console.log(`🔄 Atomic state loaded - Network: ${network}, Error: ${errors}, Token: ${tokens}, Site: ${allEnabled ? 'on' : (network || errors || tokens) ? 'mixed' : 'off'}`);
+            return; // Success - exit early
           }
-        } catch (error) {
-          console.error('Error loading site-specific state:', error);
+        } catch (atomicError) {
+          console.log('Atomic state loading failed, falling back to individual calls:', atomicError);
         }
 
-        // If site is disabled, set all logging types to false and return early
-        if (!siteEnabled) {
-          setTabLoggingActive(false);
-          setTabErrorLoggingActive(false);
-          setTabTokenLoggingActive(false);
-          return;
-        }
-
-        // Site is enabled, load individual logging preferences
-        // Get logging preferences from Chrome sync (cross-device)
-        const syncPrefs = await chromeSyncService.getTabPreferencesForUrl(tabUrl);
-
-        // Get real-time state data from IndexedDB (device-specific counters)
+        // Fallback: Use individual calls if atomic operation fails
+        // Get real-time state data from storage manager (Chrome extension storage)
         const [networkState, errorState, tokenState] = await Promise.all([
           sendChromeMessage({ action: 'getTabNetworkState', tabId }),
           sendChromeMessage({ action: 'getTabErrorState', tabId }),
           sendChromeMessage({ action: 'getTabTokenState', tabId })
         ]);
 
-        // Set tab logging states based on sync preferences (with IndexedDB overrides if active)
-        setTabLoggingActive(
-          (networkState?.success && typeof networkState.active === 'boolean')
-            ? networkState.active
-            : syncPrefs.network
-        );
+        // Set individual toggle states based on actual storage manager state ONLY
+        // MAJOR FIX: Use storage manager as source of truth, fallback to FALSE (not sync preferences)
+        const networkActive = (networkState?.success && typeof networkState.active === 'boolean')
+          ? networkState.active
+          : false; // Always default to FALSE for new pages
+        const errorActive = (errorState?.success && typeof errorState.active === 'boolean')
+          ? errorState.active
+          : false; // Always default to FALSE for new pages - SECURITY FIX
+        const tokenActive = (tokenState?.success && typeof tokenState.active === 'boolean')
+          ? tokenState.active
+          : false; // Always default to FALSE for new pages
 
-        setTabErrorLoggingActive(
-          (errorState?.success && typeof errorState.active === 'boolean')
-            ? errorState.active
-            : syncPrefs.errors
-        );
+        setTabLoggingActive(networkActive);
+        setTabErrorLoggingActive(errorActive);
+        setTabTokenLoggingActive(tokenActive);
 
-        setTabTokenLoggingActive(
-          (tokenState?.success && typeof tokenState.active === 'boolean')
-            ? tokenState.active
-            : syncPrefs.tokens
-        );
+        // BIDIRECTIONAL: Site toggle state is now computed automatically from individual toggles
+        // No need to manually set it - siteToggleState is derived reactively
+        const allEnabled = networkActive && errorActive && tokenActive;
+
+        console.log(`🔄 Initial state loaded - Network: ${networkActive}, Error: ${errorActive}, Token: ${tokenActive}, Site: ${allEnabled ? 'on' : (networkActive || errorActive || tokenActive) ? 'mixed' : 'off'}`);
 
       } catch (error) {
         console.error('Error loading tab states:', error);
-        // Set fallback for site-specific state
-        setSiteSpecificEnabled(true);
 
         // Fallback to sync defaults if everything fails
         try {
@@ -332,6 +336,9 @@ const Popup: React.FC = () => {
           setTabLoggingActive(defaults.network);
           setTabErrorLoggingActive(defaults.errors);
           setTabTokenLoggingActive(defaults.tokens);
+
+          // Site toggle is now computed automatically - no manual setting needed
+
         } catch (syncError) {
           console.error('Error loading sync defaults:', syncError);
           // Final fallback: Use settings-based defaults instead of hardcoded ones
@@ -347,6 +354,8 @@ const Popup: React.FC = () => {
             setTabErrorLoggingActive(errorDefault);
             setTabTokenLoggingActive(tokenDefault);
 
+            // Site toggle is now computed automatically from individual states
+
             console.log('🔄 POPUP: Using settings-based defaults - Network:', networkDefault, 'Error:', errorDefault, 'Token:', tokenDefault);
           } catch (settingsError) {
             console.error('Error loading settings defaults:', settingsError);
@@ -354,6 +363,7 @@ const Popup: React.FC = () => {
             setTabLoggingActive(false);
             setTabErrorLoggingActive(false);
             setTabTokenLoggingActive(false);
+            // Site toggle will show 'off' automatically since all individual toggles are off
             console.log('🔄 POPUP: Using ultimate disabled defaults');
           }
         }
@@ -362,47 +372,54 @@ const Popup: React.FC = () => {
 
     loadTabStates();
 
-    // Add storage change listeners to stay synchronized with dashboard
+    // Add storage change listeners to stay synchronized with dashboard and other sources
     const handleStorageChanges = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
       if (areaName === 'local') {
         // Get current tab ID to check for relevant changes
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
           if (tabs[0]?.id) {
             const tabId = tabs[0].id;
+            let hasIndividualChanges = false;
+            let newNetworkState = tabLoggingActive;
+            let newErrorState = tabErrorLoggingActive;
+            let newTokenState = tabTokenLoggingActive;
 
-            // Only update individual logging states if site-specific monitoring is enabled
-            if (siteSpecificEnabled) {
-              // Check for network logging changes
-              const networkLoggingKey = `tabLogging_${tabId}`;
-              if (changes[networkLoggingKey]) {
-                const newValue = changes[networkLoggingKey].newValue;
-                if (newValue && typeof newValue === 'object' && 'active' in newValue) {
-                  setTabLoggingActive(newValue.active);
-                }
+            // Check for network logging changes
+            const networkLoggingKey = `tabLogging_${tabId}`;
+            if (changes[networkLoggingKey]) {
+              const newValue = changes[networkLoggingKey].newValue;
+              if (newValue && typeof newValue === 'object' && 'active' in newValue) {
+                setTabLoggingActive(newValue.active);
+                newNetworkState = newValue.active;
+                hasIndividualChanges = true;
               }
+            }
 
-              // Check for error logging changes
-              const errorLoggingKey = `tabErrorLogging_${tabId}`;
-              if (changes[errorLoggingKey]) {
-                const newValue = changes[errorLoggingKey].newValue;
-                if (newValue && typeof newValue === 'object' && 'active' in newValue) {
-                  setTabErrorLoggingActive(newValue.active);
-                }
+            // Check for error logging changes
+            const errorLoggingKey = `tabErrorLogging_${tabId}`;
+            if (changes[errorLoggingKey]) {
+              const newValue = changes[errorLoggingKey].newValue;
+              if (newValue && typeof newValue === 'object' && 'active' in newValue) {
+                setTabErrorLoggingActive(newValue.active);
+                newErrorState = newValue.active;
+                hasIndividualChanges = true;
               }
+            }
 
-              // Check for token logging changes
-              const tokenLoggingKey = `tabTokenLogging_${tabId}`;
-              if (changes[tokenLoggingKey]) {
-                const newValue = changes[tokenLoggingKey].newValue;
-                if (newValue && typeof newValue === 'object' && 'active' in newValue) {
-                  setTabTokenLoggingActive(newValue.active);
-                }
+            // Check for token logging changes
+            const tokenLoggingKey = `tabTokenLogging_${tabId}`;
+            if (changes[tokenLoggingKey]) {
+              const newValue = changes[tokenLoggingKey].newValue;
+              if (newValue && typeof newValue === 'object' && 'active' in newValue) {
+                setTabTokenLoggingActive(newValue.active);
+                newTokenState = newValue.active;
+                hasIndividualChanges = true;
               }
-            } else {
-              // Site is disabled, ensure all individual toggles remain off
-              setTabLoggingActive(false);
-              setTabErrorLoggingActive(false);
-              setTabTokenLoggingActive(false);
+            }
+
+            // If any individual toggles changed, update site toggle to reflect new state
+            if (hasIndividualChanges) {
+              updateSiteToggleFromIndividualStates(newNetworkState, newErrorState, newTokenState);
             }
           }
         });
@@ -459,111 +476,104 @@ const Popup: React.FC = () => {
     }
   };
 
-  // Helper function to toggle all three logging types
-  const toggleAllLoggingTypes = async (enabled: boolean, tabId: number, tabUrl: string) => {
-    const promises = [];
+  // Helper function to update site toggle based on individual toggle states
+  const updateSiteToggleFromIndividualStates = (networkState: boolean, errorState: boolean, tokenState: boolean) => {
+    const allEnabled = networkState && errorState && tokenState;
+    const allDisabled = !networkState && !errorState && !tokenState;
 
-    // Toggle network logging if available
-    if (settings?.networkInterception?.tabSpecific?.enabled) {
+    // Site toggle reflects the collective state:
+    // - ON when all 3 individual toggles are ON
+    // - OFF when all 3 individual toggles are OFF
+    // - OFF when mixed states (some on, some off) - this makes the site toggle a true "all or nothing" indicator
+    if (allEnabled) {
+      // setSiteSpecificEnabled(true); // Removed - using computed three-state
+      console.log('� Site toggle: ON (all individual features enabled)');
+    } else {
+      // setSiteSpecificEnabled(false); // Removed - using computed three-state
+      if (allDisabled) {
+        console.log('🔴 Site toggle: OFF (all individual features disabled)');
+      } else {
+        console.log('🟡 Site toggle: OFF (mixed state - some features enabled, some disabled)');
+      }
+    }
+  };
+
+  // Handler for three-state site toggle
+  const handleSiteToggleStateChange = (newState: ThreeState) => {
+    // Three-state toggle only allows off ↔ on transitions (mixed is auto-determined)
+    // Clicking when off or mixed → turn all on
+    // Clicking when on → turn all off
+    const targetState = newState === 'on';
+
+    console.log(`🔄 Three-state site toggle: ${newState} → Setting all individual toggles to ${targetState}`);
+    toggleSiteSpecificToState(targetState);
+  };
+
+  // Helper to set all individual toggles to a specific state
+  const toggleSiteSpecificToState = async (enabled: boolean) => {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tabs[0]?.id || !tabs[0]?.url) return;
+
+      const tabId = tabs[0].id;
+      const tabUrl = tabs[0].url;
+
+      console.log(`🔄 Site toggle: ${enabled ? 'Enabling' : 'Disabling'} all 3 individual features using atomic operation`);
+
+      // Update all frontend states immediately for responsive UI
       setTabLoggingActive(enabled);
-      promises.push(
-        chromeSyncService.setTabPreferencesForUrl(tabUrl, { network: enabled }),
-        sendChromeMessage({
-          action: 'setTabNetworkState',
-          tabId,
-          active: enabled
-        })
-      );
-
-      // Send message to content script
-      try {
-        await chrome.tabs.sendMessage(tabId, {
-          action: 'toggleLogging',
-          enabled: enabled
-        });
-      } catch (error) {
-        console.log('Could not send network logging message to tab:', error);
-      }
-    }
-
-    // Toggle error logging if available
-    if (settings?.errorLogging?.tabSpecific?.enabled) {
       setTabErrorLoggingActive(enabled);
-      promises.push(
-        chromeSyncService.setTabPreferencesForUrl(tabUrl, { errors: enabled }),
-        sendChromeMessage({
-          action: 'setTabErrorState',
-          tabId,
-          active: enabled
-        })
-      );
-
-      // Send message to content script
-      try {
-        await chrome.tabs.sendMessage(tabId, {
-          action: 'toggleErrorLogging',
-          enabled: enabled
-        });
-      } catch (error) {
-        console.log('Could not send error logging message to tab:', error);
-      }
-    }
-
-    // Toggle token logging if available
-    if (settings?.tokenLogging?.tabSpecific?.enabled) {
       setTabTokenLoggingActive(enabled);
-      promises.push(
-        chromeSyncService.setTabPreferencesForUrl(tabUrl, { tokens: enabled }),
-        sendChromeMessage({
-          action: 'setTabTokenState',
-          tabId,
-          active: enabled
-        })
-      );
-    }
 
-    // Wait for all operations to complete
-    await Promise.allSettled(promises);
-  };
+      // Save all preferences to Chrome sync
+      await chromeSyncService.setTabPreferencesForUrl(tabUrl, {
+        network: enabled,
+        errors: enabled,
+        tokens: enabled
+      });
 
-  // MEMORY LEAK FIX: Toggle site-specific state (current site only)
-  const toggleSiteSpecific = async () => {
-    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
-      if (tabs[0]?.id && tabs[0]?.url) {
-        const newState = !siteSpecificEnabled;
-        setSiteSpecificEnabled(newState);
+      // Use atomic operation instead of individual calls
+      const response = await sendChromeMessage({
+        action: 'setAllFeaturesEnabled',
+        tabId,
+        enabled
+      });
 
+      if (response && !response.error) {
+        // Send messages to content script for network and error logging
         try {
-          const response = await sendChromeMessage({
-            action: 'SET_EXTENSION_STATE',
-            tabId: tabs[0].id,
-            enabled: newState
-          });
-
-          if (!response?.success) {
-            console.warn('Failed to update site-specific extension state:', response);
-          } else {
-            // Automatically toggle all three logging types to match the site-specific state
-            await toggleAllLoggingTypes(newState, tabs[0].id, tabs[0].url);
-
-            if (newState) {
-              // If we just enabled the site, retry script injection
-              try {
-                await chrome.tabs.sendMessage(tabs[0].id, {
-                  action: 'retryScriptInjection'
-                });
-                console.log('Sent script injection retry request to content script');
-              } catch (error) {
-                console.log('Could not send injection retry message to tab (may not have content script):', error);
-              }
-            }
-          }
+          await Promise.all([
+            chrome.tabs.sendMessage(tabId, { action: 'toggleLogging', enabled }),
+            chrome.tabs.sendMessage(tabId, { action: 'toggleErrorLogging', enabled })
+          ]);
         } catch (error) {
-          console.error('Error updating site-specific extension state:', error);
+          console.log('Could not send messages to tab (may not have content script):', error);
         }
+
+        if (enabled) {
+          // If enabling, retry script injection
+          try {
+            await chrome.tabs.sendMessage(tabId, { action: 'retryScriptInjection' });
+            console.log('Sent script injection retry request to content script');
+          } catch (error) {
+            console.log('Could not send injection retry message to tab:', error);
+          }
+        }
+
+        console.log(`✅ Site toggle complete: All features ${enabled ? 'enabled' : 'disabled'} for this tab using atomic operation`);
+      } else {
+        console.error('Atomic backend update failed, reverting states');
+        // Revert all states if the atomic operation failed
+        setTabLoggingActive(!enabled);
+        setTabErrorLoggingActive(!enabled);
+        setTabTokenLoggingActive(!enabled);
       }
-    });
+    } catch (error) {
+      console.error('Error in site toggle:', error);
+    }
   };
+
+  // Note: toggleSiteSpecific removed - now using handleSiteToggleStateChange with three-state toggle
 
   const toggleTabLogging = async () => {
     try {
@@ -595,6 +605,9 @@ const Popup: React.FC = () => {
         } catch (error) {
           console.log('Could not send message to tab (may not have content script):', error);
         }
+
+        // Update site toggle to reflect new state of all 3 toggles
+        updateSiteToggleFromIndividualStates(newState, tabErrorLoggingActive, tabTokenLoggingActive);
       } else {
         console.error('Failed to toggle tab network state:', response?.error);
         // Revert local state if backend update failed
@@ -637,6 +650,9 @@ const Popup: React.FC = () => {
         } catch (error) {
           console.log('Could not send message to tab (may not have content script):', error);
         }
+
+        // Update site toggle to reflect new state of all 3 toggles
+        updateSiteToggleFromIndividualStates(tabLoggingActive, newState, tabTokenLoggingActive);
       } else {
         console.error('Failed to toggle tab error state:', response?.error);
         // Revert local state if backend update failed
@@ -673,6 +689,9 @@ const Popup: React.FC = () => {
         console.error('Failed to toggle tab token state:', response?.error);
         // Revert local state if backend update failed
         setTabTokenLoggingActive(!newState);
+      } else {
+        // Update site toggle to reflect new state of all 3 toggles
+        updateSiteToggleFromIndividualStates(tabLoggingActive, tabErrorLoggingActive, newState);
       }
 
       // Note: Token logging doesn't require content script communication
@@ -690,23 +709,6 @@ const Popup: React.FC = () => {
     })
   };
 
-  const openSettings = () => {
-    console.log('🔧 Opening settings page...');
-    try {
-      chrome.tabs.create({
-        url: chrome.runtime.getURL('src/settings/settings.html')
-      }, (tab) => {
-        if (chrome.runtime.lastError) {
-          console.error('Error opening settings:', chrome.runtime.lastError);
-        } else {
-          console.log('Settings tab created:', tab);
-        }
-      });
-    } catch (error) {
-      console.error('Exception in openSettings:', error);
-    }
-  };
-
   if (loading) {
     return (
       <div className="w-80 h-96 flex items-center justify-center bg-gray-50">
@@ -716,111 +718,134 @@ const Popup: React.FC = () => {
   }
 
   return (
-    <div className="w-96 bg-gradient-to-br from-blue-50 via-white to-purple-50 min-h-[500px]">
-      <div className="p-4 space-y-3">
-        {/* Header with Gradient */}
-        <div className="text-center pb-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg p-4 shadow-lg">
-          <h1 className="text-xl font-bold tracking-tight flex items-center justify-center">
-            <span className="mr-2">📊</span>
+    <div className="w-96 bg-gradient-to-br from-slate-50 to-gray-100 min-h-[400px]">
+      <div className="p-3 space-y-2">
+        {/* Header */}
+        <div className="text-center bg-gradient-to-r from-slate-800 to-slate-700 text-white rounded-2xl p-2 shadow-xl border border-slate-600/30">
+          <h1 className="text-lg font-bold tracking-tight">
             Web App Monitor
           </h1>
-          <p className="text-blue-100 text-xs mt-1">
-            Scaffold v1.0.0 • Extension Popup
-          </p>
         </div>
 
-        {/* Current Tab Info Card */}
-        <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50">
-          <CardHeader className="pb-3 pt-4 px-4">
-            <CardTitle className="text-base flex items-center text-blue-900">
-              <span className="mr-2">🌐</span>
-              Current Tab
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 px-4 pb-4">
-            <div>
-              <p className="text-xs font-medium text-blue-700">Title</p>
-              <p className="text-sm truncate text-blue-900">{tabInfo.title || 'Unknown'}</p>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-blue-700">URL</p>
-              <p className="text-xs truncate text-blue-600">{tabInfo.url || 'Unknown'}</p>
+        {/* Site Information Card */}
+        <Card className="border border-blue-200/60 bg-gradient-to-br from-blue-50/80 via-white to-indigo-50/40 shadow-lg hover:shadow-xl transition-all duration-300 rounded-2xl ring-1 ring-blue-100/50">
+          <CardContent className="p-4">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-2 h-2 rounded-full bg-blue-500 shadow-sm"></div>
+                <p className="text-xs font-bold text-blue-800 uppercase tracking-wide">Current Site</p>
+              </div>
+              <div className="space-y-2.5">
+                <div>
+                  <p className="text-xs font-semibold text-blue-700 mb-1.5 flex items-center gap-1">
+                    <span className="w-1 h-1 rounded-full bg-blue-600"></span>
+                    Page Title
+                  </p>
+                  <p className="text-sm font-medium text-slate-800 break-words leading-tight bg-white/60 px-3 py-2 rounded-lg border border-blue-100/50">
+                    {tabInfo.title || 'Unknown Page'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-blue-700 mb-1.5 flex items-center gap-1">
+                    <span className="w-1 h-1 rounded-full bg-blue-600"></span>
+                    URL Address
+                  </p>
+                  <p className="text-xs text-slate-600 break-all leading-tight font-mono bg-gradient-to-r from-slate-50 to-blue-50/50 px-3 py-2 rounded-lg border border-slate-200/60 shadow-sm">
+                    {tabInfo.url || 'about:blank'}
+                  </p>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Global Power Control Card */}
-        <Card className="border-2 border-green-200 bg-gradient-to-r from-green-50 to-emerald-50">
-          <CardHeader className="pb-2 pt-4 px-4">
-            <CardTitle className="text-base flex items-center text-green-900">
-              <span className="mr-2">⚡</span>
-              Extension Status
-            </CardTitle>
-            <CardDescription className="text-xs text-green-700">
-              {globalPowerEnabled ? '✅ Extension is active' : '🔴 Extension is disabled'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="px-4 pb-4">
-            <div className="bg-white rounded-md p-3 border-2 border-green-200 shadow-sm">
+        {/* Extension Control */}
+        <Card className={`transition-all duration-200 rounded-2xl ${
+          globalPowerEnabled
+            ? 'border-2 border-green-200 bg-gradient-to-br from-green-50 to-white shadow-lg hover:shadow-xl active:shadow-2xl active:border-green-300 ring-1 ring-green-100'
+            : 'border border-slate-200 bg-white shadow-md hover:shadow-lg'
+        }`}>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className={`w-3 h-3 rounded-full mr-3 transition-all duration-300 ${
+                  globalPowerEnabled
+                    ? 'bg-green-500 shadow-md shadow-green-200'
+                    : 'bg-red-500 shadow-md shadow-red-200'
+                }`}></div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">Extension Status</p>
+                  <p className="text-xs text-slate-600">{globalPowerEnabled ? 'Active' : 'Disabled'}</p>
+                </div>
+              </div>
               <Switch
                 checked={globalPowerEnabled}
                 onChange={() => toggleGlobalPower()}
-                label="Global Power"
-                description={globalPowerEnabled ? '🟢 All monitoring active' : '🔴 All monitoring disabled'}
                 className={globalPowerEnabled ? 'accent-green-500' : 'accent-red-500'}
               />
             </div>
           </CardContent>
         </Card>
 
-        {/* Site-Specific Control Card */}
+        {/* Site Control */}
         {globalPowerEnabled && (
-          <Card className="border-2 border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50">
-            <CardHeader className="pb-2 pt-4 px-4">
-              <CardTitle className="text-base flex items-center text-purple-900">
-                <span className="mr-2">🏠</span>
-                This Site
-              </CardTitle>
-              <CardDescription className="text-xs text-purple-700">
-                {siteSpecificEnabled ? '🟢 Site monitoring enabled' : '🟡 Site monitoring disabled'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div className="bg-white rounded-md p-3 border-2 border-purple-200 shadow-sm">
-                <Switch
-                  checked={siteSpecificEnabled}
-                  onChange={() => toggleSiteSpecific()}
-                  label="Site Monitoring"
-                  description={siteSpecificEnabled ? '🟢 Monitoring enabled for this site' : '🟡 Monitoring disabled for this site'}
-                  className={siteSpecificEnabled ? 'accent-purple-500' : 'accent-gray-400'}
+          <Card className={`transition-all duration-200 rounded-2xl ${
+            siteToggleState === 'on'
+              ? 'border-2 border-green-200 bg-gradient-to-br from-green-50 to-white shadow-lg hover:shadow-xl active:shadow-2xl active:border-green-300 ring-1 ring-green-100'
+              : siteToggleState === 'mixed'
+              ? 'border-2 border-yellow-200 bg-gradient-to-br from-yellow-50 to-white shadow-lg hover:shadow-xl active:shadow-2xl active:border-yellow-300 ring-1 ring-yellow-100'
+              : 'border border-slate-200 bg-white shadow-md hover:shadow-lg'
+          }`}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className={`w-3 h-3 rounded-full mr-3 transition-all duration-300 ${
+                    siteToggleState === 'on' ? 'bg-green-500 shadow-md shadow-green-200' :
+                    siteToggleState === 'mixed' ? 'bg-yellow-500 shadow-md shadow-yellow-200' :
+                    'bg-red-500 shadow-md shadow-red-200'
+                  }`}></div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">Site Logging</p>
+                    <p className="text-xs text-slate-600">
+                      {siteToggleState === 'on' ? 'All features enabled' :
+                       siteToggleState === 'mixed' ? 'Partial features enabled' :
+                       'All features disabled'}
+                    </p>
+                  </div>
+                </div>
+                <ThreeStateToggle
+                  state={siteToggleState}
+                  onStateChange={handleSiteToggleStateChange}
                 />
               </div>
             </CardContent>
           </Card>
-        )}
-
-        {/* Tab-Specific Controls */}
-        {globalPowerEnabled && siteSpecificEnabled && (
-          <div className="space-y-3">
-            {/* Network Logging Control */}
+        )}        {/* Individual Controls */}
+        {globalPowerEnabled && (
+          <div className="space-y-2">
+            {/* Network Logging */}
             {settings?.networkInterception?.tabSpecific?.enabled && (
-              <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-                <CardHeader className="pb-2 pt-4 px-4">
-                  <CardTitle className="text-base flex items-center text-blue-900">
-                    <span className="mr-2">🌐</span>
-                    Network Logging
-                  </CardTitle>
-                  <CardDescription className="text-xs text-blue-700">
-                    {tabLoggingActive ? '📡 Capturing network requests' : '⏸️ Network monitoring paused'}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="px-4 pb-4">
-                  <div className="bg-white rounded-md p-3 border-2 border-blue-200 shadow-sm">
+              <Card className={`transition-all duration-200 rounded-xl ${
+                tabLoggingActive
+                  ? 'border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white shadow-md hover:shadow-lg active:shadow-xl active:border-blue-300 ring-1 ring-blue-100'
+                  : 'border border-slate-200 bg-white shadow-sm hover:shadow-md'
+              }`}>
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className={`w-2.5 h-2.5 rounded-full mr-3 transition-all duration-300 ${
+                        tabLoggingActive
+                          ? 'bg-blue-500 shadow-sm shadow-blue-200'
+                          : 'bg-gray-400 shadow-sm shadow-gray-200'
+                      }`}></div>
+                      <div>
+                        <p className="text-sm font-medium text-slate-800">Network Requests</p>
+                        <p className="text-xs text-slate-500">{tabLoggingActive ? 'Capturing' : 'Paused'}</p>
+                      </div>
+                    </div>
                     <Switch
                       checked={tabLoggingActive}
                       onChange={() => toggleTabLogging()}
-                      label="Network Monitoring"
-                      description={tabLoggingActive ? '📡 Capturing network requests' : '⏸️ Network monitoring paused'}
                       className={tabLoggingActive ? 'accent-blue-500' : 'accent-gray-400'}
                     />
                   </div>
@@ -828,25 +853,29 @@ const Popup: React.FC = () => {
               </Card>
             )}
 
-            {/* Error Logging Control */}
+            {/* Error Logging */}
             {settings?.errorLogging?.tabSpecific?.enabled && (
-              <Card className="border-2 border-red-200 bg-gradient-to-r from-red-50 to-orange-50">
-                <CardHeader className="pb-2 pt-4 px-4">
-                  <CardTitle className="text-base flex items-center text-red-900">
-                    <span className="mr-2">⚠️</span>
-                    Error Logging
-                  </CardTitle>
-                  <CardDescription className="text-xs text-red-700">
-                    {tabErrorLoggingActive ? '🔴 Capturing console errors' : '⏸️ Error monitoring paused'}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="px-4 pb-4">
-                  <div className="bg-white rounded-md p-3 border-2 border-red-200 shadow-sm">
+              <Card className={`transition-all duration-200 rounded-xl ${
+                tabErrorLoggingActive
+                  ? 'border-2 border-red-200 bg-gradient-to-br from-red-50 to-white shadow-md hover:shadow-lg active:shadow-xl active:border-red-300 ring-1 ring-red-100'
+                  : 'border border-slate-200 bg-white shadow-sm hover:shadow-md'
+              }`}>
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className={`w-2.5 h-2.5 rounded-full mr-3 transition-all duration-300 ${
+                        tabErrorLoggingActive
+                          ? 'bg-red-500 shadow-sm shadow-red-200'
+                          : 'bg-gray-400 shadow-sm shadow-gray-200'
+                      }`}></div>
+                      <div>
+                        <p className="text-sm font-medium text-slate-800">Console Errors</p>
+                        <p className="text-xs text-slate-500">{tabErrorLoggingActive ? 'Capturing' : 'Paused'}</p>
+                      </div>
+                    </div>
                     <Switch
                       checked={tabErrorLoggingActive}
                       onChange={() => toggleTabErrorLogging()}
-                      label="Error Monitoring"
-                      description={tabErrorLoggingActive ? '🔴 Capturing console errors' : '⏸️ Error monitoring paused'}
                       className={tabErrorLoggingActive ? 'accent-red-500' : 'accent-gray-400'}
                     />
                   </div>
@@ -854,25 +883,29 @@ const Popup: React.FC = () => {
               </Card>
             )}
 
-            {/* Token Logging Control */}
+            {/* Token Logging */}
             {settings?.tokenLogging?.tabSpecific?.enabled && (
-              <Card className="border-2 border-yellow-200 bg-gradient-to-r from-yellow-50 to-amber-50">
-                <CardHeader className="pb-2 pt-4 px-4">
-                  <CardTitle className="text-base flex items-center text-yellow-900">
-                    <span className="mr-2">🔑</span>
-                    Token Logging
-                  </CardTitle>
-                  <CardDescription className="text-xs text-yellow-700">
-                    {tabTokenLoggingActive ? '🟡 Capturing authentication tokens' : '⏸️ Token monitoring paused'}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="px-4 pb-4">
-                  <div className="bg-white rounded-md p-3 border-2 border-yellow-200 shadow-sm">
+              <Card className={`transition-all duration-200 rounded-xl ${
+                tabTokenLoggingActive
+                  ? 'border-2 border-yellow-200 bg-gradient-to-br from-yellow-50 to-white shadow-md hover:shadow-lg active:shadow-xl active:border-yellow-300 ring-1 ring-yellow-100'
+                  : 'border border-slate-200 bg-white shadow-sm hover:shadow-md'
+              }`}>
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className={`w-2.5 h-2.5 rounded-full mr-3 transition-all duration-300 ${
+                        tabTokenLoggingActive
+                          ? 'bg-yellow-500 shadow-sm shadow-yellow-200'
+                          : 'bg-gray-400 shadow-sm shadow-gray-200'
+                      }`}></div>
+                      <div>
+                        <p className="text-sm font-medium text-slate-800">Auth Tokens</p>
+                        <p className="text-xs text-slate-500">{tabTokenLoggingActive ? 'Capturing' : 'Paused'}</p>
+                      </div>
+                    </div>
                     <Switch
                       checked={tabTokenLoggingActive}
                       onChange={() => toggleTabTokenLogging()}
-                      label="Token Monitoring"
-                      description={tabTokenLoggingActive ? '🟡 Capturing authentication tokens' : '⏸️ Token monitoring paused'}
                       className={tabTokenLoggingActive ? 'accent-yellow-500' : 'accent-gray-400'}
                     />
                   </div>
@@ -882,34 +915,14 @@ const Popup: React.FC = () => {
           </div>
         )}
 
-        {/* Action Buttons */}
-        <div className="space-y-2 pt-2">
-          <Button
-            onClick={openDashboard}
-            className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white border-2 border-blue-300 shadow-lg transform hover:scale-105 transition-all duration-200"
-            size="default"
-          >
-            <span className="mr-2">📊</span>
-            Open Dashboard
-          </Button>
-          <Button
-            onClick={openSettings}
-            variant="outline"
-            className="w-full border-2 border-purple-300 text-purple-700 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 shadow-lg transform hover:scale-105 transition-all duration-200"
-            size="default"
-          >
-            <span className="mr-2">⚙️</span>
-            Settings
-          </Button>
-        </div>
-
-        {/* Footer */}
-        <div className="text-center pt-3 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50 rounded-lg p-2">
-          <p className="text-xs text-gray-600 flex items-center justify-center">
-            <span className="mr-1">🛠️</span>
-            Built with TypeScript, React & Vite
-          </p>
-        </div>
+        {/* Dashboard Button */}
+        <Button
+          onClick={openDashboard}
+          className="w-full bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 active:from-slate-900 active:to-slate-950 text-white shadow-lg hover:shadow-xl active:shadow-2xl transition-all duration-200 rounded-2xl font-semibold"
+          size="default"
+        >
+          Open Dashboard
+        </Button>
       </div>
     </div>
   );

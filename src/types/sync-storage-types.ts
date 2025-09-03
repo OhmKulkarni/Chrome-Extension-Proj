@@ -91,8 +91,8 @@ export interface ChromeSyncStorage {
 export const DEFAULT_TAB_PREFERENCES: SyncTabPreferences = {
   domainPreferences: {},
   defaults: {
-    network: false,
-    errors: true,
+    network: false, // Keep as false - site toggle will override when needed
+    errors: false,  // FIXED: Changed from true to false for consistency
     tokens: false
   },
   version: 1,

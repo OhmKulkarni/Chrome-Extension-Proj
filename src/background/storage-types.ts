@@ -128,12 +128,6 @@ export interface StorageOperations {
   getAllSettings(): Promise<SettingsData[]>
   deleteSetting(key: string): Promise<void>
 
-  // Tab state operations
-  setTabState(tabId: number, state: Omit<TabState, 'tabId' | 'lastUpdated'>): Promise<void>
-  getTabState(tabId: number): Promise<TabState | null>
-  getAllTabStates(): Promise<TabState[]>
-  deleteTabState(tabId: number): Promise<void>
-
   // Performance monitoring
   getPerformanceStats(): Promise<PerformanceStats>
 }
@@ -144,20 +138,4 @@ export interface SettingsData {
   value: any
   timestamp: number
   type: 'extension' | 'network' | 'console' | 'tokens' | 'ui'
-}
-
-// Tab state storage interface
-export interface TabState {
-  tabId: number
-  networkActive: boolean
-  errorActive: boolean
-  tokenActive?: boolean // Optional for backward compatibility
-  networkStartTime?: number
-  errorStartTime?: number
-  tokenStartTime?: number
-  networkRequestCount: number
-  errorCount: number
-  tokenCount?: number // Optional for backward compatibility
-  lastUpdated: number
-  url?: string
 }

@@ -1,5 +1,7 @@
 import React from 'react'
 
+import { getStandardizedSize } from '../../../utils/sizeUtils';
+
 // Type definitions
 interface NetworkRequest {
   id?: string;
@@ -74,12 +76,12 @@ const MethodBadge: React.FC<{ method: string }> = ({ method }) => {
   )
 }
 
-export const NetworkTable: React.FC<NetworkTableProps> = ({ 
-  requests, 
-  sortConfig, 
-  onSort, 
-  onRowDoubleClick, 
-  loading = false 
+export const NetworkTable: React.FC<NetworkTableProps> = ({
+  requests,
+  sortConfig,
+  onSort,
+  onRowDoubleClick,
+  loading = false
 }) => {
   const parseHeaders = (headers: string | object | undefined) => {
     try {
@@ -97,20 +99,20 @@ export const NetworkTable: React.FC<NetworkTableProps> = ({
     try {
       const allHeaders = parseHeaders(request.headers)
       const priorityHeaders = ['content-type', 'authorization', 'accept', 'user-agent', 'x-api-key']
-      
+
       for (const priority of priorityHeaders) {
         if (allHeaders[priority]) {
           const value = String(allHeaders[priority])
           return `${priority}: ${value.substring(0, 30)}${value.length > 30 ? '...' : ''}`
         }
       }
-      
+
       const firstHeader = Object.entries(allHeaders)[0]
       if (firstHeader) {
         const value = String(firstHeader[1])
         return `${firstHeader[0]}: ${value.substring(0, 30)}${value.length > 30 ? '...' : ''}`
       }
-      
+
       return 'No headers'
     } catch {
       return 'Invalid headers'
@@ -144,7 +146,7 @@ export const NetworkTable: React.FC<NetworkTableProps> = ({
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th 
+              <th
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                 onClick={() => onSort('method')}
               >
@@ -153,7 +155,7 @@ export const NetworkTable: React.FC<NetworkTableProps> = ({
                   <SortIcon column="method" sortConfig={sortConfig} />
                 </div>
               </th>
-              <th 
+              <th
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                 onClick={() => onSort('url')}
               >
@@ -162,7 +164,7 @@ export const NetworkTable: React.FC<NetworkTableProps> = ({
                   <SortIcon column="url" sortConfig={sortConfig} />
                 </div>
               </th>
-              <th 
+              <th
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                 onClick={() => onSort('status')}
               >
@@ -171,7 +173,7 @@ export const NetworkTable: React.FC<NetworkTableProps> = ({
                   <SortIcon column="status" sortConfig={sortConfig} />
                 </div>
               </th>
-              <th 
+              <th
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                 onClick={() => onSort('payload_size')}
               >
@@ -180,7 +182,7 @@ export const NetworkTable: React.FC<NetworkTableProps> = ({
                   <SortIcon column="payload_size" sortConfig={sortConfig} />
                 </div>
               </th>
-              <th 
+              <th
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                 onClick={() => onSort('timestamp')}
               >
@@ -192,7 +194,7 @@ export const NetworkTable: React.FC<NetworkTableProps> = ({
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Headers Preview
               </th>
-              <th 
+              <th
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                 onClick={() => onSort('response_time')}
               >
@@ -205,9 +207,9 @@ export const NetworkTable: React.FC<NetworkTableProps> = ({
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {requests.map((request, index) => (
-              <tr 
-                key={index} 
-                className="hover:bg-gray-50 cursor-pointer" 
+              <tr
+                key={index}
+                className="hover:bg-gray-50 cursor-pointer"
                 onDoubleClick={() => onRowDoubleClick(request)}
                 title="Double-click to view detailed information"
               >
@@ -223,7 +225,10 @@ export const NetworkTable: React.FC<NetworkTableProps> = ({
                   <StatusBadge status={request.status} />
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {request.payload_size ? `${Math.round(request.payload_size / 1024)}KB` : '-'}
+                  {(() => {
+                    const size = getStandardizedSize(request);
+                    return size > 0 ? `${Math.round(size / 1024)}KB` : '-';
+                  })()}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {new Date(request.timestamp).toLocaleTimeString()}
@@ -234,7 +239,7 @@ export const NetworkTable: React.FC<NetworkTableProps> = ({
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {request.response_time ? `${request.response_time}ms` : 
+                  {request.response_time ? `${request.response_time}ms` :
                    request.time_taken ? `${request.time_taken}ms` : 'N/A'}
                 </td>
               </tr>

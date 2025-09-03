@@ -1,0 +1,101 @@
+import * as React from "react"
+import { cn } from "../../lib/utils"
+
+export type ThreeState = 'off' | 'mixed' | 'on';
+
+export interface ThreeStateToggleProps {
+  state: ThreeState
+  onStateChange: (newState: ThreeState) => void
+  label?: string
+  description?: string
+  className?: string
+}
+
+const ThreeStateToggle = React.forwardRef<HTMLDivElement, ThreeStateToggleProps>(
+  ({ className, label, description, state, onStateChange }, ref) => {
+    const handleClick = () => {
+      // Cycle through states: off → on → off (skip mixed, as mixed is auto-determined)
+      // Mixed state is only set programmatically, not by user clicks
+      const nextState: ThreeState = state === 'off' ? 'on' : 'off';
+      onStateChange(nextState);
+    };
+
+    const getToggleStyles = () => {
+      switch (state) {
+        case 'on':
+          return {
+            container: "bg-gradient-to-r from-emerald-500 via-green-500 to-emerald-600 border-emerald-400/40 shadow-xl ring-2 ring-emerald-200/60 backdrop-blur-sm",
+            thumb: "translate-x-5 bg-gradient-to-br from-white via-emerald-50 to-white border-emerald-300/60 shadow-2xl ring-2 ring-emerald-100/80",
+            indicator: "bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-md"
+          };
+        case 'mixed':
+          return {
+            container: "bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 border-amber-400/40 shadow-xl ring-2 ring-amber-200/60 backdrop-blur-sm",
+            thumb: "translate-x-2.5 bg-gradient-to-br from-white via-amber-50 to-white border-amber-300/60 shadow-2xl ring-2 ring-amber-100/80",
+            indicator: "bg-gradient-to-br from-amber-400 to-amber-600 shadow-md"
+          };
+        case 'off':
+        default:
+          return {
+            container: "bg-gradient-to-r from-slate-300 to-slate-400 border-slate-400/30 shadow-sm",
+            thumb: "translate-x-0.5 bg-white border-slate-300/50 shadow-md",
+            indicator: "bg-red-500"
+          };
+      }
+    };
+
+    const styles = getToggleStyles();
+
+    const getStateDescription = () => {
+      switch (state) {
+        case 'on':
+          return 'All logging features enabled';
+        case 'mixed':
+          return 'Some logging features enabled';
+        case 'off':
+          return 'All logging features disabled';
+      }
+    };
+
+    return (
+      <div className="flex items-start space-x-3">
+        <div
+          ref={ref}
+          className={cn(
+            "relative inline-flex h-7 w-12 items-center rounded-full border transition-all duration-500 ease-in-out focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background cursor-pointer shadow-md hover:shadow-2xl transform hover:scale-110 active:scale-105",
+            styles.container,
+            className
+          )}
+          onClick={handleClick}
+          title={`Click to ${state === 'off' ? 'enable all' : 'disable all'} logging features`}
+        >
+          <span
+            className={cn(
+              "block h-5 w-5 rounded-full shadow-lg ring-0 transition-all duration-500 ease-in-out border flex items-center justify-center backdrop-blur-sm",
+              styles.thumb
+            )}
+          >
+            <div className={`w-2 h-2 rounded-full ${styles.indicator} shadow-sm`}></div>
+          </span>
+        </div>
+        {(label || description) && (
+          <div className="flex-1">
+            {label && (
+              <label className="text-sm font-semibold leading-none cursor-pointer text-gray-800 hover:text-gray-700 transition-colors duration-200" onClick={handleClick}>
+                {label}
+              </label>
+            )}
+            {description && (
+              <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                {description || getStateDescription()}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+)
+ThreeStateToggle.displayName = "ThreeStateToggle"
+
+export { ThreeStateToggle }

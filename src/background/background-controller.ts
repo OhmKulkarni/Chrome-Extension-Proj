@@ -13,13 +13,14 @@
 // Import all required modules
 import { ChromeApiModule } from './shared/chrome-api.module';
 import { StorageManagerModule } from './shared/storage-manager.module';
-import { MessageRouterModule } from './shared/message-router-simple.module';
+import { MessageRouterSimpleModule } from './shared/message-router-simple.module';
 import { NetworkProcessorModule } from './modules/network-processor.module';
 import { ConsoleHandlerModule } from './modules/console-handler.module';
 import { TokenTrackerModule } from './modules/token-tracker.module';
 import { ExtensionStateModule } from './modules/extension-state.module';
 import { EnvironmentStorageManager } from './environment-storage-manager';
 import { ExtensionStateController } from '../utils/extensionStateController';
+import { UnifiedPermissionService } from './services/unified-permission-service';
 import { SafetyConfig } from './types/background-types';
 
 // Background Script Controller Class
@@ -31,7 +32,8 @@ export class BackgroundController {
   private consoleHandler: ConsoleHandlerModule;
   private tokenTracker: TokenTrackerModule;
   private extensionState: ExtensionStateModule;
-  private messageRouter: MessageRouterModule;
+  private messageRouter: MessageRouterSimpleModule;
+  private unifiedPermissionService: UnifiedPermissionService;
 
   // Legacy compatibility instances
   private legacyStorageManager: EnvironmentStorageManager;
@@ -64,6 +66,9 @@ export class BackgroundController {
     // Initialize storage manager with IndexedDB storage
     this.storageManager = new StorageManagerModule(this.chromeApi, this.legacyStorageManager, this.config);
 
+    // Initialize unified permission service (new permission system) - BEFORE other modules that need it
+    this.unifiedPermissionService = new UnifiedPermissionService();
+
     // Initialize specialized modules with IndexedDB storage
     this.tokenTracker = new TokenTrackerModule(
       this.chromeApi,
@@ -76,24 +81,27 @@ export class BackgroundController {
       this.storageManager,
       this.tokenTracker,
       this.legacyStorageManager,
+      this.unifiedPermissionService,
       this.config
     );
     this.consoleHandler = new ConsoleHandlerModule(
       this.chromeApi,
       this.storageManager,
       this.legacyStorageManager,
+      this.unifiedPermissionService,
       this.config
     );
     this.extensionState = new ExtensionStateModule(this.chromeApi, this.storageManager, this.config);
 
     // Initialize message router (handles all communication)
-    this.messageRouter = new MessageRouterModule(
+    this.messageRouter = new MessageRouterSimpleModule(
       this.chromeApi,
       this.storageManager,
       this.networkProcessor,
       this.consoleHandler,
       this.tokenTracker,
       this.extensionState,
+      this.unifiedPermissionService,
       this.config
     );
 
@@ -153,6 +161,9 @@ export class BackgroundController {
 
       await this.extensionState.initialize();
       console.log('  ✅ Extension state initialized');
+
+      await this.unifiedPermissionService.initialize();
+      console.log('  ✅ Unified permission service initialized');
 
       // Phase 4: Initialize message router (must be last)
       console.log('📋 Phase 4: Message router');

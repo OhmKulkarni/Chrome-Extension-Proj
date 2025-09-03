@@ -1,4 +1,4 @@
-import { NetworkRequest, ConsoleError, TokenEvent } from './types';
+import { NetworkRequestV1, ConsoleErrorV1, TokenEventV1 } from '../../shared/contracts/data.contract';
 
 export interface DomainAnalysis {
   domain: string;
@@ -17,9 +17,9 @@ export interface DomainAnalysis {
 export interface DomainGroup {
   domain: string;
   analysis: DomainAnalysis;
-  networkRequests: NetworkRequest[];
-  consoleErrors: ConsoleError[];
-  tokenEvents: TokenEvent[];
+  networkRequests: NetworkRequestV1[];
+  consoleErrors: ConsoleErrorV1[];
+  tokenEvents: TokenEventV1[];
 }
 
 // Extract main domain from URL
@@ -27,16 +27,16 @@ export const extractMainDomain = (url: string): string => {
   try {
     const urlObj = new URL(url);
     const hostname = urlObj.hostname;
-    
+
     // Remove 'www.' prefix if present
     const withoutWww = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
-    
+
     // For most cases, return the base domain (e.g., 'reddit.com' from 'api.reddit.com')
     const parts = withoutWww.split('.');
     if (parts.length >= 2) {
       return parts.slice(-2).join('.');
     }
-    
+
     return withoutWww;
   } catch (error) {
     console.warn('Failed to extract main domain from URL:', url, error);
@@ -46,16 +46,16 @@ export const extractMainDomain = (url: string): string => {
 
 // Group data by domain
 export const groupDataByDomain = (
-  networkRequests: NetworkRequest[],
-  consoleErrors: ConsoleError[],
-  tokenEvents: TokenEvent[]
+  networkRequests: NetworkRequestV1[],
+  consoleErrors: ConsoleErrorV1[],
+  tokenEvents: TokenEventV1[]
 ): DomainGroup[] => {
   const domainMap = new Map<string, DomainGroup>();
 
   // Process network requests
   networkRequests.forEach(request => {
-    const domain = request.main_domain || extractMainDomain(request.url);
-    
+    const domain = request.mainDomain || extractMainDomain(request.url);
+
     if (!domainMap.has(domain)) {
       domainMap.set(domain, {
         domain,
@@ -81,18 +81,18 @@ export const groupDataByDomain = (
     const group = domainMap.get(domain)!;
     group.networkRequests.push(request);
     group.analysis.requestCount++;
-    group.analysis.lastActivity = Math.max(group.analysis.lastActivity, request.timestamp);
-    
+    group.analysis.lastActivity = Math.max(group.analysis.lastActivity, new Date(request.timestamp).getTime());
+
     // Track status codes
     if (request.status) {
       group.analysis.statusCodes[request.status] = (group.analysis.statusCodes[request.status] || 0) + 1;
     }
-    
+
     // Track methods
     if (request.method) {
       group.analysis.methods[request.method] = (group.analysis.methods[request.method] || 0) + 1;
     }
-    
+
     // Track unique endpoints
     try {
       const endpoint = new URL(request.url).pathname;
@@ -106,8 +106,8 @@ export const groupDataByDomain = (
 
   // Process console errors
   consoleErrors.forEach(error => {
-    const domain = error.main_domain || extractMainDomain(error.url);
-    
+    const domain = extractMainDomain(error.url);
+
     if (!domainMap.has(domain)) {
       domainMap.set(domain, {
         domain,
@@ -133,18 +133,18 @@ export const groupDataByDomain = (
     const group = domainMap.get(domain)!;
     group.consoleErrors.push(error);
     group.analysis.errorCount++;
-    group.analysis.lastActivity = Math.max(group.analysis.lastActivity, error.timestamp);
-    
-    // Track error types
-    if (error.severity) {
-      group.analysis.errorTypes[error.severity] = (group.analysis.errorTypes[error.severity] || 0) + 1;
+    group.analysis.lastActivity = Math.max(group.analysis.lastActivity, new Date(error.timestamp).getTime());
+
+    // Track error types by level instead of severity
+    if (error.level) {
+      group.analysis.errorTypes[error.level] = (group.analysis.errorTypes[error.level] || 0) + 1;
     }
   });
 
   // Process token events
   tokenEvents.forEach(event => {
-    const domain = event.main_domain || extractMainDomain(event.source_url);
-    
+    const domain = extractMainDomain(event.url);
+
     if (!domainMap.has(domain)) {
       domainMap.set(domain, {
         domain,
@@ -170,23 +170,18 @@ export const groupDataByDomain = (
     const group = domainMap.get(domain)!;
     group.tokenEvents.push(event);
     group.analysis.tokenEventCount++;
-    group.analysis.lastActivity = Math.max(group.analysis.lastActivity, event.timestamp);
-    
+    group.analysis.lastActivity = Math.max(group.analysis.lastActivity, new Date(event.timestamp).getTime());
+
     // Track token types
     if (event.type) {
       group.analysis.tokenTypes[event.type] = (group.analysis.tokenTypes[event.type] || 0) + 1;
     }
   });
 
-  // Calculate average response times
+  // Calculate average response times (not available in V1 contract)
   domainMap.forEach(group => {
-    const responseTimes = group.networkRequests
-      .filter(req => req.response_time && req.response_time > 0)
-      .map(req => req.response_time!);
-    
-    if (responseTimes.length > 0) {
-      group.analysis.avgResponseTime = responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length;
-    }
+    // Response time calculation removed as field doesn't exist in NetworkRequestV1
+    group.analysis.avgResponseTime = 0;
   });
 
   // Convert to array and sort by activity

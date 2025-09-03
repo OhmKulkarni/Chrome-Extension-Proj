@@ -10,6 +10,7 @@ import { ChromeApiModule } from '../shared/chrome-api.module';
 import { StorageManagerModule } from '../shared/storage-manager.module';
 import { TokenTrackerModule } from './token-tracker.module';
 import { EnvironmentStorageManager } from '../environment-storage-manager';
+import { UnifiedPermissionService } from '../services/unified-permission-service';
 import {
   NetworkRequestData,
   SafetyConfig
@@ -20,6 +21,7 @@ export class NetworkProcessorModule {
   private readonly storageManager: StorageManagerModule;
   private readonly tokenTracker: TokenTrackerModule;
   private readonly indexedDbStorage: EnvironmentStorageManager;
+  private readonly unifiedPermissionService: UnifiedPermissionService;
   private readonly config: SafetyConfig;
   private readonly abortController: AbortController;
   private isInitialized = false;
@@ -30,12 +32,14 @@ export class NetworkProcessorModule {
     storageManager: StorageManagerModule,
     tokenTracker: TokenTrackerModule,
     indexedDbStorage: EnvironmentStorageManager,
+    unifiedPermissionService: UnifiedPermissionService,
     config: Partial<SafetyConfig> = {}
   ) {
     this.chromeApi = chromeApi;
     this.storageManager = storageManager;
     this.tokenTracker = tokenTracker;
     this.indexedDbStorage = indexedDbStorage;
+    this.unifiedPermissionService = unifiedPermissionService;
     this.config = {
       enableAbortController: true,
       maxRetries: 3,
@@ -132,15 +136,62 @@ export class NetworkProcessorModule {
         return { success: false, reason: 'Invalid method' };
       }
 
-      // Skip complex tab logging validation for now - let requests through
-      // (Main branch handles this differently at the message routing level)
+      // CHECK PERMISSIONS: Use unified permission system to check if network logging is allowed
+      if (tabId && tabUrl) {
+        // CRITICAL FIX: Initialize tab permissions from existing user preferences before checking
+        // This ensures new tabs respect previously set user preferences instead of defaulting to enabled
+        await this.unifiedPermissionService.initializeTabPermissions(tabId, tabUrl);
+
+        const permissionCheck = await this.unifiedPermissionService.canInterceptOnTab(tabId, 'network');
+        if (!permissionCheck.canIntercept) {
+          console.log(`🚫 NetworkProcessor: Request blocked - ${permissionCheck.reason}`);
+          return {
+            success: false,
+            reason: permissionCheck.reason || 'Network logging disabled',
+            blocked: true  // Flag to indicate this was blocked by permissions
+          };
+        }
+      }
 
       // Get settings for filtering and body sanitization
       const settings = await this.storageManager.getSettings();
       const networkConfig = settings.networkInterception || {};
 
-      // Check if request should be filtered as noise (if filtering is enabled)
-      if (networkConfig.privacy?.filterNoise && this.isNoiseRequest(url, method)) {
+      // Check if request should be filtered as noise (with backward compatibility)
+      const privacyConfig = networkConfig.privacy || {};
+
+      // Debug logging to see what settings we have
+      if (url.includes('awswaf') || url.includes('edge.sdk')) {
+        console.log('🔍 AWS WAF REQUEST DEBUG:', {
+          url: url.substring(0, 80),
+          privacyConfig,
+          hasNoiseFilters: !!privacyConfig.noiseFilters,
+          hasOldFilterNoise: !!(privacyConfig as any).filterNoise
+        });
+      }
+
+      // Backward compatibility: support old filterNoise setting
+      let shouldFilter = false;
+      if (privacyConfig.noiseFilters) {
+        // New granular filtering system
+        shouldFilter = this.isNoiseRequest(url, method, privacyConfig.noiseFilters);
+      } else if ((privacyConfig as any).filterNoise) {
+        // Old simple filtering system - apply all filters
+        const defaultFilters = {
+          analytics: true,
+          advertising: true,
+          socialMedia: true,
+          telemetry: true,
+          staticAssets: true,
+          preflight: true
+        };
+        shouldFilter = this.isNoiseRequest(url, method, defaultFilters);
+      }
+
+      if (shouldFilter) {
+        if (url.includes('awswaf') || url.includes('edge.sdk')) {
+          console.log('🔇 FILTERED AWS WAF REQUEST:', url.substring(0, 80));
+        }
         return { success: false, reason: 'Request filtered as noise' };
       }
 
@@ -187,6 +238,32 @@ export class NetworkProcessorModule {
         }
 
         // Map the request data from main-world-script to storage API format (EXACT COPY FROM MAIN BRANCH)
+        // Get body truncation limits from config
+        const maxBodySize = networkConfig.bodyCapture?.maxBodySize || 50000; // Default 50KB
+
+        // Truncate bodies during storage to prevent memory issues
+        const originalRequestBodySize = requestData.requestBody ? new Blob([requestData.requestBody]).size : 0;
+        const originalResponseBodySize = requestData.responseBody ? new Blob([requestData.responseBody]).size : 0;
+
+        const truncatedRequestBody = this.sanitizeBody(requestData.requestBody, maxBodySize) || '';
+        const truncatedResponseBody = this.sanitizeBody(
+          requestData.responseBody || `Status: ${status} ${requestData.statusText || ''}`,
+          maxBodySize
+        ) || `Status: ${status} ${requestData.statusText || ''}`;
+
+        const storedRequestBodySize = truncatedRequestBody ? new Blob([truncatedRequestBody]).size : 0;
+        const storedResponseBodySize = truncatedResponseBody ? new Blob([truncatedResponseBody]).size : 0;
+
+        // Debug logging for size verification
+        if (Math.random() < 0.1) { // Log 10% of requests for debugging
+          console.log('🔍 TRUNCATION DEBUG for', validatedRequestData.url?.substring(0, 50), {
+            originalSizes: { request: originalRequestBodySize, response: originalResponseBodySize, total: originalRequestBodySize + originalResponseBodySize },
+            storedSizes: { request: storedRequestBodySize, response: storedResponseBodySize, total: storedRequestBodySize + storedResponseBodySize },
+            payloadSizeField: (requestData.requestSize || 0) + (requestData.responseSize || 0),
+            truncationSavings: (originalRequestBodySize + originalResponseBodySize) - (storedRequestBodySize + storedResponseBodySize)
+          });
+        }
+
         const apiCallData = {
           url: validatedRequestData.url,
           method: validatedRequestData.method || 'GET',
@@ -194,12 +271,12 @@ export class NetworkProcessorModule {
             request: requestData.requestHeaders || {},
             response: requestData.responseHeaders || {}
           }),
-          // Calculate total payload size properly
+          // Calculate total payload size properly (ORIGINAL SIZE before truncation)
           payload_size: (requestData.requestSize || 0) + (requestData.responseSize || 0),
           status: status || 0,
-          response_body: requestData.responseBody || `Status: ${status} ${requestData.statusText || ''}`,
-          // Add request body if captured
-          request_body: requestData.requestBody || null,
+          response_body: truncatedResponseBody,
+          // Add request body if captured (TRUNCATED for storage)
+          request_body: truncatedRequestBody,
           timestamp: requestData.timestamp ? new Date(requestData.timestamp).getTime() : Date.now(),
           // Handle both new and old duration field names
           response_time: requestData.duration || requestData.response_time || null,
@@ -280,6 +357,12 @@ export class NetworkProcessorModule {
         tabId: apiCall.tab_id,
         duration: apiCall.response_time,
         response_time: apiCall.response_time,
+        // ADD MISSING SIZE FIELDS
+        requestSize: apiCall.request_size || 0,
+        responseSize: apiCall.response_size || 0,
+        payload_size: apiCall.payload_size || 0,
+        request_size: apiCall.request_size || 0,
+        response_size: apiCall.response_size || 0,
         performanceMetrics: apiCall.performance_metrics ? JSON.parse(apiCall.performance_metrics) : undefined
       }));
     });
@@ -357,54 +440,94 @@ export class NetworkProcessorModule {
   // ===== UTILITY METHODS =====
 
   /**
-   * Check if request should be filtered as noise
+   * Check if request should be filtered as noise based on enabled filter categories
    */
-  private isNoiseRequest(url: string, method: string): boolean {
+  private isNoiseRequest(url: string, method: string, noiseFilters: any): boolean {
     const urlLower = url.toLowerCase();
 
-    // Filter out common noise patterns (enhanced with AWS WAF and more telemetry)
-    const noisePatterns = [
-      'favicon.ico',
-      'google-analytics',
-      'googletagmanager',
-      'doubleclick.net',
-      'googlesyndication',
-      'adsystem.google',
-      'amazon-adsystem',
-      'facebook.com/tr',
-      'connect.facebook.net',
-      'analytics.twitter.com',
-      'ping.chartbeat.net',
-      'quantserve.com',
-      'scorecardresearch.com',
-      'outbrain.com',
-      'taboola.com',
-      'awswaf.com',        // AWS WAF telemetry
-      'edge.sdk.awswaf',   // AWS WAF edge SDK
-      '/telemetry',        // Telemetry endpoints
-      '/ping',             // Health check endpoints
-      '/health',           // Health check endpoints
-      'telemetry/',        // Telemetry paths
-      '.css',
-      '.js',
-      '.png',
-      '.jpg',
-      '.jpeg',
-      '.gif',
-      '.svg',
-      '.woff',
-      '.woff2',
-      '.ttf',
-      '.eot'
-    ];
+    // Define patterns by category
+    const patternCategories = {
+      analytics: [
+        'google-analytics',
+        'googletagmanager',
+        'mixpanel.com',
+        'amplitude.com',
+        'segment.com',
+        'hotjar.com',
+        'fullstory.com'
+      ],
+      advertising: [
+        'doubleclick.net',
+        'googlesyndication',
+        'adsystem.google',
+        'amazon-adsystem',
+        'facebook.com/tr',
+        'connect.facebook.net',
+        'outbrain.com',
+        'taboola.com',
+        'adsystem.amazon.com'
+      ],
+      socialMedia: [
+        'analytics.twitter.com',
+        'facebook.com/tr',
+        'connect.facebook.net',
+        'linkedin.com/li',
+        'pinterest.com/ct'
+      ],
+      telemetry: [
+        '/telemetry',
+        '/ping',
+        '/health',
+        'telemetry/',
+        'awswaf.com',
+        'edge.sdk.awswaf',
+        'gcprivacy.com',
+        'p2.gcprivacy.com',
+        'sentry.io',
+        'bugsnag.com',
+        'rollbar.com',
+        'ping.chartbeat.net',
+        'quantserve.com',
+        'scorecardresearch.com'
+      ],
+      staticAssets: [
+        'favicon.ico',
+        '.css',
+        '.js',
+        '.png',
+        '.jpg',
+        '.jpeg',
+        '.gif',
+        '.svg',
+        '.woff',
+        '.woff2',
+        '.ttf',
+        '.eot',
+        '.webp',
+        '.ico'
+      ],
+      preflight: [] // Handled separately by method check
+    };
 
-    // Filter requests matching noise patterns
-    if (noisePatterns.some(pattern => urlLower.includes(pattern))) {
-      return true;
+    // Check each enabled filter category
+    for (const [category, patterns] of Object.entries(patternCategories)) {
+      if (noiseFilters[category] === true) {
+        if (patterns.some((pattern: string) => urlLower.includes(pattern))) {
+          // Debug logging for AWS WAF specifically
+          if (urlLower.includes('awswaf') || urlLower.includes('edge.sdk')) {
+            console.log(`🔇 FILTER DEBUG: Blocking ${category} request:`, {
+              url: url.substring(0, 80),
+              matchedPattern: patterns.find(p => urlLower.includes(p)),
+              category
+            });
+          }
+          return true;
+        }
+      }
     }
 
-    // Filter HEAD and OPTIONS requests (usually preflight)
-    if (method === 'HEAD' || method === 'OPTIONS') {
+    // Handle preflight requests separately (method-based)
+    if (noiseFilters.preflight === true && (method === 'HEAD' || method === 'OPTIONS')) {
       return true;
     }
 

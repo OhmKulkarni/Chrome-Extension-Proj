@@ -43,6 +43,10 @@ export class SharedInfrastructureModule {
   private config: SharedInfrastructureConfig
   private isInitialized = false
 
+  // Bound handlers to prevent duplicate listener registrations
+  private boundNetworkHandler: (request: NetworkRequest) => void
+  private boundConsoleHandler: (event: ConsoleEvent) => void
+
   // Data batching
   private pendingData: DataBatch = {
     networkRequests: [],
@@ -157,6 +161,10 @@ export class SharedInfrastructureModule {
       console: { ...consoleDefaults, ...config.console },
       communication: { ...communicationDefaults, ...config.communication }
     }
+
+    // Initialize bound handlers to prevent duplicate listener registrations
+    this.boundNetworkHandler = this.handleNetworkRequest.bind(this)
+    this.boundConsoleHandler = this.handleConsoleEvent.bind(this)
   }
 
   /**
@@ -209,14 +217,14 @@ export class SharedInfrastructureModule {
           maxBodySize: this.config.network.maxBodySize || 1024
         }
         this.networkModule = new NetworkInterceptorModule(networkConfig)
-        this.networkModule.addListener(this.handleNetworkRequest.bind(this))
+        this.networkModule.addListener(this.boundNetworkHandler)
         await this.networkModule.initialize() // FIXED: Added await
       }
 
       // Initialize console module
       if (this.config.console.enabled && !this.isDestroying) {
         this.consoleModule = new ConsoleInterceptorModule(this.config.console)
-        this.consoleModule.addListener(this.handleConsoleEvent.bind(this))
+        this.consoleModule.addListener(this.boundConsoleHandler)
         await this.consoleModule.initialize() // FIXED: Added await
       }
 
@@ -642,8 +650,27 @@ export class SharedInfrastructureModule {
         // Handle logging state changes from background script
         console.log('📨 CONTENT: Received logging state change:', message)
 
-        // Immediately notify main-world script about the state change
-        if (message.type === 'network' && message.networkEnabled !== undefined) {
+        // Check for atomic site toggle (all three states provided)
+        if (message.type === 'atomic' &&
+            message.networkEnabled !== undefined &&
+            message.consoleEnabled !== undefined &&
+            message.tokenEnabled !== undefined) {
+          // Send combined event for atomic operations
+          window.dispatchEvent(new CustomEvent('tabLoggingStateChange', {
+            detail: {
+              networkEnabled: message.networkEnabled,
+              consoleEnabled: message.consoleEnabled,
+              tokenEnabled: message.tokenEnabled
+            }
+          }))
+          console.log('📨 CONTENT: Sent atomic state change to main-world:', {
+            network: message.networkEnabled,
+            console: message.consoleEnabled,
+            tokens: message.tokenEnabled
+          })
+        }
+        // Handle individual feature changes
+        else if (message.type === 'network' && message.networkEnabled !== undefined) {
           window.dispatchEvent(new CustomEvent('tabLoggingStateChange', {
             detail: {
               networkEnabled: message.networkEnabled,
@@ -694,11 +721,13 @@ export class SharedInfrastructureModule {
   }
 
   /**
-   * Resume interception
+   * Resume interception (query actual tab states instead of hardcoding)
    */
   private resumeInterception(): void {
-    this.config.network.enabled = true
-    this.config.console.enabled = true
+    // FIXED: Don't hardcode states - let the state checking logic handle this
+    // The actual states will be determined by the tab-specific configuration
+    // during the next state check cycle
+    console.log('📨 CONTENT: Extension resumed, states will be determined by tab configuration');
   }
 
   /**
@@ -1063,13 +1092,24 @@ export class SharedInfrastructureModule {
 
             if (tabId) {
               // Get extension and tab logging state from storage
-              const result = await chrome.storage.local.get([`tabLogging_${tabId}`, 'extensionEnabled'])
+              const result = await chrome.storage.local.get([`tabLogging_${tabId}`, 'extensionEnabled', 'settings'])
               const globalEnabled = result.extensionEnabled !== false
               const tabLogging = result[`tabLogging_${tabId}`]
-              // FIXED: Background saves {active: boolean}, not {status: 'active'}
-              const tabEnabled = !tabLogging || tabLogging.active === true
+              const settings = result.settings
 
-              console.log('📨 CONTENT: Network logging state - Global:', globalEnabled, 'Tab:', tabEnabled, 'TabData:', tabLogging)
+              // PERMISSION FIX: Default to disabled when no tab state exists
+              // This respects the defaultState: 'paused' configuration
+              let tabEnabled = false
+              if (tabLogging) {
+                // Tab has explicit state, use it
+                tabEnabled = tabLogging.active === true
+              } else {
+                // No tab state exists, check settings for default
+                const defaultState = settings?.networkInterception?.tabSpecific?.defaultState || 'paused'
+                tabEnabled = defaultState === 'active'
+              }
+
+              console.log('📨 CONTENT: Network logging state - Global:', globalEnabled, 'Tab:', tabEnabled, 'TabData:', tabLogging, 'DefaultFromSettings:', settings?.networkInterception?.tabSpecific?.defaultState)
               response = { enabled: globalEnabled && tabEnabled }
             } else {
               console.log('📨 CONTENT: No tab ID available, returning false')
@@ -1086,16 +1126,33 @@ export class SharedInfrastructureModule {
               const result = await chrome.storage.local.get([
                 `tabErrorLogging_${currentTabId}`, // FIXED: Use correct key for error logging
                 'extensionEnabled',
-                'settings'
+                'settings',
+                'unifiedPermissionManager'
               ])
 
-              const globalEnabled = result.extensionEnabled !== false
+              // MAJOR FIX: Use unified permission manager for console feature state, not master switch
+              const masterSwitchEnabled = result.extensionEnabled !== false
+              const unifiedManager = result.unifiedPermissionManager
+              const globalConsoleEnabled = unifiedManager?.featureDefaults?.console ?? false
               const tabLogging = result[`tabErrorLogging_${currentTabId}`] // FIXED: Use correct key
-              // FIXED: Background saves {active: boolean}, not {status: 'active'}
-              const tabEnabled = !tabLogging || tabLogging.active === true
+              const settings = result.settings
 
-              console.log('📨 CONTENT: Console logging state - Global:', globalEnabled, 'Tab:', tabEnabled, 'TabData:', tabLogging)
-              response = { enabled: globalEnabled && tabEnabled }
+              // MAJOR FIX: Different logic for explicit tab state vs defaults
+              let finalEnabled = false
+              if (tabLogging) {
+                // Tab has explicit state - ignore global console feature default
+                // Only check: master switch && explicit tab toggle
+                finalEnabled = masterSwitchEnabled && (tabLogging.active === true)
+                console.log('📨 CONTENT: Using explicit tab state:', tabLogging.active, 'Final:', finalEnabled)
+              } else {
+                // No explicit tab state - use console feature default
+                finalEnabled = masterSwitchEnabled && globalConsoleEnabled
+                console.log('📨 CONTENT: Using feature default:', globalConsoleEnabled, 'Final:', finalEnabled)
+              }
+
+              console.log('📨 CONTENT: Console logging state - Master:', masterSwitchEnabled, 'ConsoleFeature:', globalConsoleEnabled, 'TabData:', tabLogging, 'DefaultFromSettings:', settings?.errorLogging?.tabSpecific?.defaultState)
+
+              response = { enabled: finalEnabled }
             } else {
               console.log('📨 CONTENT: No tab ID available for console, returning false')
               response = { enabled: false }
@@ -1119,8 +1176,8 @@ export class SharedInfrastructureModule {
               const tabNetworkLogging = result[`tabLogging_${stateTabId}`]
               const tabConsoleLogging = result[`tabErrorLogging_${stateTabId}`]
 
-              const networkEnabled = globalEnabled && (!tabNetworkLogging || tabNetworkLogging.active === true)
-              const consoleEnabled = globalEnabled && (!tabConsoleLogging || tabConsoleLogging.active === true)
+              const networkEnabled = globalEnabled && (tabNetworkLogging?.active === true)
+              const consoleEnabled = globalEnabled && (tabConsoleLogging?.active === true)
 
               console.log('📨 CONTENT: Current state - Network:', networkEnabled, 'Console:', consoleEnabled)
 
@@ -1256,7 +1313,7 @@ export class SharedInfrastructureModule {
         if (networkEnabled === undefined) {
           const networkState = await chrome.storage.local.get([networkLoggingKey])
           const tabNetworkLogging = networkState[networkLoggingKey]
-          networkEnabled = globalEnabled && (!tabNetworkLogging || tabNetworkLogging.active === true || tabNetworkLogging.status === 'active')
+          networkEnabled = globalEnabled && (tabNetworkLogging?.active === true || tabNetworkLogging?.status === 'active')
         } else {
           networkEnabled = globalEnabled && networkEnabled
         }
@@ -1264,7 +1321,7 @@ export class SharedInfrastructureModule {
         if (consoleEnabled === undefined) {
           const consoleState = await chrome.storage.local.get([consoleLoggingKey])
           const tabConsoleLogging = consoleState[consoleLoggingKey]
-          consoleEnabled = globalEnabled && (!tabConsoleLogging || tabConsoleLogging.active === true)
+          consoleEnabled = globalEnabled && (tabConsoleLogging?.active === true)
         } else {
           consoleEnabled = globalEnabled && consoleEnabled
         }
@@ -1329,11 +1386,11 @@ export class SharedInfrastructureModule {
 
         // Check network logging state
         const tabNetworkLogging = result[`tabLogging_${tabId}`]
-        const networkEnabled = globalEnabled && (!tabNetworkLogging || tabNetworkLogging.active === true)
+        const networkEnabled = globalEnabled && (tabNetworkLogging?.active === true)
 
         // Check console logging state
         const tabConsoleLogging = result[`tabErrorLogging_${tabId}`]
-        const consoleEnabled = globalEnabled && (!tabConsoleLogging || tabConsoleLogging.active === true)
+        const consoleEnabled = globalEnabled && (tabConsoleLogging?.active === true)
 
         // Notify main-world script about state changes
         window.dispatchEvent(new CustomEvent('tabLoggingStateChange', {
@@ -1462,7 +1519,7 @@ export class SharedInfrastructureModule {
           maxBodySize: this.config.network.maxBodySize || 2048
         }
         this.networkModule = new NetworkInterceptorModule(networkConfig)
-        this.networkModule.addListener(this.handleNetworkRequest.bind(this))
+        this.networkModule.addListener(this.boundNetworkHandler)
         await this.networkModule.initialize()
 
         console.log('✅ Network interceptor reconfigured')
@@ -1473,7 +1530,7 @@ export class SharedInfrastructureModule {
           maxBodySize: this.config.network.maxBodySize || 2048
         }
         this.networkModule = new NetworkInterceptorModule(networkConfig)
-        this.networkModule.addListener(this.handleNetworkRequest.bind(this))
+        this.networkModule.addListener(this.boundNetworkHandler)
         await this.networkModule.initialize()
 
         console.log('✅ Network interceptor enabled')
@@ -1493,14 +1550,14 @@ export class SharedInfrastructureModule {
 
         // Create new module with updated config
         this.consoleModule = new ConsoleInterceptorModule(this.config.console)
-        this.consoleModule.addListener(this.handleConsoleEvent.bind(this))
+        this.consoleModule.addListener(this.boundConsoleHandler)
         await this.consoleModule.initialize()
 
         console.log('✅ Console interceptor reconfigured')
       } else if (newConfig.console?.enabled && !this.consoleModule) {
         // Enable console module if it wasn't enabled before
         this.consoleModule = new ConsoleInterceptorModule(this.config.console)
-        this.consoleModule.addListener(this.handleConsoleEvent.bind(this))
+        this.consoleModule.addListener(this.boundConsoleHandler)
         await this.consoleModule.initialize()
 
         console.log('✅ Console interceptor enabled')

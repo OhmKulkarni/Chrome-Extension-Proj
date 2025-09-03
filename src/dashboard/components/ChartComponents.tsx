@@ -18,6 +18,9 @@ import {
   ComposedChart,
   Scatter
 } from 'recharts';
+// Import shared data types
+import { ProcessedChartData } from '../hooks/useSharedChartData';
+import { isFeatureEnabled } from '../utils/featureFlags';
 
 // Color palettes for consistent chart styling
 const COLORS = {
@@ -33,15 +36,31 @@ interface ChartProps {
   networkRequests: any[];
   consoleErrors: any[];
   tokenEvents: any[];
+  // Optional shared processed data
+  sharedData?: ProcessedChartData;
 }
 
 // HTTP Method Distribution (Pie Chart)
-export const HttpMethodDistributionChart: React.FC<ChartProps> = ({ data }) => {
-  const chartData = Object.entries(data.requestsByMethod).map(([method, count]) => ({
-    name: method,
-    value: count as number,
-    percentage: (((count as number) / data.totalRequests) * 100).toFixed(1)
-  }));
+export const HttpMethodDistributionChart: React.FC<ChartProps> = ({ data, sharedData }) => {
+  // Use shared processed data when available and feature flag is enabled
+  const useSharedData = sharedData && isFeatureEnabled('enableSharedChartData');
+
+  const chartData = useSharedData
+    ? Object.entries(sharedData.networkMetrics.methodCounts).map(([method, count]) => ({
+        name: method,
+        value: count,
+        percentage: ((count / sharedData.networkMetrics.totalRequests) * 100).toFixed(1)
+      }))
+    : Object.entries(data.requestsByMethod).map(([method, count]) => ({
+        name: method,
+        value: count as number,
+        percentage: (((count as number) / data.totalRequests) * 100).toFixed(1)
+      }));
+
+  // Log performance info
+  if (useSharedData) {
+    console.log('📊 HttpMethodDistributionChart: Using shared processed data');
+  }
 
   return (
     <ResponsiveContainer width="100%" height={400}>
@@ -70,7 +89,7 @@ export const HttpMethodDistributionChart: React.FC<ChartProps> = ({ data }) => {
 // Status Code Breakdown (Donut Chart)
 export const StatusCodeBreakdownChart: React.FC<ChartProps> = ({ networkRequests }) => {
   console.log('StatusCodeBreakdownChart - networkRequests:', networkRequests.length);
-  
+
   if (!networkRequests || networkRequests.length === 0) {
     return (
       <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
@@ -82,38 +101,46 @@ export const StatusCodeBreakdownChart: React.FC<ChartProps> = ({ networkRequests
   }
 
   const statusGroups = networkRequests.reduce((acc, req) => {
-    // Add detailed debugging for status field
-    console.log('Processing request status:', {
-      url: req.url,
-      status: req.status,
-      response_status: req.response_status,
-      statusType: typeof req.status,
-      responseStatusType: typeof req.response_status
-    });
-    
+    // PERFORMANCE FIX: Remove excessive per-request logging
+    const DEBUG_INDIVIDUAL_STATUS_PROCESSING = false;
+
+    if (DEBUG_INDIVIDUAL_STATUS_PROCESSING) {
+      console.log('Processing request status:', {
+        url: req.url,
+        status: req.status,
+        response_status: req.response_status,
+        statusType: typeof req.status,
+        responseStatusType: typeof req.response_status
+      });
+    }
+
     // Try multiple status field names and convert to number
     let status = req.status || req.response_status;
-    
+
     // Convert string status to number if needed
     if (typeof status === 'string') {
       status = parseInt(status, 10);
     }
-    
+
     // Default to 200 if no valid status found
     if (!status || isNaN(status)) {
-      console.log('Using default status 200 for request:', req.url);
+      if (DEBUG_INDIVIDUAL_STATUS_PROCESSING) {
+        console.log('Using default status 200 for request:', req.url);
+      }
       status = 200;
     }
-    
+
     let group = 'Unknown';
-    
+
     if (status >= 200 && status < 300) group = '2xx Success';
     else if (status >= 300 && status < 400) group = '3xx Redirect';
     else if (status >= 400 && status < 500) group = '4xx Client Error';
     else if (status >= 500) group = '5xx Server Error';
-    
-    console.log('Status', status, 'mapped to group:', group);
-    
+
+    if (DEBUG_INDIVIDUAL_STATUS_PROCESSING) {
+      console.log('Status', status, 'mapped to group:', group);
+    }
+
     acc[group] = (acc[group] || 0) + 1;
     return acc;
   }, {} as { [key: string]: number });
@@ -168,7 +195,7 @@ export const TopEndpointsByVolumeChart: React.FC<ChartProps> = ({ networkRequest
   const endpointGroups = networkRequests.reduce((acc, req) => {
     const url = req.url || req.request?.url || 'Unknown';
     let endpoint = 'Unknown';
-    
+
     try {
       // Handle relative URLs (they start with /)
       if (url.startsWith('/')) {
@@ -180,12 +207,12 @@ export const TopEndpointsByVolumeChart: React.FC<ChartProps> = ({ networkRequest
     } catch (e) {
       endpoint = url;
     }
-    
+
     // Simplify long endpoints
     if (endpoint.length > 30) {
       endpoint = endpoint.substring(0, 27) + '...';
     }
-    
+
     acc[endpoint] = (acc[endpoint] || 0) + 1;
     return acc;
   }, {} as { [key: string]: number });
@@ -202,8 +229,8 @@ export const TopEndpointsByVolumeChart: React.FC<ChartProps> = ({ networkRequest
     <ResponsiveContainer width="100%" height={400}>
       <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
         <CartesianGrid strokeDasharray="3 3" />
-        <XAxis 
-          dataKey="endpoint" 
+        <XAxis
+          dataKey="endpoint"
           angle={-45}
           textAnchor="end"
           height={80}
@@ -221,9 +248,9 @@ export const TopEndpointsByVolumeChart: React.FC<ChartProps> = ({ networkRequest
 export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequests }) => {
   const [topN, setTopN] = React.useState(10);
   const [viewMode, setViewMode] = React.useState<'routes' | 'domains'>('routes');
-  
+
   console.log('AvgResponseTimePerRouteChart - networkRequests:', networkRequests.length);
-  
+
   if (!networkRequests || networkRequests.length === 0) {
     return (
       <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
@@ -240,7 +267,7 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
       if (!url || url.startsWith('/')) {
         return 'localhost';
       }
-      
+
       let fullUrl = url;
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
         if (url.includes('.') && !url.includes('/')) {
@@ -249,16 +276,16 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
           return 'unknown';
         }
       }
-      
+
       const urlObj = new URL(fullUrl);
       const hostname = urlObj.hostname;
       const withoutWww = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
       const parts = withoutWww.split('.');
-      
+
       if (parts.length >= 2) {
         return parts.slice(-2).join('.');
       }
-      
+
       return withoutWww;
     } catch (error) {
       return 'unknown';
@@ -268,24 +295,36 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
   const routeGroups: { [key: string]: { total: number; count: number; times: number[] } } = {};
   const domainGroups: { [key: string]: { total: number; count: number; times: number[] } } = {};
 
+  // PERFORMANCE FIX: Track processing metrics without individual logging
+  let processedCount = 0;
+  let skippedCount = 0;
+
   networkRequests.forEach(req => {
     const url = req.url || req.request?.url || 'Unknown';
     const responseTime = req.response_time || req.responseTime || 0;
-    
-    console.log('Processing request for response time:', {
-      url: url,
-      response_time: req.response_time,
-      responseTime: req.responseTime,
-      finalResponseTime: responseTime,
-      response_time_type: typeof req.response_time,
-      responseTime_type: typeof req.responseTime
-    });
-    
+
+    // PERFORMANCE FIX: Remove excessive per-request logging
+    // Only log in development if needed for debugging
+    const DEBUG_INDIVIDUAL_REQUESTS = false;
+    if (DEBUG_INDIVIDUAL_REQUESTS) {
+      console.log('Processing request for response time:', {
+        url: url,
+        response_time: req.response_time,
+        responseTime: req.responseTime,
+        finalResponseTime: responseTime,
+        response_time_type: typeof req.response_time,
+        responseTime_type: typeof req.responseTime
+      });
+    }
+
     if (responseTime <= 0) {
-      console.log('Skipping request with no response time:', url);
+      // Only log summary of skipped requests, not individual ones
+      skippedCount++;
       return; // Skip requests without response times
     }
-    
+
+    processedCount++;
+
     // Route processing
     let route = 'Unknown';
     try {
@@ -299,12 +338,12 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
     } catch (e) {
       route = url;
     }
-    
+
     // Simplify long routes
     if (route.length > 25) {
       route = route.substring(0, 22) + '...';
     }
-    
+
     if (!routeGroups[route]) {
       routeGroups[route] = { total: 0, count: 0, times: [] };
     }
@@ -322,16 +361,23 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
       domainGroups[mainDomain].count += 1;
       domainGroups[mainDomain].times.push(responseTime);
     }
-    
-    console.log('Added response time', responseTime, 'for route', route, 'and domain', mainDomain);
+
+    // PERFORMANCE FIX: Remove excessive per-request logging
+    // Only log in development if needed for debugging
+    if (DEBUG_INDIVIDUAL_REQUESTS) {
+      console.log('Added response time', responseTime, 'for route', route, 'and domain', mainDomain);
+    }
   });
+
+  // PERFORMANCE FIX: Single summary log instead of 200+ individual logs
+  console.log(`📊 AvgResponseTimePerRouteChart: Processed ${processedCount} requests, skipped ${skippedCount}, found ${Object.keys(routeGroups).length} routes, ${Object.keys(domainGroups).length} domains`);
 
   console.log('AvgResponseTimePerRouteChart - routeGroups:', routeGroups);
   console.log('AvgResponseTimePerRouteChart - domainGroups:', domainGroups);
 
   // Process data based on view mode
   const activeGroups = viewMode === 'routes' ? routeGroups : domainGroups;
-  
+
   const allChartData = Object.entries(activeGroups)
     .map(([name, data]) => {
       const avgTime = (data as any).count > 0 ? Math.round((data as any).total / (data as any).count) : 0;
@@ -376,7 +422,7 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
           <span className="font-medium">Response Times by {viewMode === 'routes' ? 'Routes' : 'Domains'}:</span> Top {chartData.length} of {allChartData.length}
         </div>
         <div>
-          <span className="font-medium">Total Requests:</span> {viewMode === 'routes' 
+          <span className="font-medium">Total Requests:</span> {viewMode === 'routes'
             ? Object.values(routeGroups).reduce((sum, group) => sum + group.count, 0)
             : Object.values(domainGroups).reduce((sum, group) => sum + group.count, 0)}
         </div>
@@ -415,8 +461,8 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
           {/* Top N Selector */}
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-gray-700">Show Top:</label>
-            <select 
-              value={topN} 
+            <select
+              value={topN}
               onChange={(e) => setTopN(Number(e.target.value))}
               className="px-2 py-1 border border-gray-300 rounded text-sm"
             >
@@ -426,7 +472,7 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
             </select>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-4">
           <div>
             <span className="font-medium">Color Key:</span>
@@ -444,7 +490,7 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
           margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
         >
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis 
+          <XAxis
             dataKey="route"
             angle={-45}
             textAnchor="end"
@@ -452,10 +498,10 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
             fontSize={11}
             interval={0}
           />
-          <YAxis 
+          <YAxis
             label={{ value: 'Response Time (ms)', angle: -90, position: 'insideLeft' }}
           />
-          <Tooltip 
+          <Tooltip
             content={({ active, payload }) => {
               if (active && payload && payload.length > 0) {
                 const data = payload[0].payload;
@@ -471,7 +517,7 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
               return null;
             }}
           />
-          <Bar 
+          <Bar
             dataKey="avgTime"
             radius={[4, 4, 0, 0]}
           >
@@ -491,7 +537,7 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
             margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
           >
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis 
+            <XAxis
               dataKey="route"
               angle={-45}
               textAnchor="end"
@@ -500,15 +546,15 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
               interval={0}
             />
             <YAxis label={{ value: 'Response Time (ms)', angle: -90, position: 'insideLeft' }} />
-            <Tooltip 
+            <Tooltip
               formatter={(value) => [`${value}ms`, 'Average Response Time']}
               labelFormatter={(label) => `${viewMode === 'routes' ? 'Route' : 'Domain'}: ${label}`}
             />
             {/* Vertical lines (sticks) - using thin bars from 0 to value */}
-            <Bar 
-              dataKey="avgTime" 
-              fill="transparent" 
-              stroke="#3B82F6" 
+            <Bar
+              dataKey="avgTime"
+              fill="transparent"
+              stroke="#3B82F6"
               strokeWidth={2}
               barSize={2}
             />
@@ -529,7 +575,7 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
 export const AuthFailuresVsSuccessChart: React.FC<ChartProps> = ({ tokenEvents }) => {
   const authStats = tokenEvents.reduce((acc, token) => {
     const status = token.status || token.response_status || 200;
-    
+
     if (status >= 200 && status < 400) {
       acc.success += 1;
     } else if (status === 401) {
@@ -539,7 +585,7 @@ export const AuthFailuresVsSuccessChart: React.FC<ChartProps> = ({ tokenEvents }
     } else if (status >= 400) {
       acc.otherErrors += 1;
     }
-    
+
     return acc;
   }, { success: 0, unauthorized: 0, forbidden: 0, otherErrors: 0 });
 
@@ -598,7 +644,7 @@ export const TopFrequentErrorsChart: React.FC<ChartProps> = ({ consoleErrors }) 
     const fullMessage = error.message || error.error || 'Unknown Error';
     let errorType = fullMessage;
     let severity = 'error'; // default severity
-    
+
     // Extract error type and determine severity
     if (fullMessage.includes('TypeError')) {
       errorType = 'TypeError';
@@ -625,13 +671,13 @@ export const TopFrequentErrorsChart: React.FC<ChartProps> = ({ consoleErrors }) 
       errorType = errorType.substring(0, 27) + '...';
       severity = 'warning';
     }
-    
+
     if (!acc[errorType]) {
       acc[errorType] = { count: 0, severity, fullMessages: [] };
     }
     acc[errorType].count += 1;
     acc[errorType].fullMessages.push(fullMessage);
-    
+
     return acc;
   }, {} as { [key: string]: { count: number; severity: string; fullMessages: string[] } });
 
@@ -646,7 +692,7 @@ export const TopFrequentErrorsChart: React.FC<ChartProps> = ({ consoleErrors }) 
       severity: (data as any).severity,
       fullMessages: (data as any).fullMessages,
       // Color based on severity
-      fill: (data as any).severity === 'error' ? '#EF4444' : 
+      fill: (data as any).severity === 'error' ? '#EF4444' :
             (data as any).severity === 'warning' ? '#F59E0B' : '#6B7280'
     }));
 
@@ -682,7 +728,7 @@ export const TopFrequentErrorsChart: React.FC<ChartProps> = ({ consoleErrors }) 
           margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
         >
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis 
+          <XAxis
             dataKey="errorType"
             angle={-45}
             textAnchor="end"
@@ -690,10 +736,10 @@ export const TopFrequentErrorsChart: React.FC<ChartProps> = ({ consoleErrors }) 
             fontSize={11}
             interval={0}
           />
-          <YAxis 
+          <YAxis
             label={{ value: 'Error Count', angle: -90, position: 'insideLeft' }}
           />
-          <Tooltip 
+          <Tooltip
             content={({ active, payload }) => {
               if (active && payload && payload.length > 0) {
                 const data = payload[0].payload;
@@ -717,8 +763,8 @@ export const TopFrequentErrorsChart: React.FC<ChartProps> = ({ consoleErrors }) 
               return null;
             }}
           />
-          <Bar 
-            dataKey="count" 
+          <Bar
+            dataKey="count"
             radius={[4, 4, 0, 0]}
           >
             {chartData.map((entry, index) => (
@@ -741,7 +787,7 @@ export const TopFrequentErrorsChart: React.FC<ChartProps> = ({ consoleErrors }) 
               outerRadius={100}
               fill="#8884d8"
               dataKey="count"
-              label={({errorType, percent}) => 
+              label={({errorType, percent}) =>
                 `${errorType.length > 12 ? errorType.substring(0, 9) + '...' : errorType}: ${((percent || 0) * 100).toFixed(1)}%`
               }
             >
@@ -749,7 +795,7 @@ export const TopFrequentErrorsChart: React.FC<ChartProps> = ({ consoleErrors }) 
                 <Cell key={`cell-${index}`} fill={entry.fill} />
               ))}
             </Pie>
-            <Tooltip 
+            <Tooltip
               content={({ active, payload }) => {
                 if (active && payload && payload.length > 0) {
                   const data = payload[0].payload;
@@ -793,15 +839,15 @@ export const RequestsOverTimeChart: React.FC<ChartProps> = ({ networkRequests })
   const timestamps = networkRequests
     .map(req => req.timestamp ? new Date(req.timestamp).getTime() : Date.now())
     .sort((a, b) => a - b);
-    
+
   const oldestTime = timestamps[0];
   const newestTime = timestamps[timestamps.length - 1];
   const timeSpan = newestTime - oldestTime;
-  
+
   // Choose appropriate time interval
   let interval: 'hour' | 'day' | 'minute' = 'hour';
   let timeFormat: Intl.DateTimeFormatOptions;
-  
+
   if (timeSpan <= 2 * 60 * 60 * 1000) { // Less than 2 hours
     interval = 'minute';
     timeFormat = { hour: 'numeric', minute: '2-digit', hour12: true };
@@ -819,20 +865,20 @@ export const RequestsOverTimeChart: React.FC<ChartProps> = ({ networkRequests })
   const timeGroups = networkRequests.reduce((acc, req) => {
     const timestamp = req.timestamp ? new Date(req.timestamp) : new Date();
     const method = (req.method || 'GET').toUpperCase();
-    
+
     let timeKey: number;
-    
+
     // Create time bucket based on interval
     if (interval === 'minute') {
-      timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(), 
+      timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(),
                         timestamp.getHours(), timestamp.getMinutes()).getTime();
     } else if (interval === 'hour') {
-      timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(), 
+      timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(),
                         timestamp.getHours()).getTime();
     } else { // day
       timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate()).getTime();
     }
-    
+
     if (!acc[timeKey]) {
       acc[timeKey] = {
         timestamp: timeKey,
@@ -847,28 +893,28 @@ export const RequestsOverTimeChart: React.FC<ChartProps> = ({ networkRequests })
         other: 0
       };
     }
-    
+
     acc[timeKey].total += 1;
-    
+
     // Count by HTTP method
     if (['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'].includes(method)) {
       acc[timeKey][method as keyof typeof acc[typeof timeKey]] += 1;
     } else {
       acc[timeKey].other += 1;
     }
-    
+
     return acc;
-  }, {} as { [key: number]: { 
-    timestamp: number; 
-    total: number; 
-    GET: number; 
-    POST: number; 
-    PUT: number; 
-    DELETE: number; 
-    PATCH: number; 
-    HEAD: number; 
-    OPTIONS: number; 
-    other: number; 
+  }, {} as { [key: number]: {
+    timestamp: number;
+    total: number;
+    GET: number;
+    POST: number;
+    PUT: number;
+    DELETE: number;
+    PATCH: number;
+    HEAD: number;
+    OPTIONS: number;
+    other: number;
   } });
 
   console.log('RequestsOverTimeChart - timeGroups:', timeGroups);
@@ -915,7 +961,7 @@ export const RequestsOverTimeChart: React.FC<ChartProps> = ({ networkRequests })
   // Method colors
   const methodColors = {
     GET: '#10B981',     // Green
-    POST: '#3B82F6',    // Blue  
+    POST: '#3B82F6',    // Blue
     PUT: '#F59E0B',     // Amber
     DELETE: '#EF4444',  // Red
     PATCH: '#8B5CF6',   // Purple
@@ -941,8 +987,8 @@ export const RequestsOverTimeChart: React.FC<ChartProps> = ({ networkRequests })
       <ResponsiveContainer width="100%" height={400}>
         <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis 
-            dataKey="time" 
+          <XAxis
+            dataKey="time"
             angle={-45}
             textAnchor="end"
             height={80}
@@ -950,12 +996,12 @@ export const RequestsOverTimeChart: React.FC<ChartProps> = ({ networkRequests })
             interval={'preserveStartEnd'}
           />
           <YAxis />
-          <Tooltip 
+          <Tooltip
             formatter={(value, name) => [value, name === 'total' ? 'Total Requests' : `${name} Requests`]}
             labelFormatter={(label) => `Time: ${label}`}
           />
           <Legend />
-          
+
           {/* Show stacked areas for each HTTP method */}
           {activeMethods.includes('GET') && (
             <Area type="monotone" dataKey="GET" stackId="1" stroke={methodColors.GET} fill={methodColors.GET} fillOpacity={0.6} />
@@ -990,20 +1036,20 @@ export const RequestsOverTimeChart: React.FC<ChartProps> = ({ networkRequests })
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis 
-              dataKey="time" 
+            <XAxis
+              dataKey="time"
               fontSize={11}
               interval={'preserveStartEnd'}
             />
             <YAxis fontSize={11} />
-            <Tooltip 
+            <Tooltip
               formatter={(value) => [value, 'Total Requests']}
               labelFormatter={(label) => `Time: ${label}`}
             />
-            <Line 
-              type="monotone" 
-              dataKey="total" 
-              stroke={methodColors.total} 
+            <Line
+              type="monotone"
+              dataKey="total"
+              stroke={methodColors.total}
               strokeWidth={2}
               dot={{ fill: methodColors.total, strokeWidth: 2, r: 3 }}
               activeDot={{ r: 5 }}
@@ -1034,15 +1080,15 @@ export const ErrorFrequencyOverTimeChart: React.FC<ChartProps> = ({ consoleError
   const timestamps = consoleErrors
     .map(error => error.timestamp ? new Date(error.timestamp).getTime() : Date.now())
     .sort((a, b) => a - b);
-    
+
   const oldestTime = timestamps[0];
   const newestTime = timestamps[timestamps.length - 1];
   const timeSpan = newestTime - oldestTime;
-  
+
   // Choose appropriate time interval
   let interval: 'hour' | 'day' | 'minute' = 'hour';
   let timeFormat: Intl.DateTimeFormatOptions;
-  
+
   if (timeSpan <= 2 * 60 * 60 * 1000) { // Less than 2 hours
     interval = 'minute';
     timeFormat = { hour: 'numeric', minute: '2-digit', hour12: true };
@@ -1060,20 +1106,20 @@ export const ErrorFrequencyOverTimeChart: React.FC<ChartProps> = ({ consoleError
   const timeGroups = consoleErrors.reduce((acc, error) => {
     const timestamp = error.timestamp ? new Date(error.timestamp) : new Date();
     const severity = (error.severity || error.level || 'error').toLowerCase();
-    
+
     let timeKey: number;
-    
+
     // Create time bucket based on interval
     if (interval === 'minute') {
-      timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(), 
+      timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(),
                         timestamp.getHours(), timestamp.getMinutes()).getTime();
     } else if (interval === 'hour') {
-      timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(), 
+      timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(),
                         timestamp.getHours()).getTime();
     } else { // day
       timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate()).getTime();
     }
-    
+
     if (!acc[timeKey]) {
       acc[timeKey] = {
         timestamp: timeKey,
@@ -1086,26 +1132,26 @@ export const ErrorFrequencyOverTimeChart: React.FC<ChartProps> = ({ consoleError
         other: 0
       };
     }
-    
+
     acc[timeKey].total += 1;
-    
+
     // Count by severity level
     if (['error', 'warning', 'critical', 'info', 'debug'].includes(severity)) {
       acc[timeKey][severity as keyof typeof acc[typeof timeKey]] += 1;
     } else {
       acc[timeKey].other += 1;
     }
-    
+
     return acc;
-  }, {} as { [key: number]: { 
-    timestamp: number; 
-    total: number; 
-    error: number; 
-    warning: number; 
-    critical: number; 
-    info: number; 
-    debug: number; 
-    other: number; 
+  }, {} as { [key: number]: {
+    timestamp: number;
+    total: number;
+    error: number;
+    warning: number;
+    critical: number;
+    info: number;
+    debug: number;
+    other: number;
   } });
 
   console.log('ErrorFrequencyOverTimeChart - timeGroups:', timeGroups);
@@ -1172,8 +1218,8 @@ export const ErrorFrequencyOverTimeChart: React.FC<ChartProps> = ({ consoleError
       <ResponsiveContainer width="100%" height={400}>
         <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis 
-            dataKey="time" 
+          <XAxis
+            dataKey="time"
             angle={-45}
             textAnchor="end"
             height={80}
@@ -1181,12 +1227,12 @@ export const ErrorFrequencyOverTimeChart: React.FC<ChartProps> = ({ consoleError
             interval={'preserveStartEnd'}
           />
           <YAxis />
-          <Tooltip 
+          <Tooltip
             formatter={(value, name) => [value, name === 'total' ? 'Total Errors' : `${String(name).charAt(0).toUpperCase() + String(name).slice(1)} Errors`]}
             labelFormatter={(label) => `Time: ${label}`}
           />
           <Legend />
-          
+
           {/* Show lines for each active severity level */}
           {activeSeverities.includes('critical') && (
             <Line type="monotone" dataKey="critical" stroke={severityColors.critical} strokeWidth={2} name="Critical" />
@@ -1206,12 +1252,12 @@ export const ErrorFrequencyOverTimeChart: React.FC<ChartProps> = ({ consoleError
           {activeSeverities.includes('other') && (
             <Line type="monotone" dataKey="other" stroke={severityColors.other} strokeWidth={2} name="Other" />
           )}
-          
+
           {/* Total errors line (thicker) */}
-          <Line 
-            type="monotone" 
-            dataKey="total" 
-            stroke={severityColors.total} 
+          <Line
+            type="monotone"
+            dataKey="total"
+            stroke={severityColors.total}
             strokeWidth={3}
             name="Total Errors"
             dot={{ fill: severityColors.total, strokeWidth: 2, r: 4 }}
@@ -1225,13 +1271,13 @@ export const ErrorFrequencyOverTimeChart: React.FC<ChartProps> = ({ consoleError
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis 
-              dataKey="time" 
+            <XAxis
+              dataKey="time"
               fontSize={11}
               interval={'preserveStartEnd'}
             />
             <YAxis fontSize={11} />
-            <Tooltip 
+            <Tooltip
               formatter={(value, name) => [value, `${String(name).charAt(0).toUpperCase() + String(name).slice(1)} Errors`]}
               labelFormatter={(label) => `Time: ${label}`}
             />
@@ -1281,14 +1327,14 @@ export const LatencyOverTimeChart: React.FC<ChartProps> = ({ networkRequests }) 
   const timestamps = requestsWithLatency
     .map(req => req.timestamp ? new Date(req.timestamp).getTime() : Date.now())
     .sort((a, b) => a - b);
-    
+
   const oldestTime = timestamps[0];
   const newestTime = timestamps[timestamps.length - 1];
   const timeSpan = newestTime - oldestTime;
-  
+
   let interval: 'hour' | 'day' | 'minute' = 'hour';
   let timeFormat: Intl.DateTimeFormatOptions;
-  
+
   if (timeSpan <= 2 * 60 * 60 * 1000) {
     interval = 'minute';
     timeFormat = { hour: 'numeric', minute: '2-digit', hour12: true };
@@ -1305,19 +1351,19 @@ export const LatencyOverTimeChart: React.FC<ChartProps> = ({ networkRequests }) 
     const timestamp = req.timestamp ? new Date(req.timestamp) : new Date();
     const method = (req.method || 'GET').toUpperCase();
     const responseTime = req.response_time || req.responseTime || req.duration;
-    
+
     let timeKey: number;
-    
+
     if (interval === 'minute') {
-      timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(), 
+      timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(),
                         timestamp.getHours(), timestamp.getMinutes()).getTime();
     } else if (interval === 'hour') {
-      timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(), 
+      timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(),
                         timestamp.getHours()).getTime();
     } else {
       timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate()).getTime();
     }
-    
+
     if (!acc[timeKey]) {
       acc[timeKey] = {
         timestamp: timeKey,
@@ -1328,10 +1374,10 @@ export const LatencyOverTimeChart: React.FC<ChartProps> = ({ networkRequests }) 
         count: 0
       };
     }
-    
+
     acc[timeKey].latencies.push(responseTime);
     acc[timeKey].count += 1;
-    
+
     // Categorize by method
     if (method === 'GET') {
       acc[timeKey].getMethods.push(responseTime);
@@ -1340,10 +1386,10 @@ export const LatencyOverTimeChart: React.FC<ChartProps> = ({ networkRequests }) 
     } else {
       acc[timeKey].otherMethods.push(responseTime);
     }
-    
+
     return acc;
-  }, {} as { [key: number]: { 
-    timestamp: number; 
+  }, {} as { [key: number]: {
+    timestamp: number;
     latencies: number[];
     getMethods: number[];
     postMethods: number[];
@@ -1357,17 +1403,17 @@ export const LatencyOverTimeChart: React.FC<ChartProps> = ({ networkRequests }) 
     .map(group => {
       const g = group as any;
       const latencies = g.latencies.sort((a: number, b: number) => a - b);
-      
+
       const avgLatency = Math.round(latencies.reduce((sum: number, val: number) => sum + val, 0) / latencies.length);
       const minLatency = Math.min(...latencies);
       const maxLatency = Math.max(...latencies);
       const medianLatency = latencies[Math.floor(latencies.length / 2)];
-      
+
       // Calculate averages by method
       const avgGet = g.getMethods.length > 0 ? Math.round(g.getMethods.reduce((sum: number, val: number) => sum + val, 0) / g.getMethods.length) : 0;
       const avgPost = g.postMethods.length > 0 ? Math.round(g.postMethods.reduce((sum: number, val: number) => sum + val, 0) / g.postMethods.length) : 0;
       const avgOther = g.otherMethods.length > 0 ? Math.round(g.otherMethods.reduce((sum: number, val: number) => sum + val, 0) / g.otherMethods.length) : 0;
-      
+
       return {
         time: new Date(g.timestamp).toLocaleString('en-US', timeFormat),
         timestamp: g.timestamp,
@@ -1411,8 +1457,8 @@ export const LatencyOverTimeChart: React.FC<ChartProps> = ({ networkRequests }) 
       <ResponsiveContainer width="100%" height={400}>
         <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis 
-            dataKey="time" 
+          <XAxis
+            dataKey="time"
             angle={-45}
             textAnchor="end"
             height={80}
@@ -1420,36 +1466,36 @@ export const LatencyOverTimeChart: React.FC<ChartProps> = ({ networkRequests }) 
             interval={'preserveStartEnd'}
           />
           <YAxis label={{ value: 'Latency (ms)', angle: -90, position: 'insideLeft' }} />
-          <Tooltip 
-            formatter={(value, name) => [`${value}ms`, name === 'avgLatency' ? 'Average Latency' : 
+          <Tooltip
+            formatter={(value, name) => [`${value}ms`, name === 'avgLatency' ? 'Average Latency' :
                                                        name === 'maxLatency' ? 'Max Latency' :
-                                                       name === 'minLatency' ? 'Min Latency' : 
+                                                       name === 'minLatency' ? 'Min Latency' :
                                                        name === 'medianLatency' ? 'Median Latency' : name]}
             labelFormatter={(label) => `Time: ${label}`}
           />
           <Legend />
-          
+
           {/* Latency trend lines */}
-          <Line 
-            type="monotone" 
-            dataKey="avgLatency" 
-            stroke={latencyColors.avg} 
+          <Line
+            type="monotone"
+            dataKey="avgLatency"
+            stroke={latencyColors.avg}
             strokeWidth={3}
             name="Average Latency"
             dot={{ fill: latencyColors.avg, strokeWidth: 2, r: 4 }}
           />
-          <Line 
-            type="monotone" 
-            dataKey="maxLatency" 
-            stroke={latencyColors.max} 
+          <Line
+            type="monotone"
+            dataKey="maxLatency"
+            stroke={latencyColors.max}
             strokeWidth={2}
             strokeDasharray="5 5"
             name="Max Latency"
           />
-          <Line 
-            type="monotone" 
-            dataKey="minLatency" 
-            stroke={latencyColors.min} 
+          <Line
+            type="monotone"
+            dataKey="minLatency"
+            stroke={latencyColors.min}
             strokeWidth={2}
             strokeDasharray="5 5"
             name="Min Latency"
@@ -1463,18 +1509,18 @@ export const LatencyOverTimeChart: React.FC<ChartProps> = ({ networkRequests }) 
         <ResponsiveContainer width="100%" height={250}>
           <LineChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis 
-              dataKey="time" 
+            <XAxis
+              dataKey="time"
               fontSize={11}
               interval={'preserveStartEnd'}
             />
             <YAxis label={{ value: 'Latency (ms)', angle: -90, position: 'insideLeft' }} fontSize={11} />
-            <Tooltip 
+            <Tooltip
               formatter={(value, name) => [`${value}ms`, `${String(name).toUpperCase()} Average`]}
               labelFormatter={(label) => `Time: ${label}`}
             />
             <Legend />
-            
+
             {chartData.some(item => item.avgGet > 0) && (
               <Line type="monotone" dataKey="avgGet" stroke={latencyColors.get} strokeWidth={2} name="GET Requests" />
             )}
@@ -1513,7 +1559,7 @@ export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }
       if (!url || url.startsWith('/')) {
         return 'localhost';
       }
-      
+
       let fullUrl = url;
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
         if (url.includes('.') && !url.includes('/')) {
@@ -1522,16 +1568,16 @@ export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }
           return 'unknown';
         }
       }
-      
+
       const urlObj = new URL(fullUrl);
       const hostname = urlObj.hostname;
       const withoutWww = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
       const parts = withoutWww.split('.');
-      
+
       if (parts.length >= 2) {
         return parts.slice(-2).join('.');
       }
-      
+
       return withoutWww;
     } catch (error) {
       return 'unknown';
@@ -1541,7 +1587,7 @@ export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }
   // Group requests by endpoint URL pathname
   const endpointCounts: { [key: string]: number } = {};
   const domainCounts: { [key: string]: number } = {};
-  
+
   networkRequests.forEach(req => {
     if (req.url) {
       try {
@@ -1568,10 +1614,10 @@ export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }
   // Helper function to create unique display names
   const createUniqueDisplayName = (items: Array<{fullName: string, requests: number}>) => {
     const nameMap = new Map<string, number>();
-    
+
     return items.map(item => {
       let displayName = item.fullName.length > 30 ? `${item.fullName.substring(0, 27)}...` : item.fullName;
-      
+
       // If this display name already exists, make it unique
       if (nameMap.has(displayName)) {
         const count = nameMap.get(displayName)! + 1;
@@ -1581,7 +1627,7 @@ export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }
       } else {
         nameMap.set(displayName, 1);
       }
-      
+
       return {
         name: displayName,
         fullName: item.fullName,
@@ -1611,7 +1657,7 @@ export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }
   const allDomains = createUniqueDisplayName(allDomainsRaw);
 
   // Apply Top N filter based on view mode
-  const chartData = viewMode === 'endpoints' 
+  const chartData = viewMode === 'endpoints'
     ? allEndpoints.slice(0, topN)
     : allDomains.slice(0, topN);
 
@@ -1621,18 +1667,18 @@ export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }
   console.log(`Traffic Chart Debug - ${viewMode} mode:`, {
     totalItems,
     chartDataLength: chartData.length,
-    sampleData: chartData.slice(0, 3).map(d => ({ 
-      name: d.name, 
-      fullName: d.fullName, 
-      requests: d.requests 
+    sampleData: chartData.slice(0, 3).map(d => ({
+      name: d.name,
+      fullName: d.fullName,
+      requests: d.requests
     })),
-    duplicateNames: chartData.filter((item, index, arr) => 
+    duplicateNames: chartData.filter((item, index, arr) =>
       arr.findIndex(other => other.name === item.name) !== index
-    ).map(d => ({ 
-      name: d.name, 
-      fullName: d.fullName, 
+    ).map(d => ({
+      name: d.name,
+      fullName: d.fullName,
       requests: d.requests,
-      duplicateOf: chartData.find((other, otherIndex) => 
+      duplicateOf: chartData.find((other, otherIndex) =>
         other.name === d.name && otherIndex < chartData.findIndex(x => x.name === d.name)
       )?.fullName
     }))
@@ -1649,7 +1695,7 @@ export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }
           <span className="font-medium">Traffic by {viewMode === 'endpoints' ? 'Endpoints' : 'Domains'}:</span> Top {chartData.length} of {totalItems}
         </div>
         <div>
-          <span className="font-medium">Total Requests:</span> {viewMode === 'endpoints' 
+          <span className="font-medium">Total Requests:</span> {viewMode === 'endpoints'
             ? allEndpoints.reduce((sum, item) => sum + item.requests, 0)
             : allDomains.reduce((sum, item) => sum + item.requests, 0)}
         </div>
@@ -1688,8 +1734,8 @@ export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }
           {/* Top N Selector */}
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-gray-700">Show Top:</label>
-            <select 
-              value={topN} 
+            <select
+              value={topN}
               onChange={(e) => setTopN(Number(e.target.value))}
               className="px-2 py-1 border border-gray-300 rounded text-sm"
             >
@@ -1700,15 +1746,15 @@ export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }
           </div>
         </div>
       </div>
-      
+
       {/* Main Bar Chart */}
       <ResponsiveContainer width="100%" height={400}>
-        <BarChart 
+        <BarChart
           data={chartData}
           margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
         >
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis 
+          <XAxis
             dataKey="name"
             angle={-45}
             textAnchor="end"
@@ -1716,10 +1762,10 @@ export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }
             fontSize={11}
             interval={0}
           />
-          <YAxis 
+          <YAxis
             label={{ value: 'Request Count', angle: -90, position: 'insideLeft' }}
           />
-          <Tooltip 
+          <Tooltip
             content={({ active, payload }) => {
               if (active && payload && payload.length > 0) {
                 const data = payload[0].payload;
@@ -1738,8 +1784,8 @@ export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }
               return null;
             }}
           />
-          <Bar 
-            dataKey="requests" 
+          <Bar
+            dataKey="requests"
             fill="#3B82F6"
             radius={[4, 4, 0, 0]}
           />
@@ -1760,7 +1806,7 @@ export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }
               outerRadius={100}
               fill="#8884d8"
               dataKey="requests"
-              label={({name, percent}) => 
+              label={({name, percent}) =>
                 `${name && name.length > 15 ? name.substring(0, 12) + '...' : name}: ${((percent || 0) * 100).toFixed(1)}%`
               }
             >
@@ -1768,7 +1814,7 @@ export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }
                 <Cell key={`cell-${index}`} fill={COLORS.primary[index % COLORS.primary.length]} />
               ))}
             </Pie>
-            <Tooltip 
+            <Tooltip
               content={({ active, payload }) => {
                 if (active && payload && payload.length > 0) {
                   const data = payload[0].payload;
@@ -1802,7 +1848,7 @@ export const TrafficByEndpointChartTreemap: React.FC<ChartProps> = ({ networkReq
   try {
     const [selectedMethod, setSelectedMethod] = useState('ALL');
     const [topN, setTopN] = useState(10);
-    
+
     console.log('TrafficByEndpointChart - networkRequests:', networkRequests?.length || 0);
 
     if (!networkRequests || networkRequests.length === 0) {
@@ -1817,20 +1863,20 @@ export const TrafficByEndpointChartTreemap: React.FC<ChartProps> = ({ networkReq
     }
 
   // Filter by method if not 'ALL'
-  const filteredRequests = selectedMethod === 'ALL' 
-    ? networkRequests 
+  const filteredRequests = selectedMethod === 'ALL'
+    ? networkRequests
     : networkRequests.filter(req => (req.method || 'GET').toUpperCase() === selectedMethod);
 
   // Process endpoints - group by endpoint and count requests
   const endpointCounts = filteredRequests.reduce((acc: any, req: any) => {
     if (!req.url) return acc;
-    
+
     try {
       const url = new URL(req.url);
       const endpoint = url.pathname;
       const method = (req.method || 'GET').toUpperCase();
       const key = `${method} ${endpoint}`;
-      
+
       if (!acc[key]) {
         acc[key] = {
           name: endpoint,
@@ -1840,10 +1886,10 @@ export const TrafficByEndpointChartTreemap: React.FC<ChartProps> = ({ networkReq
           urls: []
         };
       }
-      
+
       acc[key].value++;
       acc[key].urls.push(req.url);
-      
+
       return acc;
     } catch (error) {
       return acc;
@@ -1896,8 +1942,8 @@ export const TrafficByEndpointChartTreemap: React.FC<ChartProps> = ({ networkReq
           {/* Method Filter */}
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-gray-700">Method:</label>
-            <select 
-              value={selectedMethod} 
+            <select
+              value={selectedMethod}
               onChange={(e) => setSelectedMethod(e.target.value)}
               className="px-2 py-1 border border-gray-300 rounded text-sm"
             >
@@ -1910,8 +1956,8 @@ export const TrafficByEndpointChartTreemap: React.FC<ChartProps> = ({ networkReq
           {/* Top N Selector */}
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-gray-700">Show Top:</label>
-            <select 
-              value={topN} 
+            <select
+              value={topN}
               onChange={(e) => setTopN(Number(e.target.value))}
               className="px-2 py-1 border border-gray-300 rounded text-sm"
             >
@@ -1938,18 +1984,18 @@ export const TrafficByEndpointChartTreemap: React.FC<ChartProps> = ({ networkReq
             margin={{ top: 20, right: 30, left: 40, bottom: 100 }}
           >
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis 
-              dataKey="name" 
+            <XAxis
+              dataKey="name"
               angle={-45}
               textAnchor="end"
               height={100}
               fontSize={10}
               interval={0}
             />
-            <YAxis 
+            <YAxis
               label={{ value: 'Number of Requests', angle: -90, position: 'insideLeft' }}
             />
-            <Tooltip 
+            <Tooltip
               content={({ active, payload }) => {
                 if (active && payload && payload.length > 0) {
                   const data = payload[0].payload;
@@ -1964,8 +2010,8 @@ export const TrafficByEndpointChartTreemap: React.FC<ChartProps> = ({ networkReq
                 return null;
               }}
             />
-            <Bar 
-              dataKey="count" 
+            <Bar
+              dataKey="count"
               fill="#3B82F6"
               radius={[4, 4, 0, 0]}
             />
@@ -2043,16 +2089,16 @@ export const MethodUsageDailyChart: React.FC<ChartProps> = ({ networkRequests })
 
           const timestamp = req.timestamp ? new Date(req.timestamp) : new Date();
           const method = (req.method || 'GET').toUpperCase();
-          
+
           // Validate timestamp
           if (isNaN(timestamp.getTime())) {
             console.warn(`Invalid timestamp for request ${index}:`, req.timestamp);
             return acc;
           }
-          
+
           // Create day key (YYYY-MM-DD)
           const dayKey = timestamp.toISOString().split('T')[0];
-          
+
           if (!acc[dayKey]) {
             acc[dayKey] = {
               date: dayKey,
@@ -2068,32 +2114,32 @@ export const MethodUsageDailyChart: React.FC<ChartProps> = ({ networkRequests })
               total: 0
             };
           }
-          
+
           if (['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'].includes(method)) {
             acc[dayKey][method as keyof typeof acc[typeof dayKey]] += 1;
           } else {
             acc[dayKey].OTHER += 1;
           }
-          
+
           acc[dayKey].total += 1;
-          
+
           return acc;
         } catch (error) {
           console.warn(`Error processing request ${index}:`, error, req);
           return acc;
         }
-      }, {} as { [key: string]: { 
-        date: string; 
+      }, {} as { [key: string]: {
+        date: string;
         timestamp: number;
-        GET: number; 
-        POST: number; 
-        PUT: number; 
-        DELETE: number; 
-        PATCH: number; 
-        OPTIONS: number; 
-        HEAD: number; 
-        OTHER: number; 
-        total: number; 
+        GET: number;
+        POST: number;
+        PUT: number;
+        DELETE: number;
+        PATCH: number;
+        OPTIONS: number;
+        HEAD: number;
+        OTHER: number;
+        total: number;
       } });
     } catch (error) {
       console.error('Error in reduce operation:', error);
@@ -2119,9 +2165,9 @@ export const MethodUsageDailyChart: React.FC<ChartProps> = ({ networkRequests })
           try {
             // Ensure all required properties exist with default values
             const processedDay = {
-              date: new Date(day.timestamp).toLocaleDateString('en-US', { 
-                month: 'short', 
-                day: 'numeric' 
+              date: new Date(day.timestamp).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric'
               }),
               fullDate: day.date || '',
               GET: Number(day.GET) || 0,
@@ -2134,12 +2180,12 @@ export const MethodUsageDailyChart: React.FC<ChartProps> = ({ networkRequests })
               OTHER: Number(day.OTHER) || 0,
               total: Number(day.total) || 0
             };
-            
+
             // Validate that the processed day has valid data
             if (processedDay.total === 0) {
               console.warn('Day with zero total requests:', processedDay);
             }
-            
+
             return processedDay;
           } catch (error) {
             console.warn('Error formatting day data:', error, day);
@@ -2217,8 +2263,8 @@ export const MethodUsageDailyChart: React.FC<ChartProps> = ({ networkRequests })
           <button
             onClick={() => setChartType('stacked')}
             className={`px-3 py-1 text-sm rounded ${
-              chartType === 'stacked' 
-                ? 'bg-blue-500 text-white' 
+              chartType === 'stacked'
+                ? 'bg-blue-500 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -2227,15 +2273,15 @@ export const MethodUsageDailyChart: React.FC<ChartProps> = ({ networkRequests })
           <button
             onClick={() => setChartType('line')}
             className={`px-3 py-1 text-sm rounded ${
-              chartType === 'line' 
-                ? 'bg-blue-500 text-white' 
+              chartType === 'line'
+                ? 'bg-blue-500 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
             Line Chart
           </button>
         </div>
-        
+
         <div className="text-sm text-gray-600">
           <span className="font-medium">Period:</span> {chartData.length} days
         </div>
@@ -2251,24 +2297,24 @@ export const MethodUsageDailyChart: React.FC<ChartProps> = ({ networkRequests })
             <ResponsiveContainer width="100%" height={400}>
               <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="date" 
+                <XAxis
+                  dataKey="date"
                   angle={-45}
                   textAnchor="end"
                   height={80}
                   fontSize={12}
                 />
                 <YAxis />
-                <Tooltip 
+                <Tooltip
                   formatter={(value, name) => [`${value} requests`, String(name)]}
                   labelFormatter={(label) => `Date: ${label}`}
                 />
                 <Legend />
-                
+
                 {activeMethods.map(method => (
-                  <Bar 
+                  <Bar
                     key={method}
-                    dataKey={method} 
+                    dataKey={method}
                     stackId="methods"
                     fill={methodColors[method as keyof typeof methodColors] || '#6B7280'}
                     name={method}
@@ -2297,25 +2343,25 @@ export const MethodUsageDailyChart: React.FC<ChartProps> = ({ networkRequests })
             <ResponsiveContainer width="100%" height={400}>
               <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="date" 
+                <XAxis
+                  dataKey="date"
                   angle={-45}
                   textAnchor="end"
                   height={80}
                   fontSize={12}
                 />
                 <YAxis />
-                <Tooltip 
+                <Tooltip
                   formatter={(value, name) => [`${value} requests`, String(name)]}
                   labelFormatter={(label) => `Date: ${label}`}
                 />
                 <Legend />
-                
+
                 {activeMethods.map(method => (
-                  <Line 
+                  <Line
                     key={method}
-                    type="monotone" 
-                    dataKey={method} 
+                    type="monotone"
+                    dataKey={method}
                     stroke={methodColors[method as keyof typeof methodColors] || '#6B7280'}
                     strokeWidth={2}
                     name={method}
@@ -2340,12 +2386,12 @@ export const MethodUsageDailyChart: React.FC<ChartProps> = ({ networkRequests })
         {activeMethods && activeMethods.length > 0 ? activeMethods.slice(0, 4).map(method => {
           const total = chartData.reduce((sum, day) => sum + ((day as any)[method] || 0), 0);
           const percentage = networkRequests.length > 0 ? ((total / networkRequests.length) * 100).toFixed(1) : '0.0';
-          
+
           return (
             <div key={method} className="bg-gray-50 p-3 rounded">
               <div className="flex items-center gap-2 mb-1">
-                <div 
-                  className="w-3 h-3 rounded" 
+                <div
+                  className="w-3 h-3 rounded"
                   style={{ backgroundColor: methodColors[method as keyof typeof methodColors] || '#6B7280' }}
                 />
                 <span className="font-medium">{method}</span>
@@ -2380,7 +2426,7 @@ export const MethodUsageDailyChart: React.FC<ChartProps> = ({ networkRequests })
 // Status Code Breakdown (Enhanced)
 export const StatusCodeBreakdownChartNew: React.FC<ChartProps> = ({ networkRequests }) => {
   console.log('StatusCodeBreakdownChartNew - received:', networkRequests?.length || 0, 'requests');
-  
+
   if (!networkRequests || networkRequests.length === 0) {
     return (
       <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
@@ -2397,7 +2443,7 @@ export const StatusCodeBreakdownChartNew: React.FC<ChartProps> = ({ networkReque
 
   // Simple direct approach - count status codes
   const statusCounts: { [key: string]: number } = {};
-  
+
   networkRequests.forEach(req => {
     // Try all possible status fields
     const status = req.status ?? req.response_status ?? req.response?.status ?? req.statusCode ?? 'Unknown';
@@ -2418,7 +2464,7 @@ export const StatusCodeBreakdownChartNew: React.FC<ChartProps> = ({ networkReque
   });
 
   // Group by class if needed
-  const chartData = groupByClass 
+  const chartData = groupByClass
     ? statusEntries.reduce((acc, item) => {
         const existing = acc.find(entry => entry.name === item.class);
         if (existing) {
@@ -2442,7 +2488,7 @@ export const StatusCodeBreakdownChartNew: React.FC<ChartProps> = ({ networkReque
   const getStatusColor = (name: string) => {
     if (groupByClass) {
       switch (name) {
-        case '0xx': return '#6B7280'; // Gray for network failures  
+        case '0xx': return '#6B7280'; // Gray for network failures
         case '2xx': return '#059669'; // Emerald for success
         case '3xx': return '#0891B2'; // Cyan for redirects
         case '4xx': return '#DC2626'; // Red for client errors
@@ -2453,7 +2499,7 @@ export const StatusCodeBreakdownChartNew: React.FC<ChartProps> = ({ networkReque
       const code = parseInt(name) || 0;
       if (code === 0) return '#6B7280'; // Gray for network failures
       if (code >= 200 && code < 300) return '#059669'; // Emerald for success
-      if (code >= 300 && code < 400) return '#0891B2'; // Cyan for redirects  
+      if (code >= 300 && code < 400) return '#0891B2'; // Cyan for redirects
       if (code >= 400 && code < 500) return '#DC2626'; // Red for client errors
       if (code >= 500) return '#7C2D12'; // Dark red for server errors
       return '#9CA3AF'; // Default gray
@@ -2470,8 +2516,8 @@ export const StatusCodeBreakdownChartNew: React.FC<ChartProps> = ({ networkReque
             <button
               onClick={() => setGroupByClass(true)}
               className={`px-3 py-1 text-sm transition-colors ${
-                groupByClass 
-                  ? 'bg-blue-500 text-white' 
+                groupByClass
+                  ? 'bg-blue-500 text-white'
                   : 'bg-white text-gray-700 hover:bg-gray-50'
               }`}
             >
@@ -2480,8 +2526,8 @@ export const StatusCodeBreakdownChartNew: React.FC<ChartProps> = ({ networkReque
             <button
               onClick={() => setGroupByClass(false)}
               className={`px-3 py-1 text-sm transition-colors border-l border-gray-300 ${
-                !groupByClass 
-                  ? 'bg-blue-500 text-white' 
+                !groupByClass
+                  ? 'bg-blue-500 text-white'
                   : 'bg-white text-gray-700 hover:bg-gray-50'
               }`}
             >
@@ -2489,7 +2535,7 @@ export const StatusCodeBreakdownChartNew: React.FC<ChartProps> = ({ networkReque
             </button>
           </div>
         </div>
-        
+
         <div className="text-sm text-gray-600">
           <span className="font-medium">Total Requests:</span> {networkRequests.length}
         </div>
@@ -2515,7 +2561,7 @@ export const StatusCodeBreakdownChartNew: React.FC<ChartProps> = ({ networkReque
                   <Cell key={`cell-${index}`} fill={getStatusColor(entry.name)} />
                 ))}
               </Pie>
-              <Tooltip 
+              <Tooltip
                 formatter={(value, name) => [`${value} requests (${((value as number / networkRequests.length) * 100).toFixed(1)}%)`, `Status ${name}`]}
               />
               <Legend />
@@ -2531,7 +2577,7 @@ export const StatusCodeBreakdownChartNew: React.FC<ChartProps> = ({ networkReque
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
-              <Tooltip 
+              <Tooltip
                 formatter={(value, _name) => [`${value} requests`, 'Count']}
                 labelFormatter={(label) => `Status: ${label}`}
               />
@@ -2548,11 +2594,17 @@ export const StatusCodeBreakdownChartNew: React.FC<ChartProps> = ({ networkReque
   );
 };
 
+import { getStandardizedSize, getSizeBreakdown } from '../utils/sizeUtils';
+
 // Payload Size Distribution (Histogram with Alternative Box Plot)
 export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequests }) => {
   const [viewMode, setViewMode] = React.useState<'histogram' | 'timeline'>('histogram');
-  
-  console.log('PayloadSizeDistributionChart - networkRequests:', networkRequests?.length || 0);
+  const [sizeType, setSizeType] = React.useState<'original' | 'stored'>('original');
+
+  // Reduce console logging frequency
+  if ((networkRequests?.length || 0) % 50 === 0 || !networkRequests || networkRequests.length === 0) {
+    console.log('PayloadSizeDistributionChart - networkRequests:', networkRequests?.length || 0);
+  }
 
   if (!networkRequests || networkRequests.length === 0) {
     return (
@@ -2565,33 +2617,107 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
     );
   }
 
+  // Helper function to calculate stored size (size of data actually saved after truncation)
+  const getStoredSize = (req: any): number => {
+    let storedSize = 0;
+
+    // Calculate size of stored request body
+    const requestBody = req.requestBody || req.request_body;
+    if (requestBody && typeof requestBody === 'string') {
+      storedSize += new Blob([requestBody]).size;
+    }
+
+    // Calculate size of stored response body
+    const responseBody = req.responseBody || req.response_body;
+    if (responseBody && typeof responseBody === 'string') {
+      storedSize += new Blob([responseBody]).size;
+    }
+
+    // Add estimated header size if available
+    if (req.headers) {
+      try {
+        const headerStr = typeof req.headers === 'string' ? req.headers : JSON.stringify(req.headers);
+        storedSize += new Blob([headerStr]).size;
+      } catch (e) {
+        // Ignore header size calculation errors
+      }
+    }
+
+    return storedSize;
+  };
+
   // Extract payload sizes from network requests with timestamps
+  // Use standardized size calculation (consistent across all components)
   const payloadSizes = networkRequests
-    .map(req => {
-      // Try to get payload size from various possible fields
-      const requestSize = req.requestSize || req.request_size || req.payload_size || 0;
-      const responseSize = req.responseSize || req.response_size || req.content_length || 0;
-      const totalSize = requestSize + responseSize;
+    .map((req, index) => {
+      // DEBUG: Log first few requests to see available fields
+      if (index < 3) {
+        console.log('PayloadSizeDistributionChart - Sample request fields:', Object.keys(req));
+        const breakdown = getSizeBreakdown(req);
+        console.log('PayloadSizeDistributionChart - Size breakdown:', {
+          url: req.url,
+          ...breakdown,
+          storedSizeCalculated: getStoredSize(req),
+          sizeTypeSelected: sizeType,
+          timestamp: req.timestamp,
+          created_at: req.created_at
+        });
+      }
+
+      // Use size calculation based on selected type
+      const originalSize = getStandardizedSize(req);
+      const storedSize = getStoredSize(req);
+      const totalSize = sizeType === 'original' ? originalSize : storedSize;
+
+      const requestSize = req.requestSize || req.request_size || 0;
+      const responseSize = req.responseSize || req.response_size || 0;
       const timestamp = req.timestamp || req.created_at;
-      
+
       return {
         requestSize,
         responseSize,
         totalSize,
+        originalSize,
+        storedSize,
         timestamp,
         url: req.url || 'Unknown'
       };
     })
-    .filter(item => item.totalSize > 0 && item.timestamp); // Only include requests with payload data and timestamps
+    .filter(item => item.timestamp); // Only require timestamp for now - temporarily allow zero sizes
 
-  console.log('PayloadSizeDistributionChart - payloadSizes:', payloadSizes.length);
+  console.log('PayloadSizeDistributionChart - payloadSizes after filtering:', payloadSizes.length);
+  console.log('PayloadSizeDistributionChart - all processed items count:', networkRequests.length);
+  console.log('PayloadSizeDistributionChart - size distribution:', {
+    sizeType: sizeType,
+    withSizes: payloadSizes.filter(item => item.totalSize > 0).length,
+    withoutSizes: payloadSizes.filter(item => item.totalSize === 0).length,
+    withOriginalSize: payloadSizes.filter(item => item.originalSize > 0).length,
+    withStoredSize: payloadSizes.filter(item => item.storedSize > 0).length,
+    withRequestSize: payloadSizes.filter(item => item.requestSize > 0).length,
+    withResponseSize: payloadSizes.filter(item => item.responseSize > 0).length
+  });
 
   if (payloadSizes.length === 0) {
     return (
       <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
         <div className="text-center text-gray-400">
-          <p>No payload size data available</p>
-          <p className="text-xs mt-2">Network requests may not have size information</p>
+          <p>No timestamp data available for requests</p>
+          <p className="text-xs mt-2">Check console for debugging info</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Filter for requests with actual size data
+  const requestsWithSizes = payloadSizes.filter(item => item.totalSize > 0);
+
+  if (requestsWithSizes.length === 0) {
+    return (
+      <div className="h-96 bg-yellow-50 rounded flex items-center justify-center border border-yellow-200">
+        <div className="text-center text-yellow-600">
+          <p>Found {payloadSizes.length} requests but no size data</p>
+          <p className="text-xs mt-2">Size fields may not be populated correctly</p>
+          <p className="text-xs">Check browser console for field details</p>
         </div>
       </div>
     );
@@ -2608,17 +2734,17 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
 
   // Timeline data processing for area chart
   const timelineData = React.useMemo(() => {
-    if (payloadSizes.length === 0) return [];
+    if (requestsWithSizes.length === 0) return [];
 
     // Group by time intervals (hourly)
     const timeGroups: { [key: string]: { sizes: number[]; timestamp: number } } = {};
-    
-    payloadSizes.forEach(item => {
+
+    requestsWithSizes.forEach(item => {
       try {
         const date = new Date(item.timestamp);
         // Group by hour
         const hourKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:00`;
-        
+
         if (!timeGroups[hourKey]) {
           timeGroups[hourKey] = { sizes: [], timestamp: date.getTime() };
         }
@@ -2634,7 +2760,7 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
         const avgSize = data.sizes.reduce((sum, size) => sum + size, 0) / data.sizes.length;
         const maxSize = Math.max(...data.sizes);
         const minSize = Math.min(...data.sizes);
-        
+
         return {
           time: timeKey,
           timestamp: data.timestamp,
@@ -2645,10 +2771,10 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
         };
       })
       .sort((a, b) => a.timestamp - b.timestamp);
-  }, [payloadSizes]);
+  }, [requestsWithSizes]);
 
   // Histogram data processing
-  const sizes = payloadSizes.map(item => item.totalSize);
+  const sizes = requestsWithSizes.map(item => item.totalSize);
   const minSize = Math.min(...sizes);
   const maxSize = Math.max(...sizes);
 
@@ -2664,7 +2790,7 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
     ];
 
     return sizeRanges.map(range => {
-      const count = payloadSizes.filter(item => 
+      const count = requestsWithSizes.filter(item =>
         item.totalSize >= range.min && item.totalSize < range.max
       ).length;
 
@@ -2687,7 +2813,7 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
   const iqr = q3 - q1;
   const lowerFence = q1 - 1.5 * iqr;
   const upperFence = q3 + 1.5 * iqr;
-  
+
   // Find outliers
   const outliers = sortedSizes.filter(size => size < lowerFence || size > upperFence);
 
@@ -2698,18 +2824,48 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
   return (
     <div className="space-y-4">
       {/* Chart Info and Controls */}
-      <div className="flex justify-between items-center text-sm text-gray-600">
-        <div>
-          <span className="font-medium">Payload Size Analysis:</span> {payloadSizes.length} requests with size data
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 text-sm text-gray-600">
+        <div className="flex items-center gap-2">
+          <span className="font-medium">Payload Size ({sizeType === 'original' ? 'Original' : 'Stored'}):</span>
+          <span>{requestsWithSizes.length} requests</span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Size Type Toggle */}
+          <div className="flex items-center gap-1">
+            <label className="text-xs font-medium text-gray-700">Size:</label>
+            <div className="flex border border-gray-300 rounded">
+              <button
+                onClick={() => setSizeType('original')}
+                className={`px-2 py-1 text-xs rounded-l ${
+                  sizeType === 'original'
+                    ? 'bg-green-500 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+                title="Original size before truncation"
+              >
+                Original
+              </button>
+              <button
+                onClick={() => setSizeType('stored')}
+                className={`px-2 py-1 text-xs rounded-r ${
+                  sizeType === 'stored'
+                    ? 'bg-green-500 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+                title="Stored size after truncation"
+              >
+                Stored
+              </button>
+            </div>
+          </div>
+
           {/* View Mode Toggle */}
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">View:</label>
+          <div className="flex items-center gap-1">
+            <label className="text-xs font-medium text-gray-700">View:</label>
             <div className="flex border border-gray-300 rounded">
               <button
                 onClick={() => setViewMode('histogram')}
-                className={`px-3 py-1 text-sm rounded-l ${
+                className={`px-2 py-1 text-xs rounded-l ${
                   viewMode === 'histogram'
                     ? 'bg-blue-500 text-white'
                     : 'bg-white text-gray-700 hover:bg-gray-50'
@@ -2719,7 +2875,7 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
               </button>
               <button
                 onClick={() => setViewMode('timeline')}
-                className={`px-3 py-1 text-sm rounded-r ${
+                className={`px-2 py-1 text-xs rounded-r ${
                   viewMode === 'timeline'
                     ? 'bg-blue-500 text-white'
                     : 'bg-white text-gray-700 hover:bg-gray-50'
@@ -2729,16 +2885,14 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
               </button>
             </div>
           </div>
-          
-          <div className="flex gap-4">
+
+          <div className="flex gap-3 text-xs">
             <span><strong>Min:</strong> {formatBytes(minSize)}</span>
-            <span><strong>Median:</strong> {formatBytes(median)}</span>
+            <span><strong>Med:</strong> {formatBytes(median)}</span>
             <span><strong>Max:</strong> {formatBytes(maxSize)}</span>
           </div>
         </div>
-      </div>
-
-      {/* Histogram View */}
+      </div>      {/* Histogram View */}
       {viewMode === 'histogram' && (
         <>
           {/* Main Histogram */}
@@ -2750,7 +2904,7 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
                 margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
               >
                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis 
+                <XAxis
                   dataKey="range"
                   angle={-45}
                   textAnchor="end"
@@ -2758,10 +2912,10 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
                   fontSize={11}
                   interval={0}
                 />
-                <YAxis 
+                <YAxis
                   label={{ value: 'Number of Requests', angle: -90, position: 'insideLeft' }}
                 />
-                <Tooltip 
+                <Tooltip
                   content={({ active, payload }) => {
                     if (active && payload && payload.length > 0) {
                       const data = payload[0].payload;
@@ -2770,7 +2924,7 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
                           <p className="font-medium text-gray-900">Size Range: {data.range}</p>
                           <p className="text-blue-600 font-semibold">{data.count} requests</p>
                           <p className="text-xs text-gray-500">
-                            {((data.count / payloadSizes.length) * 100).toFixed(1)}% of total
+                            {((data.count / requestsWithSizes.length) * 100).toFixed(1)}% of total
                           </p>
                         </div>
                       );
@@ -2778,8 +2932,8 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
                     return null;
                   }}
                 />
-                <Bar 
-                  dataKey="count" 
+                <Bar
+                  dataKey="count"
                   radius={[4, 4, 0, 0]}
                 >
                   {bins.map((_, index) => (
@@ -2839,11 +2993,11 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
                 >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" fontSize={12} />
-                  <YAxis 
+                  <YAxis
                     tickFormatter={(value) => formatBytes(value)}
                     fontSize={11}
                   />
-                  <Tooltip 
+                  <Tooltip
                     formatter={(value) => [formatBytes(value as number), 'Size']}
                   />
                   <Bar dataKey="value" radius={[4, 4, 0, 0]}>
@@ -2875,7 +3029,7 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
                 margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
               >
                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis 
+                <XAxis
                   dataKey="time"
                   angle={-45}
                   textAnchor="end"
@@ -2883,12 +3037,12 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
                   fontSize={11}
                   interval={'preserveStartEnd'}
                 />
-                <YAxis 
+                <YAxis
                   label={{ value: 'Average Payload Size', angle: -90, position: 'insideLeft' }}
                   tickFormatter={(value) => formatBytes(value)}
                   fontSize={11}
                 />
-                <Tooltip 
+                <Tooltip
                   content={({ active, payload, label }) => {
                     if (active && payload && payload.length > 0) {
                       const data = payload[0].payload;
@@ -2935,7 +3089,7 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
               </div>
             </div>
           )}
-          
+
           {/* Timeline Summary */}
           {timelineData.length > 0 && (
             <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -3009,7 +3163,7 @@ export const RequestsByTimeOfDayChart: React.FC<ChartProps> = ({ networkRequests
   console.log('RequestsByTimeOfDayChart - hourlyData:', hourlyData.slice(0, 5));
 
   // Calculate peak hour and total requests
-  const peakHour = hourlyData.reduce((peak, current) => 
+  const peakHour = hourlyData.reduce((peak, current) =>
     current.requests > peak.requests ? current : peak
   );
   const totalRequests = hourlyData.reduce((sum, hour) => sum + hour.requests, 0);
@@ -3035,7 +3189,7 @@ export const RequestsByTimeOfDayChart: React.FC<ChartProps> = ({ networkRequests
             margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
           >
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis 
+            <XAxis
               dataKey="hourLabel"
               fontSize={11}
               interval={1}
@@ -3043,11 +3197,11 @@ export const RequestsByTimeOfDayChart: React.FC<ChartProps> = ({ networkRequests
               textAnchor="end"
               height={60}
             />
-            <YAxis 
+            <YAxis
               label={{ value: 'Number of Requests', angle: -90, position: 'insideLeft' }}
               fontSize={11}
             />
-            <Tooltip 
+            <Tooltip
               labelFormatter={(label) => `Time: ${label}`}
               formatter={(value) => [value, 'Requests']}
             />
@@ -3068,7 +3222,7 @@ export const RequestsByTimeOfDayChart: React.FC<ChartProps> = ({ networkRequests
 // Requests by Domain (Vertical Bar Chart with Top-N Dropdown)
 export const RequestsByDomainChart: React.FC<ChartProps> = ({ networkRequests }) => {
   const [topN, setTopN] = React.useState(10);
-  
+
   console.log('RequestsByDomainChart - networkRequests:', networkRequests?.length || 0);
 
   if (!networkRequests || networkRequests.length === 0) {
@@ -3086,17 +3240,17 @@ export const RequestsByDomainChart: React.FC<ChartProps> = ({ networkRequests })
   const extractDomain = (url: string): string => {
     try {
       if (!url) return 'Unknown';
-      
+
       // Handle relative URLs
       if (url.startsWith('/')) {
         return 'localhost';
       }
-      
+
       // Handle URLs without protocol
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
         url = 'https://' + url;
       }
-      
+
       const urlObj = new URL(url);
       return urlObj.hostname;
     } catch (error) {
@@ -3111,11 +3265,11 @@ export const RequestsByDomainChart: React.FC<ChartProps> = ({ networkRequests })
   networkRequests.forEach(req => {
     const domain = extractDomain(req.url || '');
     const method = (req.method || 'GET').toUpperCase();
-    
+
     if (!domainGroups[domain]) {
       domainGroups[domain] = { requests: 0, methods: {} };
     }
-    
+
     domainGroups[domain].requests++;
     domainGroups[domain].methods[method] = (domainGroups[domain].methods[method] || 0) + 1;
   });
@@ -3153,8 +3307,8 @@ export const RequestsByDomainChart: React.FC<ChartProps> = ({ networkRequests })
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-gray-700">Show Top:</label>
-            <select 
-              value={topN} 
+            <select
+              value={topN}
               onChange={(e) => setTopN(Number(e.target.value))}
               className="px-2 py-1 border border-gray-300 rounded text-sm"
             >
@@ -3178,7 +3332,7 @@ export const RequestsByDomainChart: React.FC<ChartProps> = ({ networkRequests })
             margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
           >
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis 
+            <XAxis
               dataKey="domain"
               angle={-45}
               textAnchor="end"
@@ -3186,18 +3340,18 @@ export const RequestsByDomainChart: React.FC<ChartProps> = ({ networkRequests })
               fontSize={11}
               interval={0}
             />
-            <YAxis 
+            <YAxis
               label={{ value: 'Number of Requests', angle: -90, position: 'insideLeft' }}
               fontSize={11}
             />
-            <Tooltip 
+            <Tooltip
               content={({ active, payload }) => {
                 if (active && payload && payload.length > 0) {
                   const data = payload[0].payload;
                   const methodsText = Object.entries(data.methods)
                     .map(([method, count]) => `${method}: ${count}`)
                     .join(', ');
-                  
+
                   return (
                     <div className="bg-white p-3 border border-gray-200 rounded shadow-lg text-sm">
                       <p className="font-medium text-gray-900">Domain: {data.domain}</p>
@@ -3209,7 +3363,7 @@ export const RequestsByDomainChart: React.FC<ChartProps> = ({ networkRequests })
                 return null;
               }}
             />
-            <Bar 
+            <Bar
               dataKey="requests"
               radius={[4, 4, 0, 0]}
             >

@@ -9,17 +9,17 @@ interface LazyStatisticsCardProps {
   totalRequests?: number;
   totalErrors?: number;
   totalTokenEvents?: number;
-  onRefreshAnalysisData?: () => Promise<void>;
+  // REMOVED: onRefreshAnalysisData to eliminate infinite loops
 }
 
-export const LazyStatisticsCard: React.FC<LazyStatisticsCardProps> = ({ 
+export const LazyStatisticsCard: React.FC<LazyStatisticsCardProps> = ({
   networkRequests,
   consoleErrors,
   tokenEvents,
   totalRequests,
   totalErrors,
-  totalTokenEvents,
-  onRefreshAnalysisData
+  totalTokenEvents
+  // REMOVED: onRefreshAnalysisData to eliminate infinite loops
 }) => {
   return (
     <Suspense fallback={
@@ -30,14 +30,14 @@ export const LazyStatisticsCard: React.FC<LazyStatisticsCardProps> = ({
         </div>
       </div>
     }>
-      <StatisticsCard 
+      <StatisticsCard
         networkRequests={networkRequests}
         consoleErrors={consoleErrors}
         tokenEvents={tokenEvents}
         totalRequests={totalRequests}
         totalErrors={totalErrors}
         totalTokenEvents={totalTokenEvents}
-        onRefreshAnalysisData={onRefreshAnalysisData}
+        // REMOVED: onRefreshAnalysisData to eliminate infinite loops
       />
     </Suspense>
   );

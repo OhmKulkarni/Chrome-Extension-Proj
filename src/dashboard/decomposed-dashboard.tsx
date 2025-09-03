@@ -307,7 +307,7 @@ const DecomposedDashboard: React.FC = () => {
     }
   }, [])
 
-  // Load tab logging status - using Chrome sync for preferences, IndexedDB for counters
+  // Load tab logging status - using Chrome storage for all state
   const loadTabsLoggingStatus = useCallback(async () => {
     try {
       // Initialize Chrome sync storage
@@ -1521,7 +1521,7 @@ const DecomposedDashboard: React.FC = () => {
               totalRequests={data.totalRequests}
               totalErrors={data.totalErrors}
               totalTokenEvents={data.totalTokenEvents}
-              onRefreshAnalysisData={loadDashboardData}
+              // REMOVED: onRefreshAnalysisData to eliminate infinite loops
             />
           </div>
         );

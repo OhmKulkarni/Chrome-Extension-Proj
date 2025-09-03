@@ -3,9 +3,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Button } from './ui/button';
-import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff } from 'lucide-react';
+import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { groupDataByDomain, DomainStats } from './domainUtils';
+// Import the new shared data processing system
+import { useSharedChartData } from '../hooks/useSharedChartData';
+import { useChartSettingsRead } from '../hooks/useChartSettings';
+import { isFeatureEnabled, withPerformanceMonitoring } from '../utils/featureFlags';
+// Import domain chart components
+import DomainChartsPanel from './DomainChartsPanel';
+import { useExpandedRows } from '../hooks/useExpandedRows';
 import {
   HttpMethodDistributionChart,
   AvgResponseTimePerRouteChart,
@@ -29,7 +36,7 @@ interface StatisticsCardProps {
   totalRequests?: number;
   totalErrors?: number;
   totalTokenEvents?: number;
-  onRefreshAnalysisData?: () => Promise<void>;
+  // REMOVED: onRefreshAnalysisData to eliminate infinite loops
 }
 
 interface GlobalStats {
@@ -63,8 +70,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   tokenEvents,
   totalRequests,
   totalErrors,
-  totalTokenEvents,
-  onRefreshAnalysisData
+  totalTokenEvents
+  // REMOVED: onRefreshAnalysisData to eliminate infinite loops
 }) => {
   // MEMORY LEAK FIX: AbortController for cleanup
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -82,33 +89,83 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     };
   }, []);
   // Debug mode: Add mock data for testing charts
-  const DEBUG_MODE = false; // Set to false to disable debug data
+  const DEBUG_MODE = true; // Set to true to enable debug data for testing
 
-  const mockNetworkRequests = [
-    { method: 'GET', url: 'https://api.example.com/users', status: 200, response_status: 200, response_time: 150 },
-    { method: 'POST', url: 'https://api.example.com/login', status: 401, response_status: 401, response_time: 200 },
-    { method: 'GET', url: 'https://api.example.com/products', status: 200, response_status: 200, response_time: 100 },
-    { method: 'PUT', url: 'https://api.example.com/users/123', status: 500, response_status: 500, response_time: 300 },
-    { method: 'DELETE', url: 'https://api.example.com/users/456', status: 404, response_status: 404, response_time: 80 },
-    { method: 'GET', url: 'https://api.example.com/orders', status: 200, response_status: 200, response_time: 120 },
-    { method: 'POST', url: 'https://api.example.com/register', status: 400, response_status: 400, response_time: 180 }
-  ];
+  const generateMockData = () => {
+    const now = Date.now();
+    const domains = ['api.example.com', 'cdn.example.com', 'analytics.google.com', 'github.com', 'stackoverflow.com'];
+    const methods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
+    const statuses = [200, 201, 400, 401, 403, 404, 500, 502];
 
-  const mockConsoleErrors = [
-    { message: 'TypeError: Cannot read property of undefined', error: 'TypeError' },
-    { message: 'ReferenceError: variable is not defined', error: 'ReferenceError' },
-    { message: 'NetworkError: Failed to fetch', error: 'NetworkError' },
-    { message: 'TypeError: null is not an object', error: 'TypeError' },
-    { message: 'SyntaxError: Unexpected token', error: 'SyntaxError' }
-  ];
+    const mockNetworkRequests = [];
+    const mockConsoleErrors = [];
+    const mockTokenEvents = [];
 
-  const mockTokenEvents = [
-    { type: 'token_validated', success: true },
-    { type: 'token_expired', success: false },
-    { type: 'token_validated', success: true },
-    { type: 'token_validation_failed', success: false },
-    { type: 'token_validated', success: true }
-  ];
+    // Generate network requests for the last 24 hours
+    for (let i = 0; i < 100; i++) {
+      const domain = domains[Math.floor(Math.random() * domains.length)];
+      const method = methods[Math.floor(Math.random() * methods.length)];
+      const status = statuses[Math.floor(Math.random() * statuses.length)];
+      const timestamp = now - Math.random() * 24 * 60 * 60 * 1000; // Random time in last 24h
+
+      mockNetworkRequests.push({
+        method,
+        url: `https://${domain}/api/endpoint${Math.floor(Math.random() * 100)}`,
+        main_domain: domain,
+        domain,
+        status,
+        response_status: status,
+        response_time: Math.floor(Math.random() * 500) + 50, // 50-550ms
+        responseTime: Math.floor(Math.random() * 500) + 50,
+        timestamp
+      });
+    }
+
+    // Generate console errors
+    const errorTypes = ['TypeError', 'ReferenceError', 'NetworkError', 'SyntaxError'];
+    for (let i = 0; i < 20; i++) {
+      const domain = domains[Math.floor(Math.random() * domains.length)];
+      const errorType = errorTypes[Math.floor(Math.random() * errorTypes.length)];
+      const timestamp = now - Math.random() * 24 * 60 * 60 * 1000;
+
+      mockConsoleErrors.push({
+        message: `${errorType}: Sample error message ${i}`,
+        error: errorType,
+        type: errorType.toLowerCase(),
+        level: 'error',
+        main_domain: domain,
+        domain,
+        url: `https://${domain}/page${Math.floor(Math.random() * 10)}`,
+        timestamp
+      });
+    }
+
+    // Generate token events
+    const tokenTypes = ['session', 'auth', 'api_key', 'csrf'];
+    for (let i = 0; i < 30; i++) {
+      const domain = domains[Math.floor(Math.random() * domains.length)];
+      const tokenType = tokenTypes[Math.floor(Math.random() * tokenTypes.length)];
+      const timestamp = now - Math.random() * 24 * 60 * 60 * 1000;
+
+      mockTokenEvents.push({
+        type: tokenType,
+        success: Math.random() > 0.2, // 80% success rate
+        main_domain: domain,
+        domain,
+        url: `https://${domain}/auth/endpoint`,
+        value: `${tokenType}_token_${Math.random().toString(36).substr(2, 9)}`,
+        timestamp
+      });
+    }
+
+    return { mockNetworkRequests, mockConsoleErrors, mockTokenEvents };
+  };
+
+  const { mockNetworkRequests, mockConsoleErrors, mockTokenEvents } = DEBUG_MODE ? generateMockData() : {
+    mockNetworkRequests: [],
+    mockConsoleErrors: [],
+    mockTokenEvents: []
+  };
 
   // Use mock data in debug mode, otherwise use real data
   const debugNetworkRequests = DEBUG_MODE && (!networkRequests || networkRequests.length === 0) ? mockNetworkRequests : networkRequests;
@@ -129,7 +186,17 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     direction: 'desc'
   });
 
-  const [expandedDomains, setExpandedDomains] = useState<Set<string>>(new Set());
+  // PERFORMANCE: Use our optimized expansion hook with safety limits
+  const {
+    isExpanded: isDomainExpanded,
+    toggleRow: toggleDomainExpansion
+  } = useExpandedRows(2); // Limit subdomain expansion to 2 domains
+
+  // PERFORMANCE: Separate hook for chart expansion with stricter limits
+  const {
+    isExpanded: isDomainChartExpanded,
+    toggleRow: toggleDomainCharts
+  } = useExpandedRows(3); // Allow up to 3 domain charts simultaneously
 
   // Chart system state
   const [viewMode, setViewMode] = useState<'list' | 'charts'>('list');
@@ -137,91 +204,167 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   const [showAllCharts, setShowAllCharts] = useState(false);
   const [chartSearch, setChartSearch] = useState('');
 
+  // Chart settings for performance control
+  const { settings: chartSettings, isLoading: chartSettingsLoading } = useChartSettingsRead();
+
   // Analysis data state - larger dataset for accurate statistics
   const [analysisData, setAnalysisData] = useState<{
     networkRequests: any[];
     consoleErrors: any[];
     tokenEvents: any[];
     loaded: boolean;
+    loading: boolean;
   }>({
     networkRequests: [],
     consoleErrors: [],
     tokenEvents: [],
-    loaded: false
+    loaded: false,
+    loading: false
   });
+
+  // Shared chart data processing (when feature flag enabled)
+  const sharedChartData = useSharedChartData(
+    isFeatureEnabled('enableSharedChartData') ? analysisData : {
+      networkRequests: [],
+      consoleErrors: [],
+      tokenEvents: [],
+      loaded: false
+    }
+  );
+
+  // Manual refresh trigger state
+  const [manualRefreshTrigger, setManualRefreshTrigger] = useState(0);
 
   // User-selected analysis sample size (number of records to consider for stats)
   const [analysisLimit, setAnalysisLimit] = useState<number>(200);
 
+  // Track actual number of records loaded for display
+  const [actualRecordCounts, setActualRecordCounts] = useState<{
+    networkRequests: number;
+    consoleErrors: number;
+    tokenEvents: number;
+  }>({ networkRequests: 0, consoleErrors: 0, tokenEvents: 0 });
+
+  // INFINITE LOOP PROTECTION: Use ref to track loading state without causing function recreations
+  const isLoadingRef = useRef<boolean>(false);
+
   // Load analysis data for statistics calculations (uses selectable limit) - MEMORY LEAK SAFE
-  const loadAnalysisData = useCallback(async (limitOverride?: number) => {
-    const limit = typeof limitOverride === 'number' ? limitOverride : analysisLimit;
-    try {
-      console.log(`📊 StatisticsCard: Loading analysis data with limit ${limit}`);
+  const loadAnalysisData = withPerformanceMonitoring('StatisticsCard.loadAnalysisData',
+    useCallback(async (limitOverride?: number) => {
+      const limit = typeof limitOverride === 'number' ? limitOverride : analysisLimit;
 
-      // Use the new getAnalysisData endpoint for efficient chart data loading
-      const response = await chrome.runtime.sendMessage({
-        action: 'getAnalysisData',
-        limit
-      });
-
-      if (response?.success && response?.data) {
-        // MEMORY LEAK FIX: Clear previous data before setting new data
-        setAnalysisData({
-          networkRequests: [],
-          consoleErrors: [],
-          tokenEvents: [],
-          loaded: false
-        });
-
-        // Set new data after clearing
-        setAnalysisData({
-          networkRequests: response.data.networkRequests || [],
-          consoleErrors: response.data.consoleErrors || [],
-          tokenEvents: response.data.tokenEvents || [],
-          loaded: true
-        });
-
-        console.log('✅ StatisticsCard: Analysis data loaded:', {
-          limit,
-          networkRequests: response.data.networkRequests?.length || 0,
-          consoleErrors: response.data.consoleErrors?.length || 0,
-          tokenEvents: response.data.tokenEvents?.length || 0
-        });
-      } else {
-        console.warn('⚠️ StatisticsCard: Failed to load analysis data:', response);
+      // INFINITE LOOP PROTECTION: Prevent concurrent calls
+      if (isLoadingRef.current) {
+        console.log('📊 StatisticsCard: Skipping load - already in progress');
+        return;
       }
-    } catch (error) {
-      console.error('❌ StatisticsCard: Error loading analysis data:', error);
+
+      try {
+        console.log(`📊 StatisticsCard: Loading analysis data with limit ${limit}`);
+
+        // Set loading state in both ref and state
+        isLoadingRef.current = true;
+        setAnalysisData(prev => ({ ...prev, loading: true }));
+
+        // Use the new getAnalysisData endpoint for efficient chart data loading
+        const response = await chrome.runtime.sendMessage({
+          action: 'getAnalysisData',
+          limit
+        });
+
+        if (response?.success && response?.data) {
+          // Set new data
+          setAnalysisData({
+            networkRequests: response.data.networkRequests || [],
+            consoleErrors: response.data.consoleErrors || [],
+            tokenEvents: response.data.tokenEvents || [],
+            loaded: true,
+            loading: false
+          });
+
+          // Track actual record counts for display
+          setActualRecordCounts({
+            networkRequests: response.data.networkRequests?.length || 0,
+            consoleErrors: response.data.consoleErrors?.length || 0,
+            tokenEvents: response.data.tokenEvents?.length || 0
+          });
+
+          console.log('✅ StatisticsCard: Analysis data loaded:', {
+            limit,
+            networkRequests: response.data.networkRequests?.length || 0,
+            consoleErrors: response.data.consoleErrors?.length || 0,
+            tokenEvents: response.data.tokenEvents?.length || 0,
+            sharedProcessing: isFeatureEnabled('enableSharedChartData')
+          });
+        } else {
+          console.warn('⚠️ StatisticsCard: Failed to load analysis data:', response);
+          setAnalysisData(prev => ({ ...prev, loading: false }));
+        }
+      } catch (error) {
+        console.error('❌ StatisticsCard: Error loading analysis data:', error);
+        setAnalysisData(prev => ({ ...prev, loading: false }));
+      } finally {
+        // Always clear the loading ref
+        isLoadingRef.current = false;
+      }
+    }, [analysisLimit])
+  );
+
+  // Smart refresh logic based on chart settings - FIXED: Remove loadAnalysisData dependency to prevent infinite loops
+  useEffect(() => {
+    // Always load initial data regardless of mode
+    if (!analysisData.loaded) {
+      console.log('📊 StatisticsCard: Loading initial data');
+      loadAnalysisData(analysisLimit);
+      return;
     }
-  }, [analysisLimit]);
 
-  // Load analysis data on component mount and when limit changes
-  useEffect(() => {
-    loadAnalysisData();
-  }, [loadAnalysisData]);
-
-  // MEMORY LEAK FIX: Only refresh when explicitly requested, avoid circular dependencies
-  const refreshAnalysisData = useCallback(async () => {
-    console.log('🔄 StatisticsCard: Refreshing analysis data on user request');
-    await loadAnalysisData();
-  }, [loadAnalysisData]);
-
-  // Expose refresh function to parent via callback ref (MEMORY LEAK SAFE)
-  useEffect(() => {
-    if (onRefreshAnalysisData && typeof onRefreshAnalysisData === 'function') {
-      // Call the parent's refresh function with our refresh method
-      // This allows parent to trigger refresh without causing circular dependencies
-      onRefreshAnalysisData().then(() => {
-        // After parent refreshes, refresh our analysis data too
-        refreshAnalysisData();
-      }).catch(error => {
-        console.warn('StatisticsCard: Parent refresh failed:', error);
-        // Still refresh our data even if parent fails
-        refreshAnalysisData();
+    // Only setup auto-refresh if settings are loaded and auto mode is enabled
+    if (chartSettingsLoading || chartSettings.refreshMode !== 'auto') {
+      console.log('📊 StatisticsCard: Skipping auto-refresh setup', {
+        loading: chartSettingsLoading,
+        mode: chartSettings.refreshMode
       });
+      return;
     }
-  }, [onRefreshAnalysisData, refreshAnalysisData]);
+
+    // Setup auto-refresh with memory leak protection
+    const refreshInterval = (chartSettings.refreshInterval || 30) * 1000; // Convert to ms
+    console.log(`📊 StatisticsCard: Setting up auto-refresh every ${refreshInterval}ms`);
+
+    const intervalId = setInterval(() => {
+      console.log('🔄 StatisticsCard: Auto-refresh triggered');
+      loadAnalysisData(analysisLimit);
+    }, refreshInterval);
+
+    return () => {
+      console.log('📊 StatisticsCard: Cleaning up auto-refresh interval');
+      clearInterval(intervalId);
+    };
+    // CRITICAL FIX: Remove loadAnalysisData from dependencies to prevent infinite loops
+    // FIXED: Added analysisLimit dependency to ensure refresh uses current limit
+  }, [chartSettings.refreshMode, chartSettings.refreshInterval, chartSettingsLoading, analysisData.loaded, analysisLimit]);
+
+  // Manual refresh effect - triggers when manual refresh is requested - FIXED: Remove loadAnalysisData dependency
+  useEffect(() => {
+    if (manualRefreshTrigger > 0) {
+      console.log('🔄 StatisticsCard: Manual refresh effect triggered');
+      loadAnalysisData(analysisLimit);
+    }
+    // CRITICAL FIX: Remove loadAnalysisData from dependencies to prevent infinite loops
+    // FIXED: Added analysisLimit dependency to ensure manual refresh uses current limit
+  }, [manualRefreshTrigger, analysisLimit]);
+
+  // Manual refresh function
+  const triggerManualRefresh = useCallback(() => {
+    console.log('🔄 StatisticsCard: Manual refresh triggered by user');
+    setManualRefreshTrigger(prev => prev + 1);
+  }, []);
+
+  // REMOVED: refreshAnalysisData function to eliminate infinite loops
+  // Use triggerManualRefresh for all manual refresh operations
+
+  // REMOVED: useEffect with onRefreshAnalysisData to eliminate infinite loops and circular dependencies
 
   // Chart definitions based on user requirements
   const chartDefinitions: ChartDefinitions = useMemo(() => ({
@@ -351,7 +494,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
         data: globalStats,
         networkRequests: effectiveNetworkRequests,
         consoleErrors: effectiveConsoleErrors,
-        tokenEvents: effectiveTokenEvents
+        tokenEvents: effectiveTokenEvents,
+        sharedData: isFeatureEnabled('enableSharedChartData') ? sharedChartData : undefined
       };
 
       console.log('Rendering chart:', chartKey, 'with data:', {
@@ -359,7 +503,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
         networkRequests: effectiveNetworkRequests?.length || 0,
         consoleErrors: effectiveConsoleErrors?.length || 0,
         tokenEvents: effectiveTokenEvents?.length || 0,
-        dataSource: useAnalysisData ? 'analysis (200 records)' : 'current page (10 records)'
+        dataSource: useAnalysisData ? `analysis (${analysisLimit} records)` : 'current page (10 records)'
       });
 
       // MEMORY LEAK FIX: Add detailed logging for method-usage-daily chart
@@ -501,7 +645,11 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   // Calculate global statistics - MEMORY LEAK FIX: Batch processing with abort signal
   const globalStats: GlobalStats = useMemo(() => {
     // Check if we should abort processing
-    if (abortControllerRef.current?.signal.aborted) {
+    const isAborted = abortControllerRef.current?.signal.aborted;
+    console.log('🔍 GlobalStats useMemo starting:', { isAborted, analysisDataLoaded: analysisData.loaded });
+
+    if (isAborted) {
+      console.log('⚠️ GlobalStats calculation aborted');
       return {
         totalRequests: 0,
         totalErrors: 0,
@@ -516,37 +664,39 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       };
     }
 
-    // Use analysis data for statistics calculations if available, otherwise fall back to current page data
+    // CONSISTENCY FIX: Use the exact same logic as charts for data source selection
     const useAnalysisData = analysisData.loaded && analysisData.networkRequests.length > 0;
 
     const effectiveNetworkRequests = useAnalysisData
       ? analysisData.networkRequests
-      : (DEBUG_MODE && (!networkRequests || networkRequests.length === 0) ? mockNetworkRequests : networkRequests);
+      : (DEBUG_MODE ? mockNetworkRequests : []);
 
     const effectiveConsoleErrors = useAnalysisData
       ? analysisData.consoleErrors
-      : (DEBUG_MODE && (!consoleErrors || consoleErrors.length === 0) ? mockConsoleErrors : consoleErrors);
+      : (DEBUG_MODE ? mockConsoleErrors : []);
 
     const effectiveTokenEvents = useAnalysisData
       ? analysisData.tokenEvents
-      : (DEBUG_MODE && (!tokenEvents || tokenEvents.length === 0) ? mockTokenEvents : tokenEvents);
+      : (DEBUG_MODE ? mockTokenEvents : []);
 
     console.log('GlobalStats calculation with data:', {
       useAnalysisData,
       networkRequests: effectiveNetworkRequests?.length || 0,
       consoleErrors: effectiveConsoleErrors?.length || 0,
       tokenEvents: effectiveTokenEvents?.length || 0,
-      dataSource: useAnalysisData ? 'analysis (last 200 records)' : 'current page (10 records)'
+      analysisLoaded: analysisData.loaded,
+      analysisNetworkLength: analysisData.networkRequests?.length || 0,
+      dataSource: useAnalysisData ? 'analysis (latest N records)' : 'current page'
     });
 
     const calculatedTotalRequests = effectiveNetworkRequests.length;
     const calculatedTotalErrors = effectiveConsoleErrors.length;
     const calculatedTotalTokenEvents = effectiveTokenEvents.length;
 
-    // Use provided totals if available, otherwise use calculated totals from current data
-    const finalTotalRequests = totalRequests ?? calculatedTotalRequests;
-    const finalTotalErrors = totalErrors ?? calculatedTotalErrors;
-    const finalTotalTokenEvents = totalTokenEvents ?? calculatedTotalTokenEvents;
+    // CONSISTENCY FIX: When using analysis data, use calculated totals from that data, not global props
+    const finalTotalRequests = useAnalysisData ? calculatedTotalRequests : (totalRequests ?? calculatedTotalRequests);
+    const finalTotalErrors = useAnalysisData ? calculatedTotalErrors : (totalErrors ?? calculatedTotalErrors);
+    const finalTotalTokenEvents = useAnalysisData ? calculatedTotalTokenEvents : (totalTokenEvents ?? calculatedTotalTokenEvents);
 
     // MEMORY EFFICIENT: Process data in batches to avoid blocking UI
     const batchSize = 50;
@@ -591,8 +741,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
           maxResponseTimeCalculated = Math.max(maxResponseTimeCalculated, responseTime);
         }
 
-        // Success rate tracking
-        const status = req.status || req.response_status || 0;
+        // Success rate tracking - use same status field detection as chart
+        const status = req.status ?? req.response_status ?? req.response?.status ?? req.statusCode ?? 0;
         if (status >= 200 && status < 400) {
           successCount++;
         }
@@ -665,6 +815,19 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     const avgResponseTime = responseTimeCount > 0 ? Math.round(totalResponseTime / responseTimeCount) : 0;
     const successRate = finalTotalRequests > 0 ? Math.round((successCount / finalTotalRequests) * 100) : 0;
 
+    console.log('Success Rate Debug:', {
+      successCount,
+      finalTotalRequests,
+      successRate,
+      sampleStatuses: effectiveNetworkRequests.slice(0, 5).map(req => ({
+        status: req.status,
+        response_status: req.response_status,
+        statusCode: req.statusCode,
+        response: req.response?.status,
+        finalStatus: req.status ?? req.response_status ?? req.response?.status ?? req.statusCode ?? 0
+      }))
+    });
+
     return {
       totalRequests: finalTotalRequests,
       totalErrors: finalTotalErrors,
@@ -678,28 +841,28 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       successRate
     };
 
-  }, [analysisData, networkRequests, consoleErrors, tokenEvents, totalRequests, totalErrors, totalTokenEvents]);
+  }, [analysisData]);
 
   // Calculate domain-specific statistics with enhanced grouping
   const domainStats: DomainStats[] = useMemo(() => {
-    // Use analysis data for more accurate domain statistics
+    // CONSISTENCY FIX: Use the exact same logic as charts for data source selection
     const useAnalysisData = analysisData.loaded && analysisData.networkRequests.length > 0;
 
     const effectiveNetworkRequests = useAnalysisData
       ? analysisData.networkRequests
-      : (DEBUG_MODE && (!networkRequests || networkRequests.length === 0) ? mockNetworkRequests : networkRequests);
+      : (DEBUG_MODE ? mockNetworkRequests : []);
 
     const effectiveConsoleErrors = useAnalysisData
       ? analysisData.consoleErrors
-      : (DEBUG_MODE && (!consoleErrors || consoleErrors.length === 0) ? mockConsoleErrors : consoleErrors);
+      : (DEBUG_MODE ? mockConsoleErrors : []);
 
     const effectiveTokenEvents = useAnalysisData
       ? analysisData.tokenEvents
-      : (DEBUG_MODE && (!tokenEvents || tokenEvents.length === 0) ? mockTokenEvents : tokenEvents);
+      : (DEBUG_MODE ? mockTokenEvents : []);
 
     const allData = [...effectiveNetworkRequests, ...effectiveConsoleErrors, ...effectiveTokenEvents];
     return groupDataByDomain(allData);
-  }, [analysisData, networkRequests, consoleErrors, tokenEvents]);
+  }, [analysisData]);
 
   // Sorting functions
   const handleGlobalSort = (key: string) => {
@@ -714,17 +877,6 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       key,
       direction: domainSortConfig.key === key && domainSortConfig.direction === 'desc' ? 'asc' : 'desc'
     });
-  };
-
-  // Toggle expanded state for grouped domains
-  const toggleDomainExpansion = (domain: string) => {
-    const newExpanded = new Set(expandedDomains);
-    if (expandedDomains.has(domain)) {
-      newExpanded.delete(domain);
-    } else {
-      newExpanded.add(domain);
-    }
-    setExpandedDomains(newExpanded);
   };
 
   // Prepare sorted global stats for table
@@ -829,6 +981,99 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="global" className="w-full">
+        {/* Global Record Limit Selector and Refresh Controls */}
+        <div className="flex justify-between items-center mb-4">
+          {/* Manual Refresh Button (when manual mode is enabled) */}
+          <div className="flex items-center gap-3">
+            {/* Debug info - remove in production */}
+            <div className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded">
+              Mode: {chartSettings?.refreshMode || 'loading'} |
+              Loading: {chartSettingsLoading ? 'yes' : 'no'}
+            </div>
+
+            {chartSettings?.refreshMode === 'manual' && (
+              <Button
+                onClick={triggerManualRefresh}
+                variant="outline"
+                size="sm"
+                disabled={analysisData.loading}
+                className={`flex items-center gap-2 text-blue-600 border-blue-200 hover:bg-blue-50 ${
+                  analysisData.loading ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+                title="Manually refresh chart data"
+              >
+                <RefreshCw className={`h-4 w-4 ${analysisData.loading ? 'animate-spin' : ''}`} />
+                {analysisData.loading ? 'Refreshing...' : 'Refresh Charts'}
+              </Button>
+            )}
+
+            {/* Show button even when auto mode for testing */}
+            {chartSettings?.refreshMode === 'auto' && (
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={triggerManualRefresh}
+                  variant="outline"
+                  size="sm"
+                  disabled={analysisData.loading}
+                  className={`flex items-center gap-2 text-green-600 border-green-200 hover:bg-green-50 ${
+                    analysisData.loading ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  title="Force refresh (auto mode active)"
+                >
+                  <RefreshCw className={`h-4 w-4 ${analysisData.loading ? 'animate-spin' : ''}`} />
+                  {analysisData.loading ? 'Force Refreshing...' : 'Force Refresh'}
+                </Button>
+                <div className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded font-medium">
+                  🔄 Auto: {chartSettings.refreshInterval}s
+                </div>
+              </div>
+            )}
+
+            {/* Performance indicators */}
+            {isFeatureEnabled('enableSharedChartData') && (
+              <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                ⚡ Shared Processing Active
+              </div>
+            )}
+
+            {sharedChartData.lastProcessed && isFeatureEnabled('enableStalenessTracking') && (
+              <div className="text-xs text-gray-500">
+                Last updated: {new Date(sharedChartData.lastProcessed).toLocaleTimeString()}
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-600">Records considered</label>
+            <select
+              value={analysisLimit}
+              onChange={(e) => {
+                const value = parseInt(e.target.value, 10);
+                setAnalysisLimit(isNaN(value) ? 200 : value);
+              }}
+              className="border border-gray-300 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              title="Number of most recent records used to compute all statistics and charts"
+            >
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={200}>200</option>
+                <option value={500}>500</option>
+                <option value={1000}>1000</option>
+                <option value={2000}>2000</option>
+                <option value={5000}>5000</option>
+                <option value={10000}>10000</option>
+                <option value={-1}>All</option>
+              </select>
+              <span className="hidden md:inline text-xs text-gray-500">
+                {actualRecordCounts.networkRequests > 0 && (
+                  <span className="text-blue-600">
+                    {actualRecordCounts.networkRequests} loaded
+                  </span>
+                )}
+              </span>
+            </div>
+          </div>
+
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="global" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
@@ -946,7 +1191,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                   transition={{ duration: 0.3 }}
                   className="space-y-4"
                 >
-                  {/* Chart Search + Analysis Limit */}
+                  {/* Chart Search */}
                   <div className="flex flex-col md:flex-row md:items-center gap-3">
                     <div className="relative flex-1">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -957,23 +1202,6 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                         onChange={(e) => setChartSearch(e.target.value)}
                         className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <label className="text-sm text-gray-600">Records considered</label>
-                      <select
-                        value={analysisLimit}
-                        onChange={(e) => setAnalysisLimit(parseInt(e.target.value, 10) || 200)}
-                        className="border border-gray-300 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        title="Number of most recent records used to compute statistics and charts"
-                      >
-                        <option value={50}>50</option>
-                        <option value={100}>100</option>
-                        <option value={200}>200</option>
-                        <option value={500}>500</option>
-                        <option value={1000}>1000</option>
-                        <option value={2000}>2000</option>
-                      </select>
-                      <span className="hidden md:inline text-xs text-gray-500">Larger samples may increase memory usage</span>
                     </div>
                   </div>
 
@@ -1085,13 +1313,15 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                     Domains are intelligently grouped by tab context and subdomain patterns.
                     <Layers className="h-3 w-3 inline mx-1" /> indicates grouped subdomains,
                     <Monitor className="h-3 w-3 inline mx-1" /> shows main tab domains.
+                    <BarChart3 className="h-3 w-3 inline mx-1" /> opens domain-specific charts.
                     Hover for details.
                   </p>
                 </div>
               </div>
             </div>
-            <div className="rounded-md border">
-              <Table>
+            <div className="rounded-md border overflow-hidden">
+              <div className="overflow-x-auto">
+                <Table className="w-full">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="font-semibold">
@@ -1100,40 +1330,40 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                         <SortButton column="domain" currentSort={domainSortConfig} onSort={handleDomainSort} />
                       </div>
                     </TableHead>
-                    <TableHead className="font-semibold">
-                      <div className="flex items-center gap-2">
+                    <TableHead className="font-semibold w-20 text-center">
+                      <div className="flex items-center gap-2 justify-center">
                         Requests
                         <SortButton column="totalRequests" currentSort={domainSortConfig} onSort={handleDomainSort} />
                       </div>
                     </TableHead>
-                    <TableHead className="font-semibold">
-                      <div className="flex items-center gap-2">
+                    <TableHead className="font-semibold w-16 text-center">
+                      <div className="flex items-center gap-2 justify-center">
                         Errors
                         <SortButton column="errors" currentSort={domainSortConfig} onSort={handleDomainSort} />
                       </div>
                     </TableHead>
-                    <TableHead className="font-semibold">
-                      <div className="flex items-center gap-2">
+                    <TableHead className="font-semibold w-16 text-center">
+                      <div className="flex items-center gap-2 justify-center">
                         Tokens
                         <SortButton column="tokens" currentSort={domainSortConfig} onSort={handleDomainSort} />
                       </div>
                     </TableHead>
-                    <TableHead className="font-semibold">
-                      <div className="flex items-center gap-2">
+                    <TableHead className="font-semibold w-24 text-center">
+                      <div className="flex items-center gap-2 justify-center">
                         Success Rate
                         <SortButton column="successRate" currentSort={domainSortConfig} onSort={handleDomainSort} />
                       </div>
                     </TableHead>
-                    <TableHead className="font-semibold">
-                      <div className="flex items-center gap-2">
+                    <TableHead className="font-semibold w-24 text-center">
+                      <div className="flex items-center gap-2 justify-center">
                         Avg Response
                         <SortButton column="avgResponseTime" currentSort={domainSortConfig} onSort={handleDomainSort} />
                       </div>
                     </TableHead>
-                    <TableHead className="font-semibold">
-                      <div className="flex items-center gap-2">
-                        Last Activity
-                        <SortButton column="lastSeen" currentSort={domainSortConfig} onSort={handleDomainSort} />
+                    <TableHead className="font-semibold w-32 text-center">
+                      <div className="flex items-center gap-2 justify-center">
+                        <Activity className="h-4 w-4" />
+                        Analysis
                       </div>
                     </TableHead>
                   </TableRow>
@@ -1142,7 +1372,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                   {sortedDomainStats.map((stat, index) => (
                     <React.Fragment key={index}>
                       <TableRow className="hover:bg-blue-50/50">
-                        <TableCell className="font-medium max-w-[300px]" title={
+                        <TableCell className="font-medium w-[30%] min-w-[200px]" title={
                           stat.isGrouped ?
                             `${stat.domain} (Service group with ${stat.groupedDomains.length} domains: ${stat.groupedDomains.join(', ')})` :
                             `${stat.domain}${stat.tabContext?.primaryTabUrl ? ` - Tab: ${stat.tabContext.primaryTabUrl}` : ''}`
@@ -1153,15 +1383,21 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                 <button
                                   onClick={() => toggleDomainExpansion(stat.domain)}
                                   className="p-0.5 hover:bg-gray-100 rounded"
-                                  title={expandedDomains.has(stat.domain) ? "Collapse grouped domains" : "Expand grouped domains"}
+                                  title={isDomainExpanded(stat.domain) ? "Collapse grouped domains" : "Expand grouped domains"}
                                 >
-                                  {expandedDomains.has(stat.domain) ?
+                                  {isDomainExpanded(stat.domain) ?
                                     <ChevronDown className="h-3 w-3" /> :
                                     <ChevronRight className="h-3 w-3" />
                                   }
                                 </button>
                               )}
                               <span className="truncate font-semibold">{stat.domain}</span>
+                              {/* Single total event count */}
+                              <div className="flex items-center ml-2">
+                                <span className="inline-flex items-center px-2 py-1 rounded bg-gray-100 text-gray-700 font-mono text-xs" title="Total Events: Requests + Errors + Tokens">
+                                  {stat.totalRequests + stat.errors + stat.tokens}
+                                </span>
+                              </div>
                               {stat.tabContext?.isMainDomain && (
                                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800" title="Primary domain for tab">
                                   <Monitor className="h-3 w-3 mr-1" />
@@ -1169,9 +1405,9 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                 </span>
                               )}
                               {stat.isGrouped && (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800" title={`Grouped from: ${stat.groupedDomains.join(', ')}`}>
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800" title={`Grouped subdomains: ${stat.subdomainStats.map(s => s.domain).join(', ')}`}>
                                   <Layers className="h-3 w-3 mr-1" />
-                                  {stat.groupedDomains.length}
+                                  {stat.subdomainStats.length}
                                 </span>
                               )}
                               {stat.tabContext?.tabIds && stat.tabContext.tabIds.length > 1 && (
@@ -1188,10 +1424,10 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                             )}
                           </div>
                       </TableCell>
-                      <TableCell className="font-semibold text-green-700">{stat.totalRequests}</TableCell>
-                      <TableCell className="font-semibold text-red-700">{stat.errors}</TableCell>
-                      <TableCell className="font-semibold text-yellow-700">{stat.tokens}</TableCell>
-                      <TableCell>
+                      <TableCell className="font-semibold text-green-700 w-20 text-center">{stat.totalRequests}</TableCell>
+                      <TableCell className="font-semibold text-red-700 w-16 text-center">{stat.errors}</TableCell>
+                      <TableCell className="font-semibold text-yellow-700 w-16 text-center">{stat.tokens}</TableCell>
+                      <TableCell className="w-24 text-center">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                           stat.successRate >= 90 ? 'bg-green-100 text-green-800' :
                           stat.successRate >= 70 ? 'bg-yellow-100 text-yellow-800' :
@@ -1200,16 +1436,45 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                           {stat.successRate}%
                         </span>
                       </TableCell>
-                      <TableCell className="font-medium text-blue-700">
+                      <TableCell className="font-medium text-blue-700 w-24 text-center">
                         {stat.avgResponseTime > 0 ? `${stat.avgResponseTime}ms` : 'N/A'}
                       </TableCell>
-                      <TableCell className="text-sm text-gray-600 max-w-[150px] truncate" title={new Date(stat.lastSeen).toLocaleString()}>
-                        {new Date(stat.lastSeen).toLocaleString()}
+                      <TableCell className="w-32 text-center">
+                        <div className="w-full flex items-center justify-end pr-4">
+                          {/* Tier 2: Inline expandable charts */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleDomainCharts(stat.domain)}
+                            className="h-6 w-6 p-0 hover:bg-blue-100"
+                            title={isDomainChartExpanded(stat.domain) ? "Hide inline charts" : "Show inline charts"}
+                          >
+                            {isDomainChartExpanded(stat.domain) ?
+                              <EyeOff className="h-3 w-3 text-blue-600" /> :
+                              <BarChart3 className="h-3 w-3 text-gray-600" />
+                            }
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
 
+                    {/* Domain-specific charts panel - TIER 2 IMPLEMENTATION */}
+                    {isDomainChartExpanded(stat.domain) && (
+                      <TableRow key={`${index}-charts`}>
+                        <TableCell colSpan={7} className="p-0 bg-gray-50">
+                          <DomainChartsPanel
+                            domain={stat.domain}
+                            networkRequests={analysisData.loaded ? analysisData.networkRequests : []}
+                            consoleErrors={analysisData.loaded ? analysisData.consoleErrors : []}
+                            tokenEvents={analysisData.loaded ? analysisData.tokenEvents : []}
+                            className="m-4"
+                          />
+                        </TableCell>
+                      </TableRow>
+                    )}
+
                     {/* Expanded grouped domains with stats */}
-                    {stat.isGrouped && expandedDomains.has(stat.domain) && stat.subdomainStats.map((subStat, subIndex: number) => (
+                    {stat.isGrouped && isDomainExpanded(stat.domain) && stat.subdomainStats.map((subStat, subIndex: number) => (
                       <TableRow key={`${index}-${subIndex}`} className="bg-blue-50/30 border-l-2 border-l-blue-200">
                         <TableCell className="pl-8 text-sm text-gray-600">
                           <div className="flex items-center gap-2">
@@ -1232,7 +1497,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                         <TableCell className="text-sm font-medium text-blue-600">
                           {subStat.avgResponseTime > 0 ? `${subStat.avgResponseTime}ms` : 'N/A'}
                         </TableCell>
-                        <TableCell className="text-sm text-gray-400">-</TableCell>
+                        <TableCell className="text-sm text-gray-400 text-center">-</TableCell>
                       </TableRow>
                     ))}
                   </React.Fragment>
@@ -1246,6 +1511,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                   )}
                 </TableBody>
               </Table>
+              </div>
             </div>
           </TabsContent>
         </Tabs>
