@@ -320,14 +320,32 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
     };
   }, [domainData]);
 
-  // PERFORMANCE: Return early if no data
+  // PERFORMANCE: Return early if no data with enhanced empty state
   if (domainData.requests.length === 0 && domainData.errors.length === 0) {
     return (
-      <div className={`bg-gray-50 border border-gray-200 rounded-lg p-4 ${className}`}>
-        <div className="text-center text-gray-500 py-8">
-          <BarChart3 className="h-12 w-12 mx-auto mb-2 opacity-50" />
-          <p className="text-sm font-medium">No data available for {domain}</p>
-          <p className="text-xs mt-1">Charts will appear when domain activity is detected</p>
+      <div className={`bg-gradient-to-br from-gray-50 to-slate-100 border border-gray-200 rounded-xl shadow-lg ${className}`}>
+        <div className="text-center py-16 px-6">
+          <div className="mx-auto w-24 h-24 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mb-6">
+            <BarChart3 className="h-12 w-12 text-blue-500" />
+          </div>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">No Data Available</h3>
+          <p className="text-gray-600 mb-1">No activity detected for <span className="font-mono font-semibold">{domain}</span></p>
+          <p className="text-sm text-gray-500">Charts will appear when domain activity is detected</p>
+          
+          <div className="mt-8 grid grid-cols-3 gap-4 max-w-sm mx-auto">
+            <div className="text-center p-3 bg-white/60 rounded-lg">
+              <div className="w-3 h-3 rounded-full bg-blue-300 mx-auto mb-1"></div>
+              <div className="text-xs text-gray-500">0 Requests</div>
+            </div>
+            <div className="text-center p-3 bg-white/60 rounded-lg">
+              <div className="w-3 h-3 rounded-full bg-red-300 mx-auto mb-1"></div>
+              <div className="text-xs text-gray-500">0 Errors</div>
+            </div>
+            <div className="text-center p-3 bg-white/60 rounded-lg">
+              <div className="w-3 h-3 rounded-full bg-amber-300 mx-auto mb-1"></div>
+              <div className="text-xs text-gray-500">0 Tokens</div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -349,211 +367,368 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
   };
 
   return (
-    <div className={`bg-white border border-gray-200 rounded-lg shadow-sm ${className}`}>
-      {/* Header */}
-      <div className="border-b border-gray-200 p-4 bg-gray-50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Activity className="h-5 w-5 text-blue-600" />
-            <h3 className="font-semibold text-gray-900">Domain Analysis: {domain}</h3>
+    <div className={`bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl shadow-lg ${className}`}>
+      {/* Enhanced Header with Visual Indicators */}
+      <div className="border-b border-gray-200 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-xl">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Activity className="h-6 w-6 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-gray-900">Domain Analysis</h3>
+              <p className="text-sm text-gray-600 font-mono">{domain}</p>
+            </div>
           </div>
-          <div className="flex items-center gap-4 text-sm text-gray-600">
-            <span>{domainData.requests.length} requests</span>
-            <span>{domainData.errors.length} errors</span>
-            <span>{domainData.tokens.length} tokens</span>
+          
+          {/* Performance Badge */}
+          <div className="flex items-center gap-2">
+            <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
+              chartData.successRate >= 95 ? 'bg-green-100 text-green-800' :
+              chartData.successRate >= 85 ? 'bg-yellow-100 text-yellow-800' :
+              'bg-red-100 text-red-800'
+            }`}>
+              {chartData.successRate >= 95 ? '✅ Excellent' :
+               chartData.successRate >= 85 ? '⚠️ Good' : '🚨 Poor'} Performance
+            </div>
+          </div>
+        </div>
+        
+        {/* Quick Stats Cards */}
+        <div className="grid grid-cols-3 gap-4">
+          <div className="bg-white/70 backdrop-blur-sm rounded-lg p-3 border border-white/50">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+              <span className="text-sm font-medium text-gray-600">Requests</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{domainData.requests.length}</p>
+          </div>
+          
+          <div className="bg-white/70 backdrop-blur-sm rounded-lg p-3 border border-white/50">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-red-500"></div>
+              <span className="text-sm font-medium text-gray-600">Errors</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{domainData.errors.length}</p>
+          </div>
+          
+          <div className="bg-white/70 backdrop-blur-sm rounded-lg p-3 border border-white/50">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-amber-500"></div>
+              <span className="text-sm font-medium text-gray-600">Tokens</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{domainData.tokens.length}</p>
           </div>
         </div>
       </div>
 
-      {/* Charts Grid - 2x2 layout */}
-      <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-        {/* 1. Activity Timeline - SPANS ALL RECORDS (requests, errors, tokens) */}
-        <div className="bg-white border border-gray-100 rounded-lg p-3">
-          <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            Activity Timeline (All Records)
-          </h4>
-          <div className="h-40">
+      {/* Enhanced Charts Grid - Better Visual Hierarchy */}
+      <div className="p-6 space-y-6">
+        
+        {/* Primary Chart - Activity Timeline (Full Width) */}
+        <div className="bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-shadow p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-blue-600" />
+              <h4 className="text-lg font-semibold text-gray-800">Activity Timeline</h4>
+              <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
+                All Records
+              </span>
+            </div>
+            <div className="text-sm text-gray-500">
+              Showing {chartData.timeline.length} time periods
+            </div>
+          </div>
+          <div className="h-48 bg-gradient-to-br from-gray-50 to-white rounded-lg p-2">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData.timeline}>
-                <CartesianGrid strokeDasharray="3 3" />
+                <defs>
+                  <linearGradient id="gradientRequests" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={colors.primary} stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor={colors.primary} stopOpacity={0.1}/>
+                  </linearGradient>
+                  <linearGradient id="gradientErrors" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={colors.danger} stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor={colors.danger} stopOpacity={0.1}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis
                   dataKey="time"
-                  tick={{ fontSize: 10 }}
-                  angle={-45}
+                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  angle={-30}
                   textAnchor="end"
-                  height={50}
+                  height={60}
+                  stroke="#94a3b8"
                 />
-                <YAxis tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} stroke="#94a3b8" />
                 <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '12px'
+                  }}
                   formatter={(value: any, name: string) => [
                     value,
-                    name === 'requests' ? 'Network Requests' :
-                    name === 'errors' ? 'Console Errors' :
-                    name === 'tokens' ? 'Token Events' : 'Total'
+                    name === 'requests' ? '🌐 Network Requests' :
+                    name === 'errors' ? '❌ Console Errors' :
+                    name === 'tokens' ? '🔑 Token Events' : 'Total'
                   ]}
                 />
                 <Line
                   type="monotone"
                   dataKey="requests"
                   stroke={colors.primary}
-                  strokeWidth={2}
-                  dot={{ fill: colors.primary, r: 3 }}
-                  name="Requests"
+                  strokeWidth={3}
+                  dot={{ fill: colors.primary, r: 4, strokeWidth: 2, stroke: 'white' }}
+                  activeDot={{ r: 6, stroke: colors.primary, strokeWidth: 2, fill: 'white' }}
+                  name="requests"
                 />
                 <Line
                   type="monotone"
                   dataKey="errors"
                   stroke={colors.danger}
-                  strokeWidth={2}
-                  dot={{ fill: colors.danger, r: 2 }}
-                  name="Errors"
+                  strokeWidth={3}
+                  dot={{ fill: colors.danger, r: 3, strokeWidth: 2, stroke: 'white' }}
+                  activeDot={{ r: 6, stroke: colors.danger, strokeWidth: 2, fill: 'white' }}
+                  name="errors"
                 />
                 <Line
                   type="monotone"
                   dataKey="tokens"
                   stroke={colors.accent}
-                  strokeWidth={2}
-                  dot={{ fill: colors.accent, r: 2 }}
-                  name="Tokens"
+                  strokeWidth={3}
+                  dot={{ fill: colors.accent, r: 3, strokeWidth: 2, stroke: 'white' }}
+                  activeDot={{ r: 6, stroke: colors.accent, strokeWidth: 2, fill: 'white' }}
+                  name="tokens"
                 />
-                <Legend />
+                <Legend 
+                  wrapperStyle={{ paddingTop: '20px' }}
+                  iconType="circle"
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
-        </div>        {/* 2. Status Code Distribution - Fixed data structure */}
-        <div className="bg-white border border-gray-100 rounded-lg p-3">
-          <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Status Code Distribution
-          </h4>
-          <div className="h-40">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={chartData.status}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={30}
-                  outerRadius={60}
-                  paddingAngle={2}
-                >
-                  {chartData.status.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={colors.status[entry.name] || colors.primary} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(value: any, name: string) => [
-                    `${value} (${chartData.status.find(s => s.name === name)?.percentage}%)`,
-                    name
-                  ]}
-                />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
         </div>
 
-        {/* 3. Response Time Distribution - Histogram for accurate performance analysis */}
-        <div className="bg-white border border-gray-100 rounded-lg p-3">
-          <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            Response Time Distribution
-          </h4>
-          {chartData.responseTimeStats && chartData.responseTimeStats.total > 0 && (
-            <div className="text-xs text-gray-500 mb-2">
-              Avg: {chartData.responseTimeStats.average}ms | Min: {chartData.responseTimeStats.min}ms | Max: {chartData.responseTimeStats.max}ms | Total: {chartData.responseTimeStats.total}
+        {/* Secondary Charts Grid - 3 columns on large screens, responsive */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+          {/* Status Code Distribution */}
+          <div className="bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-shadow p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <BarChart3 className="h-5 w-5 text-green-600" />
+              <h4 className="text-lg font-semibold text-gray-800">Status Codes</h4>
             </div>
-          )}
-          <div className="h-40">
-            {chartData.responseTime && chartData.responseTime.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData.responseTime}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="name"
-                    tick={{ fontSize: 9 }}
-                    angle={-15}
-                    textAnchor="end"
-                    height={45}
-                  />
-                  <YAxis tick={{ fontSize: 10 }} />
-                  <Tooltip
-                    formatter={(value: any, _name: string, props: any) => [
-                      `${value} requests (${props.payload.percentage}%)`,
-                      'Distribution'
-                    ]}
-                    labelFormatter={(label) => `Response Time: ${label}`}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="count"
-                    stroke="#8884d8"
-                    fill="#8884d8"
-                    fillOpacity={0.6}
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex items-center justify-center h-full text-gray-500 text-sm">
-                No response time data
+            <div className="h-48">
+              {chartData.status && chartData.status.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={chartData.status}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={35}
+                      outerRadius={70}
+                      paddingAngle={3}
+                      stroke="white"
+                      strokeWidth={2}
+                    >
+                      {chartData.status.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={colors.status[entry.name] || colors.primary} 
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                        border: 'none',
+                        borderRadius: '8px',
+                        color: 'white',
+                        fontSize: '12px'
+                      }}
+                      formatter={(value: any, name: string) => [
+                        `${value} (${chartData.status.find(s => s.name === name)?.percentage}%)`,
+                        name
+                      ]}
+                    />
+                    <Legend 
+                      wrapperStyle={{ fontSize: '12px' }}
+                      iconType="circle"
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+                  No status data
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Response Time Distribution */}
+          <div className="bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-shadow p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Clock className="h-5 w-5 text-purple-600" />
+              <h4 className="text-lg font-semibold text-gray-800">Response Times</h4>
+            </div>
+            {chartData.responseTimeStats && chartData.responseTimeStats.total > 0 && (
+              <div className="grid grid-cols-2 gap-2 mb-4 text-xs">
+                <div className="bg-purple-50 rounded p-2">
+                  <span className="text-purple-600 font-medium">Avg:</span> {chartData.responseTimeStats.average}ms
+                </div>
+                <div className="bg-gray-50 rounded p-2">
+                  <span className="text-gray-600 font-medium">Total:</span> {chartData.responseTimeStats.total}
+                </div>
               </div>
             )}
+            <div className="h-48">
+              {chartData.responseTime && chartData.responseTime.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData.responseTime}>
+                    <defs>
+                      <linearGradient id="responseTimeGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.1}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis
+                      dataKey="name"
+                      tick={{ fontSize: 10, fill: '#64748b' }}
+                      angle={-15}
+                      textAnchor="end"
+                      height={45}
+                      stroke="#94a3b8"
+                    />
+                    <YAxis tick={{ fontSize: 10, fill: '#64748b' }} stroke="#94a3b8" />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                        border: 'none',
+                        borderRadius: '8px',
+                        color: 'white',
+                        fontSize: '12px'
+                      }}
+                      formatter={(value: any, _name: string, props: any) => [
+                        `${value} requests (${props.payload.percentage}%)`,
+                        'Distribution'
+                      ]}
+                      labelFormatter={(label) => `Response Time: ${label}`}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="count"
+                      stroke="#8b5cf6"
+                      fill="url(#responseTimeGradient)"
+                      strokeWidth={3}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+                  No response time data
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Top URL Paths/Endpoints */}
+          <div className="bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-shadow p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <BarChart3 className="h-5 w-5 text-orange-600" />
+              <h4 className="text-lg font-semibold text-gray-800">Top URL Paths</h4>
+            </div>
+            <div className="h-48">
+              {chartData.endpoints && chartData.endpoints.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData.endpoints}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis
+                      dataKey="name"
+                      tick={{ fontSize: 10, fill: '#64748b' }}
+                      angle={-30}
+                      textAnchor="end"
+                      height={60}
+                      stroke="#94a3b8"
+                    />
+                    <YAxis tick={{ fontSize: 10, fill: '#64748b' }} stroke="#94a3b8" />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                        border: 'none',
+                        borderRadius: '8px',
+                        color: 'white',
+                        fontSize: '12px'
+                      }}
+                      formatter={(value: any, _name: string, props: any) => [
+                        `${value} requests (${props.payload.percentage}%)`,
+                        'Endpoint Traffic'
+                      ]}
+                    />
+                    <Bar
+                      dataKey="count"
+                      radius={[6, 6, 0, 0]}
+                    >
+                      {chartData.endpoints.map((_, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={colors.methods[index % colors.methods.length]} 
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+                  No endpoint data
+                </div>
+              )}
+            </div>
           </div>
         </div>
-
-        {/* 4. Top Endpoints - Vertical Bar Chart (proven successful) */}
-        <div className="bg-white border border-gray-100 rounded-lg p-3">
-          <h4 className="text-sm font-medium text-gray-700 mb-3">Top Endpoints</h4>
-          <div className="h-40">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData.endpoints}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="name"
-                  tick={{ fontSize: 9 }}
-                  angle={-45}
-                  textAnchor="end"
-                  height={50}
-                />
-                <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip
-                  formatter={(value: any, _name: string, props: any) => [
-                    `${value} (${props.payload.percentage}%)`,
-                    'Requests'
-                  ]}
-                />
-                <Bar
-                  dataKey="count"
-                  radius={[4, 4, 0, 0]}
-                >
-                  {chartData.endpoints.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={colors.methods[index % colors.methods.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
       </div>
 
-      {/* Footer with summary stats - CORRECTED SUCCESS RATE */}
-      <div className="border-t border-gray-200 bg-gray-50 px-4 py-2 text-xs text-gray-600 rounded-b-lg">
-        <div className="flex justify-between">
-          <span>
-            Avg Response Time: {chartData.avgResponseTime}ms
-          </span>
-          <span>
-            Success Rate: {chartData.successRate}%
-          </span>
-          <span>
-            Total Activity: {domainData.requests.length + domainData.errors.length + domainData.tokens.length}
-          </span>
+      {/* Enhanced Footer with Key Metrics */}
+      <div className="border-t border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50 rounded-b-xl">
+        <div className="px-6 py-4">
+          <h5 className="text-sm font-semibold text-gray-700 mb-3">Performance Summary</h5>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white/80 rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-blue-600">{chartData.avgResponseTime}ms</div>
+              <div className="text-xs text-gray-600 font-medium">Avg Response Time</div>
+            </div>
+            
+            <div className="bg-white/80 rounded-lg p-3 text-center">
+              <div className={`text-2xl font-bold ${chartData.successRate >= 95 ? 'text-green-600' : chartData.successRate >= 85 ? 'text-yellow-600' : 'text-red-600'}`}>
+                {chartData.successRate}%
+              </div>
+              <div className="text-xs text-gray-600 font-medium">Success Rate</div>
+            </div>
+            
+            <div className="bg-white/80 rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-purple-600">
+                {domainData.requests.length + domainData.errors.length + domainData.tokens.length}
+              </div>
+              <div className="text-xs text-gray-600 font-medium">Total Events</div>
+            </div>
+            
+            <div className="bg-white/80 rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-orange-600">
+                {chartData.endpoints?.length || 0}
+              </div>
+              <div className="text-xs text-gray-600 font-medium">Unique URL Paths</div>
+              <div className="text-xs text-gray-400 mt-1">
+                (endpoints on this domain)
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
