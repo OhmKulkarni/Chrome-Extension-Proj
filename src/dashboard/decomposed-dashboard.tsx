@@ -376,35 +376,33 @@ const DecomposedDashboard: React.FC = () => {
         network: newState
       });
 
-      // Get current tab state to preserve counter when disabling
-      const tabStorageData = await storageService.get([`tabLogging_${tabId}`]);
-      const currentTabState = tabStorageData[`tabLogging_${tabId}`];
-      const currentCount = currentTabState?.requestCount || 0;
+      // SYNC FIX: Use background message router to update Chrome storage (triggers popup sync)
+      const response = await sendChromeMessage({
+        action: 'setTabNetworkState',
+        tabId,
+        active: newState
+      });
 
-      const tabState = {
-        active: newState,
-        startTime: newState ? Date.now() : undefined,
-        requestCount: newState ? 0 : currentCount  // Reset only when enabling, preserve when disabling
-      };
+      if (response && !response.error) {
+        // Send message to content script
+        try {
+          await chrome.tabs.sendMessage(tabId, {
+            action: 'toggleLogging',
+            enabled: newState
+          });
+        } catch (error) {
+          console.log('Could not send message to tab (may not have content script):', error);
+        }
 
-      await storageService.set({ [`tabLogging_${tabId}`]: tabState });
-
-      // Send message to content script
-      try {
-        await chrome.tabs.sendMessage(tabId, {
-          action: 'toggleLogging',
-          enabled: newState
-        });
-      } catch (error) {
-        console.log('Could not send message to tab (may not have content script):', error);
+        // Update local state
+        setTabsLoggingStatus(prev =>
+          prev.map(tab =>
+            tab.tabId === tabId ? { ...tab, networkLogging: newState } : tab
+          )
+        );
+      } else {
+        console.error('Failed to toggle tab network state:', response?.error);
       }
-
-      // Update local state
-      setTabsLoggingStatus(prev =>
-        prev.map(tab =>
-          tab.tabId === tabId ? { ...tab, networkLogging: newState } : tab
-        )
-      );
     } catch (error) {
       console.error('Error toggling network logging:', error);
     }
@@ -423,35 +421,33 @@ const DecomposedDashboard: React.FC = () => {
         errors: newState
       });
 
-      // Get current tab state to preserve counter when disabling
-      const tabStorageData = await storageService.get([`tabErrorLogging_${tabId}`]);
-      const currentTabState = tabStorageData[`tabErrorLogging_${tabId}`];
-      const currentCount = currentTabState?.errorCount || 0;
+      // SYNC FIX: Use background message router to update Chrome storage (triggers popup sync)
+      const response = await sendChromeMessage({
+        action: 'setTabErrorState',
+        tabId,
+        active: newState
+      });
 
-      const tabState = {
-        active: newState,
-        startTime: newState ? Date.now() : undefined,
-        errorCount: newState ? 0 : currentCount  // Reset only when enabling, preserve when disabling
-      };
+      if (response && !response.error) {
+        // Send message to content script
+        try {
+          await chrome.tabs.sendMessage(tabId, {
+            action: 'toggleErrorLogging',
+            enabled: newState
+          });
+        } catch (error) {
+          console.log('Could not send message to tab (may not have content script):', error);
+        }
 
-      await storageService.set({ [`tabErrorLogging_${tabId}`]: tabState });
-
-      // Send message to content script
-      try {
-        await chrome.tabs.sendMessage(tabId, {
-          action: 'toggleErrorLogging',
-          enabled: newState
-        });
-      } catch (error) {
-        console.log('Could not send message to tab (may not have content script):', error);
+        // Update local state
+        setTabsLoggingStatus(prev =>
+          prev.map(tab =>
+            tab.tabId === tabId ? { ...tab, errorLogging: newState } : tab
+          )
+        );
+      } else {
+        console.error('Failed to toggle tab error state:', response?.error);
       }
-
-      // Update local state
-      setTabsLoggingStatus(prev =>
-        prev.map(tab =>
-          tab.tabId === tabId ? { ...tab, errorLogging: newState } : tab
-        )
-      );
     } catch (error) {
       console.error('Error toggling error logging:', error);
     }
@@ -470,28 +466,26 @@ const DecomposedDashboard: React.FC = () => {
         tokens: newState
       });
 
-      // Get current tab state to preserve counter when disabling
-      const tabStorageData = await storageService.get([`tabTokenLogging_${tabId}`]);
-      const currentTabState = tabStorageData[`tabTokenLogging_${tabId}`];
-      const currentCount = currentTabState?.tokenCount || 0;
+      // SYNC FIX: Use background message router to update Chrome storage (triggers popup sync)
+      const response = await sendChromeMessage({
+        action: 'setTabTokenState',
+        tabId,
+        active: newState
+      });
 
-      const tabState = {
-        active: newState,
-        startTime: newState ? Date.now() : undefined,
-        tokenCount: newState ? 0 : currentCount  // Reset only when enabling, preserve when disabling
-      };
+      if (response && !response.error) {
+        // Note: Token logging doesn't require content script communication
+        // as it's handled purely in the background script via network interception
 
-      await storageService.set({ [`tabTokenLogging_${tabId}`]: tabState });
-
-      // Note: Token logging doesn't require content script communication
-      // as it's handled purely in the background script via network interception
-
-      // Update local state
-      setTabsLoggingStatus(prev =>
-        prev.map(tab =>
-          tab.tabId === tabId ? { ...tab, tokenLogging: newState } : tab
-        )
-      );
+        // Update local state
+        setTabsLoggingStatus(prev =>
+          prev.map(tab =>
+            tab.tabId === tabId ? { ...tab, tokenLogging: newState } : tab
+          )
+        );
+      } else {
+        console.error('Failed to toggle tab token state:', response?.error);
+      }
     } catch (error) {
       console.error('Error toggling token logging:', error);
     }
