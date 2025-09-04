@@ -62,6 +62,19 @@ export class NetworkInterceptorModule {
   }
 
   /**
+   * Get the top-level page URL (works in both main frame and iframe)
+   */
+  private getTopLevelUrl(): string {
+    try {
+      // Try to get the top frame URL (works if same-origin)
+      return window.top?.location.href || window.location.href;
+    } catch (error) {
+      // Cross-origin iframe - fallback to current frame URL
+      return window.location.href;
+    }
+  }
+
+  /**
    * Initialize the network interceptor - RACE CONDITION SAFE
    */
   public initialize(): void {
@@ -286,7 +299,7 @@ export class NetworkInterceptorModule {
             responseBody,
             requestSize: interceptor.requestSize || 0,
             responseSize,
-            tabUrl: window.location.href, // ADDED: Current page URL for domain grouping
+            tabUrl: moduleInstance.getTopLevelUrl(), // Use iframe-aware URL detection
             type: 'xhr' // ADDED: Request type for background script routing
           }
 
@@ -294,7 +307,7 @@ export class NetworkInterceptorModule {
           if (interceptor.url.includes('dianomi.com') || interceptor.url.includes('dataviz.cnn.io')) {
             console.log('📡 NetworkInterceptor: Created XHR with tabUrl:', {
               requestUrl: interceptor.url,
-              tabUrl: window.location.href,
+              tabUrl: moduleInstance.getTopLevelUrl(),
               method: interceptor.method
             });
           }
@@ -446,7 +459,7 @@ export class NetworkInterceptorModule {
           responseBody,
           requestSize,
           responseSize,
-          tabUrl: window.location.href, // ADDED: Current page URL for domain grouping
+          tabUrl: module.getTopLevelUrl(), // Use iframe-aware URL detection
           type: 'fetch' // ADDED: Request type for background script routing
         }
 
@@ -454,7 +467,7 @@ export class NetworkInterceptorModule {
         if (url.includes('dianomi.com') || url.includes('dataviz.cnn.io')) {
           console.log('📡 NetworkInterceptor: Created fetch with tabUrl:', {
             requestUrl: url,
-            tabUrl: window.location.href,
+            tabUrl: module.getTopLevelUrl(),
             method
           });
         }
@@ -492,7 +505,7 @@ export class NetworkInterceptorModule {
           responseBody: error instanceof Error ? error.message : 'Unknown error',
           requestSize,
           responseSize: 0,
-          tabUrl: window.location.href, // ADDED: Current page URL for domain grouping
+          tabUrl: module.getTopLevelUrl(), // Use iframe-aware URL detection
           type: 'fetch' // ADDED: Request type for background script routing
         }
 
