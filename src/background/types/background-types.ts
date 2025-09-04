@@ -48,6 +48,7 @@ export interface NetworkRequestData {
   request_size?: number; // Request size (snake_case from DB)
   response_size?: number; // Response size (snake_case from DB)
   performanceMetrics?: PerformanceTimingMetrics; // NEW: Performance timing data
+  main_domain?: string; // The main domain that initiated this request (for grouping)
 }
 
 // ===== PERFORMANCE METRICS TYPES =====

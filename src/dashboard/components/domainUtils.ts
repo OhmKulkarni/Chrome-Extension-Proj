@@ -379,17 +379,10 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
       };
     }).sort((a, b) => b.requests - a.requests);
 
-    // Filter libraries for this domain
+    // Filter libraries for this domain based on main_domain field
     const domainLibraries = libraryData.filter(lib => {
-      // Extract domain from library URL and check if it matches
-      try {
-        const libUrl = new URL(lib.url);
-        const libDomain = libUrl.hostname.startsWith('www.') ? libUrl.hostname.slice(4) : libUrl.hostname;
-        const libBaseDomain = libDomain.split('.').slice(-2).join('.');
-        return libBaseDomain === mainDomain;
-      } catch (error) {
-        return false;
-      }
+      // Match libraries that were loaded by this main domain
+      return lib.main_domain === mainDomain;
     });
 
     // Convert MinifiedLibrary to LibraryInfo format

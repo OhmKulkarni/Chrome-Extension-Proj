@@ -19,6 +19,8 @@ export interface NetworkRequest {
   responseSize?: number // ADDED: Accurate response size in bytes
   tabId?: number
   frameId?: number
+  tabUrl?: string // ADDED: The URL of the page that made this request (for domain grouping)
+  type?: string // ADDED: Type of request (xhr, fetch) for background script routing
 }
 
 export interface NetworkInterceptorConfig {
@@ -283,7 +285,18 @@ export class NetworkInterceptorModule {
             requestBody: interceptor.requestBody,
             responseBody,
             requestSize: interceptor.requestSize || 0,
-            responseSize
+            responseSize,
+            tabUrl: window.location.href, // ADDED: Current page URL for domain grouping
+            type: 'xhr' // ADDED: Request type for background script routing
+          }
+
+          // DEBUG: Log network request creation with tabUrl
+          if (interceptor.url.includes('dianomi.com') || interceptor.url.includes('dataviz.cnn.io')) {
+            console.log('📡 NetworkInterceptor: Created XHR with tabUrl:', {
+              requestUrl: interceptor.url,
+              tabUrl: window.location.href,
+              method: interceptor.method
+            });
           }
 
           console.log('🌐 NetworkInterceptor: Created XHR request:', {
@@ -432,7 +445,18 @@ export class NetworkInterceptorModule {
           requestBody,
           responseBody,
           requestSize,
-          responseSize
+          responseSize,
+          tabUrl: window.location.href, // ADDED: Current page URL for domain grouping
+          type: 'fetch' // ADDED: Request type for background script routing
+        }
+
+        // DEBUG: Log fetch request creation with tabUrl
+        if (url.includes('dianomi.com') || url.includes('dataviz.cnn.io')) {
+          console.log('📡 NetworkInterceptor: Created fetch with tabUrl:', {
+            requestUrl: url,
+            tabUrl: window.location.href,
+            method
+          });
         }
 
         console.log('🌐 NetworkInterceptor: Created fetch request:', {
@@ -467,7 +491,9 @@ export class NetworkInterceptorModule {
           requestBody,
           responseBody: error instanceof Error ? error.message : 'Unknown error',
           requestSize,
-          responseSize: 0
+          responseSize: 0,
+          tabUrl: window.location.href, // ADDED: Current page URL for domain grouping
+          type: 'fetch' // ADDED: Request type for background script routing
         }
 
         if (!module.shouldFilter(networkRequest)) {

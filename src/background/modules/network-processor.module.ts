@@ -118,9 +118,9 @@ export class NetworkProcessorModule {
         body = requestData.requestBody || '';
         timestamp = requestData.timestamp;
 
-        // For main world data, get tab info from sender
+        // For main world data, get tab info from sender and use tabUrl from content script
         tabId = sender?.tab?.id;
-        tabUrl = sender?.tab?.url || requestData.url;
+        tabUrl = requestData.tabUrl || sender?.tab?.url || requestData.url; // Use tabUrl from content script first
       } else {
         // Data from other sources (direct API calls)
         ({ url, method, status, headers, body, timestamp } = requestData);
@@ -198,6 +198,18 @@ export class NetworkProcessorModule {
 
       // Extract main domain for intelligent grouping
       const mainDomain = tabUrl ? this.extractMainDomain(tabUrl) : this.extractMainDomain(url);
+      
+      // DEBUG: Enhanced logging to troubleshoot domain grouping
+      if (url.includes('dianomi.com') || url.includes('dataviz.cnn.io') || Math.random() < 0.05) {
+        console.log(`🎯 Domain Grouping Debug:`, {
+          requestUrl: url.substring(0, 80) + '...',
+          tabUrl: tabUrl ? tabUrl.substring(0, 80) + '...' : 'MISSING',
+          mainDomain,
+          hasTabUrl: !!tabUrl,
+          requestDataType: requestData.type,
+          senderTabUrl: sender?.tab?.url ? sender.tab.url.substring(0, 80) + '...' : 'MISSING'
+        });
+      }
 
       // Create validated network request data with proper field mapping
       const validatedRequestData: NetworkRequestData = {
@@ -701,7 +713,8 @@ export class NetworkProcessorModule {
               size: library.size || 0,
               source_map_available: false, // We don't detect source maps in this context
               url: url,
-              timestamp: Date.now()
+              timestamp: Date.now(),
+              main_domain: validatedRequestData.main_domain // Associate library with the domain that loaded it
             });
           } catch (storageError) {
             console.warn('Failed to store library detection:', library.name, storageError);

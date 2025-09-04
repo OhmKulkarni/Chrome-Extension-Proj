@@ -55,6 +55,7 @@ export interface MinifiedLibrary {
   source_map_available: boolean
   url: string
   timestamp: number
+  main_domain?: string // The main domain that loaded this library
 }
 
 // Performance monitoring interfaces
