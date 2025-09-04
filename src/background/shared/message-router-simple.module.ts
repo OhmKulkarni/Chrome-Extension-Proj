@@ -636,6 +636,21 @@ export class MessageRouterSimpleModule {
           sendResponse(tokenResponse);
           break;
 
+        // Minified Libraries
+        case 'getMinifiedLibraries':
+          try {
+            const libraries = await this.networkProcessor.getMinifiedLibraries(
+              message.limit || 100,
+              message.offset || 0
+            );
+            console.log('📚 MessageRouter: getMinifiedLibraries response:', { librariesCount: libraries.length });
+            sendResponse({ success: true, libraries });
+          } catch (error) {
+            console.error('MessageRouter: Failed to get minified libraries:', error);
+            sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to get libraries', libraries: [] });
+          }
+          break;
+
         // Data Management
         case 'getTableCounts':
           // Get counts from each module (which get data from IndexedDB)

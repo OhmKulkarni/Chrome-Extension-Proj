@@ -12,6 +12,7 @@ import { useChartSettingsRead } from '../hooks/useChartSettings';
 import { isFeatureEnabled, withPerformanceMonitoring } from '../utils/featureFlags';
 // Import domain chart components
 import DomainChartsPanel from './DomainChartsPanel';
+import LibraryModal from './LibraryModal';
 import { useExpandedRows } from '../hooks/useExpandedRows';
 import {
   HttpMethodDistributionChart,
@@ -197,6 +198,20 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     isExpanded: isDomainChartExpanded,
     toggleRow: toggleDomainCharts
   } = useExpandedRows(3); // Allow up to 3 domain charts simultaneously
+
+  // Library modal state
+  const [libraryModalDomain, setLibraryModalDomain] = useState<string | null>(null);
+  const [isLibraryModalOpen, setIsLibraryModalOpen] = useState(false);
+
+  const toggleLibraryModal = (domain: string) => {
+    if (libraryModalDomain === domain && isLibraryModalOpen) {
+      setIsLibraryModalOpen(false);
+      setLibraryModalDomain(null);
+    } else {
+      setLibraryModalDomain(domain);
+      setIsLibraryModalOpen(true);
+    }
+  };
 
   // Chart system state
   const [viewMode, setViewMode] = useState<'list' | 'charts'>('list');
@@ -843,25 +858,38 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
 
   }, [analysisData]);
 
+  // Domain statistics state
+  const [domainStats, setDomainStats] = useState<DomainStats[]>([]);
+
   // Calculate domain-specific statistics with enhanced grouping
-  const domainStats: DomainStats[] = useMemo(() => {
-    // CONSISTENCY FIX: Use the exact same logic as charts for data source selection
-    const useAnalysisData = analysisData.loaded && analysisData.networkRequests.length > 0;
+  useEffect(() => {
+    const loadDomainStats = async () => {
+      try {
+        // CONSISTENCY FIX: Use the exact same logic as charts for data source selection
+        const useAnalysisData = analysisData.loaded && analysisData.networkRequests.length > 0;
 
-    const effectiveNetworkRequests = useAnalysisData
-      ? analysisData.networkRequests
-      : (DEBUG_MODE ? mockNetworkRequests : []);
+        const effectiveNetworkRequests = useAnalysisData
+          ? analysisData.networkRequests
+          : (DEBUG_MODE ? mockNetworkRequests : []);
 
-    const effectiveConsoleErrors = useAnalysisData
-      ? analysisData.consoleErrors
-      : (DEBUG_MODE ? mockConsoleErrors : []);
+        const effectiveConsoleErrors = useAnalysisData
+          ? analysisData.consoleErrors
+          : (DEBUG_MODE ? mockConsoleErrors : []);
 
-    const effectiveTokenEvents = useAnalysisData
-      ? analysisData.tokenEvents
-      : (DEBUG_MODE ? mockTokenEvents : []);
+        const effectiveTokenEvents = useAnalysisData
+          ? analysisData.tokenEvents
+          : (DEBUG_MODE ? mockTokenEvents : []);
 
-    const allData = [...effectiveNetworkRequests, ...effectiveConsoleErrors, ...effectiveTokenEvents];
-    return groupDataByDomain(allData);
+        const allData = [...effectiveNetworkRequests, ...effectiveConsoleErrors, ...effectiveTokenEvents];
+        const stats = await groupDataByDomain(allData);
+        setDomainStats(stats);
+      } catch (error) {
+        console.error('Failed to load domain statistics:', error);
+        setDomainStats([]);
+      }
+    };
+
+    loadDomainStats();
   }, [analysisData]);
 
   // Sorting functions
@@ -1360,6 +1388,12 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                         <SortButton column="avgResponseTime" currentSort={domainSortConfig} onSort={handleDomainSort} />
                       </div>
                     </TableHead>
+                    <TableHead className="font-semibold w-28 text-center">
+                      <div className="flex items-center gap-2 justify-center">
+                        📚 Libraries
+                        <SortButton column="libraryCount" currentSort={domainSortConfig} onSort={handleDomainSort} />
+                      </div>
+                    </TableHead>
                     <TableHead className="font-semibold w-32 text-center">
                       <div className="flex items-center gap-2 justify-center">
                         <Activity className="h-4 w-4" />
@@ -1439,6 +1473,23 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                       <TableCell className="font-medium text-blue-700 w-24 text-center">
                         {stat.avgResponseTime > 0 ? `${stat.avgResponseTime}ms` : 'N/A'}
                       </TableCell>
+                      <TableCell className="w-28 text-center">
+                        <div className="flex justify-center">
+                          {stat.libraryCount > 0 ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleLibraryModal(stat.domain)}
+                              className="h-6 px-2 hover:bg-purple-100 text-purple-700"
+                              title={`${stat.libraryCount} libraries detected - click for details`}
+                            >
+                              <span className="text-xs font-medium">{stat.libraryCount}</span>
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-gray-400">None</span>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="w-32 text-center">
                         <div className="w-full flex items-center justify-end pr-4">
                           {/* Tier 2: Inline expandable charts */}
@@ -1461,7 +1512,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                     {/* Domain-specific charts panel - TIER 2 IMPLEMENTATION */}
                     {isDomainChartExpanded(stat.domain) && (
                       <TableRow key={`${index}-charts`}>
-                        <TableCell colSpan={7} className="p-0 bg-gray-50">
+                        <TableCell colSpan={8} className="p-0 bg-gray-50">
                           <DomainChartsPanel
                             domain={stat.domain}
                             networkRequests={analysisData.loaded ? analysisData.networkRequests : []}
@@ -1516,6 +1567,18 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
           </TabsContent>
         </Tabs>
       </CardContent>
+
+      {/* Library Modal */}
+      {libraryModalDomain && (
+        <LibraryModal
+          isOpen={isLibraryModalOpen}
+          onClose={() => setIsLibraryModalOpen(false)}
+          domain={libraryModalDomain}
+          libraries={
+            sortedDomainStats.find(stat => stat.domain === libraryModalDomain)?.libraries || []
+          }
+        />
+      )}
     </Card>
   );
 };

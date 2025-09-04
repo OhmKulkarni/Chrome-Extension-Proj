@@ -11,6 +11,7 @@ import { StorageManagerModule } from '../shared/storage-manager.module';
 import { TokenTrackerModule } from './token-tracker.module';
 import { EnvironmentStorageManager } from '../environment-storage-manager';
 import { UnifiedPermissionService } from '../services/unified-permission-service';
+import { LibraryDetector } from '../utils/library-detector';
 import {
   NetworkRequestData,
   SafetyConfig
@@ -290,6 +291,12 @@ export class NetworkProcessorModule {
           // NEW: Store performance metrics if available
           performance_metrics: requestData.performanceMetrics ? JSON.stringify(requestData.performanceMetrics) : undefined
         };
+
+        // LIBRARY DETECTION: Detect libraries asynchronously without blocking storage
+        // This runs in parallel with storage to avoid performance impact
+        this.detectAndStoreLibraries(validatedRequestData, requestData).catch(error => {
+          console.warn('NetworkProcessorModule: Library detection failed (non-blocking):', error);
+        });
 
         // Use IndexedDB storage with race condition protection
         if (this.config.enableRaceConditionProtection) {
@@ -651,6 +658,74 @@ export class NetworkProcessorModule {
     }
 
     throw lastError || new Error(`NetworkProcessorModule: Unknown error in ${operation}`);
+  }
+
+  /**
+   * Detect libraries from network request (async, non-blocking)
+   * This method runs independently to avoid impacting main request processing
+   */
+  private async detectAndStoreLibraries(
+    validatedRequestData: NetworkRequestData,
+    requestData: any
+  ): Promise<void> {
+    try {
+      // Only process JavaScript files to avoid unnecessary processing
+      const url = validatedRequestData.url;
+      if (!url.toLowerCase().includes('.js') &&
+          !url.toLowerCase().includes('javascript') &&
+          !url.toLowerCase().includes('application/javascript')) {
+        return;
+      }
+
+      // Extract headers for library detection
+      const headers = validatedRequestData.headers || {};
+      const responseBody = requestData.responseBody;
+
+      // Detect libraries using our detection utility
+      const detectedLibraries = LibraryDetector.detectFromRequest(url, headers, responseBody);
+
+      // Only store if libraries were detected
+      if (detectedLibraries.length > 0) {
+        // Log detected libraries (with sampling to avoid spam)
+        if (Math.random() < 0.1) { // Log 10% of detections
+          console.log(`📚 LibraryDetector: Found ${detectedLibraries.length} libraries in ${url.substring(0, 50)}...`,
+            detectedLibraries.map(lib => `${lib.name}${lib.version ? `@${lib.version}` : ''}`));
+        }
+
+        // Store each detected library in IndexedDB
+        for (const library of detectedLibraries) {
+          try {
+            await this.indexedDbStorage.insertMinifiedLibrary({
+              name: library.name,
+              version: library.version || 'unknown',
+              size: library.size || 0,
+              source_map_available: false, // We don't detect source maps in this context
+              url: url,
+              timestamp: Date.now()
+            });
+          } catch (storageError) {
+            console.warn('Failed to store library detection:', library.name, storageError);
+          }
+        }
+
+        console.log(`📚 LibraryDetector: Stored ${detectedLibraries.length} libraries for ${this.extractMainDomain(validatedRequestData.source_url || url)}`);
+      }
+    } catch (error) {
+      // Fail silently to avoid impacting main request processing
+      console.warn('NetworkProcessorModule: Library detection error (non-critical):', error);
+    }
+  }
+
+  /**
+   * Get minified libraries from storage
+   */
+  async getMinifiedLibraries(limit: number = 100, offset: number = 0): Promise<any[]> {
+    try {
+      return await this.indexedDbStorage.getMinifiedLibraries(limit, offset);
+    } catch (error) {
+      console.error('NetworkProcessorModule: Failed to get minified libraries:', error);
+      return [];
+    }
   }
 
   /**

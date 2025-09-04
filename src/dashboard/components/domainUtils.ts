@@ -1,5 +1,18 @@
 // Domain intelligence utilities - SIMPLIFIED VERSION with main_domain field approach
 
+// Library information interface
+export interface LibraryInfo {
+  name: string;
+  version?: string;
+  type: 'framework' | 'utility' | 'ui' | 'analytics' | 'cdn' | 'polyfill' | 'unknown';
+  confidence: 'high' | 'medium' | 'low';
+  source: 'url' | 'content' | 'headers';
+  cdnProvider?: string;
+  minified: boolean;
+  size?: number;
+  url: string;
+}
+
 export interface DomainInfo {
   fullDomain: string;
   baseDomain: string;
@@ -43,6 +56,14 @@ export interface DomainStats {
     isMainDomain: boolean;
     relatedDomains: string[];
   };
+  // NEW: Library information for this domain
+  libraries: LibraryInfo[];
+  libraryCount: number;
+  frameworkCount: number;
+  utilityCount: number;
+  uiLibraryCount: number;
+  analyticsCount: number;
+  cdnCount: number;
 }
 
 
@@ -179,9 +200,23 @@ function parseDomainInfo(url: string, _tabContext?: TabContext): DomainInfo {
   }
 }
 
-export function groupDataByDomain(data: any[]): DomainStats[] {
+export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
   // Simple and reliable grouping based on the main_domain field recorded at capture time
   console.log('🎯 Using simplified domain grouping with main_domain field approach');
+
+  // Fetch library data from background script
+  let libraryData: any[] = [];
+  try {
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+      const response = await chrome.runtime.sendMessage({ action: 'getMinifiedLibraries', limit: 1000 });
+      if (response && response.success && response.libraries) {
+        libraryData = response.libraries;
+        console.log('📚 domainUtils: Loaded', libraryData.length, 'libraries from storage');
+      }
+    }
+  } catch (error) {
+    console.warn('📚 domainUtils: Failed to load library data:', error);
+  }
 
   const domainMap = new Map<string, {
     info: DomainInfo;
@@ -344,6 +379,52 @@ export function groupDataByDomain(data: any[]): DomainStats[] {
       };
     }).sort((a, b) => b.requests - a.requests);
 
+    // Filter libraries for this domain
+    const domainLibraries = libraryData.filter(lib => {
+      // Extract domain from library URL and check if it matches
+      try {
+        const libUrl = new URL(lib.url);
+        const libDomain = libUrl.hostname.startsWith('www.') ? libUrl.hostname.slice(4) : libUrl.hostname;
+        const libBaseDomain = libDomain.split('.').slice(-2).join('.');
+        return libBaseDomain === mainDomain;
+      } catch (error) {
+        return false;
+      }
+    });
+
+    // Convert MinifiedLibrary to LibraryInfo format
+    const librariesForDomain: LibraryInfo[] = domainLibraries.map(lib => ({
+      name: lib.name,
+      version: lib.version,
+      type: 'unknown' as const, // Will be inferred from name
+      confidence: 'high' as const,
+      source: 'url' as const,
+      minified: true,
+      size: lib.size,
+      url: lib.url
+    }));
+
+    // Calculate library counts by type
+    const frameworkCount = librariesForDomain.filter(lib =>
+      ['react', 'vue', 'angular', 'svelte', 'ember'].some(fw => lib.name.toLowerCase().includes(fw))
+    ).length;
+
+    const utilityCount = librariesForDomain.filter(lib =>
+      ['lodash', 'underscore', 'moment', 'axios', 'fetch'].some(util => lib.name.toLowerCase().includes(util))
+    ).length;
+
+    const uiLibraryCount = librariesForDomain.filter(lib =>
+      ['bootstrap', 'material', 'antd', 'chakra', 'semantic'].some(ui => lib.name.toLowerCase().includes(ui))
+    ).length;
+
+    const analyticsCount = librariesForDomain.filter(lib =>
+      ['analytics', 'gtag', 'google', 'mixpanel', 'segment'].some(analytics => lib.name.toLowerCase().includes(analytics))
+    ).length;
+
+    const cdnCount = librariesForDomain.filter(lib =>
+      ['cdn', 'jsdelivr', 'unpkg', 'cdnjs'].some(cdn => lib.url.toLowerCase().includes(cdn))
+    ).length;
+
     return {
       domain: mainDomain,
       fullDomain: group.info.fullDomain,
@@ -366,7 +447,15 @@ export function groupDataByDomain(data: any[]): DomainStats[] {
         primaryTabUrl,
         isMainDomain,
         relatedDomains: Array.from(group.relatedDomains)
-      }
+      },
+      // Library information with actual data
+      libraries: librariesForDomain,
+      libraryCount: librariesForDomain.length,
+      frameworkCount,
+      utilityCount,
+      uiLibraryCount,
+      analyticsCount,
+      cdnCount
     };
   }).sort((a, b) => {
     // Sort by activity level
