@@ -120,7 +120,24 @@ export class NetworkProcessorModule {
 
         // For main world data, get tab info from sender and use tabUrl from content script
         tabId = sender?.tab?.id;
-        tabUrl = requestData.tabUrl || sender?.tab?.url || requestData.url; // Use tabUrl from content script first
+        
+        // IFRAME FIX: Prefer sender.tab.url for cross-origin iframes
+        // If tabUrl is a data URI or doesn't match the tab domain, use sender.tab.url instead
+        const contentScriptTabUrl = requestData.tabUrl;
+        const senderTabUrl = sender?.tab?.url;
+        
+        if (senderTabUrl && contentScriptTabUrl) {
+          // If content script tabUrl is a data URI or cross-origin, prefer sender tab URL
+          if (contentScriptTabUrl.startsWith('data:') || 
+              contentScriptTabUrl.startsWith('blob:') ||
+              !this.isSameOrigin(contentScriptTabUrl, senderTabUrl)) {
+            tabUrl = senderTabUrl;
+          } else {
+            tabUrl = contentScriptTabUrl;
+          }
+        } else {
+          tabUrl = senderTabUrl || contentScriptTabUrl || requestData.url;
+        }
       } else {
         // Data from other sources (direct API calls)
         ({ url, method, status, headers, body, timestamp } = requestData);
@@ -198,16 +215,19 @@ export class NetworkProcessorModule {
 
       // Extract main domain for intelligent grouping
       const mainDomain = tabUrl ? this.extractMainDomain(tabUrl) : this.extractMainDomain(url);
-      
+
       // DEBUG: Enhanced logging to troubleshoot domain grouping
       if (url.includes('dianomi.com') || url.includes('dataviz.cnn.io') || Math.random() < 0.05) {
         console.log(`🎯 Domain Grouping Debug:`, {
           requestUrl: url.substring(0, 80) + '...',
-          tabUrl: tabUrl ? tabUrl.substring(0, 80) + '...' : 'MISSING',
+          contentScriptTabUrl: requestData.tabUrl ? requestData.tabUrl.substring(0, 80) + '...' : 'MISSING',
+          senderTabUrl: sender?.tab?.url ? sender.tab.url.substring(0, 80) + '...' : 'MISSING',
+          finalTabUrl: tabUrl ? tabUrl.substring(0, 80) + '...' : 'MISSING',
           mainDomain,
           hasTabUrl: !!tabUrl,
           requestDataType: requestData.type,
-          senderTabUrl: sender?.tab?.url ? sender.tab.url.substring(0, 80) + '...' : 'MISSING'
+          isDataUri: requestData.tabUrl?.startsWith('data:') || false,
+          isBlobUri: requestData.tabUrl?.startsWith('blob:') || false
         });
       }
 
@@ -574,6 +594,21 @@ export class NetworkProcessorModule {
     } catch (error) {
       console.warn('NetworkProcessorModule: Failed to extract main domain from URL:', url, error);
       return 'unknown';
+    }
+  }
+
+  /**
+   * Check if two URLs have the same origin (protocol + hostname + port)
+   */
+  private isSameOrigin(url1: string, url2: string): boolean {
+    try {
+      const urlObj1 = new URL(url1);
+      const urlObj2 = new URL(url2);
+      
+      return urlObj1.origin === urlObj2.origin;
+    } catch (error) {
+      // If either URL is invalid, they're not same origin
+      return false;
     }
   }
 

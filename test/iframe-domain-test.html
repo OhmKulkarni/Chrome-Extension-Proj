@@ -61,7 +61,7 @@
     <div class="test-section">
         <h2>📊 Test Objective</h2>
         <p><strong>Expected Behavior:</strong> Network requests from iframes should be grouped under the main page domain (localhost) in the extension dashboard, not as separate domains.</p>
-        
+
         <div class="status">
             <strong>🎯 What to look for:</strong>
             <ul>
@@ -78,7 +78,7 @@
         <p>Make network requests from the main page context (should use main page URL):</p>
         <button onclick="makeMainPageRequest()">📡 Make XMLHttpRequest from Main Page</button>
         <button onclick="makeMainPageFetch()">🌐 Make Fetch Request from Main Page</button>
-        
+
         <div class="code" id="main-results">Results will appear here...</div>
     </div>
 
@@ -91,7 +91,7 @@
                 <body style='font-family: Arial; padding: 20px; background-color: #f9f9f9;'>
                     <h3>🖼️ Test Iframe</h3>
                     <p>This iframe simulates third-party content making network requests.</p>
-                    
+
                     <div style='margin: 10px 0;'>
                         <button onclick='makeIframeXHR()' style='padding: 8px 16px; margin: 5px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;'>
                             📡 Make XHR from Iframe
@@ -100,46 +100,46 @@
                             🌐 Make Fetch from Iframe
                         </button>
                     </div>
-                    
+
                     <div id='iframe-results' style='background: #fff; padding: 10px; border-radius: 4px; margin-top: 10px; font-size: 12px; border-left: 3px solid #007cba;'>
                         Iframe results will appear here...
                     </div>
-                    
+
                     <script>
                         function makeIframeXHR() {
                             console.log(\\"🖼️ Iframe: Making XHR request\\");
                             console.log(\\"🖼️ Iframe window.location.href:\\", window.location.href);
                             console.log(\\"🖼️ Iframe window.top.location.href:\\", window.top?.location?.href || \\"cross-origin blocked\\");
-                            
+
                             const xhr = new XMLHttpRequest();
                             xhr.open(\\"GET\\", \\"https://httpbin.org/json?iframe_xhr=true\\");
                             xhr.onload = function() {
-                                document.getElementById(\\"iframe-results\\").innerHTML = 
+                                document.getElementById(\\"iframe-results\\").innerHTML =
                                     \\"✅ XHR Complete: \\" + xhr.status + \\" - Check extension for grouping\\";
                             };
                             xhr.onerror = function() {
-                                document.getElementById(\\"iframe-results\\").innerHTML = 
+                                document.getElementById(\\"iframe-results\\").innerHTML =
                                     \\"❌ XHR Error - Check extension for grouping\\";
                             };
                             xhr.send();
                         }
-                        
+
                         function makeIframeFetch() {
                             console.log(\\"🖼️ Iframe: Making Fetch request\\");
                             console.log(\\"🖼️ Iframe window.location.href:\\", window.location.href);
                             console.log(\\"🖼️ Iframe window.top.location.href:\\", window.top?.location?.href || \\"cross-origin blocked\\");
-                            
+
                             fetch(\\"https://httpbin.org/json?iframe_fetch=true\\")
                                 .then(response => {
-                                    document.getElementById(\\"iframe-results\\").innerHTML = 
+                                    document.getElementById(\\"iframe-results\\").innerHTML =
                                         \\"✅ Fetch Complete: \\" + response.status + \\" - Check extension for grouping\\";
                                 })
                                 .catch(error => {
-                                    document.getElementById(\\"iframe-results\\").innerHTML = 
+                                    document.getElementById(\\"iframe-results\\").innerHTML =
                                         \\"❌ Fetch Error - Check extension for grouping\\";
                                 });
                         }
-                        
+
                         // Auto-run on load to show iframe URL context
                         window.addEventListener(\\"load\\", function() {
                             console.log(\\"🖼️ Iframe loaded:\\");
@@ -161,7 +161,7 @@
             <li><strong>Open the extension dashboard</strong> to verify domain grouping</li>
             <li><strong>Verify that iframe requests</strong> are grouped under the main domain (localhost), not as separate domains</li>
         </ol>
-        
+
         <div class="status">
             <strong>🔍 Debug Information to Look For:</strong>
             <br>• Console logs: "📡 NetworkInterceptor: Created XHR/fetch with tabUrl"
@@ -174,17 +174,17 @@
         function makeMainPageRequest() {
             console.log("🏠 Main Page: Making XHR request");
             console.log("🏠 Main Page window.location.href:", window.location.href);
-            
+
             const xhr = new XMLHttpRequest();
             xhr.open("GET", "https://httpbin.org/json?main_page_xhr=true");
             xhr.onload = function() {
-                document.getElementById("main-results").innerHTML = 
+                document.getElementById("main-results").innerHTML =
                     "✅ Main Page XHR Complete: " + xhr.status + " - Check extension for grouping<br>" +
                     "Request URL: https://httpbin.org/json?main_page_xhr=true<br>" +
                     "Tab URL: " + window.location.href;
             };
             xhr.onerror = function() {
-                document.getElementById("main-results").innerHTML = 
+                document.getElementById("main-results").innerHTML =
                     "❌ Main Page XHR Error - Check extension for grouping";
             };
             xhr.send();
@@ -193,16 +193,16 @@
         function makeMainPageFetch() {
             console.log("🏠 Main Page: Making Fetch request");
             console.log("🏠 Main Page window.location.href:", window.location.href);
-            
+
             fetch("https://httpbin.org/json?main_page_fetch=true")
                 .then(response => {
-                    document.getElementById("main-results").innerHTML = 
+                    document.getElementById("main-results").innerHTML =
                         "✅ Main Page Fetch Complete: " + response.status + " - Check extension for grouping<br>" +
                         "Request URL: https://httpbin.org/json?main_page_fetch=true<br>" +
                         "Tab URL: " + window.location.href;
                 })
                 .catch(error => {
-                    document.getElementById("main-results").innerHTML = 
+                    document.getElementById("main-results").innerHTML =
                         "❌ Main Page Fetch Error - Check extension for grouping";
                 });
         }
