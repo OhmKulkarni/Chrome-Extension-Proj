@@ -101,6 +101,17 @@ export class NetworkProcessorModule {
     sender?: chrome.runtime.MessageSender
   ): Promise<{ success: boolean; reason?: string; tokenEvent?: any }> {
     return this.executeWithSafety('processNetworkRequest', async () => {
+      // DEBUG: Log all incoming requests to identify the issue
+      if (requestData?.url?.includes('httpbin.org')) {
+        console.log('🔍 NETWORK PROCESSOR: Received httpbin.org request:', {
+          url: requestData.url,
+          hasRequestData: !!requestData,
+          hasSender: !!sender,
+          senderTabId: sender?.tab?.id,
+          senderTabUrl: sender?.tab?.url?.substring(0, 100)
+        });
+      }
+
       // Validate input data
       if (!requestData || typeof requestData !== 'object') {
         return { success: false, reason: 'Invalid request data' };
@@ -110,10 +121,11 @@ export class NetworkProcessorModule {
       let url, method, status, headers, body, timestamp, tabId, tabUrl;
 
       // ENHANCED DEBUG: Define debug condition early for problematic domains
-      const shouldDebugUrl = requestData.url?.includes('dianomi.com') || 
-                            requestData.url?.includes('cnn.io') || 
-                            requestData.url?.includes('btloader.com') || 
+      const shouldDebugUrl = requestData.url?.includes('dianomi.com') ||
+                            requestData.url?.includes('cnn.io') ||
+                            requestData.url?.includes('btloader.com') ||
                             requestData.url?.includes('casalemedia.com') ||
+                            requestData.url?.includes('httpbin.org') || // TEST DOMAIN
                             Math.random() < 0.1; // 10% random sampling
 
       if (requestData.type === 'fetch' || requestData.type === 'xhr') {
@@ -127,13 +139,25 @@ export class NetworkProcessorModule {
 
         // For main world data, get tab info from sender and use tabUrl from content script
         tabId = sender?.tab?.id;
-        
+
         // IFRAME FIX: Prefer sender.tab.url for cross-origin iframes
         // If tabUrl is a data URI or doesn't match the tab domain, use sender.tab.url instead
         const contentScriptTabUrl = requestData.tabUrl;
         const senderTabUrl = sender?.tab?.url;
-        
+
         if (shouldDebugUrl) {
+          console.log('🔍 RAW REQUEST DATA DEBUG:', {
+            requestDataKeys: Object.keys(requestData),
+            requestDataUrl: requestData.url,
+            requestDataTabUrl: requestData.tabUrl,
+            requestDataType: requestData.type,
+            requestDataMethod: requestData.method,
+            hasTabUrlProperty: 'tabUrl' in requestData,
+            tabUrlType: typeof requestData.tabUrl,
+            tabUrlValue: requestData.tabUrl,
+            allRequestData: requestData
+          });
+
           console.log(`🔍 IFRAME DEBUG - Before URL selection:`, {
             requestUrl: url.substring(0, 100),
             contentScriptTabUrl: contentScriptTabUrl || 'MISSING',
@@ -141,16 +165,19 @@ export class NetworkProcessorModule {
             senderAvailable: !!sender?.tab,
             tabIdFromSender: sender?.tab?.id,
             frameId: sender?.frameId,
-            isMainFrame: sender?.frameId === 0
+            isMainFrame: sender?.frameId === 0,
+            hasContentScriptUrl: !!contentScriptTabUrl,
+            hasSenderTabUrl: !!senderTabUrl,
+            willEnterSmartSelection: !!(senderTabUrl && contentScriptTabUrl)
           });
         }
-        
+
         if (senderTabUrl && contentScriptTabUrl) {
           // If content script tabUrl is a data URI or cross-origin, prefer sender tab URL
           const isDataUri = contentScriptTabUrl.startsWith('data:');
           const isBlobUri = contentScriptTabUrl.startsWith('blob:');
           const sameOrigin = this.isSameOrigin(contentScriptTabUrl, senderTabUrl);
-          
+
           if (shouldDebugUrl) {
             console.log(`🔍 IFRAME DEBUG - URL analysis:`, {
               isDataUri,
@@ -160,11 +187,20 @@ export class NetworkProcessorModule {
               senderDomain: this.extractMainDomain(senderTabUrl)
             });
           }
-          
+
+          // ENHANCED: Smart domain grouping for third-party embeds
           if (isDataUri || isBlobUri || !sameOrigin) {
-            tabUrl = senderTabUrl;
+            // This is likely a cross-origin iframe/embed
+            tabUrl = senderTabUrl; // Use the parent page URL for domain grouping
+
             if (shouldDebugUrl) {
-              console.log(`✅ IFRAME DEBUG - Using sender tab URL: ${senderTabUrl.substring(0, 100)}`);
+              console.log(`🎯 IFRAME GROUPING - Cross-origin detected:`, {
+                parentDomain: this.extractMainDomain(senderTabUrl),
+                embedDomain: this.extractMainDomain(contentScriptTabUrl),
+                willGroupUnder: this.extractMainDomain(senderTabUrl),
+                reason: 'cross-origin iframe detected'
+              });
+              console.log(`✅ IFRAME DEBUG - Using sender tab URL for grouping: ${senderTabUrl.substring(0, 100)}`);
             }
           } else {
             tabUrl = contentScriptTabUrl;
@@ -176,6 +212,30 @@ export class NetworkProcessorModule {
           tabUrl = senderTabUrl || contentScriptTabUrl || requestData.url;
           if (shouldDebugUrl) {
             console.log(`⚠️ IFRAME DEBUG - Fallback URL selection: ${tabUrl?.substring(0, 100) || 'NONE'}`);
+            console.log(`⚠️ IFRAME DEBUG - Fallback reason:`, {
+              senderTabUrlExists: !!senderTabUrl,
+              contentScriptTabUrlExists: !!contentScriptTabUrl,
+              senderTabUrlValue: senderTabUrl?.substring(0, 100),
+              contentScriptTabUrlValue: contentScriptTabUrl?.substring(0, 100),
+              bothExistButConditionFailed: !!(senderTabUrl && contentScriptTabUrl)
+            });
+          }
+        }
+
+        // ADDITIONAL: Smart grouping based on URL patterns and known third-party domains
+        if (senderTabUrl && this.shouldGroupUnderParentDomain(url, senderTabUrl)) {
+          const originalGrouping = this.extractMainDomain(tabUrl || url);
+          tabUrl = senderTabUrl;
+
+          if (shouldDebugUrl) {
+            console.log(`🔗 SMART GROUPING - Third-party domain detected:`, {
+              requestUrl: url.substring(0, 80),
+              requestDomain: this.extractMainDomain(url),
+              parentDomain: this.extractMainDomain(senderTabUrl),
+              originalGrouping,
+              newGrouping: this.extractMainDomain(senderTabUrl),
+              reason: 'Known third-party advertising/analytics domain'
+            });
           }
         }
       } else {
@@ -655,7 +715,7 @@ export class NetworkProcessorModule {
     try {
       const urlObj1 = new URL(url1);
       const urlObj2 = new URL(url2);
-      
+
       return urlObj1.origin === urlObj2.origin;
     } catch (error) {
       // If either URL is invalid, they're not same origin
@@ -844,5 +904,90 @@ export class NetworkProcessorModule {
         memoryUsage: this.chromeApi.getMemoryUsage()
       })
     };
+  }
+
+  /**
+   * Determine if a request should be grouped under parent domain based on known third-party patterns
+   */
+  private shouldGroupUnderParentDomain(requestUrl: string, parentUrl: string): boolean {
+    try {
+      const requestDomain = this.extractMainDomain(requestUrl);
+      const parentDomain = this.extractMainDomain(parentUrl);
+
+      // Don't group if they're already the same domain
+      if (requestDomain === parentDomain) {
+        return false;
+      }
+
+      // Known third-party advertising/analytics domains that should be grouped with their parent
+      const thirdPartyDomains = [
+        // Advertising
+        'btloader.com',
+        'criteo.com',
+        'doubleclick.net',
+        'googlesyndication.com',
+        'amazon-adsystem.com',
+        'adsystem.amazon.com',
+        'casalemedia.com',
+        'outbrain.com',
+        'taboola.com',
+        'dianomi.com',
+
+        // Analytics
+        'optimizely.com',
+        'google-analytics.com',
+        'googletagmanager.com',
+        'mixpanel.com',
+        'amplitude.com',
+        'segment.com',
+        'hotjar.com',
+        'fullstory.com',
+
+        // CNN-specific
+        'dataviz.cnn.io',
+        'cnn.io',
+
+        // Common CDNs and utilities when embedded
+        'cloudflare.com',
+        'fastly.com',
+        'akamai.net',
+        'jsdelivr.net',
+
+        // Social media widgets
+        'connect.facebook.net',
+        'platform.twitter.com',
+        'platform.linkedin.com'
+      ];
+
+      // Check if request domain matches any known third-party domain
+      const isThirdPartyDomain = thirdPartyDomains.some(domain =>
+        requestDomain.includes(domain) || domain.includes(requestDomain)
+      );
+
+      if (isThirdPartyDomain) {
+        return true;
+      }
+
+      // Additional heuristic: If parent is a major news/content site, group advertising/analytics subdomains
+      const majorContentSites = ['cnn.com', 'bbc.com', 'nytimes.com', 'washingtonpost.com', 'theguardian.com'];
+      const isContentSite = majorContentSites.some(site => parentDomain.includes(site));
+
+      if (isContentSite) {
+        // Patterns that suggest advertising/analytics
+        const adPatterns = ['ad', 'ads', 'analytics', 'tracking', 'metrics', 'pixel', 'tag'];
+        const hasAdPattern = adPatterns.some(pattern =>
+          requestUrl.toLowerCase().includes(pattern) || requestDomain.includes(pattern)
+        );
+
+        if (hasAdPattern) {
+          return true;
+        }
+      }
+
+      return false;
+    } catch (error) {
+      console.warn('NetworkProcessorModule: Error in shouldGroupUnderParentDomain:', error);
+      return false;
+    }
   }
 }

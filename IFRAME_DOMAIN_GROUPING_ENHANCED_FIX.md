@@ -24,7 +24,7 @@ const senderTabUrl = sender?.tab?.url;
 
 if (senderTabUrl && contentScriptTabUrl) {
   // If content script tabUrl is a data URI or cross-origin, prefer sender tab URL
-  if (contentScriptTabUrl.startsWith('data:') || 
+  if (contentScriptTabUrl.startsWith('data:') ||
       contentScriptTabUrl.startsWith('blob:') ||
       !this.isSameOrigin(contentScriptTabUrl, senderTabUrl)) {
     tabUrl = senderTabUrl; // ✅ Use the actual tab URL (cnn.com)
@@ -48,7 +48,7 @@ if (senderTabUrl && contentScriptTabUrl) {
 ### Before Fix (What you saw):
 ```
 ❌ dianomi.com        3 requests
-❌ cnn.io             1 request  
+❌ cnn.io             1 request
 ❌ adtrafficquality.google  1 request
 ❌ wmcdp.io           1 request
 ❌ btloader.com       1 request
@@ -60,7 +60,7 @@ if (senderTabUrl && contentScriptTabUrl) {
 ✅ cnn.com           15+ requests (all requests grouped properly)
    ├── Main page requests
    ├── dianomi.com ads
-   ├── adtrafficquality.google tracking  
+   ├── adtrafficquality.google tracking
    ├── wmcdp.io widgets
    ├── btloader.com scripts
    └── All other third-party requests
@@ -85,7 +85,7 @@ Check console for debug messages like:
 🎯 Domain Grouping Debug: {
   requestUrl: "https://dianomi.com/smart/ads/...",
   contentScriptTabUrl: "data:text/html,<iframe>...",  // ❌ Wrong
-  senderTabUrl: "https://cnn.com/article/...",        // ✅ Correct  
+  senderTabUrl: "https://cnn.com/article/...",        // ✅ Correct
   finalTabUrl: "https://cnn.com/article/...",         // ✅ Used correct one
   mainDomain: "cnn.com",                              // ✅ Proper grouping
   isDataUri: true                                     // ✅ Detected cross-origin
@@ -114,7 +114,7 @@ await DomainGroupingMigration.migrateExistingData();
 ## 🎉 **Immediate Benefits**
 - ✅ **Accurate Domain Grouping**: All iframe requests properly attributed to main domains
 - ✅ **Better Privacy Analysis**: True picture of third-party data sharing
-- ✅ **Cleaner Dashboard**: Logical grouping reduces domain clutter  
+- ✅ **Cleaner Dashboard**: Logical grouping reduces domain clutter
 - ✅ **Enhanced Debugging**: Comprehensive logging for troubleshooting
 
 ## 🚀 **Next Steps**

@@ -11,6 +11,8 @@ import { ConsoleHandlerModule } from '../modules/console-handler.module';
 import { TokenTrackerModule } from '../modules/token-tracker.module';
 import { ExtensionStateModule } from '../modules/extension-state.module';
 import { UnifiedPermissionService } from '../services/unified-permission-service';
+import { EnvironmentStorageManager } from '../environment-storage-manager';
+import { ChromeSyncService } from '../../services/chrome-sync-service';
 import { SafetyConfig } from '../types/background-types';
 
 import { unifiedPermissionManager } from '../../utils/unified-permission-manager';
@@ -18,6 +20,7 @@ import { unifiedPermissionManager } from '../../utils/unified-permission-manager
 export class MessageRouterSimpleModule {
   private readonly chromeApi: ChromeApiModule;
   private readonly storageManager: StorageManagerModule;
+  private readonly indexedDbStorage: EnvironmentStorageManager;
   private readonly networkProcessor: NetworkProcessorModule;
   private readonly consoleHandler: ConsoleHandlerModule;
   private readonly tokenTracker: TokenTrackerModule;
@@ -31,6 +34,7 @@ export class MessageRouterSimpleModule {
   constructor(
     chromeApi: ChromeApiModule,
     storageManager: StorageManagerModule,
+    indexedDbStorage: EnvironmentStorageManager,
     networkProcessor: NetworkProcessorModule,
     consoleHandler: ConsoleHandlerModule,
     tokenTracker: TokenTrackerModule,
@@ -40,6 +44,7 @@ export class MessageRouterSimpleModule {
   ) {
     this.chromeApi = chromeApi;
     this.storageManager = storageManager;
+    this.indexedDbStorage = indexedDbStorage;
     this.networkProcessor = networkProcessor;
     this.consoleHandler = consoleHandler;
     this.tokenTracker = tokenTracker;
@@ -738,8 +743,31 @@ export class MessageRouterSimpleModule {
           break;
 
         case 'clearAllData':
-          await this.storageManager.clearAllData();
-          sendResponse({ success: true });
+          try {
+            // Clear all three storage systems comprehensively
+            console.log('🧹 MessageRouter: Clearing all data from ALL storage systems...');
+
+            // Clear Chrome Local Storage (settings, states, etc.)
+            await this.storageManager.clearAllData();
+            console.log('✅ Chrome Local Storage cleared');
+
+            // Clear IndexedDB (network requests, console errors, token events)
+            await this.indexedDbStorage.clearAllData();
+            console.log('✅ IndexedDB cleared');
+
+            // Clear Chrome Sync Storage (user preferences, domain settings)
+            const chromeSyncService = ChromeSyncService.getInstance();
+            await chromeSyncService.clearAllSyncStorage();
+            console.log('✅ Chrome Sync Storage cleared');
+
+            sendResponse({ success: true, message: 'All data cleared from all storage systems (Local, IndexedDB, Sync)' });
+          } catch (error) {
+            console.error('❌ MessageRouter: Error clearing all data:', error);
+            sendResponse({
+              success: false,
+              error: error instanceof Error ? error.message : 'Failed to clear all data'
+            });
+          }
           break;
 
         // Debug Permission Actions

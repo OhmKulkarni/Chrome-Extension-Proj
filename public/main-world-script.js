@@ -478,7 +478,8 @@ const interceptFetch = (originalFetch, input, init) => {
         requestSize,  // NEW: Actual byte size of request body
         responseSize, // NEW: Actual byte size of response body
         performanceMetrics, // Include performance timing metrics
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        tabUrl: window.location.href // IFRAME FIX: Add tab URL for domain grouping
       };
 
       // DEBUG: Log every 10th request to track what's being sent
@@ -572,7 +573,8 @@ const interceptXHR = (xhr, originalXhrSend, data) => {
         requestSize,  // NEW: Actual byte size of request body
         responseSize, // NEW: Actual byte size of response body
         performanceMetrics, // Include performance timing metrics
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        tabUrl: window.location.href // IFRAME FIX: Add tab URL for domain grouping
       };
 
       // Debug logging for XHR requests - disabled to reduce console spam

@@ -73,7 +73,7 @@
     <div class="test-section">
         <h2>🖼️ Step 2: Test Iframe Context Detection</h2>
         <p>Simulate third-party iframe requests like those from CNN.com ads:</p>
-        
+
         <!-- Simple iframe test for dianomi.com simulation -->
         <h4>Simulated dianomi.com ad iframe:</h4>
         <button onclick="createAndTestDianomiIframe()">🎯 Create & Test Dianomi Iframe</button>
@@ -134,6 +134,8 @@
     </div>
 
     <script>
+        console.log('🚧 DEBUG: Script tag is loading...');
+
         // Display main page context
         function updateMainContext() {
             const context = {
@@ -150,6 +152,7 @@
                 '<strong>User Agent:</strong> ' + context.userAgent + '...';
         }
 
+        console.log('🚧 DEBUG: About to define testMainPageRequests function...');
         function testMainPageRequests() {
             console.log('🏠 MAIN PAGE TEST: Making requests from main frame');
 
@@ -174,19 +177,20 @@
                 '<strong>Expected:</strong> Should appear under main domain in extension dashboard';
         }
 
+        console.log('🚧 DEBUG: About to define createAndTestDianomiIframe function...');
         function createAndTestDianomiIframe() {
             console.log('🎯 Creating Dianomi simulation iframe...');
-            
+
             const container = document.getElementById('dianomi-iframe-container');
             container.innerHTML = '<p>Creating iframe and making test request...</p>';
-            
+
             // Create iframe with simulated ad request
             const iframe = document.createElement('iframe');
             iframe.style.width = '100%';
             iframe.style.height = '150px';
             iframe.style.border = '1px solid #fd7e14';
             iframe.style.borderRadius = '4px';
-            
+
             // Create iframe content that simulates dianomi.com ad
             const iframeContent = `
                 <html>
@@ -195,14 +199,14 @@
                         <h4>🎯 Simulated dianomi.com Ad</h4>
                         <p>Making test request...</p>
                         <div id="results">Initializing...</div>
-                        <script>
+                        <scr` + `ipt>
                             console.log('🎯 DIANOMI IFRAME: Starting test');
-                            
+
                             // Make a request that should be grouped under main domain
                             fetch('https://httpbin.org/json?test=dianomi_simulation&iframe=true')
                                 .then(response => {
                                     console.log('🎯 DIANOMI IFRAME: Request completed:', response.status);
-                                    document.getElementById('results').innerHTML = 
+                                    document.getElementById('results').innerHTML =
                                         '✅ Request sent! Check extension debug logs.<br>' +
                                         'Expected: Should group under main domain';
                                 })
@@ -210,29 +214,30 @@
                                     console.error('🎯 DIANOMI IFRAME: Request failed:', error);
                                     document.getElementById('results').innerHTML = '❌ Request failed: ' + error.message;
                                 });
-                        </script>
+                        </scr` + `ipt>
                     </body>
                 </html>
             `;
-            
+
             iframe.src = 'data:text/html,' + encodeURIComponent(iframeContent);
             container.innerHTML = '';
             container.appendChild(iframe);
         }
 
+        console.log('🚧 DEBUG: About to define createAndTestCnnIoIframe function...');
         function createAndTestCnnIoIframe() {
             console.log('📊 Creating CNN.io simulation iframe...');
-            
+
             const container = document.getElementById('cnnio-iframe-container');
             container.innerHTML = '<p>Creating iframe and making test request...</p>';
-            
+
             // Create iframe with simulated widget request
             const iframe = document.createElement('iframe');
             iframe.style.width = '100%';
             iframe.style.height = '150px';
             iframe.style.border = '1px solid #28a745';
             iframe.style.borderRadius = '4px';
-            
+
             // Create iframe content that simulates cnn.io widget
             const iframeContent = `
                 <html>
@@ -241,14 +246,14 @@
                         <h4>📊 Simulated cnn.io Widget</h4>
                         <p>Making test request...</p>
                         <div id="results">Initializing...</div>
-                        <script>
+                        <scr` + `ipt>
                             console.log('📊 CNN.IO IFRAME: Starting test');
-                            
+
                             // Make a request that should be grouped under main domain
                             fetch('https://httpbin.org/json?test=cnn_io_simulation&iframe=true')
                                 .then(response => {
                                     console.log('📊 CNN.IO IFRAME: Request completed:', response.status);
-                                    document.getElementById('results').innerHTML = 
+                                    document.getElementById('results').innerHTML =
                                         '✅ Request sent! Check extension debug logs.<br>' +
                                         'Expected: Should group under main domain';
                                 })
@@ -256,11 +261,11 @@
                                     console.error('📊 CNN.IO IFRAME: Request failed:', error);
                                     document.getElementById('results').innerHTML = '❌ Request failed: ' + error.message;
                                 });
-                        </script>
+                        </scr` + `ipt>
                     </body>
                 </html>
             `;
-            
+
             iframe.src = 'data:text/html,' + encodeURIComponent(iframeContent);
             container.innerHTML = '';
             container.appendChild(iframe);
@@ -268,6 +273,10 @@
 
         // Initialize
         window.addEventListener('load', function() {
+            console.log('🚧 DEBUG: Page loaded, initializing...');
+            console.log('🚧 DEBUG: testMainPageRequests defined?', typeof testMainPageRequests);
+            console.log('🚧 DEBUG: createAndTestDianomiIframe defined?', typeof createAndTestDianomiIframe);
+            console.log('🚧 DEBUG: createAndTestCnnIoIframe defined?', typeof createAndTestCnnIoIframe);
             updateMainContext();
             console.log('🧪 IFRAME DEBUG TEST PAGE LOADED');
             console.log('🎯 Ready to test iframe domain grouping - check extension debug logs!');
