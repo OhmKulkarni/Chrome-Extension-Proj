@@ -109,6 +109,13 @@ export class NetworkProcessorModule {
       // Handle data from main world script (different format)
       let url, method, status, headers, body, timestamp, tabId, tabUrl;
 
+      // ENHANCED DEBUG: Define debug condition early for problematic domains
+      const shouldDebugUrl = requestData.url?.includes('dianomi.com') || 
+                            requestData.url?.includes('cnn.io') || 
+                            requestData.url?.includes('btloader.com') || 
+                            requestData.url?.includes('casalemedia.com') ||
+                            Math.random() < 0.1; // 10% random sampling
+
       if (requestData.type === 'fetch' || requestData.type === 'xhr') {
         // Data from main world script
         url = requestData.url;
@@ -126,17 +133,50 @@ export class NetworkProcessorModule {
         const contentScriptTabUrl = requestData.tabUrl;
         const senderTabUrl = sender?.tab?.url;
         
+        if (shouldDebugUrl) {
+          console.log(`🔍 IFRAME DEBUG - Before URL selection:`, {
+            requestUrl: url.substring(0, 100),
+            contentScriptTabUrl: contentScriptTabUrl || 'MISSING',
+            senderTabUrl: senderTabUrl || 'MISSING',
+            senderAvailable: !!sender?.tab,
+            tabIdFromSender: sender?.tab?.id,
+            frameId: sender?.frameId,
+            isMainFrame: sender?.frameId === 0
+          });
+        }
+        
         if (senderTabUrl && contentScriptTabUrl) {
           // If content script tabUrl is a data URI or cross-origin, prefer sender tab URL
-          if (contentScriptTabUrl.startsWith('data:') || 
-              contentScriptTabUrl.startsWith('blob:') ||
-              !this.isSameOrigin(contentScriptTabUrl, senderTabUrl)) {
+          const isDataUri = contentScriptTabUrl.startsWith('data:');
+          const isBlobUri = contentScriptTabUrl.startsWith('blob:');
+          const sameOrigin = this.isSameOrigin(contentScriptTabUrl, senderTabUrl);
+          
+          if (shouldDebugUrl) {
+            console.log(`🔍 IFRAME DEBUG - URL analysis:`, {
+              isDataUri,
+              isBlobUri,
+              sameOrigin,
+              contentDomain: this.extractMainDomain(contentScriptTabUrl),
+              senderDomain: this.extractMainDomain(senderTabUrl)
+            });
+          }
+          
+          if (isDataUri || isBlobUri || !sameOrigin) {
             tabUrl = senderTabUrl;
+            if (shouldDebugUrl) {
+              console.log(`✅ IFRAME DEBUG - Using sender tab URL: ${senderTabUrl.substring(0, 100)}`);
+            }
           } else {
             tabUrl = contentScriptTabUrl;
+            if (shouldDebugUrl) {
+              console.log(`✅ IFRAME DEBUG - Using content script tab URL: ${contentScriptTabUrl.substring(0, 100)}`);
+            }
           }
         } else {
           tabUrl = senderTabUrl || contentScriptTabUrl || requestData.url;
+          if (shouldDebugUrl) {
+            console.log(`⚠️ IFRAME DEBUG - Fallback URL selection: ${tabUrl?.substring(0, 100) || 'NONE'}`);
+          }
         }
       } else {
         // Data from other sources (direct API calls)
@@ -215,6 +255,17 @@ export class NetworkProcessorModule {
 
       // Extract main domain for intelligent grouping
       const mainDomain = tabUrl ? this.extractMainDomain(tabUrl) : this.extractMainDomain(url);
+
+      // ENHANCED DEBUG: Always log for problematic domains
+      if (shouldDebugUrl) {
+        console.log(`🎯 IFRAME DEBUG - Final domain grouping:`, {
+          requestUrl: url.substring(0, 100),
+          finalTabUrl: tabUrl?.substring(0, 100) || 'MISSING',
+          extractedMainDomain: mainDomain,
+          willGroupUnder: mainDomain,
+          requestDomain: this.extractMainDomain(url)
+        });
+      }
 
       // DEBUG: Enhanced logging to troubleshoot domain grouping
       if (url.includes('dianomi.com') || url.includes('dataviz.cnn.io') || Math.random() < 0.05) {
