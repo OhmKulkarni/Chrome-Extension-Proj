@@ -74,142 +74,20 @@
         <h2>🖼️ Step 2: Test Iframe Context Detection</h2>
         <p>Simulate third-party iframe requests like those from CNN.com ads:</p>
         
-        <!-- Simulate dianomi.com ad iframe -->
+        <!-- Simple iframe test for dianomi.com simulation -->
         <h4>Simulated dianomi.com ad iframe:</h4>
-        <iframe src="data:text/html,
-            <html>
-                <head><title>Dianomi Ad Frame</title></head>
-                <body style='padding: 15px; font-family: Arial; background: #fff3cd;'>
-                    <h4>🎯 Simulated dianomi.com Ad Frame</h4>
-                    <p><strong>This simulates:</strong> https://dianomi.com/smart/ads/...</p>
-                    
-                    <button onclick='makeAdRequest()' style='padding: 8px 16px; background: #fd7e14; color: white; border: none; border-radius: 4px; cursor: pointer;'>
-                        📡 Make Simulated Ad Request
-                    </button>
-                    
-                    <div id='ad-results' style='margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 4px; font-size: 11px;'>
-                        Ready to test...
-                    </div>
-                    
-                    <script>
-                        function getTopLevelUrl() {
-                            try {
-                                return window.top?.location.href || window.location.href;
-                            } catch (error) {
-                                return window.location.href;
-                            }
-                        }
-                        
-                        function makeAdRequest() {
-                            const iframeUrl = window.location.href;
-                            const topUrl = getTopLevelUrl();
-                            
-                            console.log('🎯 DIANOMI IFRAME TEST:', {
-                                iframeLocation: iframeUrl,
-                                detectedTopUrl: topUrl,
-                                frameId: window.frameElement ? 'in-iframe' : 'top-level',
-                                crossOrigin: iframeUrl !== topUrl
-                            });
-                            
-                            // Make a test request that should be grouped under main domain
-                            fetch('https://httpbin.org/json?test=dianomi_simulation&iframe=true')
-                                .then(response => {
-                                    document.getElementById('ad-results').innerHTML = 
-                                        '<strong>✅ Request sent!</strong><br>' +
-                                        'URL: https://httpbin.org/json?test=dianomi_simulation<br>' +
-                                        'Iframe URL: ' + iframeUrl.substring(0, 50) + '...<br>' +
-                                        'Detected Top URL: ' + topUrl.substring(0, 50) + '...<br>' +
-                                        '<strong>Expected:</strong> Should group under main domain in extension';
-                                })
-                                .catch(error => {
-                                    document.getElementById('ad-results').innerHTML = 
-                                        '<strong>❌ Request failed:</strong> ' + error.message;
-                                });
-                        }
-                        
-                        // Auto-log iframe context on load
-                        window.addEventListener('load', function() {
-                            console.log('🖼️ Dianomi iframe loaded - Context:', {
-                                currentUrl: window.location.href,
-                                topUrl: getTopLevelUrl(),
-                                isMainFrame: window === window.top,
-                                frameDepth: window !== window.top ? 'iframe' : 'main'
-                            });
-                        });
-                    </script>
-                </body>
-            </html>
-        " style="width: 100%; height: 200px; border: 2px solid #fd7e14; border-radius: 4px;"></iframe>
+        <button onclick="createAndTestDianomiIframe()">🎯 Create & Test Dianomi Iframe</button>
+        <div id="dianomi-iframe-container" style="margin: 10px 0; min-height: 100px; border: 2px solid #fd7e14; border-radius: 4px; padding: 10px;">
+            Click button above to create test iframe
+        </div>
 
-        <!-- Simulate cnn.io widget iframe -->
+        <!-- Simple iframe test for cnn.io simulation -->
         <h4 style="margin-top: 20px;">Simulated cnn.io widget iframe:</h4>
-        <iframe src="data:text/html,
-            <html>
-                <head><title>CNN.io Widget Frame</title></head>
-                <body style='padding: 15px; font-family: Arial; background: #d4edda;'>
-                    <h4>📊 Simulated cnn.io Widget Frame</h4>
-                    <p><strong>This simulates:</strong> https://widget.cnn.io/charts/...</p>
-                    
-                    <button onclick='makeWidgetRequest()' style='padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;'>
-                        📊 Make Simulated Widget Request
-                    </button>
-                    
-                    <div id='widget-results' style='margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 4px; font-size: 11px;'>
-                        Ready to test...
-                    </div>
-                    
-                    <script>
-                        function getTopLevelUrl() {
-                            try {
-                                return window.top?.location.href || window.location.href;
-                            } catch (error) {
-                                return window.location.href;
-                            }
-                        }
-                        
-                        function makeWidgetRequest() {
-                            const iframeUrl = window.location.href;
-                            const topUrl = getTopLevelUrl();
-                            
-                            console.log('📊 CNN.IO IFRAME TEST:', {
-                                iframeLocation: iframeUrl,
-                                detectedTopUrl: topUrl,
-                                frameId: window.frameElement ? 'in-iframe' : 'top-level',
-                                crossOrigin: iframeUrl !== topUrl
-                            });
-                            
-                            // Make a test request that should be grouped under main domain
-                            fetch('https://httpbin.org/json?test=cnn_io_simulation&iframe=true')
-                                .then(response => {
-                                    document.getElementById('widget-results').innerHTML = 
-                                        '<strong>✅ Request sent!</strong><br>' +
-                                        'URL: https://httpbin.org/json?test=cnn_io_simulation<br>' +
-                                        'Iframe URL: ' + iframeUrl.substring(0, 50) + '...<br>' +
-                                        'Detected Top URL: ' + topUrl.substring(0, 50) + '...<br>' +
-                                        '<strong>Expected:</strong> Should group under main domain in extension';
-                                })
-                                .catch(error => {
-                                    document.getElementById('widget-results').innerHTML = 
-                                        '<strong>❌ Request failed:</strong> ' + error.message;
-                                });
-                        }
-                        
-                        // Auto-log iframe context on load
-                        window.addEventListener('load', function() {
-                            console.log('🖼️ CNN.io iframe loaded - Context:', {
-                                currentUrl: window.location.href,
-                                topUrl: getTopLevelUrl(),
-                                isMainFrame: window === window.top,
-                                frameDepth: window !== window.top ? 'iframe' : 'main'
-                            });
-                        });
-                    </script>
-                </body>
-            </html>
-        " style="width: 100%; height: 200px; border: 2px solid #28a745; border-radius: 4px;"></iframe>
-    </div>
-
-    <div class="test-section">
+        <button onclick="createAndTestCnnIoIframe()">📊 Create & Test CNN.io Iframe</button>
+        <div id="cnnio-iframe-container" style="margin: 10px 0; min-height: 100px; border: 2px solid #28a745; border-radius: 4px; padding: 10px;">
+            Click button above to create test iframe
+        </div>
+    </div>    <div class="test-section">
         <h2>🔍 Step 3: Check Extension Debug Logs</h2>
         <div class="debug-info">
             <strong>Instructions:</strong>
@@ -235,9 +113,9 @@
             &nbsp;&nbsp;senderTabUrl: "file:///d:/Projects/Chrome Extension Proj/test/...",<br>
             &nbsp;&nbsp;frameId: 1 (non-zero = iframe)<br>
             }</code><br><br>
-            
+
             <code>✅ IFRAME DEBUG - Using sender tab URL: file:///d:/Projects/Chrome Extension Proj/test/...</code><br><br>
-            
+
             <code>🎯 IFRAME DEBUG - Final domain grouping: {<br>
             &nbsp;&nbsp;extractedMainDomain: "localhost" (or main domain),<br>
             &nbsp;&nbsp;willGroupUnder: "localhost"<br>
@@ -264,8 +142,8 @@
                 isMainFrame: window === window.top,
                 userAgent: navigator.userAgent.substring(0, 100)
             };
-            
-            document.getElementById('main-context').innerHTML = 
+
+            document.getElementById('main-context').innerHTML =
                 '<strong>Page URL:</strong> ' + context.pageUrl + '<br>' +
                 '<strong>Hostname:</strong> ' + context.hostname + '<br>' +
                 '<strong>Is Main Frame:</strong> ' + context.isMainFrame + '<br>' +
@@ -274,7 +152,7 @@
 
         function testMainPageRequests() {
             console.log('🏠 MAIN PAGE TEST: Making requests from main frame');
-            
+
             // Test XMLHttpRequest
             const xhr = new XMLHttpRequest();
             xhr.open('GET', 'https://httpbin.org/json?test=main_page_xhr');
@@ -282,18 +160,110 @@
                 console.log('🏠 MAIN PAGE XHR completed:', xhr.status);
             };
             xhr.send();
-            
+
             // Test Fetch
             fetch('https://httpbin.org/json?test=main_page_fetch')
                 .then(response => {
                     console.log('🏠 MAIN PAGE FETCH completed:', response.status);
                 });
-            
-            document.getElementById('main-results').innerHTML = 
+
+            document.getElementById('main-results').innerHTML =
                 '<strong>✅ Main page requests sent!</strong><br>' +
                 'XHR: https://httpbin.org/json?test=main_page_xhr<br>' +
                 'Fetch: https://httpbin.org/json?test=main_page_fetch<br>' +
                 '<strong>Expected:</strong> Should appear under main domain in extension dashboard';
+        }
+
+        function createAndTestDianomiIframe() {
+            console.log('🎯 Creating Dianomi simulation iframe...');
+            
+            const container = document.getElementById('dianomi-iframe-container');
+            container.innerHTML = '<p>Creating iframe and making test request...</p>';
+            
+            // Create iframe with simulated ad request
+            const iframe = document.createElement('iframe');
+            iframe.style.width = '100%';
+            iframe.style.height = '150px';
+            iframe.style.border = '1px solid #fd7e14';
+            iframe.style.borderRadius = '4px';
+            
+            // Create iframe content that simulates dianomi.com ad
+            const iframeContent = `
+                <html>
+                    <head><title>Simulated Dianomi Ad</title></head>
+                    <body style="padding: 15px; font-family: Arial; background: #fff3cd;">
+                        <h4>🎯 Simulated dianomi.com Ad</h4>
+                        <p>Making test request...</p>
+                        <div id="results">Initializing...</div>
+                        <script>
+                            console.log('🎯 DIANOMI IFRAME: Starting test');
+                            
+                            // Make a request that should be grouped under main domain
+                            fetch('https://httpbin.org/json?test=dianomi_simulation&iframe=true')
+                                .then(response => {
+                                    console.log('🎯 DIANOMI IFRAME: Request completed:', response.status);
+                                    document.getElementById('results').innerHTML = 
+                                        '✅ Request sent! Check extension debug logs.<br>' +
+                                        'Expected: Should group under main domain';
+                                })
+                                .catch(error => {
+                                    console.error('🎯 DIANOMI IFRAME: Request failed:', error);
+                                    document.getElementById('results').innerHTML = '❌ Request failed: ' + error.message;
+                                });
+                        </script>
+                    </body>
+                </html>
+            `;
+            
+            iframe.src = 'data:text/html,' + encodeURIComponent(iframeContent);
+            container.innerHTML = '';
+            container.appendChild(iframe);
+        }
+
+        function createAndTestCnnIoIframe() {
+            console.log('📊 Creating CNN.io simulation iframe...');
+            
+            const container = document.getElementById('cnnio-iframe-container');
+            container.innerHTML = '<p>Creating iframe and making test request...</p>';
+            
+            // Create iframe with simulated widget request
+            const iframe = document.createElement('iframe');
+            iframe.style.width = '100%';
+            iframe.style.height = '150px';
+            iframe.style.border = '1px solid #28a745';
+            iframe.style.borderRadius = '4px';
+            
+            // Create iframe content that simulates cnn.io widget
+            const iframeContent = `
+                <html>
+                    <head><title>Simulated CNN.io Widget</title></head>
+                    <body style="padding: 15px; font-family: Arial; background: #d4edda;">
+                        <h4>📊 Simulated cnn.io Widget</h4>
+                        <p>Making test request...</p>
+                        <div id="results">Initializing...</div>
+                        <script>
+                            console.log('📊 CNN.IO IFRAME: Starting test');
+                            
+                            // Make a request that should be grouped under main domain
+                            fetch('https://httpbin.org/json?test=cnn_io_simulation&iframe=true')
+                                .then(response => {
+                                    console.log('📊 CNN.IO IFRAME: Request completed:', response.status);
+                                    document.getElementById('results').innerHTML = 
+                                        '✅ Request sent! Check extension debug logs.<br>' +
+                                        'Expected: Should group under main domain';
+                                })
+                                .catch(error => {
+                                    console.error('📊 CNN.IO IFRAME: Request failed:', error);
+                                    document.getElementById('results').innerHTML = '❌ Request failed: ' + error.message;
+                                });
+                        </script>
+                    </body>
+                </html>
+            `;
+            
+            iframe.src = 'data:text/html,' + encodeURIComponent(iframeContent);
+            container.innerHTML = '';
+            container.appendChild(iframe);
         }
 
         // Initialize
