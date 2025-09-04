@@ -1670,7 +1670,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                               <TableCell>
                                 <div className="flex flex-wrap gap-1 max-w-md">
                                   {stat.libraries.slice(0, 4).map((lib, libIndex) => (
-                                    <span 
+                                    <span
                                       key={libIndex}
                                       className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded"
                                       title={`${lib.name}@${lib.version}`}
