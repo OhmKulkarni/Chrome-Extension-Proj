@@ -122,11 +122,7 @@ export class NetworkProcessorModule {
 
       // ENHANCED DEBUG: Define debug condition early for problematic domains
       const shouldDebugUrl = requestData.url?.includes('dianomi.com') ||
-                            requestData.url?.includes('cnn.io') ||
-                            requestData.url?.includes('btloader.com') ||
-                            requestData.url?.includes('casalemedia.com') ||
-                            requestData.url?.includes('httpbin.org') || // TEST DOMAIN
-                            Math.random() < 0.1; // 10% random sampling
+                            requestData.url?.includes('cnn.io');
 
       if (requestData.type === 'fetch' || requestData.type === 'xhr') {
         // Data from main world script
@@ -513,7 +509,9 @@ export class NetworkProcessorModule {
         payload_size: apiCall.payload_size || 0,
         request_size: apiCall.request_size || 0,
         response_size: apiCall.response_size || 0,
-        performanceMetrics: apiCall.performance_metrics ? JSON.parse(apiCall.performance_metrics) : undefined
+        performanceMetrics: apiCall.performance_metrics ? JSON.parse(apiCall.performance_metrics) : undefined,
+        // CRITICAL: Add the main_domain field for smart grouping
+        main_domain: apiCall.main_domain
       }));
     });
   }

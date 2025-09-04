@@ -247,6 +247,16 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
     // Use the main_domain field if available, otherwise fall back to domain parsing
     const mainDomain = item.main_domain || extractBaseDomain(itemUrl);
 
+    // DEBUG: Log every item to see what's being processed
+    console.log('🔍 Processing item:', {
+      itemUrl: itemUrl.substring(0, 80) + '...',
+      storedMainDomain: item.main_domain,
+      extractedMainDomain: extractBaseDomain(itemUrl),
+      finalMainDomain: mainDomain,
+      hasMainDomainField: 'main_domain' in item,
+      itemKeys: Object.keys(item)
+    });
+
     // DEBUG: Log domain grouping for problematic domains
     if (itemUrl.includes('dianomi.com') || itemUrl.includes('dataviz.cnn.io')) {
       console.log('🎯 Dashboard Domain Grouping:', {

@@ -90,7 +90,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     };
   }, []);
   // Debug mode: Add mock data for testing charts
-  const DEBUG_MODE = true; // Set to true to enable debug data for testing
+  const DEBUG_MODE = false; // PRODUCTION: Set to false to disable mock data - prevents phantom statistics
 
   const generateMockData = () => {
     const now = Date.now();
@@ -168,10 +168,10 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     mockTokenEvents: []
   };
 
-  // Use mock data in debug mode, otherwise use real data
-  const debugNetworkRequests = DEBUG_MODE && (!networkRequests || networkRequests.length === 0) ? mockNetworkRequests : networkRequests;
-  const debugConsoleErrors = DEBUG_MODE && (!consoleErrors || consoleErrors.length === 0) ? mockConsoleErrors : consoleErrors;
-  const debugTokenEvents = DEBUG_MODE && (!tokenEvents || tokenEvents.length === 0) ? mockTokenEvents : tokenEvents;
+  // PRODUCTION: Always use real data or empty arrays - no mock data fallbacks
+  const debugNetworkRequests = networkRequests || [];
+  const debugConsoleErrors = consoleErrors || [];
+  const debugTokenEvents = tokenEvents || [];
 
   console.log('StatisticsCard Debug Data:');
   console.log('- Network Requests:', debugNetworkRequests?.length || 0, debugNetworkRequests);
@@ -680,19 +680,20 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     }
 
     // CONSISTENCY FIX: Use the exact same logic as charts for data source selection
+    // FALLBACK SAFETY: Only use real data or empty arrays - no random mock data in production
     const useAnalysisData = analysisData.loaded && analysisData.networkRequests.length > 0;
 
     const effectiveNetworkRequests = useAnalysisData
       ? analysisData.networkRequests
-      : (DEBUG_MODE ? mockNetworkRequests : []);
+      : []; // PRODUCTION: Always use empty array when no data, never mock data
 
     const effectiveConsoleErrors = useAnalysisData
       ? analysisData.consoleErrors
-      : (DEBUG_MODE ? mockConsoleErrors : []);
+      : []; // PRODUCTION: Always use empty array when no data
 
     const effectiveTokenEvents = useAnalysisData
       ? analysisData.tokenEvents
-      : (DEBUG_MODE ? mockTokenEvents : []);
+      : []; // PRODUCTION: Always use empty array when no data
 
     console.log('GlobalStats calculation with data:', {
       useAnalysisData,
@@ -881,6 +882,29 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
           : (DEBUG_MODE ? mockTokenEvents : []);
 
         const allData = [...effectiveNetworkRequests, ...effectiveConsoleErrors, ...effectiveTokenEvents];
+
+        // DEBUG: Very visible logging to check data structure
+        console.log('🚨🚨🚨 DASHBOARD DEBUG START 🚨🚨🚨');
+        console.log('📊 Analysis data loaded:', analysisData.loaded);
+        console.log('📊 Use analysis data:', useAnalysisData);
+        console.log('📊 Total items before domain grouping:', allData.length);
+        console.log('📊 Network requests count:', effectiveNetworkRequests.length);
+        console.log('📊 Analysis data network requests:', analysisData.networkRequests?.length);
+
+        // DEBUG: Log actual URLs to see if CNN.io requests are present
+        console.log('📊 Network request URLs:', effectiveNetworkRequests.map(req => req.url?.substring(0, 60)));
+
+        console.log('🔍 BEFORE DOMAIN GROUPING - First 3 items structure:', allData.slice(0, 3).map(item => ({
+          url: item.url?.substring(0, 60),
+          itemKeys: Object.keys(item),
+          hasMainDomain: 'mainDomain' in item,
+          hasMain_domain: 'main_domain' in item,
+          mainDomainValue: item.mainDomain,
+          main_domainValue: (item as any).main_domain,
+          type: item.type || 'unknown'
+        })));
+        console.log('🚨🚨🚨 DASHBOARD DEBUG END 🚨🚨🚨');
+
         const stats = await groupDataByDomain(allData);
         setDomainStats(stats);
       } catch (error) {
