@@ -851,15 +851,8 @@ export class NetworkProcessorModule {
         // Store each detected library in IndexedDB
         for (const library of detectedLibraries) {
           try {
-            await this.indexedDbStorage.insertMinifiedLibrary({
-              name: library.name,
-              version: library.version || 'unknown',
-              size: library.size || 0,
-              source_map_available: false, // We don't detect source maps in this context
-              url: url,
-              timestamp: Date.now(),
-              main_domain: validatedRequestData.main_domain // Associate library with the domain that loaded it
-            });
+            const minifiedLibrary = LibraryDetector.toMinifiedLibrary(library, validatedRequestData.main_domain || this.extractMainDomain(url));
+            await this.indexedDbStorage.insertMinifiedLibrary(minifiedLibrary);
           } catch (storageError) {
             console.warn('Failed to store library detection:', library.name, storageError);
           }

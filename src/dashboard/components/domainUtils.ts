@@ -346,6 +346,46 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
     }
   });
 
+  // LIBRARY-ONLY DOMAINS: Add domains that only have library data (no network events)
+  console.log('📚 Processing library-only domains...');
+  const existingDomains = new Set(domainMap.keys());
+
+  // Group libraries by main_domain to find domains with libraries but no events
+  const libraryDomains = new Set<string>();
+  libraryData.forEach(lib => {
+    if (lib.main_domain && !existingDomains.has(lib.main_domain)) {
+      libraryDomains.add(lib.main_domain);
+    }
+  });
+
+  // Create domain entries for library-only domains
+  libraryDomains.forEach(domain => {
+    console.log(`📚 Adding library-only domain: ${domain}`);
+
+    // Create a minimal domain info for library-only domains
+    const domainInfo: DomainInfo = {
+      fullDomain: domain,
+      baseDomain: domain,
+      category: 'main',
+      isGrouped: false
+    };
+
+    domainMap.set(domain, {
+      info: domainInfo,
+      requests: [],
+      errors: [],
+      tokens: [],
+      subdomains: new Set<string>([domain]),
+      responseTimes: [],
+      tabIds: new Set<number>(),
+      relatedDomains: new Set<string>(),
+      allGroupedDomains: new Set<string>([domain]),
+      subdomainStats: new Map()
+    });
+  });
+
+  console.log(`📚 Added ${libraryDomains.size} library-only domains to stats`);
+
   // Convert to DomainStats array
   const results = Array.from(domainMap.entries()).map(([mainDomain, group]) => {
     const totalRequests = group.requests.length;

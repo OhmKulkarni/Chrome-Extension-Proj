@@ -25,6 +25,8 @@
     <script>
         // Create some network requests to trigger detection
         console.log('Test page loaded');
+
+        // Test 1: Libraries loaded from CDN (will have network requests)
         if (typeof React !== 'undefined') {
             console.log('React loaded:', React.version);
         }
@@ -34,6 +36,35 @@
         if (typeof jQuery !== 'undefined') {
             console.log('jQuery loaded:', jQuery.fn.jquery);
         }
+
+        // Test 2: Simulate inline libraries (no network requests, only DOM globals)
+        // These should create library-only domain entries
+        window.MyCustomFramework = {
+            version: '2.1.0',
+            name: 'MyCustomFramework',
+            render: function() { return 'Hello World'; }
+        };
+
+        window.AnalyticsSDK = {
+            version: '1.5.3',
+            track: function(event) { console.log('Tracking:', event); },
+            identify: function() {}
+        };
+
+        window.UIComponents = {
+            version: '3.2.1',
+            Button: function() {},
+            Modal: function() {},
+            Tooltip: function() {}
+        };
+
+        console.log('📚 Inline libraries created:');
+        console.log('- MyCustomFramework:', window.MyCustomFramework.version);
+        console.log('- AnalyticsSDK:', window.AnalyticsSDK.version);
+        console.log('- UIComponents:', window.UIComponents.version);
+
+        // These inline libraries should be detected by DOM global analysis
+        // but won't generate network events, testing the library-only domain scenario
     </script>
 </body>
 </html>

@@ -14,6 +14,7 @@ import { UnifiedPermissionService } from '../services/unified-permission-service
 import { EnvironmentStorageManager } from '../environment-storage-manager';
 import { ChromeSyncService } from '../../services/chrome-sync-service';
 import { SafetyConfig } from '../types/background-types';
+import { LibraryDetector } from '../utils/library-detector';
 
 import { unifiedPermissionManager } from '../../utils/unified-permission-manager';
 
@@ -225,6 +226,12 @@ export class MessageRouterSimpleModule {
         case 'CONSOLE_ERROR':
           const consoleResult = await this.consoleHandler.processConsoleError(message.data, sender);
           sendResponse(consoleResult);
+          break;
+
+        // Library Detection from Content Script
+        case 'CONTENT_LIBRARY_DETECTION':
+          await this.handleContentLibraryDetection(message, sender);
+          sendResponse({ success: true });
           break;
 
         case 'getConsoleErrors':
@@ -983,6 +990,63 @@ export class MessageRouterSimpleModule {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
       });
+    }
+  }
+
+  /**
+   * Handle content script library detection results
+   */
+  private async handleContentLibraryDetection(
+    message: any,
+    sender: chrome.runtime.MessageSender
+  ): Promise<void> {
+    try {
+      const { libraries } = message;
+      const tabId = sender.tab?.id;
+      const tabUrl = sender.tab?.url;
+
+      if (!tabId || !tabUrl) {
+        console.warn('LibraryDetection: No tab ID or URL available from content script');
+        return;
+      }
+
+      const domain = this.extractMainDomain(tabUrl);
+      console.log(`📚 LibraryDetection: Received ${libraries?.length || 0} libraries from content script for ${domain}`);
+
+      if (libraries && Array.isArray(libraries)) {
+        // Store each library from content script detection
+        for (const library of libraries) {
+          try {
+            const minifiedLibrary = LibraryDetector.toMinifiedLibrary(library, domain);
+            await this.indexedDbStorage.insertMinifiedLibrary(minifiedLibrary);
+          } catch (error) {
+            console.warn('Failed to store content script library:', library.name, error);
+          }
+        }
+        console.log(`📚 LibraryDetection: Stored ${libraries.length} content script libraries for ${domain}`);
+      }
+    } catch (error) {
+      console.error('Error handling content library detection:', error);
+    }
+  }
+
+  /**
+   * Extract main domain from URL (helper method)
+   */
+  private extractMainDomain(url: string): string {
+    try {
+      const parsedUrl = new URL(url);
+      const hostname = parsedUrl.hostname;
+
+      // Remove 'www.' prefix if present
+      if (hostname.startsWith('www.')) {
+        return hostname.substring(4);
+      }
+
+      return hostname;
+    } catch (error) {
+      console.warn('Failed to extract domain from URL:', url, error);
+      return 'unknown';
     }
   }
 
