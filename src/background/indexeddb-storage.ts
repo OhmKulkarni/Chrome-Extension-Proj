@@ -526,13 +526,13 @@ export class IndexedDBStorage implements StorageOperations {
         } else {
           // Upgrade existing minifiedLibraries store to add missing indexes
           const libraryStore = transaction.objectStore('minifiedLibraries')
-          
+
           // Add timestamp index if it doesn't exist
           if (!libraryStore.indexNames.contains('timestamp')) {
             libraryStore.createIndex('timestamp', 'timestamp', { unique: false })
             console.log('📦 IndexedDB: Added timestamp index to minifiedLibraries')
           }
-          
+
           // Add uniqueKey index if it doesn't exist
           if (!libraryStore.indexNames.contains('uniqueKey')) {
             libraryStore.createIndex('uniqueKey', ['name', 'version', 'main_domain'], { unique: false })
@@ -1015,7 +1015,7 @@ export class IndexedDBStorage implements StorageOperations {
     try {
       const version = data.version || 'unknown'
       const existingLibrary = await this.findExistingLibrary(data.name, version, data.main_domain || '')
-      
+
       if (existingLibrary) {
         // Update existing library with new timestamp and URL if different
         const updatedData: MinifiedLibrary = {
@@ -1023,7 +1023,7 @@ export class IndexedDBStorage implements StorageOperations {
           timestamp: data.timestamp,
           url: data.url, // Update URL in case it's different
         }
-        
+
         await this.updateMinifiedLibrary(updatedData)
         console.log(`🔄 IndexedDB: Updated existing library ${data.name}@${version} for ${data.main_domain}`)
         return existingLibrary.id!
@@ -1046,7 +1046,7 @@ export class IndexedDBStorage implements StorageOperations {
     return new Promise<MinifiedLibrary | null>((resolve, reject) => {
       const transaction = this.db!.transaction(['minifiedLibraries'], 'readonly')
       const store = transaction.objectStore('minifiedLibraries')
-      
+
       // Try to use uniqueKey index if it exists
       if (store.indexNames.contains('uniqueKey')) {
         const index = store.index('uniqueKey')
@@ -1068,8 +1068,8 @@ export class IndexedDBStorage implements StorageOperations {
           const cursor = request.result
           if (cursor) {
             const library = cursor.value as MinifiedLibrary
-            if (library.name === name && 
-                library.version === version && 
+            if (library.name === name &&
+                library.version === version &&
                 library.main_domain === main_domain) {
               found = library
               resolve(found)

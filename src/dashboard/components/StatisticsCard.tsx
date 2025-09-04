@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Button } from './ui/button';
-import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity } from 'lucide-react';
+import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { groupDataByDomain, DomainStats } from './domainUtils';
 // Import the new shared data processing system
@@ -218,6 +218,9 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   const [selectedChart, setSelectedChart] = useState<string | null>(null);
   const [showAllCharts, setShowAllCharts] = useState(false);
   const [chartSearch, setChartSearch] = useState('');
+
+  // Domain view mode state
+  const [domainViewMode, setDomainViewMode] = useState<'stats' | 'libraries'>('stats');
 
   // Chart settings for performance control
   const { settings: chartSettings, isLoading: chartSettingsLoading } = useChartSettingsRead();
@@ -1371,6 +1374,40 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* Domain View Toggle */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={domainViewMode === 'stats' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setDomainViewMode('stats')}
+                  className="flex items-center gap-2"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  Domain Stats
+                </Button>
+                <Button
+                  variant={domainViewMode === 'libraries' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setDomainViewMode('libraries')}
+                  className="flex items-center gap-2"
+                >
+                  <BookOpen className="h-4 w-4" />
+                  Domain Libraries
+                </Button>
+              </div>
+            </div>
+
+            <AnimatePresence mode="wait">
+              {domainViewMode === 'stats' ? (
+                <motion.div
+                  key="domain-stats-view"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
             <div className="rounded-md border overflow-hidden">
               <div className="overflow-x-auto">
                 <Table className="w-full">
@@ -1410,12 +1447,6 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                       <div className="flex items-center gap-2 justify-center">
                         Avg Response
                         <SortButton column="avgResponseTime" currentSort={domainSortConfig} onSort={handleDomainSort} />
-                      </div>
-                    </TableHead>
-                    <TableHead className="font-semibold w-28 text-center">
-                      <div className="flex items-center gap-2 justify-center">
-                        📚 Libraries
-                        <SortButton column="libraryCount" currentSort={domainSortConfig} onSort={handleDomainSort} />
                       </div>
                     </TableHead>
                     <TableHead className="font-semibold w-32 text-center">
@@ -1497,23 +1528,6 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                       <TableCell className="font-medium text-blue-700 w-24 text-center">
                         {stat.avgResponseTime > 0 ? `${stat.avgResponseTime}ms` : 'N/A'}
                       </TableCell>
-                      <TableCell className="w-28 text-center">
-                        <div className="flex justify-center">
-                          {stat.libraryCount > 0 ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => toggleLibraryModal(stat.domain)}
-                              className="h-6 px-2 hover:bg-purple-100 text-purple-700"
-                              title={`${stat.libraryCount} libraries detected - click for details`}
-                            >
-                              <span className="text-xs font-medium">{stat.libraryCount}</span>
-                            </Button>
-                          ) : (
-                            <span className="text-xs text-gray-400">None</span>
-                          )}
-                        </div>
-                      </TableCell>
                       <TableCell className="w-32 text-center">
                         <div className="w-full flex items-center justify-end pr-4">
                           {/* Tier 2: Inline expandable charts */}
@@ -1536,7 +1550,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                     {/* Domain-specific charts panel - TIER 2 IMPLEMENTATION */}
                     {isDomainChartExpanded(stat.domain) && (
                       <TableRow key={`${index}-charts`}>
-                        <TableCell colSpan={8} className="p-0 bg-gray-50">
+                        <TableCell colSpan={7} className="p-0 bg-gray-50">
                           <DomainChartsPanel
                             domain={stat.domain}
                             networkRequests={analysisData.loaded ? analysisData.networkRequests : []}
@@ -1588,6 +1602,122 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
               </Table>
               </div>
             </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="domain-libraries-view"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {/* Domain Libraries Table */}
+                  <div className="rounded-md border overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <Table className="w-full">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="font-semibold w-[40%]">
+                              <div className="flex items-center gap-2">
+                                <BookOpen className="h-4 w-4" />
+                                Domain
+                                <SortButton column="domain" currentSort={domainSortConfig} onSort={handleDomainSort} />
+                              </div>
+                            </TableHead>
+                            <TableHead className="font-semibold text-center">
+                              <div className="flex items-center gap-2 justify-center">
+                                📚 Library Count
+                                <SortButton column="libraryCount" currentSort={domainSortConfig} onSort={handleDomainSort} />
+                              </div>
+                            </TableHead>
+                            <TableHead className="font-semibold">
+                              <div className="flex items-center gap-2">
+                                Libraries Detected
+                              </div>
+                            </TableHead>
+                            <TableHead className="font-semibold text-center">
+                              <div className="flex items-center gap-2 justify-center">
+                                <Activity className="h-4 w-4" />
+                                Actions
+                              </div>
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {sortedDomainStats
+                            .filter(stat => stat.libraryCount > 0) // Only show domains with libraries
+                            .map((stat, index) => (
+                            <TableRow key={index} className="hover:bg-purple-50/50">
+                              <TableCell className="font-medium">
+                                <div className="flex flex-col gap-1">
+                                  <div className="flex items-center gap-2">
+                                    {stat.isGrouped && <Layers className="h-3 w-3 text-blue-500" />}
+                                    {stat.tabContext?.isMainDomain && <Monitor className="h-3 w-3 text-green-500" />}
+                                    <span className="text-sm font-medium">{stat.domain}</span>
+                                  </div>
+                                  {stat.isGrouped && (
+                                    <div className="text-xs text-gray-500 pl-5">
+                                      {stat.groupedDomains.length} domains: {stat.groupedDomains.join(', ')}
+                                    </div>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <span className="inline-flex items-center justify-center w-8 h-6 bg-purple-100 text-purple-800 text-xs font-medium rounded-full">
+                                  {stat.libraryCount}
+                                </span>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-wrap gap-1 max-w-md">
+                                  {stat.libraries.slice(0, 4).map((lib, libIndex) => (
+                                    <span 
+                                      key={libIndex}
+                                      className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded"
+                                      title={`${lib.name}@${lib.version}`}
+                                    >
+                                      {lib.name}
+                                      {lib.version && <span className="ml-1 text-blue-600">@{lib.version}</span>}
+                                    </span>
+                                  ))}
+                                  {stat.libraries.length > 4 && (
+                                    <span className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded">
+                                      +{stat.libraries.length - 4} more
+                                    </span>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => toggleLibraryModal(stat.domain)}
+                                  className="h-7 px-3 hover:bg-purple-100 text-purple-700 border-purple-200"
+                                  title="View detailed library information"
+                                >
+                                  <BookOpen className="h-3 w-3 mr-1" />
+                                  Details
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          {sortedDomainStats.filter(stat => stat.libraryCount > 0).length === 0 && (
+                            <TableRow>
+                              <TableCell colSpan={4} className="text-center text-gray-500 py-8">
+                                <div className="flex flex-col items-center gap-2">
+                                  <BookOpen className="h-8 w-8 text-gray-400" />
+                                  <div>No libraries detected yet</div>
+                                  <div className="text-xs text-gray-400">Libraries will appear here as they are detected on visited pages</div>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </TabsContent>
         </Tabs>
       </CardContent>
