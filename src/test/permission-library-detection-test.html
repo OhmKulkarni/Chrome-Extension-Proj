@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Permission-based Library Detection Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-output {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .run-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        .run-button:hover {
+            transform: translateY(-2px);
+        }
+        .run-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .info-box h3 {
+            margin-top: 0;
+            color: #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔒 Permission-based Library Detection Test</h1>
+        <p>Testing that library detection only runs when logging permissions are enabled</p>
+    </div>
+
+    <div class="test-container">
+        <div class="info-box">
+            <h3>📋 Test Overview</h3>
+            <p>This test verifies that library detection respects user permission settings:</p>
+            <ul>
+                <li><strong>All logging disabled:</strong> Library detection should NOT run</li>
+                <li><strong>Any logging enabled:</strong> Library detection SHOULD run</li>
+                <li><strong>Multiple logging types:</strong> Library detection should run if any are enabled</li>
+            </ul>
+        </div>
+
+        <button id="runTests" class="run-button">🧪 Run Permission Tests</button>
+        
+        <div id="testOutput" class="test-output" style="display: none;">
+            Initializing tests...
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h3>📊 Implementation Details</h3>
+        <p><strong>Message Handler:</strong> <code>CHECK_LOGGING_PERMISSIONS</code> added to background script</p>
+        <p><strong>Permission Logic:</strong> Library detection enabled if network OR console OR token logging is active</p>
+        <p><strong>Integration Points:</strong> Network processor and content script library detection</p>
+    </div>
+
+    <script type="module">
+        // Mock chrome APIs for testing
+        if (!window.chrome) {
+            window.chrome = {
+                storage: {
+                    local: {
+                        get: async (keys) => ({}),
+                        set: async (data) => {},
+                        remove: async (keys) => {},
+                        clear: async () => {}
+                    }
+                },
+                runtime: {
+                    sendMessage: async (message) => {
+                        console.log('Mock sendMessage:', message);
+                        return { success: true, enabled: false };
+                    }
+                }
+            };
+        }
+
+        const runButton = document.getElementById('runTests');
+        const outputDiv = document.getElementById('testOutput');
+
+        // Override console methods to capture output
+        let testOutput = '';
+        const originalConsole = {
+            log: console.log,
+            error: console.error,
+            warn: console.warn
+        };
+
+        function captureConsole() {
+            ['log', 'error', 'warn'].forEach(method => {
+                console[method] = (...args) => {
+                    const message = args.map(arg => 
+                        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+                    ).join(' ');
+                    testOutput += message + '\n';
+                    outputDiv.textContent = testOutput;
+                    originalConsole[method](...args);
+                };
+            });
+        }
+
+        function restoreConsole() {
+            Object.assign(console, originalConsole);
+        }
+
+        runButton.addEventListener('click', async () => {
+            runButton.disabled = true;
+            runButton.textContent = '🔄 Running Tests...';
+            outputDiv.style.display = 'block';
+            testOutput = '';
+            
+            captureConsole();
+
+            try {
+                // Import and run the test
+                const { PermissionLibraryDetectionTest } = await import('./permission-library-detection-test.ts');
+                const test = new PermissionLibraryDetectionTest();
+                await test.runTests();
+            } catch (error) {
+                console.error('Test execution failed:', error);
+                testOutput += `\n❌ Test execution failed: ${error.message}\n`;
+                outputDiv.textContent = testOutput;
+            } finally {
+                restoreConsole();
+                runButton.disabled = false;
+                runButton.textContent = '🧪 Run Permission Tests';
+            }
+        });
+
+        // Auto-scroll to bottom of output
+        const observer = new MutationObserver(() => {
+            outputDiv.scrollTop = outputDiv.scrollHeight;
+        });
+        observer.observe(outputDiv, { childList: true, subtree: true });
+    </script>
+</body>
+</html>

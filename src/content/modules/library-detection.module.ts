@@ -35,11 +35,18 @@ export class ContentLibraryDetectionModule {
   /**
    * Perform comprehensive library detection on the current page
    */
-  private static performInitialDetection(): void {
-    const domain = window.location.hostname;
-    const detectedLibraries: LibraryInfo[] = [];
-
+  private static async performInitialDetection(): Promise<void> {
     try {
+      // Check if any logging is enabled before proceeding with library detection
+      const hasLoggingPermission = await this.checkLoggingPermissions();
+      if (!hasLoggingPermission) {
+        console.log('🚫 [ContentLibraryDetection] Skipping detection - no logging enabled for this tab');
+        return;
+      }
+
+      const domain = window.location.hostname;
+      const detectedLibraries: LibraryInfo[] = [];
+
       // 1. 🌍 DOM Global Detection - Check window objects
       console.log('🌍 [ContentLibraryDetection] Analyzing global objects...');
       const globalLibraries = LibraryDetector.detectFromDOMGlobals(window as any, domain);
@@ -66,6 +73,40 @@ export class ContentLibraryDetectionModule {
 
     } catch (error) {
       console.error('❌ [ContentLibraryDetection] Error during initial detection:', error);
+    }
+  }
+
+  /**
+   * Check if any logging is enabled for the current tab
+   */
+  private static async checkLoggingPermissions(): Promise<boolean> {
+    try {
+      // Get current tab
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      const currentTab = tabs[0];
+      
+      if (!currentTab?.id) {
+        console.warn('🚫 [ContentLibraryDetection] Could not get current tab ID');
+        return false; // If we can't check, don't run library detection
+      }
+
+      // Check permissions by sending message to background script
+      const response = await chrome.runtime.sendMessage({
+        action: 'CHECK_LOGGING_PERMISSIONS',
+        tabId: currentTab.id
+      });
+
+      if (response?.hasLogging) {
+        console.log('✅ [ContentLibraryDetection] Logging enabled - proceeding with detection');
+        return true;
+      } else {
+        console.log('🚫 [ContentLibraryDetection] No logging enabled - skipping detection');
+        return false;
+      }
+
+    } catch (error) {
+      console.warn('⚠️ [ContentLibraryDetection] Error checking permissions:', error);
+      return false; // If we can't check, don't run library detection
     }
   }
 

@@ -385,6 +385,38 @@ export class MessageRouterSimpleModule {
           }
           break;
 
+        case 'CHECK_LOGGING_PERMISSIONS':
+          if (message.tabId !== undefined) {
+            try {
+              // Import unified permission manager dynamically
+              const { unifiedPermissionManager } = await import('../../utils/unified-permission-manager');
+              
+              // Check if any of the three logging types are enabled for this tab
+              const [networkEnabled, consoleEnabled, tokenEnabled] = await Promise.all([
+                unifiedPermissionManager.isFeatureEnabled(message.tabId, 'network'),
+                unifiedPermissionManager.isFeatureEnabled(message.tabId, 'console'),
+                unifiedPermissionManager.isFeatureEnabled(message.tabId, 'tokens')
+              ]);
+
+              const hasAnyLoggingEnabled = networkEnabled || consoleEnabled || tokenEnabled;
+              
+              sendResponse({ 
+                success: true, 
+                enabled: hasAnyLoggingEnabled,
+                details: {
+                  network: networkEnabled,
+                  console: consoleEnabled,
+                  tokens: tokenEnabled
+                }
+              });
+            } catch (error) {
+              sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to check logging permissions' });
+            }
+          } else {
+            sendResponse({ success: false, error: 'Tab ID required' });
+          }
+          break;
+
         // Atomic Operations for Site Toggle
         case 'setAllFeaturesEnabled':
           if (message.tabId !== undefined && typeof message.enabled === 'boolean') {
