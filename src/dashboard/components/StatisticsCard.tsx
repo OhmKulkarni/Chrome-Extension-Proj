@@ -1744,16 +1744,57 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                   {/* Collapsed view - show first few libraries */}
                                   {!expandedLibraryDomains.has(stat.domain) && (
                                     <div className="flex flex-wrap gap-1 max-w-md">
-                                      {stat.libraries.slice(0, 4).map((lib, libIndex) => (
-                                        <span
-                                          key={libIndex}
-                                          className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded"
-                                          title={`${lib.name}@${lib.version}`}
-                                        >
-                                          {lib.name}
-                                          {lib.version && <span className="ml-1 text-blue-600">@{lib.version}</span>}
-                                        </span>
-                                      ))}
+                                      {stat.libraries.slice(0, 4).map((lib, libIndex) => {
+                                        // Apply smart truncation and categorization to main display
+                                        const displayName = LibraryDetector.getDisplayName(lib, 20); // Shorter for main view
+                                        const fullName = `${lib.name}${lib.version ? `@${lib.version}` : ''}`;
+                                        
+                                        // Get resource type info for proper styling
+                                        const getResourceTypeInfo = (libType: string) => {
+                                          switch (libType) {
+                                            case 'advertising-service':
+                                              return { icon: '📢', bgColor: 'bg-red-100', textColor: 'text-red-800', label: 'Ad Service' };
+                                            case 'data-collector':
+                                              return { icon: '📊', bgColor: 'bg-purple-100', textColor: 'text-purple-800', label: 'Analytics' };
+                                            case 'streaming-service':
+                                              return { icon: '🎥', bgColor: 'bg-green-100', textColor: 'text-green-800', label: 'Media' };
+                                            case 'api-endpoint':
+                                              return { icon: '🔗', bgColor: 'bg-orange-100', textColor: 'text-orange-800', label: 'API' };
+                                            case 'privacy-tools':
+                                              return { icon: '🔒', bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Privacy' };
+                                            case 'framework':
+                                            case 'utility':
+                                            case 'ui':
+                                              return { icon: '📚', bgColor: 'bg-blue-100', textColor: 'text-blue-800', label: 'Library' };
+                                            case 'tracking-tools':
+                                              return { icon: '👁️', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', label: 'Tracking' };
+                                            case 'site-tools':
+                                              return { icon: '⚙️', bgColor: 'bg-indigo-100', textColor: 'text-indigo-800', label: 'Site Tool' };
+                                            case 'media-tools':
+                                              return { icon: '🎬', bgColor: 'bg-pink-100', textColor: 'text-pink-800', label: 'Media Tool' };
+                                            case 'performance-tools':
+                                              return { icon: '⚡', bgColor: 'bg-cyan-100', textColor: 'text-cyan-800', label: 'Performance' };
+                                            default:
+                                              return { icon: '🔧', bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Resource' };
+                                          }
+                                        };
+                                        
+                                        const typeInfo = getResourceTypeInfo(lib.type);
+                                        
+                                        return (
+                                          <span
+                                            key={libIndex}
+                                            className={`inline-flex items-center px-2 py-1 ${typeInfo.bgColor} ${typeInfo.textColor} text-xs font-medium rounded`}
+                                            title={`${fullName} (${typeInfo.label})`}
+                                          >
+                                            <span className="mr-1">{typeInfo.icon}</span>
+                                            {displayName}
+                                            {lib.version && !displayName.includes('@') && (
+                                              <span className="ml-1 opacity-75">@{lib.version}</span>
+                                            )}
+                                          </span>
+                                        );
+                                      })}
                                       {stat.libraries.length > 4 && (
                                         <span className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded">
                                           +{stat.libraries.length - 4} more
