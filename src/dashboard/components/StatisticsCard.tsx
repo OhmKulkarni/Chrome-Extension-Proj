@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Button } from './ui/button';
-import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen, Megaphone, BarChart, Video, Shield, Library, Target, Settings, Film, Zap, Wrench, Globe } from 'lucide-react';
+import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen, Megaphone, BarChart, Video, Shield, Library, Target, Settings, Film, Zap, Wrench, Globe, HelpCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { groupDataByDomain, DomainStats } from './domainUtils';
 // Import the new shared data processing system
@@ -236,6 +236,9 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
 
   // Domain view mode state
   const [domainViewMode, setDomainViewMode] = useState<'stats' | 'libraries'>('stats');
+
+  // Help section visibility state
+  const [showHelp, setShowHelp] = useState(false);
 
   // Chart settings for performance control
   const { settings: chartSettings, isLoading: chartSettingsLoading } = useChartSettingsRead();
@@ -1374,21 +1377,170 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
           </TabsContent>
 
           <TabsContent value="domain" className="space-y-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-              <div className="flex items-start gap-2">
-                <Layers className="h-4 w-4 text-blue-600 mt-0.5" />
-                <div>
-                  <h4 className="text-sm font-medium text-blue-800 mb-1">Smart Domain Grouping</h4>
-                  <p className="text-xs text-blue-700">
-                    Domains are intelligently grouped by tab context and subdomain patterns.
-                    <Layers className="h-3 w-3 inline mx-1" /> indicates grouped subdomains,
-                    <Monitor className="h-3 w-3 inline mx-1" /> shows main tab domains.
-                    <BarChart3 className="h-3 w-3 inline mx-1" /> opens domain-specific charts.
-                    Hover for details.
-                  </p>
+            {/* Collapsible Help Section */}
+            <div className="flex items-center justify-between mb-4">
+              <button
+                onClick={() => setShowHelp(!showHelp)}
+                className="flex items-center gap-2 px-3 py-2 text-sm text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors duration-200"
+                title="Click to show/hide explanation of dashboard icons and features"
+              >
+                <HelpCircle className="h-4 w-4" />
+                <span className="font-medium">Dashboard Guide</span>
+                {showHelp ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+
+            {showHelp && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 animate-in slide-in-from-top duration-200">
+                <div className="flex items-start gap-3">
+                  <Layers className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-semibold text-blue-800">Dashboard Icons & Features Guide</h4>
+                    
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-xs text-blue-700">
+                      {/* Domain Status Icons */}
+                      <div className="space-y-2">
+                        <p className="font-medium text-blue-800">Domain Status Icons:</p>
+                        <div className="space-y-1 ml-2">
+                          <div className="flex items-center gap-2">
+                            <Layers className="h-3 w-3" />
+                            <span>Grouped subdomains</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Monitor className="h-3 w-3" />
+                            <span>Main tab domain</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <BarChart3 className="h-3 w-3" />
+                            <span>Open domain charts</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Eye className="h-3 w-3" />
+                            <span>Show inline charts</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <EyeOff className="h-3 w-3" />
+                            <span>Hide inline charts</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <ChevronDown className="h-3 w-3" />
+                            <span>Expand section</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <ChevronRight className="h-3 w-3" />
+                            <span>Collapse section</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Library Resource Type Icons */}
+                      <div className="space-y-2">
+                        <p className="font-medium text-blue-800">Resource Type Icons:</p>
+                        <div className="space-y-1 ml-2">
+                          <div className="flex items-center gap-2">
+                            <Megaphone className="h-3 w-3" />
+                            <span>Advertising services</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <BarChart className="h-3 w-3" />
+                            <span>Analytics tools</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Video className="h-3 w-3" />
+                            <span>Media/streaming</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Globe className="h-3 w-3" />
+                            <span>API endpoints</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Shield className="h-3 w-3" />
+                            <span>Privacy & security</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Library className="h-3 w-3" />
+                            <span>Frameworks & libraries</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Target className="h-3 w-3" />
+                            <span>Tracking tools</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Settings className="h-3 w-3" />
+                            <span>Site tools</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Film className="h-3 w-3" />
+                            <span>Media tools</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Zap className="h-3 w-3" />
+                            <span>Performance tools</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Wrench className="h-3 w-3" />
+                            <span>Other resources</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action Icons */}
+                      <div className="space-y-2">
+                        <p className="font-medium text-blue-800">Action Icons:</p>
+                        <div className="space-y-1 ml-2">
+                          <div className="flex items-center gap-2">
+                            <BookOpen className="h-3 w-3" />
+                            <span>View library details</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <RefreshCw className="h-3 w-3" />
+                            <span>Refresh data</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Search className="h-3 w-3" />
+                            <span>Search functionality</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <ArrowUpDown className="h-3 w-3" />
+                            <span>Sort column</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Activity className="h-3 w-3" />
+                            <span>Analysis tools</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <HelpCircle className="h-3 w-3" />
+                            <span>Toggle this guide</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Third Party Domain Explanation - Separate Section */}
+                    <div className="pt-3 border-t border-blue-200">
+                      <div className="space-y-2">
+                        <p className="font-medium text-blue-800">Domain Labels:</p>
+                        <div className="ml-2">
+                          <div className="flex items-center gap-2">
+                            <span className="inline-block px-2 py-1 text-xs font-medium rounded bg-teal-100 text-teal-800">3rd party domain</span>
+                            <span>Indicates external/third-party domains (no icon by design - this is a classification label)</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="mt-3 pt-2 border-t border-blue-200 text-xs">
+                      <strong>Smart Grouping:</strong> Domains are intelligently grouped by tab context and subdomain patterns. 
+                      Hover over any icon or label for detailed tooltips with additional information.
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Domain View Toggle */}
             <div className="flex items-center justify-between mb-4">
