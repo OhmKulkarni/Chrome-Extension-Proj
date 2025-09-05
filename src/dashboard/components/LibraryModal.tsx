@@ -5,7 +5,7 @@ import { X, ExternalLink, Package, Code, Palette, BarChart3, Globe, Layers } fro
 interface LibraryInfo {
   name: string;
   version?: string;
-  type: 'framework' | 'utility' | 'ui' | 'analytics' | 'cdn' | 'polyfill' | 'unknown';
+  type: 'framework' | 'utility' | 'ui' | 'analytics' | 'cdn' | 'polyfill' | 'unknown' | 'privacy-tools' | 'tracking-tools' | 'site-tools' | 'media-tools' | 'performance-tools' | 'advertising-service' | 'api-endpoint' | 'streaming-service' | 'data-collector' | 'web-service';
   confidence: 'high' | 'medium' | 'low';
   source: 'url' | 'content' | 'headers';
   cdnProvider?: string;
@@ -27,8 +27,18 @@ const getTypeIcon = (type: LibraryInfo['type']) => {
     case 'utility': return <Package className="h-4 w-4" />;
     case 'ui': return <Palette className="h-4 w-4" />;
     case 'analytics': return <BarChart3 className="h-4 w-4" />;
+    case 'data-collector': return <BarChart3 className="h-4 w-4" />;
     case 'cdn': return <Globe className="h-4 w-4" />;
     case 'polyfill': return <Layers className="h-4 w-4" />;
+    case 'advertising-service': return <ExternalLink className="h-4 w-4" />;
+    case 'api-endpoint': return <Globe className="h-4 w-4" />;
+    case 'streaming-service': return <Package className="h-4 w-4" />;
+    case 'privacy-tools': return <Package className="h-4 w-4" />;
+    case 'tracking-tools': return <BarChart3 className="h-4 w-4" />;
+    case 'site-tools': return <Package className="h-4 w-4" />;
+    case 'media-tools': return <Package className="h-4 w-4" />;
+    case 'performance-tools': return <Package className="h-4 w-4" />;
+    case 'web-service': return <Globe className="h-4 w-4" />;
     default: return <Package className="h-4 w-4" />;
   }
 };
@@ -39,8 +49,18 @@ const getTypeColor = (type: LibraryInfo['type']) => {
     case 'utility': return 'bg-green-100 text-green-800';
     case 'ui': return 'bg-purple-100 text-purple-800';
     case 'analytics': return 'bg-orange-100 text-orange-800';
+    case 'data-collector': return 'bg-purple-100 text-purple-800';
     case 'cdn': return 'bg-gray-100 text-gray-800';
     case 'polyfill': return 'bg-yellow-100 text-yellow-800';
+    case 'advertising-service': return 'bg-red-100 text-red-800';
+    case 'api-endpoint': return 'bg-orange-100 text-orange-800';
+    case 'streaming-service': return 'bg-green-100 text-green-800';
+    case 'privacy-tools': return 'bg-gray-100 text-gray-800';
+    case 'tracking-tools': return 'bg-yellow-100 text-yellow-800';
+    case 'site-tools': return 'bg-indigo-100 text-indigo-800';
+    case 'media-tools': return 'bg-pink-100 text-pink-800';
+    case 'performance-tools': return 'bg-cyan-100 text-cyan-800';
+    case 'web-service': return 'bg-gray-100 text-gray-800';
     default: return 'bg-gray-100 text-gray-800';
   }
 };

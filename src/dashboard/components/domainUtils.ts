@@ -6,7 +6,7 @@ import { LibraryDetector } from '../../background/utils/library-detector';
 export interface LibraryInfo {
   name: string;
   version?: string;
-  type: 'framework' | 'utility' | 'ui' | 'analytics' | 'cdn' | 'polyfill' | 'unknown';
+  type: 'framework' | 'utility' | 'ui' | 'analytics' | 'cdn' | 'polyfill' | 'unknown' | 'privacy-tools' | 'tracking-tools' | 'site-tools' | 'media-tools' | 'performance-tools' | 'advertising-service' | 'api-endpoint' | 'streaming-service' | 'data-collector' | 'web-service';
   confidence: 'high' | 'medium' | 'low';
   source: 'url' | 'content' | 'headers';
   cdnProvider?: string;
@@ -117,6 +117,69 @@ function extractBaseDomain(url: string): string {
     console.warn('Failed to extract base domain from URL:', url, error);
     return 'unknown';
   }
+}
+
+// Helper function to infer library type from name and URL patterns
+function inferLibraryType(name: string, url: string): LibraryInfo['type'] {
+  const nameLower = name.toLowerCase();
+  const urlLower = url.toLowerCase();
+
+  // 🎯 ADVERTISING & MARKETING SERVICES
+  if (/(?:casalemedia|criteo|adsrvr|pubmatic|doubleclick|adsystem|bidder|cdb|translator|hbopenbid|wunderkind|magnite|sodar|rid)/i.test(nameLower + urlLower)) {
+    return 'advertising-service';
+  }
+
+  // 🎯 ANALYTICS & DATA COLLECTION SERVICES  
+  if (/(?:collector|logs|analytics|browser-intake|optimizely|events|datadog|segment|amplitude|hotjar|gtag|ga)/i.test(nameLower + urlLower)) {
+    return 'data-collector';
+  }
+
+  // 🎯 MEDIA & STREAMING SERVICES
+  if (/(?:livestream|manifests|streaming|warnermediacdn|live-manifests|video|player|stream|media|jwplayer|cygnus)/i.test(nameLower + urlLower)) {
+    return 'streaming-service';
+  }
+
+  // 🎯 API ENDPOINTS & WEB SERVICES
+  if (/(?:api|endpoint|service|reg|segments|desktop|pub|v2|receive|wmcdp|zetaglobal|lijit|direct|ssp|wknd)/i.test(nameLower + urlLower)) {
+    return 'api-endpoint';
+  }
+
+  // 🎯 PRIVACY & COMPLIANCE SERVICES
+  if (/(?:onetrust|otgpp|otbanner|otsdkstub|cookiebot|consent|privacy|gdpr|ccpa|optanon|adsafeprotected|adtrafficquality)/i.test(nameLower + urlLower)) {
+    return 'privacy-tools';
+  }
+
+  // 🎯 TRACKING & IDENTITY SERVICES
+  if (/(?:universalid|iiquniversalid|identity|sync|track|pixel|beacon|collect|tag|trackingpixel)/i.test(nameLower + urlLower)) {
+    return 'tracking-tools';
+  }
+
+  // 🎯 SITE-SPECIFIC FEATURES
+  if (/(?:auth|login|landing|landingprod|freeview|zion|web-client|mb|paywall|checkout|cart|alerts|sitefeatures)/i.test(nameLower + urlLower)) {
+    return 'site-tools';
+  }
+
+  // 🎯 MEDIA LIBRARIES
+  if (/(?:videotools|d3|player)/i.test(nameLower)) {
+    return 'media-tools';
+  }
+
+  // 🎯 PERFORMANCE LIBRARIES
+  if (/(?:loadingtools|load|loader|lazy|defer|preload|cache|optimize|compress|psm|taglw)/i.test(nameLower + urlLower)) {
+    return 'performance-tools';
+  }
+
+  // 🎯 TRADITIONAL JAVASCRIPT LIBRARIES
+  if (/(?:react|vue|angular|ember|backbone)/i.test(nameLower)) {
+    return 'framework';
+  }
+
+  if (/(?:bootstrap|material|semantic|foundation|bulma|tailwind)/i.test(nameLower)) {
+    return 'ui';
+  }
+
+  // Fallback
+  return 'utility';
 }
 
 
@@ -478,7 +541,7 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
         libraries: libs.map(lib => ({
           name: lib.name,
           version: lib.version,
-          type: 'unknown' as const,
+          type: inferLibraryType(lib.name, lib.url),
           confidence: 'high' as const,
           source: 'url' as const,
           minified: true,
@@ -491,11 +554,11 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
       };
     }).sort((a, b) => b.count - a.count);
 
-    // Convert MinifiedLibrary to LibraryInfo format
+    // Convert MinifiedLibrary to LibraryInfo format - preserve original types when possible
     const librariesForDomain: LibraryInfo[] = domainLibraries.map(lib => ({
       name: lib.name,
       version: lib.version,
-      type: 'unknown' as const, // Will be inferred from name
+      type: inferLibraryType(lib.name, lib.url),
       confidence: 'high' as const,
       source: 'url' as const,
       minified: true,
