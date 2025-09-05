@@ -1797,83 +1797,85 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                     </div>
                                   )}
 
-                                  {/* Expanded view - show libraries grouped by source domain */}
+                                  {/* Expanded view - scrollable container for library details */}
                                   {expandedLibraryDomains.has(stat.domain) && (
-                                    <div className="space-y-3 max-w-xl">
-                                      {stat.librarySourceDomains.map((sourceDomain, sourceIndex) => (
-                                        <div key={sourceIndex} className="border rounded p-2 bg-gray-50">
-                                          <div className="flex items-center gap-2 mb-2">
-                                            <span className="text-xs font-medium text-gray-700">
-                                              {sourceDomain.domain}
-                                            </span>
-                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                              {sourceDomain.count}
-                                            </span>
-                                            {sourceDomain.isThirdParty && (
-                                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800" title="Third-party domain">
-                                                {sourceDomain.thirdPartyType === 'cdn' ? '📦' :
-                                                 sourceDomain.thirdPartyType === 'analytics' ? '📊' :
-                                                 sourceDomain.thirdPartyType === 'advertising' ? '📢' :
-                                                 sourceDomain.thirdPartyType === 'social' ? '👥' :
-                                                 '🔗'} 3rd
+                                    <div className="mt-2 border rounded-md bg-gray-50/50 max-h-64 overflow-y-auto">
+                                      <div className="p-3 space-y-3">
+                                        {stat.librarySourceDomains.map((sourceDomain, sourceIndex) => (
+                                          <div key={sourceIndex} className="border rounded p-2 bg-white shadow-sm">
+                                            <div className="flex items-center gap-2 mb-2">
+                                              <span className="text-xs font-medium text-gray-700">
+                                                {sourceDomain.domain}
                                               </span>
-                                            )}
-                                          </div>
-                                          <div className="flex flex-wrap gap-1">
-                                            {sourceDomain.libraries.map((lib, libIndex) => {
-                                              // Use smart truncation for better display
-                                              const displayName = LibraryDetector.getDisplayName(lib, 25);
-                                              const fullName = `${lib.name}${lib.version ? `@${lib.version}` : ''}`;
-
-                                              // Determine resource type and styling
-                                              const getResourceTypeInfo = (libType: string) => {
-                                                switch (libType) {
-                                                  case 'advertising-service':
-                                                    return { icon: '📢', bgColor: 'bg-red-100', textColor: 'text-red-800', label: 'Ad Service' };
-                                                  case 'data-collector':
-                                                    return { icon: '📊', bgColor: 'bg-purple-100', textColor: 'text-purple-800', label: 'Analytics' };
-                                                  case 'streaming-service':
-                                                    return { icon: '🎥', bgColor: 'bg-green-100', textColor: 'text-green-800', label: 'Media' };
-                                                  case 'api-endpoint':
-                                                    return { icon: '🔗', bgColor: 'bg-orange-100', textColor: 'text-orange-800', label: 'API' };
-                                                  case 'privacy-tools':
-                                                    return { icon: '🔒', bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Privacy' };
-                                                  case 'framework':
-                                                  case 'utility':
-                                                  case 'ui':
-                                                    return { icon: '📚', bgColor: 'bg-blue-100', textColor: 'text-blue-800', label: 'Library' };
-                                                  case 'tracking-tools':
-                                                    return { icon: '👁️', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', label: 'Tracking' };
-                                                  case 'site-tools':
-                                                    return { icon: '⚙️', bgColor: 'bg-indigo-100', textColor: 'text-indigo-800', label: 'Site Tool' };
-                                                  case 'media-tools':
-                                                    return { icon: '🎬', bgColor: 'bg-pink-100', textColor: 'text-pink-800', label: 'Media Tool' };
-                                                  case 'performance-tools':
-                                                    return { icon: '⚡', bgColor: 'bg-cyan-100', textColor: 'text-cyan-800', label: 'Performance' };
-                                                  default:
-                                                    return { icon: '🔧', bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Resource' };
-                                                }
-                                              };
-
-                                              const typeInfo = getResourceTypeInfo(lib.type);
-
-                                              return (
-                                                <span
-                                                  key={libIndex}
-                                                  className={`inline-flex items-center px-2 py-1 ${typeInfo.bgColor} ${typeInfo.textColor} text-xs font-medium rounded`}
-                                                  title={`${fullName} (${typeInfo.label}) from ${sourceDomain.domain}`}
-                                                >
-                                                  <span className="mr-1">{typeInfo.icon}</span>
-                                                  {displayName}
-                                                  {lib.version && !displayName.includes('@') && (
-                                                    <span className="ml-1 opacity-75">@{lib.version}</span>
-                                                  )}
+                                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                                {sourceDomain.count}
+                                              </span>
+                                              {sourceDomain.isThirdParty && (
+                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800" title="Third-party domain">
+                                                  {sourceDomain.thirdPartyType === 'cdn' ? '📦' :
+                                                   sourceDomain.thirdPartyType === 'analytics' ? '📊' :
+                                                   sourceDomain.thirdPartyType === 'advertising' ? '📢' :
+                                                   sourceDomain.thirdPartyType === 'social' ? '👥' :
+                                                   '🔗'} 3rd
                                                 </span>
-                                              );
-                                            })}
+                                              )}
+                                            </div>
+                                            <div className="flex flex-wrap gap-1">
+                                              {sourceDomain.libraries.map((lib, libIndex) => {
+                                                // Use smart truncation for better display
+                                                const displayName = LibraryDetector.getDisplayName(lib, 25);
+                                                const fullName = `${lib.name}${lib.version ? `@${lib.version}` : ''}`;
+
+                                                // Determine resource type and styling
+                                                const getResourceTypeInfo = (libType: string) => {
+                                                  switch (libType) {
+                                                    case 'advertising-service':
+                                                      return { icon: '📢', bgColor: 'bg-red-100', textColor: 'text-red-800', label: 'Ad Service' };
+                                                    case 'data-collector':
+                                                      return { icon: '📊', bgColor: 'bg-purple-100', textColor: 'text-purple-800', label: 'Analytics' };
+                                                    case 'streaming-service':
+                                                      return { icon: '🎥', bgColor: 'bg-green-100', textColor: 'text-green-800', label: 'Media' };
+                                                    case 'api-endpoint':
+                                                      return { icon: '🔗', bgColor: 'bg-orange-100', textColor: 'text-orange-800', label: 'API' };
+                                                    case 'privacy-tools':
+                                                      return { icon: '🔒', bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Privacy' };
+                                                    case 'framework':
+                                                    case 'utility':
+                                                    case 'ui':
+                                                      return { icon: '📚', bgColor: 'bg-blue-100', textColor: 'text-blue-800', label: 'Library' };
+                                                    case 'tracking-tools':
+                                                      return { icon: '👁️', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', label: 'Tracking' };
+                                                    case 'site-tools':
+                                                      return { icon: '⚙️', bgColor: 'bg-indigo-100', textColor: 'text-indigo-800', label: 'Site Tool' };
+                                                    case 'media-tools':
+                                                      return { icon: '🎬', bgColor: 'bg-pink-100', textColor: 'text-pink-800', label: 'Media Tool' };
+                                                    case 'performance-tools':
+                                                      return { icon: '⚡', bgColor: 'bg-cyan-100', textColor: 'text-cyan-800', label: 'Performance' };
+                                                    default:
+                                                      return { icon: '🔧', bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Resource' };
+                                                  }
+                                                };
+
+                                                const typeInfo = getResourceTypeInfo(lib.type);
+
+                                                return (
+                                                  <span
+                                                    key={libIndex}
+                                                    className={`inline-flex items-center px-2 py-1 ${typeInfo.bgColor} ${typeInfo.textColor} text-xs font-medium rounded`}
+                                                    title={`${fullName} (${typeInfo.label}) from ${sourceDomain.domain}`}
+                                                  >
+                                                    <span className="mr-1">{typeInfo.icon}</span>
+                                                    {displayName}
+                                                    {lib.version && !displayName.includes('@') && (
+                                                      <span className="ml-1 opacity-75">@{lib.version}</span>
+                                                    )}
+                                                  </span>
+                                                );
+                                              })}
+                                            </div>
                                           </div>
-                                        </div>
-                                      ))}
+                                        ))}
+                                      </div>
                                     </div>
                                   )}
                                 </div>
