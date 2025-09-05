@@ -651,9 +651,26 @@ export class LibraryDetector {
   static detectFromDOMGlobals(windowObj: any, domain: string): LibraryInfo[] {
     const libraries: LibraryInfo[] = [];
 
+    // Native browser APIs that should NOT be detected as libraries
+    const NATIVE_BROWSER_APIS = new Set([
+      'IntersectionObserver', 'MutationObserver', 'ResizeObserver', 'PerformanceObserver',
+      'AbortController', 'AbortSignal', 'Blob', 'URL', 'URLSearchParams',
+      'FormData', 'Headers', 'Request', 'Response', 'fetch',
+      'XMLHttpRequest', 'EventSource', 'WebSocket',
+      'localStorage', 'sessionStorage', 'indexedDB',
+      'crypto', 'console', 'navigator', 'location', 'history',
+      'document', 'window', 'screen', 'performance'
+    ]);
+
     for (const [libraryName, config] of Object.entries(LIBRARY_PATTERNS)) {
       if (config.globalSignatures) {
         for (const signature of config.globalSignatures) {
+          // Skip native browser APIs
+          if (NATIVE_BROWSER_APIS.has(signature)) {
+            console.log(`🚫 [LibraryDetector] Skipping native API: ${signature}`);
+            continue;
+          }
+
           if (windowObj[signature]) {
             const globalObj = windowObj[signature];
             let version: string | undefined;

@@ -243,9 +243,18 @@ export class ContentLibraryDetectionModule {
 
     // Also watch for changes that might indicate new libraries loaded via AJAX/modules
     let lastGlobalCheck = Date.now();
-    const globalCheckInterval = setInterval(() => {
+    const globalCheckInterval = setInterval(async () => {
       const now = Date.now();
       if (now - lastGlobalCheck > 10000) { // Check every 10 seconds
+        
+        // SECURITY FIX: Check permissions before dynamic detection
+        const hasLoggingPermission = await this.checkLoggingPermissions();
+        if (!hasLoggingPermission) {
+          console.log('🚫 [ContentLibraryDetection] Dynamic detection skipped - no logging enabled');
+          lastGlobalCheck = now;
+          return;
+        }
+
         const domain = window.location.hostname;
         const newGlobalLibraries = LibraryDetector.detectFromDOMGlobals(window as any, domain);
 
