@@ -44,12 +44,15 @@ export class ContentLibraryDetectionModule {
         return;
       }
 
-      const domain = window.location.hostname;
+      // DOMAIN CONSISTENCY FIX: Use same domain extraction logic as network processor
+      // This ensures libraries are grouped under the same main domain (e.g., yahoo.com instead of finance.yahoo.com)
+      const mainDomain = this.extractMainDomain(window.location.href);
+      
       const detectedLibraries: LibraryInfo[] = [];
 
       // 1. 🌍 DOM Global Detection - Check window objects
       console.log('🌍 [ContentLibraryDetection] Analyzing global objects...');
-      const globalLibraries = LibraryDetector.detectFromDOMGlobals(window as any, domain);
+      const globalLibraries = LibraryDetector.detectFromDOMGlobals(window as any, mainDomain);
       detectedLibraries.push(...globalLibraries);
 
       // 2. Wait a bit for inline scripts to execute and create global objects
@@ -58,21 +61,21 @@ export class ContentLibraryDetectionModule {
 
       // 3. Re-run DOM global detection to catch dynamically created libraries
       console.log('🔄 [ContentLibraryDetection] Re-analyzing globals for inline libraries...');
-      const delayedGlobalLibraries = LibraryDetector.detectFromDOMGlobals(window as any, domain);
+      const delayedGlobalLibraries = LibraryDetector.detectFromDOMGlobals(window as any, mainDomain);
       detectedLibraries.push(...delayedGlobalLibraries);
 
       // 4. 🎨 DOM Structure Detection - Check DOM patterns
       console.log('🎨 [ContentLibraryDetection] Analyzing DOM structure...');
-      const domLibraries = LibraryDetector.detectFromDOMStructure(document, domain);
+      const domLibraries = LibraryDetector.detectFromDOMStructure(document, mainDomain);
       detectedLibraries.push(...domLibraries);
 
       // 5. 📦 Script Analysis - Analyze existing script tags
       console.log('📦 [ContentLibraryDetection] Analyzing script content...');
-      this.analyzeExistingScripts(domain, detectedLibraries);
+      this.analyzeExistingScripts(mainDomain, detectedLibraries);
 
       // 6. 🗺️ Source Map Analysis - Check for source maps
       console.log('🗺️ [ContentLibraryDetection] Checking for source maps...');
-      this.analyzeSourceMaps(domain, detectedLibraries);
+      this.analyzeSourceMaps(mainDomain, detectedLibraries);
 
       // Store results and send to background
       this.detectionResults = detectedLibraries;
@@ -108,6 +111,30 @@ export class ContentLibraryDetectionModule {
     } catch (error) {
       console.warn('⚠️ [ContentLibraryDetection] Error checking permissions:', error);
       return false; // If we can't check, don't run library detection
+    }
+  }
+
+  /**
+   * Extract main domain from URL (consistent with network processor)
+   */
+  private static extractMainDomain(url: string): string {
+    try {
+      const urlObj = new URL(url);
+      const hostname = urlObj.hostname;
+
+      // Remove 'www.' prefix if present
+      const withoutWww = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
+
+      // For most cases, return the base domain
+      const parts = withoutWww.split('.');
+      if (parts.length >= 2) {
+        return parts.slice(-2).join('.');
+      }
+
+      return withoutWww;
+    } catch (error) {
+      console.warn('[ContentLibraryDetection] Failed to extract main domain from URL:', url, error);
+      return 'unknown';
     }
   }
 
@@ -255,8 +282,8 @@ export class ContentLibraryDetectionModule {
           return;
         }
 
-        const domain = window.location.hostname;
-        const newGlobalLibraries = LibraryDetector.detectFromDOMGlobals(window as any, domain);
+        const mainDomain = this.extractMainDomain(window.location.href);
+        const newGlobalLibraries = LibraryDetector.detectFromDOMGlobals(window as any, mainDomain);
 
         // Only send new detections
         const newLibraries = newGlobalLibraries.filter(lib =>
@@ -285,7 +312,7 @@ export class ContentLibraryDetectionModule {
    * Handle a newly detected script element
    */
   private static handleNewScript(script: HTMLScriptElement): void {
-    const domain = window.location.hostname;
+    const mainDomain = this.extractMainDomain(window.location.href);
     const src = script.src;
 
     if (src && !src.startsWith('chrome-extension:') && !src.startsWith('moz-extension:')) {
@@ -293,13 +320,13 @@ export class ContentLibraryDetectionModule {
 
       // For same-origin scripts, try to analyze content
       if (src.startsWith(window.location.origin)) {
-        this.fetchAndAnalyzeScript(src, domain, this.detectionResults);
+        this.fetchAndAnalyzeScript(src, mainDomain, this.detectionResults);
       }
     } else if (script.textContent || script.innerHTML) {
       // Analyze inline script content
       const content = script.textContent || script.innerHTML;
       if (content.length > 500) { // Only analyze substantial scripts
-        const libraries = LibraryDetector.detectFromBundleAnalysis(content, `${domain}/dynamic-inline-script`, domain);
+        const libraries = LibraryDetector.detectFromBundleAnalysis(content, `${mainDomain}/dynamic-inline-script`, mainDomain);
         if (libraries.length > 0) {
           console.log(`📦 [ContentLibraryDetection] Found ${libraries.length} libraries in dynamic inline script`);
           this.detectionResults.push(...libraries);
@@ -321,7 +348,7 @@ export class ContentLibraryDetectionModule {
         action: 'CONTENT_LIBRARY_DETECTION',
         libraries,
         url: window.location.href,
-        domain: window.location.hostname,
+        domain: this.extractMainDomain(window.location.href),
         timestamp: Date.now()
       }).catch(error => {
         console.warn('📚 [ContentLibraryDetection] Failed to send results to background:', error);
