@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Button } from './ui/button';
-import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen } from 'lucide-react';
+import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen, Megaphone, BarChart, Video, Shield, Library, Target, Settings, Film, Zap, Wrench, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { groupDataByDomain, DomainStats } from './domainUtils';
 // Import the new shared data processing system
@@ -215,6 +215,24 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     } else {
       setLibraryModalDomain(domain);
       setIsLibraryModalOpen(true);
+    }
+  };
+
+  // Helper function to get third-party type icon
+  const getThirdPartyIcon = (thirdPartyType?: string) => {
+    switch (thirdPartyType) {
+      case 'advertising':
+        return <Megaphone className="h-3 w-3" />;
+      case 'tracking':
+        return <Target className="h-3 w-3" />;
+      case 'cdn':
+        return <Globe className="h-3 w-3" />;
+      case 'analytics':
+        return <BarChart className="h-3 w-3" />;
+      case 'social':
+        return <Monitor className="h-3 w-3" />;
+      default:
+        return <Globe className="h-3 w-3" />;
     }
   };
 
@@ -1508,12 +1526,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                   }`}
                                   title={`3rd party ${stat.thirdPartyType || 'service'}`}
                                 >
-                                  {stat.thirdPartyType === 'advertising' ? '📢' :
-                                   stat.thirdPartyType === 'tracking' ? '🎯' :
-                                   stat.thirdPartyType === 'cdn' ? '📦' :
-                                   stat.thirdPartyType === 'analytics' ? '📊' :
-                                   stat.thirdPartyType === 'social' ? '👥' :
-                                   '🔗'} 3rd
+                                  {getThirdPartyIcon(stat.thirdPartyType)} 3rd party domain
                                 </span>
                               )}
                               {/* Single total event count */}
@@ -1661,7 +1674,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                             </TableHead>
                             <TableHead className="font-semibold text-center">
                               <div className="flex items-center gap-2 justify-center">
-                                � Web Resources
+                                <Globe className="h-3 w-3" />
+                                Web Resources
                                 <SortButton column="libraryCount" currentSort={domainSortConfig} onSort={handleDomainSort} />
                               </div>
                             </TableHead>
@@ -1696,12 +1710,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                         }`}
                                         title={`3rd party ${stat.thirdPartyType || 'service'}`}
                                       >
-                                        {stat.thirdPartyType === 'advertising' ? '📢' :
-                                         stat.thirdPartyType === 'tracking' ? '🎯' :
-                                         stat.thirdPartyType === 'cdn' ? '📦' :
-                                         stat.thirdPartyType === 'analytics' ? '📊' :
-                                         stat.thirdPartyType === 'social' ? '👥' :
-                                         '🔗'} 3rd
+                                        {getThirdPartyIcon(stat.thirdPartyType)} 3rd
                                       </span>
                                     )}
                                   </div>
@@ -1747,33 +1756,34 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                         const getResourceTypeInfo = (libType: string) => {
                                           switch (libType) {
                                             case 'advertising-service':
-                                              return { icon: '📢', bgColor: 'bg-red-100', textColor: 'text-red-800', label: 'Ad Service' };
+                                              return { icon: Megaphone, bgColor: 'bg-red-100', textColor: 'text-red-800', label: 'Ad Service' };
                                             case 'data-collector':
-                                              return { icon: '📊', bgColor: 'bg-purple-100', textColor: 'text-purple-800', label: 'Analytics' };
+                                              return { icon: BarChart, bgColor: 'bg-purple-100', textColor: 'text-purple-800', label: 'Analytics' };
                                             case 'streaming-service':
-                                              return { icon: '🎥', bgColor: 'bg-green-100', textColor: 'text-green-800', label: 'Media' };
+                                              return { icon: Video, bgColor: 'bg-green-100', textColor: 'text-green-800', label: 'Media' };
                                             case 'api-endpoint':
-                                              return { icon: '🔗', bgColor: 'bg-orange-100', textColor: 'text-orange-800', label: 'API' };
+                                              return { icon: Globe, bgColor: 'bg-orange-100', textColor: 'text-orange-800', label: 'API' };
                                             case 'privacy-tools':
-                                              return { icon: '🔒', bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Privacy' };
+                                              return { icon: Shield, bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Privacy' };
                                             case 'framework':
                                             case 'utility':
                                             case 'ui':
-                                              return { icon: '📚', bgColor: 'bg-blue-100', textColor: 'text-blue-800', label: 'Library' };
+                                              return { icon: Library, bgColor: 'bg-blue-100', textColor: 'text-blue-800', label: 'Library' };
                                             case 'tracking-tools':
-                                              return { icon: '👁️', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', label: 'Tracking' };
+                                              return { icon: Target, bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', label: 'Tracking' };
                                             case 'site-tools':
-                                              return { icon: '⚙️', bgColor: 'bg-indigo-100', textColor: 'text-indigo-800', label: 'Site Tool' };
+                                              return { icon: Settings, bgColor: 'bg-indigo-100', textColor: 'text-indigo-800', label: 'Site Tool' };
                                             case 'media-tools':
-                                              return { icon: '🎬', bgColor: 'bg-pink-100', textColor: 'text-pink-800', label: 'Media Tool' };
+                                              return { icon: Film, bgColor: 'bg-pink-100', textColor: 'text-pink-800', label: 'Media Tool' };
                                             case 'performance-tools':
-                                              return { icon: '⚡', bgColor: 'bg-cyan-100', textColor: 'text-cyan-800', label: 'Performance' };
+                                              return { icon: Zap, bgColor: 'bg-cyan-100', textColor: 'text-cyan-800', label: 'Performance' };
                                             default:
-                                              return { icon: '🔧', bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Resource' };
+                                              return { icon: Wrench, bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Resource' };
                                           }
                                         };
 
                                         const typeInfo = getResourceTypeInfo(lib.type);
+                                        const IconComponent = typeInfo.icon;
 
                                         return (
                                           <span
@@ -1781,7 +1791,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                             className={`inline-flex items-center px-2 py-1 ${typeInfo.bgColor} ${typeInfo.textColor} text-xs font-medium rounded`}
                                             title={`${fullName} (${typeInfo.label})`}
                                           >
-                                            <span className="mr-1">{typeInfo.icon}</span>
+                                            <IconComponent className="h-3 w-3 mr-1" />
                                             {displayName}
                                             {lib.version && !displayName.includes('@') && (
                                               <span className="ml-1 opacity-75">@{lib.version}</span>
@@ -1812,11 +1822,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                               </span>
                                               {sourceDomain.isThirdParty && (
                                                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800" title="Third-party domain">
-                                                  {sourceDomain.thirdPartyType === 'cdn' ? '📦' :
-                                                   sourceDomain.thirdPartyType === 'analytics' ? '📊' :
-                                                   sourceDomain.thirdPartyType === 'advertising' ? '📢' :
-                                                   sourceDomain.thirdPartyType === 'social' ? '👥' :
-                                                   '🔗'} 3rd
+                                                  {getThirdPartyIcon(sourceDomain.thirdPartyType)} 3rd
                                                 </span>
                                               )}
                                             </div>
@@ -1830,33 +1836,34 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                                 const getResourceTypeInfo = (libType: string) => {
                                                   switch (libType) {
                                                     case 'advertising-service':
-                                                      return { icon: '📢', bgColor: 'bg-red-100', textColor: 'text-red-800', label: 'Ad Service' };
+                                                      return { icon: Megaphone, bgColor: 'bg-red-100', textColor: 'text-red-800', label: 'Ad Service' };
                                                     case 'data-collector':
-                                                      return { icon: '📊', bgColor: 'bg-purple-100', textColor: 'text-purple-800', label: 'Analytics' };
+                                                      return { icon: BarChart, bgColor: 'bg-purple-100', textColor: 'text-purple-800', label: 'Analytics' };
                                                     case 'streaming-service':
-                                                      return { icon: '🎥', bgColor: 'bg-green-100', textColor: 'text-green-800', label: 'Media' };
+                                                      return { icon: Video, bgColor: 'bg-green-100', textColor: 'text-green-800', label: 'Media' };
                                                     case 'api-endpoint':
-                                                      return { icon: '🔗', bgColor: 'bg-orange-100', textColor: 'text-orange-800', label: 'API' };
+                                                      return { icon: Globe, bgColor: 'bg-orange-100', textColor: 'text-orange-800', label: 'API' };
                                                     case 'privacy-tools':
-                                                      return { icon: '🔒', bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Privacy' };
+                                                      return { icon: Shield, bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Privacy' };
                                                     case 'framework':
                                                     case 'utility':
                                                     case 'ui':
-                                                      return { icon: '📚', bgColor: 'bg-blue-100', textColor: 'text-blue-800', label: 'Library' };
+                                                      return { icon: Library, bgColor: 'bg-blue-100', textColor: 'text-blue-800', label: 'Library' };
                                                     case 'tracking-tools':
-                                                      return { icon: '👁️', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', label: 'Tracking' };
+                                                      return { icon: Target, bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', label: 'Tracking' };
                                                     case 'site-tools':
-                                                      return { icon: '⚙️', bgColor: 'bg-indigo-100', textColor: 'text-indigo-800', label: 'Site Tool' };
+                                                      return { icon: Settings, bgColor: 'bg-indigo-100', textColor: 'text-indigo-800', label: 'Site Tool' };
                                                     case 'media-tools':
-                                                      return { icon: '🎬', bgColor: 'bg-pink-100', textColor: 'text-pink-800', label: 'Media Tool' };
+                                                      return { icon: Film, bgColor: 'bg-pink-100', textColor: 'text-pink-800', label: 'Media Tool' };
                                                     case 'performance-tools':
-                                                      return { icon: '⚡', bgColor: 'bg-cyan-100', textColor: 'text-cyan-800', label: 'Performance' };
+                                                      return { icon: Zap, bgColor: 'bg-cyan-100', textColor: 'text-cyan-800', label: 'Performance' };
                                                     default:
-                                                      return { icon: '🔧', bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Resource' };
+                                                      return { icon: Wrench, bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Resource' };
                                                   }
                                                 };
 
                                                 const typeInfo = getResourceTypeInfo(lib.type);
+                                                const IconComponent = typeInfo.icon;
 
                                                 return (
                                                   <span
@@ -1864,7 +1871,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                                     className={`inline-flex items-center px-2 py-1 ${typeInfo.bgColor} ${typeInfo.textColor} text-xs font-medium rounded`}
                                                     title={`${fullName} (${typeInfo.label}) from ${sourceDomain.domain}`}
                                                   >
-                                                    <span className="mr-1">{typeInfo.icon}</span>
+                                                    <IconComponent className="h-3 w-3 mr-1" />
                                                     {displayName}
                                                     {lib.version && !displayName.includes('@') && (
                                                       <span className="ml-1 opacity-75">@{lib.version}</span>
