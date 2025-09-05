@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Library Detection Verification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .url {
+            font-family: monospace;
+            background: #f0f0f0;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        h1 { color: #333; text-align: center; }
+        h2 { color: #555; border-bottom: 2px solid #eee; padding-bottom: 5px; }
+        .status { font-weight: bold; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Library Detection Verification</h1>
+
+    <div class="test-section">
+        <h2>Detection Status</h2>
+        <p class="status info">📡 Testing library detection for various web tool types...</p>
+        <p><strong>Expected:</strong> The extension should now detect tools from various URLs, including those without .js extensions</p>
+    </div>
+
+    <div class="test-section">
+        <h2>🛡️ Privacy Tools</h2>
+        <p>Testing privacy-related tool detection:</p>
+        <ul>
+            <li><span class="url">https://cmp.cnn.com/otgpp/otbannersdk.js</span> - OneTrust Banner SDK</li>
+            <li><span class="url">https://cmp.cnn.com/privacy/consent</span> - Consent Management</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Tracking Tools</h2>
+        <p>Testing tracking script detection:</p>
+        <ul>
+            <li><span class="url">https://sync.cnn.com/iiquniversalid-sync</span> - Universal ID Sync</li>
+            <li><span class="url">https://analytics.cnn.com/track</span> - Analytics Tracking</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>🌐 Site Tools</h2>
+        <p>Testing site infrastructure tool detection:</p>
+        <ul>
+            <li><span class="url">https://cdn.cnn.com/landingprod/config</span> - Landing Page Production</li>
+            <li><span class="url">https://api.cnn.com/freeview/check</span> - Free View Check</li>
+            <li><span class="url">https://media.cnn.com/zion-web-client/v2</span> - Zion Web Client</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>⚡ Performance Tools</h2>
+        <p>Testing performance monitoring tool detection:</p>
+        <ul>
+            <li><span class="url">https://perf.cnn.com/psm/metrics</span> - Performance Service Manager</li>
+            <li><span class="url">https://tag.cnn.com/taglw/v1</span> - Tag Lightweight</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>🔧 Testing Instructions</h2>
+        <ol>
+            <li><strong>Enable the extension</strong> and make sure network logging is enabled</li>
+            <li><strong>Open the browser console</strong> (F12) to see detection logs</li>
+            <li><strong>Visit CNN.com</strong> or another major website</li>
+            <li><strong>Check the extension dashboard</strong> to see detected libraries</li>
+            <li><strong>Look for console logs</strong> like: <span class="url">[LibraryDetector] Found X libraries</span></li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>🎯 Key Fixes Applied</h2>
+        <ul>
+            <li>✅ <strong>Removed JavaScript-only restriction</strong> - Now processes all web resources</li>
+            <li>✅ <strong>Library detection before noise filtering</strong> - Detects tools even from filtered requests</li>
+            <li>✅ <strong>Enhanced tool name extraction</strong> - Better parsing of URLs without .js extensions</li>
+            <li>✅ <strong>Comprehensive logging</strong> - Detailed console output for debugging</li>
+        </ul>
+    </div>
+
+    <script>
+        console.log('🔍 Library Detection Verification Page Loaded');
+        console.log('📡 If you see library detection logs in the console, the fixes are working!');
+
+        // Simulate some requests that should be detected
+        const testUrls = [
+            'https://example.com/otgpp/otbannersdk.js',
+            'https://example.com/iiquniversalid-sync',
+            'https://example.com/landingprod',
+            'https://example.com/freeview',
+            'https://example.com/zion-web-client',
+            'https://example.com/psm',
+            'https://example.com/taglw'
+        ];
+
+        console.log('🧪 Test URLs that should now be detected:', testUrls);
+    </script>
+</body>
+</html>

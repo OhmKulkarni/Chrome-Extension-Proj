@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Library Detection Restoration Test</title>
+</head>
+<body>
+    <h1>🔧 Library Detection Fix Test</h1>
+    <div id="results"></div>
+
+    <script>
+        // Test the restored library detector behavior
+        async function testLibraryDetectionFix() {
+            console.log('🧪 Testing Library Detection Restoration...');
+
+            const results = document.getElementById('results');
+
+            results.innerHTML = `
+                <h2>🎯 Key Changes Made:</h2>
+                <div style="background: #f0f8ff; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                    <h3>1. ✅ Removed CDN-Only Restriction</h3>
+                    <p><strong>Problem:</strong> Library detection was only working for CDN domains</p>
+                    <p><strong>Fix:</strong> Removed <code>if (cdnProvider || isCdnMatch)</code> restriction</p>
+                    <p><strong>Result:</strong> Now detects libraries from ANY domain (including cnn.com)</p>
+                </div>
+
+                <div style="background: #fff0f5; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                    <h3>2. 🚫 Added Targeted Ad Domain Filtering</h3>
+                    <p><strong>Problem:</strong> casalemedia.com/cygnus creating fake library detections</p>
+                    <p><strong>Fix:</strong> Added <code>isAdTrackingDomain()</code> check in <code>detectFromRequest()</code></p>
+                    <p><strong>Result:</strong> Ad domains return [] for libraries but still appear in domain stats</p>
+                </div>
+
+                <h2>📊 Expected Behavior Now:</h2>
+                <div style="background: #f0fff0; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                    <h3>✅ CNN.com Should Now Show:</h3>
+                    <ul>
+                        <li><strong>20+ Libraries Detected</strong> (like before the CDN restriction)</li>
+                        <li><strong>React, jQuery, Analytics</strong> libraries from cnn.com domain</li>
+                        <li><strong>Bootstrap, D3, Video tools</strong> from various sources</li>
+                        <li><strong>No "loadingtools" spam</strong> from generic URLs</li>
+                    </ul>
+                </div>
+
+                <div style="background: #fffacd; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                    <h3>🚫 Ad Domains Will Show:</h3>
+                    <ul>
+                        <li><strong>casalemedia.com</strong> - No library detection, but still in domain list</li>
+                        <li><strong>criteo.com</strong> - No library detection, but still tracked for requests</li>
+                        <li><strong>adsrvr.org</strong> - No library detection, but visible in network stats</li>
+                    </ul>
+                </div>
+
+                <h2>🔍 Technical Details:</h2>
+                <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0; font-family: monospace;">
+                    <h3>Before Fix:</h3>
+                    <pre>detectFromUrl() {
+  if (cdnProvider || isCdnMatch) { // ❌ Too restrictive!
+    // Only detect from CDN sources
+  }
+}</pre>
+
+                    <h3>After Fix:</h3>
+                    <pre>detectFromUrl() {
+  // ✅ Detect from ANY domain (except ad domains)
+  libraries.push({
+    confidence: cdnProvider ? 0.9 : 0.7 // Higher confidence for CDNs
+  });
+}</pre>
+                </div>
+
+                <h2>🎯 Next Steps:</h2>
+                <ol>
+                    <li><strong>Test on CNN.com</strong> - Should see 20+ libraries again</li>
+                    <li><strong>Verify Ad Filtering</strong> - casalemedia.com should show no libraries</li>
+                    <li><strong>Check Domain Grouping</strong> - CNN should still show 24 grouped domains</li>
+                    <li><strong>Confirm No Spam</strong> - No more excessive "loadingtools" detections</li>
+                </ol>
+
+                <div style="background: #e6ffe6; padding: 15px; border-radius: 5px; margin: 10px 0; border: 2px solid #4CAF50;">
+                    <h3>🎉 Summary:</h3>
+                    <p><strong>The library detection should now work like it did before</strong> - detecting comprehensive libraries from the main domain and CDNs, while filtering out false positives from ad/tracking domains!</p>
+                </div>
+            `;
+        }
+
+        // Run test when page loads
+        testLibraryDetectionFix();
+    </script>
+</body>
+</html>

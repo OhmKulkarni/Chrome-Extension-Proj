@@ -347,6 +347,7 @@ export class NetworkProcessorModule {
         body: this.sanitizeBody(body, networkConfig.bodyCapture?.maxBodySize || 2000),
         timestamp: timestamp || new Date().toISOString(),
         source_url: tabUrl || url,
+        main_domain: mainDomain, // Add main_domain for proper library grouping
         ...(tabId && { tabId })
       };
 
@@ -827,16 +828,16 @@ export class NetworkProcessorModule {
     try {
       // Check if any logging is enabled before proceeding with library detection
       const tabId = validatedRequestData.tabId;
-      
+
       if (tabId) {
         // Import the unified permission manager directly
         const { unifiedPermissionManager } = await import('../../utils/unified-permission-manager');
-        
+
         // Check if any of the three logging types are enabled for this tab
         const isNetworkEnabled = await unifiedPermissionManager.isFeatureEnabled(tabId, 'network');
         const isConsoleEnabled = await unifiedPermissionManager.isFeatureEnabled(tabId, 'console');
         const isTokenEnabled = await unifiedPermissionManager.isFeatureEnabled(tabId, 'tokens');
-        
+
         // If no logging is enabled, skip library detection
         if (!isNetworkEnabled && !isConsoleEnabled && !isTokenEnabled) {
           console.log(`🚫 LibraryDetector: Skipping detection - no logging enabled for tab ${tabId}`);

@@ -1,5 +1,7 @@
 // Domain intelligence utilities - SIMPLIFIED VERSION with main_domain field approach
 
+import { LibraryDetector } from '../../background/utils/library-detector';
+
 // Library information interface
 export interface LibraryInfo {
   name: string;
@@ -64,6 +66,17 @@ export interface DomainStats {
   uiLibraryCount: number;
   analyticsCount: number;
   cdnCount: number;
+  // NEW: Library source domain breakdown (for dropdowns)
+  librarySourceDomains: Array<{
+    domain: string;
+    libraries: LibraryInfo[];
+    count: number;
+    isThirdParty: boolean;
+    thirdPartyType?: string;
+  }>;
+  // NEW: 3rd party classification
+  isThirdParty?: boolean;
+  thirdPartyType?: 'advertising' | 'tracking' | 'cdn' | 'analytics' | 'social' | 'other';
 }
 
 
@@ -447,6 +460,37 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
       return lib.main_domain === mainDomain;
     });
 
+    // Group libraries by their source domain
+    const librarySourceMap = new Map<string, any[]>();
+    domainLibraries.forEach(lib => {
+      const sourceDomain = lib.source_domain || 'unknown';
+      if (!librarySourceMap.has(sourceDomain)) {
+        librarySourceMap.set(sourceDomain, []);
+      }
+      librarySourceMap.get(sourceDomain)!.push(lib);
+    });
+
+    // Create library source domain breakdown
+    const librarySourceDomains = Array.from(librarySourceMap.entries()).map(([sourceDomain, libs]) => {
+      const thirdPartyInfo = LibraryDetector.classifyThirdPartyDomain(sourceDomain);
+      return {
+        domain: sourceDomain,
+        libraries: libs.map(lib => ({
+          name: lib.name,
+          version: lib.version,
+          type: 'unknown' as const,
+          confidence: 'high' as const,
+          source: 'url' as const,
+          minified: true,
+          size: lib.size,
+          url: lib.url
+        })),
+        count: libs.length,
+        isThirdParty: thirdPartyInfo.isThirdParty,
+        thirdPartyType: thirdPartyInfo.thirdPartyType
+      };
+    }).sort((a, b) => b.count - a.count);
+
     // Convert MinifiedLibrary to LibraryInfo format
     const librariesForDomain: LibraryInfo[] = domainLibraries.map(lib => ({
       name: lib.name,
@@ -480,6 +524,9 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
       ['cdn', 'jsdelivr', 'unpkg', 'cdnjs'].some(cdn => lib.url.toLowerCase().includes(cdn))
     ).length;
 
+    // Classify domain as 3rd party
+    const thirdPartyClassification = LibraryDetector.classifyThirdPartyDomain(mainDomain);
+
     return {
       domain: mainDomain,
       fullDomain: group.info.fullDomain,
@@ -506,11 +553,15 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
       // Library information with actual data
       libraries: librariesForDomain,
       libraryCount: librariesForDomain.length,
+      librarySourceDomains,
       frameworkCount,
       utilityCount,
       uiLibraryCount,
       analyticsCount,
-      cdnCount
+      cdnCount,
+      // 3rd party classification
+      isThirdParty: thirdPartyClassification.isThirdParty,
+      thirdPartyType: thirdPartyClassification.thirdPartyType
     };
   }).sort((a, b) => {
     // Sort by activity level

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Library Detection Diagnostic Test</title>
+</head>
+<body>
+    <h1>🔍 Library Detection Debugging</h1>
+    <div id="results"></div>
+
+    <script>
+        // Diagnostic test for library detection issues
+        async function diagnoseLibraryDetection() {
+            console.log('🔍 Starting Library Detection Diagnostic...');
+
+            const results = document.getElementById('results');
+
+            // Sample URLs that should be detected based on your examples
+            const testUrls = [
+                // Privacy Tools
+                'https://cnn.com/js/otgpp.js',
+                'https://cnn.com/scripts/otbannersdk',
+                'https://cnn.com/assets/otsdkstub.min.js',
+
+                // Tracking Tools
+                'https://cnn.com/js/iiquniversalid-sync',
+                'https://cnn.com/track/i',
+                'https://cnn.com/analytics/tag.js',
+
+                // Site Tools
+                'https://cnn.com/landing/landingprod.js',
+                'https://cnn.com/auth/freeview',
+                'https://cnn.com/client/zion-web-client.js',
+                'https://cnn.com/mobile/zion-mb',
+
+                // Performance Tools
+                'https://cnn.com/optimize/psm.js',
+                'https://cnn.com/tags/taglw',
+                'https://cnn.com/load/loader.js',
+
+                // Generic URLs without .js extension
+                'https://cnn.com/api/tag',
+                'https://cnn.com/services/load',
+                'https://cnn.com/scripts/auth',
+
+                // Query parameter URLs
+                'https://cnn.com/js/otgpp?v=1.0&cb=12345',
+                'https://cnn.com/track/i?pixel=true&id=abc123',
+            ];
+
+            results.innerHTML = `
+                <h2>🧪 Testing Library Detection with Sample URLs</h2>
+                <div style="background: #f0f8ff; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                    <h3>📋 Diagnostic Process:</h3>
+                    <ol>
+                        <li>Test various URL patterns that should be detected</li>
+                        <li>Check console logs for detailed detection flow</li>
+                        <li>Identify where the detection process is failing</li>
+                        <li>Verify pattern matching and filtering logic</li>
+                    </ol>
+                </div>
+
+                <h3>🔍 Test Results:</h3>
+                <div id="test-results" style="font-family: monospace; background: #f5f5f5; padding: 10px; border-radius: 5px;">
+                    <p>⏳ Running tests... Check console for detailed logs</p>
+                </div>
+
+                <h3>📝 Key Areas to Check:</h3>
+                <div style="background: #fff3e0; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                    <h4>1. File Extension Filtering:</h4>
+                    <p>❓ Are URLs without .js extensions being rejected?</p>
+
+                    <h4>2. Tool Name Extraction:</h4>
+                    <p>❓ Is the tool name being extracted correctly from complex URLs?</p>
+
+                    <h4>3. Pattern Matching:</h4>
+                    <p>❓ Are the categorization patterns matching the extracted tool names?</p>
+
+                    <h4>4. Length/Quality Filtering:</h4>
+                    <p>❓ Are tool names being rejected for being too short or generic?</p>
+
+                    <h4>5. Detection Method Calls:</h4>
+                    <p>❓ Is detectFromRequest being called for the right URLs?</p>
+                </div>
+
+                <h3>🎯 Expected Debug Output:</h3>
+                <div style="background: #e8f5e8; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                    <p>Look for these console messages:</p>
+                    <ul>
+                        <li><code>[LibraryDetector] Analyzing request:</code> - Entry point</li>
+                        <li><code>[LibraryDetector] detectFromUrl starting:</code> - URL analysis start</li>
+                        <li><code>[LibraryDetector] Pattern match found:</code> - Known library match</li>
+                        <li><code>[LibraryDetector] Attempting generic detection:</code> - Generic detection start</li>
+                        <li><code>[LibraryDetector] Generic detection for:</code> - Tool name extraction</li>
+                        <li><code>[LibraryDetector] Generic detection success:</code> - Success case</li>
+                        <li><code>[LibraryDetector] Generic detection failed:</code> - Failure case</li>
+                    </ul>
+                </div>
+            `;
+
+            // Simulate the detection process for diagnostic purposes
+            // Note: This won't actually call the real detector, but shows what should happen
+            let testResults = '';
+
+            testUrls.forEach(url => {
+                testResults += `\\n🔍 Testing: ${url}`;
+
+                // Simulate the tool name extraction logic
+                const filename = url.split('/').pop() || '';
+                let toolName = filename
+                    .replace(/\\.(?:min\\.)?js(\\?.*)?$/i, '')
+                    .replace(/\\?.*$/, '')
+                    .toLowerCase();
+
+                if (!toolName) {
+                    const urlPath = new URL(url).pathname;
+                    const pathSegments = urlPath.split('/').filter(segment => segment.length > 0);
+                    toolName = pathSegments[pathSegments.length - 1] || '';
+                    toolName = toolName.replace(/\\?.*$/, '').replace(/\\.(min\\.)?js$/i, '').toLowerCase();
+                }
+
+                testResults += `\\n   Extracted tool name: "${toolName}"`;
+                testResults += `\\n   Length check: ${toolName.length >= 2 ? '✅ PASS' : '❌ FAIL (too short)'}`;
+
+                // Check categorization
+                const nameLower = toolName.toLowerCase();
+                let category = 'utility';
+                if (/(?:onetrust|otgpp|otbanner|otsdkstub)/.test(nameLower)) category = 'privacy-tools';
+                else if (/(?:universalid|iiquniversalid|identity|sync|track|pixel|beacon|collect|analytics|tag)/.test(nameLower)) category = 'tracking-tools';
+                else if (/(?:auth|login|landing|landingprod|freeview|zion|web-client|mb)/.test(nameLower)) category = 'site-tools';
+                else if (/(?:load|loader|lazy|defer|preload|psm|taglw)/.test(nameLower)) category = 'performance-tools';
+
+                testResults += `\\n   Category: ${category}`;
+                testResults += `\\n   Expected result: ${toolName.length >= 2 ? '✅ Should be detected' : '❌ Will be filtered out'}`;
+                testResults += `\\n`;
+            });
+
+            document.getElementById('test-results').innerHTML = `<pre>${testResults}</pre>`;
+
+            console.log('🔍 Diagnostic complete. Check results above and compare with actual behavior.');
+        }
+
+        // Run diagnostic when page loads
+        diagnoseLibraryDetection();
+    </script>
+</body>
+</html>

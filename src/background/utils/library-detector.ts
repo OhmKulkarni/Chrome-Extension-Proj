@@ -213,6 +213,59 @@ const CDN_PROVIDERS = {
 
 export class LibraryDetector {
   /**
+   * Classify the type of 3rd party domain for UI indicators
+   */
+  static classifyThirdPartyDomain(domain: string): { isThirdParty: boolean; thirdPartyType?: 'advertising' | 'tracking' | 'cdn' | 'analytics' | 'social' | 'other' } {
+    // CDN domains
+    const cdnDomains = [
+      'cdnjs.cloudflare.com', 'cdn.jsdelivr.net', 'unpkg.com', 'ajax.googleapis.com',
+      'code.jquery.com', 'stackpath.bootstrapcdn.com', 'maxcdn.bootstrapcdn.com',
+      'use.fontawesome.com', 'fonts.googleapis.com', 'fonts.gstatic.com'
+    ];
+
+    // Analytics domains
+    const analyticsDomains = [
+      'google-analytics.com', 'googletagmanager.com', 'hotjar.com', 'mixpanel.com',
+      'segment.com', 'amplitude.com', 'browser-intake-datadoghq.com'
+    ];
+
+    // Social media domains
+    const socialDomains = [
+      'facebook.net', 'twitter.com', 'linkedin.com', 'pinterest.com',
+      'instagram.com', 'snapchat.com', 'tiktok.com'
+    ];
+
+    // Ad/tracking domains
+    const adTrackingDomains = [
+      'casalemedia.com', 'criteo.com', 'adsrvr.org', 'pubmatic.com', 'doubleclick.net',
+      'googlesyndication.com', 'googleadservices.com', 'amazon-adsystem.com'
+    ];
+
+    // Check CDN
+    if (cdnDomains.some(cdn => domain.includes(cdn)) || /cdn|static|assets/.test(domain)) {
+      return { isThirdParty: true, thirdPartyType: 'cdn' };
+    }
+
+    // Check analytics
+    if (analyticsDomains.some(analytics => domain.includes(analytics))) {
+      return { isThirdParty: true, thirdPartyType: 'analytics' };
+    }
+
+    // Check social
+    if (socialDomains.some(social => domain.includes(social))) {
+      return { isThirdParty: true, thirdPartyType: 'social' };
+    }
+
+    // Check advertising/tracking
+    if (adTrackingDomains.some(ad => domain.includes(ad))) {
+      return { isThirdParty: true, thirdPartyType: 'advertising' };
+    }
+
+    // Default: not identified as 3rd party
+    return { isThirdParty: false };
+  }
+
+  /**
    * Main detection method that analyzes a request for library usage
    */
   static detectFromRequest(url: string, headers: Record<string, any> = {}, responseBody?: string): LibraryInfo[] {
@@ -222,16 +275,22 @@ export class LibraryDetector {
     const domain = new URL(url).hostname;
 
     // Detect from URL patterns
-    libraries.push(...this.detectFromUrl(url));
+    const urlLibraries = this.detectFromUrl(url);
+    console.log('[LibraryDetector] URL pattern detection:', { url, found: urlLibraries.length, libraries: urlLibraries });
+    libraries.push(...urlLibraries);
 
     // Detect from headers if available
     if (Object.keys(headers).length > 0) {
-      libraries.push(...this.detectFromHeaders(headers, url));
+      const headerLibraries = this.detectFromHeaders(headers, url);
+      console.log('[LibraryDetector] Header detection:', { url, found: headerLibraries.length, libraries: headerLibraries });
+      libraries.push(...headerLibraries);
     }
 
     // Detect from response content if available
     if (responseBody) {
-      libraries.push(...this.detectFromContent(responseBody, url));
+      const contentLibraries = this.detectFromContent(responseBody, url);
+      console.log('[LibraryDetector] Content detection:', { url, found: contentLibraries.length, libraries: contentLibraries });
+      libraries.push(...contentLibraries);
     }
 
     // Deduplicate and set domain for all libraries
@@ -240,7 +299,7 @@ export class LibraryDetector {
       lib.domain = domain;
     });
 
-    console.log('[LibraryDetector] Detection results:', { url, detectedCount: uniqueLibraries.length, libraries: uniqueLibraries });
+    console.log('[LibraryDetector] Final detection results:', { url, detectedCount: uniqueLibraries.length, libraries: uniqueLibraries });
     return uniqueLibraries;
   }
 
@@ -251,38 +310,43 @@ export class LibraryDetector {
     const libraries: LibraryInfo[] = [];
     const urlLower = url.toLowerCase();
 
+    console.log('[LibraryDetector] detectFromUrl starting:', { url, urlLower });
+
+    // Check against known library patterns
     for (const [libraryName, config] of Object.entries(LIBRARY_PATTERNS)) {
       for (const pattern of config.patterns) {
         const match = urlLower.match(pattern);
         if (match) {
-          // Check if this is from a CDN
+          console.log('[LibraryDetector] Pattern match found:', { libraryName, pattern: pattern.source, url });
+          const version = match[1] || undefined;
           const cdnProvider = this.detectCdnProvider(url);
-          const isCdnMatch = config.cdnPatterns.some(cdnPattern => cdnPattern.test(url));
 
-          if (cdnProvider || isCdnMatch) {
-            const version = match[1] || undefined;
-            libraries.push({
-              name: libraryName,
-              version,
-              type: config.type,
-              url,
-              cdnProvider,
-              isMinified: this.isMinified(url),
-              confidence: 0.9,
-              domain: '',
-              detectionMethod: 'url-pattern'
-            });
-          }
+          libraries.push({
+            name: libraryName,
+            version,
+            type: config.type,
+            url,
+            cdnProvider,
+            isMinified: this.isMinified(url),
+            confidence: cdnProvider ? 0.9 : 0.7, // Higher confidence for CDN sources
+            domain: '',
+            detectionMethod: 'url-pattern'
+          });
         }
       }
     }
 
     // Try generic library detection for URLs that look like libraries
+    console.log('[LibraryDetector] Attempting generic detection for:', url);
     const genericLibrary = this.detectGenericLibrary(url);
     if (genericLibrary) {
+      console.log('[LibraryDetector] Generic detection success:', genericLibrary);
       libraries.push(genericLibrary);
+    } else {
+      console.log('[LibraryDetector] Generic detection failed for:', url);
     }
 
+    console.log('[LibraryDetector] detectFromUrl finished:', { url, foundCount: libraries.length, libraries });
     return libraries;
   }
 
@@ -291,7 +355,6 @@ export class LibraryDetector {
    */
   private static detectGenericLibrary(url: string): LibraryInfo | null {
     const filename = url.split('/').pop() || '';
-    const baseName = filename.replace(/\.(?:min\.)?js$/i, '').toLowerCase();
 
     // Only filter out obvious non-JavaScript resources
     const nonJavaScriptPatterns = [
@@ -303,13 +366,43 @@ export class LibraryDetector {
       return null;
     }
 
-    // Extract tool name from URL
-    let toolName = baseName;
-    if (!toolName || toolName.length < 1) {
-      // Try to get name from path
-      const pathParts = url.split('/').filter(part => part && !part.includes('.'));
-      toolName = pathParts[pathParts.length - 1] || 'unknown-script';
+    // Extract tool name from URL - be more flexible about file extensions
+    let toolName = '';
+
+    // First try to get name from filename
+    if (filename) {
+      // Remove common JavaScript extensions and query parameters
+      toolName = filename
+        .replace(/\.(?:min\.)?js(\?.*)?$/i, '') // Remove .js, .min.js with query params
+        .replace(/\?.*$/, '') // Remove any remaining query parameters
+        .toLowerCase();
     }
+
+    // If no good filename, try to get name from path
+    if (!toolName || toolName.length < 1) {
+      const pathParts = url.split('/').filter(part => part && !part.includes('.') && part.length > 0);
+      toolName = pathParts[pathParts.length - 1] || '';
+    }
+
+    // If still no name, try to extract from URL path more aggressively
+    if (!toolName || toolName.length < 1) {
+      const urlPath = new URL(url).pathname;
+      const pathSegments = urlPath.split('/').filter(segment => segment.length > 0);
+      toolName = pathSegments[pathSegments.length - 1] || 'unknown-script';
+
+      // Clean up the tool name
+      toolName = toolName
+        .replace(/\?.*$/, '') // Remove query params
+        .replace(/\.(min\.)?js$/i, '') // Remove JS extensions
+        .toLowerCase();
+    }
+
+    // Skip if tool name is too short or generic
+    if (!toolName || toolName.length < 2 || toolName === 'unknown-script') {
+      return null;
+    }
+
+    console.log('[LibraryDetector] Generic detection for:', { url, filename, toolName });
 
     // Intelligent categorization based on patterns
     const { type, description } = this.categorizeWebTool(toolName, url);
@@ -339,74 +432,74 @@ export class LibraryDetector {
     const nameLower = name.toLowerCase();
     const urlLower = url.toLowerCase();
 
-    // Privacy & Consent Tools
+    // Privacy & Consent Tools (OneTrust, etc.)
     if (/(?:onetrust|otgpp|otbanner|otsdkstub|cookiebot|consent|privacy|gdpr|ccpa|optanon)/i.test(nameLower + urlLower)) {
-      return { 
-        type: 'privacy-tools', 
-        description: 'Privacy compliance and consent management' 
+      return {
+        type: 'privacy-tools',
+        description: 'Privacy compliance and consent management'
       };
     }
 
-    // Identity & Tracking Tools
-    if (/(?:universalid|identity|sync|track|pixel|beacon|collect|analytics)/i.test(nameLower + urlLower)) {
-      return { 
-        type: 'tracking-tools', 
-        description: 'User tracking and identity management' 
+    // Identity & Tracking Tools (Universal ID, tracking pixels, etc.)
+    if (/(?:universalid|iiquniversalid|identity|sync|track|pixel|beacon|collect|analytics|tag)/i.test(nameLower + urlLower)) {
+      return {
+        type: 'tracking-tools',
+        description: 'User tracking and identity management'
       };
     }
 
-    // Site-Specific Tools
-    if (/(?:auth|login|landing|freeview|zion|paywall|checkout|cart)/i.test(nameLower + urlLower)) {
-      return { 
-        type: 'site-tools', 
-        description: 'Site-specific functionality and features' 
+    // Site-Specific Tools (Landing pages, auth, paywalls, etc.)
+    if (/(?:auth|login|landing|landingprod|freeview|zion|web-client|mb|paywall|checkout|cart)/i.test(nameLower + urlLower)) {
+      return {
+        type: 'site-tools',
+        description: 'Site-specific functionality and features'
       };
     }
 
     // Media Tools
     if (/(?:video|player|stream|media|audio|jwplayer)/i.test(nameLower + urlLower)) {
-      return { 
-        type: 'media-tools', 
-        description: 'Media playback and streaming' 
+      return {
+        type: 'media-tools',
+        description: 'Media playback and streaming'
       };
     }
 
-    // Performance Tools
-    if (/(?:load|lazy|defer|preload|cache|optimize|compress)/i.test(nameLower + urlLower)) {
-      return { 
-        type: 'performance-tools', 
-        description: 'Performance optimization and loading' 
+    // Performance Tools (Loading, optimization, etc.)
+    if (/(?:load|loader|lazy|defer|preload|cache|optimize|compress|psm|taglw)/i.test(nameLower + urlLower)) {
+      return {
+        type: 'performance-tools',
+        description: 'Performance optimization and loading'
       };
     }
 
     // Framework Detection
     if (/(?:react|vue|angular|ember|backbone)/i.test(nameLower)) {
-      return { 
-        type: 'framework', 
-        description: 'JavaScript framework' 
+      return {
+        type: 'framework',
+        description: 'JavaScript framework'
       };
     }
 
     // UI Libraries
     if (/(?:bootstrap|material|semantic|foundation|bulma|tailwind)/i.test(nameLower)) {
-      return { 
-        type: 'ui', 
-        description: 'User interface library' 
+      return {
+        type: 'ui',
+        description: 'User interface library'
       };
     }
 
     // Analytics Libraries
     if (/(?:gtag|ga|google.*analytics|mixpanel|segment|amplitude|hotjar)/i.test(nameLower + urlLower)) {
-      return { 
-        type: 'analytics', 
-        description: 'Analytics and user behavior tracking' 
+      return {
+        type: 'analytics',
+        description: 'Analytics and user behavior tracking'
       };
     }
 
     // Generic utilities (fallback)
-    return { 
-      type: 'utility', 
-      description: 'JavaScript utility or tool' 
+    return {
+      type: 'utility',
+      description: 'JavaScript utility or tool'
     };
   }
 
@@ -736,6 +829,17 @@ export class LibraryDetector {
    * Convert LibraryInfo to MinifiedLibrary for storage
    */
   static toMinifiedLibrary(library: LibraryInfo, domain: string): MinifiedLibrary {
+    // Extract source domain from the library URL
+    let sourceDomain = '';
+    try {
+      sourceDomain = new URL(library.url).hostname;
+    } catch (error) {
+      sourceDomain = 'unknown';
+    }
+
+    // Get third-party classification
+    const thirdPartyInfo = this.classifyThirdPartyDomain(sourceDomain);
+
     return {
       name: library.name,
       version: library.version || 'unknown',
@@ -743,7 +847,12 @@ export class LibraryDetector {
       source_map_available: false, // Will be updated when source maps are detected
       url: library.url,
       timestamp: Date.now(),
-      main_domain: domain
+      main_domain: domain,
+      source_domain: sourceDomain,
+      third_party_info: thirdPartyInfo.isThirdParty ? {
+        type: thirdPartyInfo.thirdPartyType as 'cdn' | 'analytics' | 'advertising' | 'social' | 'unknown',
+        classification: thirdPartyInfo.thirdPartyType || 'unknown'
+      } : undefined
     };
   }
 

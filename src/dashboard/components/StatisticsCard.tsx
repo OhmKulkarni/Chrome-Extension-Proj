@@ -203,6 +203,9 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   const [libraryModalDomain, setLibraryModalDomain] = useState<string | null>(null);
   const [isLibraryModalOpen, setIsLibraryModalOpen] = useState(false);
 
+  // Library source domain dropdown state
+  const [expandedLibraryDomains, setExpandedLibraryDomains] = useState<Set<string>>(new Set());
+
   const toggleLibraryModal = (domain: string) => {
     if (libraryModalDomain === domain && isLibraryModalOpen) {
       setIsLibraryModalOpen(false);
@@ -211,6 +214,16 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       setLibraryModalDomain(domain);
       setIsLibraryModalOpen(true);
     }
+  };
+
+  const toggleLibrarySourceDomains = (domain: string) => {
+    const newExpanded = new Set(expandedLibraryDomains);
+    if (newExpanded.has(domain)) {
+      newExpanded.delete(domain);
+    } else {
+      newExpanded.add(domain);
+    }
+    setExpandedLibraryDomains(newExpanded);
   };
 
   // Chart system state
@@ -1481,6 +1494,26 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                 </button>
                               )}
                               <span className="truncate font-semibold">{stat.domain}</span>
+                              {stat.isThirdParty && (
+                                <span
+                                  className={`inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded-md ${
+                                    stat.thirdPartyType === 'advertising' ? 'bg-red-100 text-red-800' :
+                                    stat.thirdPartyType === 'tracking' ? 'bg-orange-100 text-orange-800' :
+                                    stat.thirdPartyType === 'cdn' ? 'bg-blue-100 text-blue-800' :
+                                    stat.thirdPartyType === 'analytics' ? 'bg-purple-100 text-purple-800' :
+                                    stat.thirdPartyType === 'social' ? 'bg-pink-100 text-pink-800' :
+                                    'bg-gray-100 text-gray-800'
+                                  }`}
+                                  title={`3rd party ${stat.thirdPartyType || 'service'}`}
+                                >
+                                  {stat.thirdPartyType === 'advertising' ? '📢' :
+                                   stat.thirdPartyType === 'tracking' ? '🎯' :
+                                   stat.thirdPartyType === 'cdn' ? '📦' :
+                                   stat.thirdPartyType === 'analytics' ? '📊' :
+                                   stat.thirdPartyType === 'social' ? '👥' :
+                                   '🔗'} 3rd
+                                </span>
+                              )}
                               {/* Single total event count */}
                               <div className="flex items-center ml-2">
                                 <span className="inline-flex items-center px-2 py-1 rounded bg-gray-100 text-gray-700 font-mono text-xs" title="Total Events: Requests + Errors + Tokens">
@@ -1632,7 +1665,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                             </TableHead>
                             <TableHead className="font-semibold">
                               <div className="flex items-center gap-2">
-                                Libraries Detected
+                                Libraries & Sources
+                                <span className="text-xs text-gray-500">(expandable)</span>
                               </div>
                             </TableHead>
                             <TableHead className="font-semibold text-center">
@@ -1654,6 +1688,26 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                     {stat.isGrouped && <Layers className="h-3 w-3 text-blue-500" />}
                                     {stat.tabContext?.isMainDomain && <Monitor className="h-3 w-3 text-green-500" />}
                                     <span className="text-sm font-medium">{stat.domain}</span>
+                                    {stat.isThirdParty && (
+                                      <span
+                                        className={`inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded-md ${
+                                          stat.thirdPartyType === 'advertising' ? 'bg-red-100 text-red-800' :
+                                          stat.thirdPartyType === 'tracking' ? 'bg-orange-100 text-orange-800' :
+                                          stat.thirdPartyType === 'cdn' ? 'bg-blue-100 text-blue-800' :
+                                          stat.thirdPartyType === 'analytics' ? 'bg-purple-100 text-purple-800' :
+                                          stat.thirdPartyType === 'social' ? 'bg-pink-100 text-pink-800' :
+                                          'bg-gray-100 text-gray-800'
+                                        }`}
+                                        title={`3rd party ${stat.thirdPartyType || 'service'}`}
+                                      >
+                                        {stat.thirdPartyType === 'advertising' ? '📢' :
+                                         stat.thirdPartyType === 'tracking' ? '🎯' :
+                                         stat.thirdPartyType === 'cdn' ? '📦' :
+                                         stat.thirdPartyType === 'analytics' ? '📊' :
+                                         stat.thirdPartyType === 'social' ? '👥' :
+                                         '🔗'} 3rd
+                                      </span>
+                                    )}
                                   </div>
                                   {stat.isGrouped && (
                                     <div className="text-xs text-gray-500 pl-5">
@@ -1662,27 +1716,87 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                   )}
                                 </div>
                               </TableCell>
-                              <TableCell className="text-center">
-                                <span className="inline-flex items-center justify-center w-8 h-6 bg-purple-100 text-purple-800 text-xs font-medium rounded-full">
-                                  {stat.libraryCount}
-                                </span>
-                              </TableCell>
                               <TableCell>
-                                <div className="flex flex-wrap gap-1 max-w-md">
-                                  {stat.libraries.slice(0, 4).map((lib, libIndex) => (
-                                    <span
-                                      key={libIndex}
-                                      className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded"
-                                      title={`${lib.name}@${lib.version}`}
-                                    >
-                                      {lib.name}
-                                      {lib.version && <span className="ml-1 text-blue-600">@{lib.version}</span>}
+                                <div className="space-y-2">
+                                  {/* Main library count and expand button */}
+                                  <div className="flex items-center gap-2">
+                                    <span className="inline-flex items-center justify-center w-8 h-6 bg-purple-100 text-purple-800 text-xs font-medium rounded-full">
+                                      {stat.libraryCount}
                                     </span>
-                                  ))}
-                                  {stat.libraries.length > 4 && (
-                                    <span className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded">
-                                      +{stat.libraries.length - 4} more
-                                    </span>
+                                    {stat.librarySourceDomains.length > 1 && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => toggleLibrarySourceDomains(stat.domain)}
+                                        className="h-6 px-2 text-xs hover:bg-purple-50"
+                                        title={`Libraries from ${stat.librarySourceDomains.length} domains`}
+                                      >
+                                        <ChevronDown className={`h-3 w-3 transition-transform ${
+                                          expandedLibraryDomains.has(stat.domain) ? 'rotate-180' : ''
+                                        }`} />
+                                        {stat.librarySourceDomains.length} domains
+                                      </Button>
+                                    )}
+                                  </div>
+
+                                  {/* Collapsed view - show first few libraries */}
+                                  {!expandedLibraryDomains.has(stat.domain) && (
+                                    <div className="flex flex-wrap gap-1 max-w-md">
+                                      {stat.libraries.slice(0, 4).map((lib, libIndex) => (
+                                        <span
+                                          key={libIndex}
+                                          className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded"
+                                          title={`${lib.name}@${lib.version}`}
+                                        >
+                                          {lib.name}
+                                          {lib.version && <span className="ml-1 text-blue-600">@{lib.version}</span>}
+                                        </span>
+                                      ))}
+                                      {stat.libraries.length > 4 && (
+                                        <span className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded">
+                                          +{stat.libraries.length - 4} more
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {/* Expanded view - show libraries grouped by source domain */}
+                                  {expandedLibraryDomains.has(stat.domain) && (
+                                    <div className="space-y-3 max-w-xl">
+                                      {stat.librarySourceDomains.map((sourceDomain, sourceIndex) => (
+                                        <div key={sourceIndex} className="border rounded p-2 bg-gray-50">
+                                          <div className="flex items-center gap-2 mb-2">
+                                            <span className="text-xs font-medium text-gray-700">
+                                              {sourceDomain.domain}
+                                            </span>
+                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                              {sourceDomain.count}
+                                            </span>
+                                            {sourceDomain.isThirdParty && (
+                                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800" title="Third-party domain">
+                                                {sourceDomain.thirdPartyType === 'cdn' ? '📦' :
+                                                 sourceDomain.thirdPartyType === 'analytics' ? '📊' :
+                                                 sourceDomain.thirdPartyType === 'advertising' ? '📢' :
+                                                 sourceDomain.thirdPartyType === 'social' ? '👥' :
+                                                 '🔗'} 3rd
+                                              </span>
+                                            )}
+                                          </div>
+                                          <div className="flex flex-wrap gap-1">
+                                            {sourceDomain.libraries.map((lib, libIndex) => (
+                                              <span
+                                                key={libIndex}
+                                                className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded"
+                                                title={`${lib.name}@${lib.version} from ${sourceDomain.domain}`}
+                                              >
+                                                {lib.name}
+                                                {lib.version && <span className="ml-1 text-blue-600">@{lib.version}</span>}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
                                   )}
                                 </div>
                               </TableCell>
