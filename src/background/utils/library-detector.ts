@@ -832,8 +832,16 @@ export class LibraryDetector {
     // Extract source domain from the library URL
     let sourceDomain = '';
     try {
-      sourceDomain = new URL(library.url).hostname;
+      const urlObj = new URL(library.url);
+      sourceDomain = urlObj.hostname;
+
+      // Validate that we have a proper domain
+      if (!sourceDomain || sourceDomain === 'localhost' || sourceDomain.length < 3) {
+        console.warn('[LibraryDetector] Invalid source domain for library:', { url: library.url, domain: sourceDomain });
+        sourceDomain = 'unknown';
+      }
     } catch (error) {
+      console.warn('[LibraryDetector] Failed to parse library URL:', { url: library.url, error: String(error) });
       sourceDomain = 'unknown';
     }
 

@@ -312,6 +312,22 @@ export class NetworkProcessorModule {
       // Extract main domain for intelligent grouping
       const mainDomain = tabUrl ? this.extractMainDomain(tabUrl) : this.extractMainDomain(url);
 
+      // Prevent storing requests with invalid main domains
+      if (!mainDomain || mainDomain === 'unknown' || mainDomain === 'Unknown' || mainDomain === 'Unknown URL') {
+        return { success: false, reason: 'Invalid or unknown main domain' };
+      }
+
+      // Debug logging for problematic domains
+      if (url.includes('casalemedia') || url.includes('unknown') || !tabUrl) {
+        console.log('🔍 DOMAIN GROUPING DEBUG:', {
+          url: url.substring(0, 100),
+          tabUrl: tabUrl?.substring(0, 100) || 'MISSING',
+          extractedMainDomain: mainDomain,
+          hasTabUrl: !!tabUrl,
+          urlDomain: this.extractMainDomain(url)
+        });
+      }
+
       // ENHANCED DEBUG: Always log for problematic domains
       if (shouldDebugUrl) {
         console.log(`🎯 IFRAME DEBUG - Final domain grouping:`, {
@@ -845,15 +861,8 @@ export class NetworkProcessorModule {
         }
       }
 
-      // Only process JavaScript files to avoid unnecessary processing
-      const url = validatedRequestData.url;
-      if (!url.toLowerCase().includes('.js') &&
-          !url.toLowerCase().includes('javascript') &&
-          !url.toLowerCase().includes('application/javascript')) {
-        return;
-      }
-
       // Extract headers for library detection
+      const url = validatedRequestData.url;
       const headers = validatedRequestData.headers || {};
       const responseBody = requestData.responseBody;
 
