@@ -2,6 +2,68 @@
 
 import { LibraryDetector } from '../../background/utils/library-detector';
 
+// Domain affiliation mapping for related domains that should be grouped together
+const DOMAIN_AFFILIATIONS: { [key: string]: string } = {
+  // Yahoo family domains
+  'yimg.com': 'yahoo.com',
+  'yahooapis.com': 'yahoo.com',
+  'ymail.com': 'yahoo.com',
+  
+  // Google family domains  
+  'googleapis.com': 'google.com',
+  'gstatic.com': 'google.com',
+  'googleusercontent.com': 'google.com',
+  'googlesyndication.com': 'google.com',
+  'googletagmanager.com': 'google.com',
+  'googleadservices.com': 'google.com',
+  'youtube.com': 'google.com',
+  
+  // Facebook/Meta family domains
+  'fbcdn.net': 'facebook.com',
+  'instagram.com': 'facebook.com',
+  'whatsapp.com': 'facebook.com',
+  
+  // Amazon family domains
+  'amazonaws.com': 'amazon.com',
+  'cloudfront.net': 'amazon.com',
+  
+  // Microsoft family domains
+  'live.com': 'microsoft.com',
+  'outlook.com': 'microsoft.com',
+  'office.com': 'microsoft.com',
+  'azure.com': 'microsoft.com',
+  'microsoftonline.com': 'microsoft.com',
+  
+  // Apple family domains
+  'icloud.com': 'apple.com',
+  'me.com': 'apple.com',
+  'mac.com': 'apple.com',
+  
+  // Twitter family domains
+  'twimg.com': 'twitter.com',
+  't.co': 'twitter.com'
+};
+
+/**
+ * Get the parent domain for affiliation grouping
+ */
+function getParentDomain(domain: string): string {
+  return DOMAIN_AFFILIATIONS[domain] || domain;
+}
+
+/**
+ * Get all affiliated domains for a parent domain
+ */
+function getAffiliatedDomains(parentDomain: string): string[] {
+  const affiliated: string[] = [];
+  for (const [child, parent] of Object.entries(DOMAIN_AFFILIATIONS)) {
+    if (parent === parentDomain) {
+      affiliated.push(child);
+    }
+  }
+  return affiliated;
+}
+
 // Library information interface
 export interface LibraryInfo {
   name: string;
@@ -77,6 +139,9 @@ export interface DomainStats {
   // NEW: 3rd party classification
   isThirdParty?: boolean;
   thirdPartyType?: 'advertising' | 'tracking' | 'cdn' | 'analytics' | 'social' | 'other';
+  // NEW: Domain affiliation for grouping related domains
+  affiliatedDomains?: string[];
+  parentDomain?: string;
 }
 
 
@@ -321,13 +386,21 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
     const tabUrl = item.tab_url;
 
     // Use the main_domain field if available, otherwise fall back to domain parsing
-    const mainDomain = item.main_domain || extractBaseDomain(itemUrl);
+    let mainDomain = item.main_domain || extractBaseDomain(itemUrl);
+    
+    // DOMAIN AFFILIATION: Group affiliated domains under their parent domain
+    const parentDomain = getParentDomain(mainDomain);
+    if (parentDomain !== mainDomain) {
+      console.log(`🔗 [DomainAffiliation] Grouping ${mainDomain} under parent domain ${parentDomain}`);
+      mainDomain = parentDomain;
+    }
 
     // DEBUG: Log every item to see what's being processed
     console.log('🔍 Processing item:', {
       itemUrl: itemUrl.substring(0, 80) + '...',
       storedMainDomain: item.main_domain,
       extractedMainDomain: extractBaseDomain(itemUrl),
+      parentDomain: parentDomain,
       finalMainDomain: mainDomain,
       hasMainDomainField: 'main_domain' in item,
       itemKeys: Object.keys(item)
@@ -339,6 +412,7 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
         itemUrl: itemUrl.substring(0, 80) + '...',
         storedMainDomain: item.main_domain,
         extractedMainDomain: extractBaseDomain(itemUrl),
+        parentDomain: parentDomain,
         finalMainDomain: mainDomain,
         tabUrl: tabUrl ? tabUrl.substring(0, 80) + '...' : 'MISSING',
         hasMainDomainField: !!item.main_domain
@@ -429,8 +503,18 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
   // Group libraries by main_domain to find domains with libraries but no events
   const libraryDomains = new Set<string>();
   libraryData.forEach(lib => {
-    if (lib.main_domain && !existingDomains.has(lib.main_domain)) {
-      libraryDomains.add(lib.main_domain);
+    if (lib.main_domain) {
+      // Apply domain affiliation to library domains too
+      let mainDomain = lib.main_domain;
+      const parentDomain = getParentDomain(mainDomain);
+      if (parentDomain !== mainDomain) {
+        console.log(`🔗 [LibraryAffiliation] Grouping library domain ${mainDomain} under parent ${parentDomain}`);
+        mainDomain = parentDomain;
+      }
+      
+      if (!existingDomains.has(mainDomain)) {
+        libraryDomains.add(mainDomain);
+      }
     }
   });
 
@@ -519,8 +603,14 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
 
     // Filter libraries for this domain based on main_domain field
     const domainLibraries = libraryData.filter(lib => {
-      // Match libraries that were loaded by this main domain
-      return lib.main_domain === mainDomain;
+      // Match libraries that were loaded by this main domain OR its affiliated domains
+      if (lib.main_domain === mainDomain) {
+        return true;
+      }
+      
+      // Also include libraries from affiliated domains
+      const libParentDomain = getParentDomain(lib.main_domain);
+      return libParentDomain === mainDomain;
     });
 
     // Group libraries by their source domain
@@ -624,7 +714,10 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
       cdnCount,
       // 3rd party classification
       isThirdParty: thirdPartyClassification.isThirdParty,
-      thirdPartyType: thirdPartyClassification.thirdPartyType
+      thirdPartyType: thirdPartyClassification.thirdPartyType,
+      // Domain affiliation information
+      affiliatedDomains: getAffiliatedDomains(mainDomain),
+      parentDomain: mainDomain !== getParentDomain(mainDomain) ? undefined : mainDomain
     };
   }).sort((a, b) => {
     // Sort by activity level
