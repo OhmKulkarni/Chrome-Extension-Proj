@@ -1665,16 +1665,10 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                 <SortButton column="libraryCount" currentSort={domainSortConfig} onSort={handleDomainSort} />
                               </div>
                             </TableHead>
-                            <TableHead className="font-semibold">
-                              <div className="flex items-center gap-2">
-                                Libraries & Sources
-                                <span className="text-xs text-gray-500">(expandable)</span>
-                              </div>
-                            </TableHead>
-                            <TableHead className="font-semibold text-center">
+                            <TableHead className="font-semibold text-center w-[80px]">
                               <div className="flex items-center gap-2 justify-center">
-                                <Activity className="h-4 w-4" />
-                                Actions
+                                <BookOpen className="h-4 w-4" />
+                                Details
                               </div>
                             </TableHead>
                           </TableRow>
@@ -1889,18 +1883,17 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                   variant="outline"
                                   size="sm"
                                   onClick={() => toggleLibraryModal(stat.domain)}
-                                  className="h-7 px-3 hover:bg-purple-100 text-purple-700 border-purple-200"
+                                  className="h-8 w-8 p-0 hover:bg-purple-100 text-purple-700 border-purple-200"
                                   title="View detailed library information"
                                 >
-                                  <BookOpen className="h-3 w-3 mr-1" />
-                                  Details
+                                  <BookOpen className="h-4 w-4" />
                                 </Button>
                               </TableCell>
                             </TableRow>
                           ))}
                           {sortedDomainStats.filter(stat => stat.libraryCount > 0).length === 0 && (
                             <TableRow>
-                              <TableCell colSpan={4} className="text-center text-gray-500 py-8">
+                              <TableCell colSpan={3} className="text-center text-gray-500 py-8">
                                 <div className="flex flex-col items-center gap-2">
                                   <BookOpen className="h-8 w-8 text-gray-400" />
                                   <div>No libraries detected yet</div>
