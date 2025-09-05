@@ -1748,7 +1748,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                         // Apply smart truncation and categorization to main display
                                         const displayName = LibraryDetector.getDisplayName(lib, 20); // Shorter for main view
                                         const fullName = `${lib.name}${lib.version ? `@${lib.version}` : ''}`;
-                                        
+
                                         // Get resource type info for proper styling
                                         const getResourceTypeInfo = (libType: string) => {
                                           switch (libType) {
@@ -1778,9 +1778,9 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                               return { icon: '🔧', bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Resource' };
                                           }
                                         };
-                                        
+
                                         const typeInfo = getResourceTypeInfo(lib.type);
-                                        
+
                                         return (
                                           <span
                                             key={libIndex}
@@ -1830,7 +1830,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                               // Use smart truncation for better display
                                               const displayName = LibraryDetector.getDisplayName(lib, 25);
                                               const fullName = `${lib.name}${lib.version ? `@${lib.version}` : ''}`;
-                                              
+
                                               // Determine resource type and styling
                                               const getResourceTypeInfo = (libType: string) => {
                                                 switch (libType) {
@@ -1860,9 +1860,9 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                                     return { icon: '🔧', bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Resource' };
                                                 }
                                               };
-                                              
+
                                               const typeInfo = getResourceTypeInfo(lib.type);
-                                              
+
                                               return (
                                                 <span
                                                   key={libIndex}

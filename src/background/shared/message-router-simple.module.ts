@@ -386,22 +386,30 @@ export class MessageRouterSimpleModule {
           break;
 
         case 'CHECK_LOGGING_PERMISSIONS':
-          if (message.tabId !== undefined) {
-            try {
+          try {
+            let tabId = message.tabId;
+            
+            // If no tabId provided but URL is available, get tabId from sender
+            if (!tabId && message.url && sender?.tab?.id) {
+              tabId = sender.tab.id;
+            }
+            
+            if (tabId !== undefined) {
               // Import unified permission manager dynamically
               const { unifiedPermissionManager } = await import('../../utils/unified-permission-manager');
               
               // Check if any of the three logging types are enabled for this tab
               const [networkEnabled, consoleEnabled, tokenEnabled] = await Promise.all([
-                unifiedPermissionManager.isFeatureEnabled(message.tabId, 'network'),
-                unifiedPermissionManager.isFeatureEnabled(message.tabId, 'console'),
-                unifiedPermissionManager.isFeatureEnabled(message.tabId, 'tokens')
+                unifiedPermissionManager.isFeatureEnabled(tabId, 'network'),
+                unifiedPermissionManager.isFeatureEnabled(tabId, 'console'),
+                unifiedPermissionManager.isFeatureEnabled(tabId, 'tokens')
               ]);
 
               const hasAnyLoggingEnabled = networkEnabled || consoleEnabled || tokenEnabled;
               
               sendResponse({ 
                 success: true, 
+                hasLogging: hasAnyLoggingEnabled,
                 enabled: hasAnyLoggingEnabled,
                 details: {
                   network: networkEnabled,
@@ -409,11 +417,11 @@ export class MessageRouterSimpleModule {
                   tokens: tokenEnabled
                 }
               });
-            } catch (error) {
-              sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to check logging permissions' });
+            } else {
+              sendResponse({ success: false, error: 'Tab ID required' });
             }
-          } else {
-            sendResponse({ success: false, error: 'Tab ID required' });
+          } catch (error) {
+            sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to check logging permissions' });
           }
           break;
 

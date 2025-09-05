@@ -129,7 +129,7 @@ function inferLibraryType(name: string, url: string): LibraryInfo['type'] {
     return 'advertising-service';
   }
 
-  // 🎯 ANALYTICS & DATA COLLECTION SERVICES  
+  // 🎯 ANALYTICS & DATA COLLECTION SERVICES
   if (/(?:collector|logs|analytics|browser-intake|optimizely|events|datadog|segment|amplitude|hotjar|gtag|ga)/i.test(nameLower + urlLower)) {
     return 'data-collector';
   }

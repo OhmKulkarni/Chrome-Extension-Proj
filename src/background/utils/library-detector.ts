@@ -450,7 +450,7 @@ export class LibraryDetector {
       };
     }
 
-    // 🎯 ANALYTICS & DATA COLLECTION SERVICES  
+    // 🎯 ANALYTICS & DATA COLLECTION SERVICES
     if (/(?:collector|logs|analytics|browser-intake|optimizely|events|datadog|segment|amplitude|hotjar|gtag|ga)/i.test(nameLower + urlLower)) {
       return {
         type: 'data-collector',
@@ -691,7 +691,25 @@ export class LibraryDetector {
       'fakeAnalytics', 'customLibrary', 'myLibrary'
     ];
 
+    // DEBUG: Log what's actually on the window object
+    console.log('🔍 [LibraryDetector] Window object inspection:', {
+      MyCustomFramework: !!windowObj.MyCustomFramework,
+      AnalyticsSDK: !!windowObj.AnalyticsSDK,
+      UIComponents: !!windowObj.UIComponents,
+      React: !!windowObj.React,
+      _: !!windowObj._,
+      jQuery: !!windowObj.jQuery,
+      $: !!windowObj.$
+    });
+
     for (const libName of customLibraryNames) {
+      console.log(`🔍 [LibraryDetector] Checking ${libName}:`, {
+        exists: !!windowObj[libName],
+        type: typeof windowObj[libName],
+        hasVersion: windowObj[libName]?.version,
+        hasVERSION: windowObj[libName]?.VERSION
+      });
+
       if (windowObj[libName] && typeof windowObj[libName] === 'object') {
         const libObj = windowObj[libName];
         if (libObj.version || libObj.VERSION) {
@@ -960,17 +978,17 @@ export class LibraryDetector {
       // Extract meaningful parts from query string
       const parts = originalName.split('&');
       const meaningfulParams = [];
-      
+
       // Look for key parameters that give context
       const keyParams = ['cid', 'conf_csid', 'platform', 'playername', 'tenant', 'device_type'];
-      
+
       for (const part of parts) {
         const [key, value] = part.split('=');
         if (keyParams.includes(key) && value) {
           meaningfulParams.push(`${key}=${value}`);
         }
       }
-      
+
       if (meaningfulParams.length > 0) {
         let result = meaningfulParams.join('&');
         if (result.length > maxLength) {
@@ -1008,7 +1026,7 @@ export class LibraryDetector {
         const first = parts[0];
         const last = parts[parts.length - 1];
         const maxFirstLength = Math.floor((maxLength - last.length - 3) / 2); // -3 for "..."
-        
+
         if (first.length > maxFirstLength) {
           return `${first.substring(0, maxFirstLength)}...${last}`;
         }
@@ -1020,17 +1038,17 @@ export class LibraryDetector {
     if (originalName.includes('/')) {
       const pathParts = originalName.split('/');
       const fileName = pathParts[pathParts.length - 1];
-      
+
       // If filename is meaningful and not too long
       if (fileName && fileName.length <= maxLength && !fileName.includes('?')) {
         return fileName;
       }
-      
+
       // Otherwise, take first part + "..." + filename
       if (pathParts.length > 1) {
         const firstPart = pathParts[0];
         const maxFirstLength = maxLength - fileName.length - 3; // -3 for "..."
-        
+
         if (maxFirstLength > 5) {
           return `${firstPart.substring(0, maxFirstLength)}.../${fileName}`;
         }
@@ -1046,7 +1064,7 @@ export class LibraryDetector {
         const first = meaningfulWords[0];
         const last = meaningfulWords[meaningfulWords.length - 1];
         const combined = `${first}...${last}`;
-        
+
         if (combined.length <= maxLength) {
           return combined;
         }
@@ -1063,7 +1081,7 @@ export class LibraryDetector {
   static getDisplayName(library: MinifiedLibrary | { name: string; version?: string; third_party_info?: any }, maxLength: number = 30): string {
     // For known library types, try to extract more meaningful info
     const truncatedName = this.truncateLibraryName(library.name, maxLength);
-    
+
     // Add context based on third-party info (if available)
     if (library.third_party_info?.type) {
       const typeIndicators: Record<string, string> = {
@@ -1073,15 +1091,15 @@ export class LibraryDetector {
         'social': '🔗',
         'unknown': '🔧'
       };
-      
+
       const indicator = typeIndicators[library.third_party_info.type] || '🔧';
-      
+
       // If name is very short after truncation, add type context
       if (truncatedName.length < 15) {
         return `${indicator} ${truncatedName}`;
       }
     }
-    
+
     return truncatedName;
   }
 }

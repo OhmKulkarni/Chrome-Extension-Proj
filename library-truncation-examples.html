@@ -11,27 +11,27 @@
 </head>
 <body>
     <h1>Library Name Truncation Test Examples</h1>
-    
+
     <div class="test-case">
         <div class="original">Original: livestream&cid=cnnfast&conf_csid=cnn.com_live_mobileweb_fastchannel&device_type=web&nw=48804&platform=web&playername=top-2.18.1-4&prof=48804:cnn_web_live&tenant=lcnn&yo.asd=true&yo.pbr=true&yo.pst=true&playertype=standard&refdom=other&wm_vw=stlr&pg=landing_homepage</div>
         <div class="truncated">Expected: cid=cnnfast&platform=web&...</div>
     </div>
-    
+
     <div class="test-case">
         <div class="original">Original: p8dn7fp1liosd47cq1r3sb455.litix.io</div>
         <div class="truncated">Expected: p8dn7fp1...litix.io</div>
     </div>
-    
+
     <div class="test-case">
         <div class="original">Original: very-long-library-name-that-should-be-shortened-v2.18.1</div>
         <div class="truncated">Expected: very-long-library-name...v2.18.1</div>
     </div>
-    
+
     <div class="test-case">
         <div class="original">Original: AGVsbGQeAE9gBA-GK9PrFBCCAP6mpWMs_Pw20_TD0xJC_VEzCF-TDCvS9xQ13SfQvR03VG-aWvI-fHQKyhJ4AreEAIOPK-J86JitMeoDRDiUT-nMM_lPmDm4EcgFC8XX5RoE8D-4mKA8lBv_yKHnAAQrT7VqJkK8VjCmFtKsDnQB8JXvzOszPCiZYsWfAsGWP17BNE75MO24ZVCfNxQYyOKWbJBL-ynXBfPDZ8MA3JiciTKJR_AF5kMzO5B3GjBnloM7I9SudCKJbAcBnULVKUp-mtsNfeMbPP4ML6es75PgTxVnAuPuovHoByCBz1FCPtOMOhqb2ELQ_tDW-vuV8QwI9-XzSwVA7yLer-ZcMeeFebZVQr5-VugPLhGcfIE6KiRb65VAK7uO1hvKd3B3V9ouz2iOux6unPzS9yWnVz3kH15TfdHTL7xDyTOiBLRVqT6gYgYbYK6cAylJ7SAWacM6mLyLNpsEEesiM2oerNNQSSuWyebVJ5N1rfBj6yuQYd07uILFm9XBVv_G1J1aRb78JreyYnyTm38UC_kellOx55athiZj5XugGLIy8rpD3WmowR8fh-rKZzZYeSzKf-v6fVJA0eI3PAbK_rclSQ97ofbEhPJ-3-sjWh26KCs2mLujY7V00b-h-gIqN2pStpMks9LuP2Lf7NeV5HrDfGIr4hjUOqLTi49gOYcPqQCQ_mfZOx_496nvfZ4gt6NPxJk523nfdV4JScfT6xLA4te2HwdVwgE3licYMpC-jL55fTzLS-3ICyHaibmDcf96l1XoHkhClbKUXx2h5ZxwOtGHA1JGejSm0ncW7EdEzmZOe2_ms7EP77ohPL78g55_FTcJPC014XwUzfGivBuIqAd3kSOjLCbOf7GLKgVlOr4nbm6LtTTtRq5eQbJgXzOnJA8rBjAf6Zi7TvtaCcyE_ShbLigXmQ3jL2xGeFr9TynMDBClgAeu6n3Si4_8U7GbQ6PIhPx3WoPUvPrgJ4-ZKI3JPxqVLrUKwrSTiDR_NgKw2Wx7Y8ab6wZnhJPap5qyP4iO4in9E-mG91ZabY14lKQ3x_qJ_jF8UWdxCKwMeMAyafJjd_-dIqAOxk-xJQ..</div>
         <div class="truncated">Expected: AGVsbGQeAE9g...[encoded]</div>
     </div>
-    
+
     <p><strong>The smart truncation system will:</strong></p>
     <ul>
         <li>Extract meaningful parameters from query strings</li>

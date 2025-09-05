@@ -52,16 +52,25 @@ export class ContentLibraryDetectionModule {
       const globalLibraries = LibraryDetector.detectFromDOMGlobals(window as any, domain);
       detectedLibraries.push(...globalLibraries);
 
-      // 2. 🎨 DOM Structure Detection - Check DOM patterns
+      // 2. Wait a bit for inline scripts to execute and create global objects
+      console.log('⏳ [ContentLibraryDetection] Waiting for inline scripts to complete...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // 3. Re-run DOM global detection to catch dynamically created libraries
+      console.log('🔄 [ContentLibraryDetection] Re-analyzing globals for inline libraries...');
+      const delayedGlobalLibraries = LibraryDetector.detectFromDOMGlobals(window as any, domain);
+      detectedLibraries.push(...delayedGlobalLibraries);
+
+      // 4. 🎨 DOM Structure Detection - Check DOM patterns
       console.log('🎨 [ContentLibraryDetection] Analyzing DOM structure...');
       const domLibraries = LibraryDetector.detectFromDOMStructure(document, domain);
       detectedLibraries.push(...domLibraries);
 
-      // 3. 📦 Script Analysis - Analyze existing script tags
+      // 5. 📦 Script Analysis - Analyze existing script tags
       console.log('📦 [ContentLibraryDetection] Analyzing script content...');
       this.analyzeExistingScripts(domain, detectedLibraries);
 
-      // 4. 🗺️ Source Map Analysis - Check for source maps
+      // 6. 🗺️ Source Map Analysis - Check for source maps
       console.log('🗺️ [ContentLibraryDetection] Checking for source maps...');
       this.analyzeSourceMaps(domain, detectedLibraries);
 
@@ -81,19 +90,11 @@ export class ContentLibraryDetectionModule {
    */
   private static async checkLoggingPermissions(): Promise<boolean> {
     try {
-      // Get current tab
-      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-      const currentTab = tabs[0];
-      
-      if (!currentTab?.id) {
-        console.warn('🚫 [ContentLibraryDetection] Could not get current tab ID');
-        return false; // If we can't check, don't run library detection
-      }
-
-      // Check permissions by sending message to background script
+      // In content script context, we can't access chrome.tabs.query
+      // Instead, send a message to background script to check permissions
       const response = await chrome.runtime.sendMessage({
         action: 'CHECK_LOGGING_PERMISSIONS',
-        tabId: currentTab.id
+        url: window.location.href
       });
 
       if (response?.hasLogging) {

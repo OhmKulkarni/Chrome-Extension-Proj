@@ -6,22 +6,22 @@ The extension now detects and categorizes **all types of web resources**, not ju
 
 ### 🚀 **Traditional Libraries** (📚)
 - **Frameworks**: React, Vue, Angular - `blue` background
-- **UI Libraries**: Bootstrap, Material UI - `blue` background  
+- **UI Libraries**: Bootstrap, Material UI - `blue` background
 - **Utilities**: General JavaScript tools - `blue` background
 
-### 🌐 **Web Services** 
-- **📢 Advertising Services** (`red` background): 
+### 🌐 **Web Services**
+- **📢 Advertising Services** (`red` background):
   - `casalemedia.com`, `criteo.com`, `adsrvr.org`, `pubmatic.com`
   - Real-time bidding, ad serving, marketing automation
-  
+
 - **📊 Analytics Services** (`purple` background):
   - `collector.cdp.cnn.com`, `optimizely.com`, `browser-intake-datadoghq.com`
   - Data collection, user behavior tracking, experimentation
-  
+
 - **🎥 Streaming Services** (`green` background):
-  - `live-manifests-aka.warnermediacdn.com` 
+  - `live-manifests-aka.warnermediacdn.com`
   - Video streaming, content delivery, media management
-  
+
 - **🔗 API Endpoints** (`orange` background):
   - `api.zetaglobal.net`, `receive.wmcdp.io`, `ssp.wknd.ai`
   - Web APIs, microservices, data endpoints
@@ -30,16 +30,16 @@ The extension now detects and categorizes **all types of web resources**, not ju
 - **🔒 Privacy Services** (`gray` background):
   - `adsafeprotected.com`, `adtrafficquality.google`
   - Privacy compliance, ad verification, security
-  
+
 - **👁️ Tracking Tools** (`yellow` background):
   - Traditional tracking pixels and identity management
-  
+
 - **⚙️ Site Tools** (`indigo` background):
   - Site-specific features like alerts, authentication
-  
+
 - **🎬 Media Tools** (`pink` background):
   - Video players, media libraries (d3, videotools)
-  
+
 - **⚡ Performance Tools** (`cyan` background):
   - Loading optimization, caching (loadingtools)
 
