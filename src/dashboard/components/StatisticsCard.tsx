@@ -14,6 +14,8 @@ import { isFeatureEnabled, withPerformanceMonitoring } from '../utils/featureFla
 import DomainChartsPanel from './DomainChartsPanel';
 import LibraryModal from './LibraryModal';
 import { useExpandedRows } from '../hooks/useExpandedRows';
+// Import LibraryDetector for smart name truncation
+import { LibraryDetector } from '../../background/utils/library-detector';
 import {
   HttpMethodDistributionChart,
   AvgResponseTimePerRouteChart,
@@ -1783,16 +1785,24 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                             )}
                                           </div>
                                           <div className="flex flex-wrap gap-1">
-                                            {sourceDomain.libraries.map((lib, libIndex) => (
-                                              <span
-                                                key={libIndex}
-                                                className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded"
-                                                title={`${lib.name}@${lib.version} from ${sourceDomain.domain}`}
-                                              >
-                                                {lib.name}
-                                                {lib.version && <span className="ml-1 text-blue-600">@{lib.version}</span>}
-                                              </span>
-                                            ))}
+                                            {sourceDomain.libraries.map((lib, libIndex) => {
+                                              // Use smart truncation for better display
+                                              const displayName = LibraryDetector.getDisplayName(lib, 25);
+                                              const fullName = `${lib.name}${lib.version ? `@${lib.version}` : ''}`;
+                                              
+                                              return (
+                                                <span
+                                                  key={libIndex}
+                                                  className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded"
+                                                  title={`${fullName} from ${sourceDomain.domain} (Full: ${lib.name})`}
+                                                >
+                                                  {displayName}
+                                                  {lib.version && !displayName.includes('@') && (
+                                                    <span className="ml-1 text-blue-600">@{lib.version}</span>
+                                                  )}
+                                                </span>
+                                              );
+                                            })}
                                           </div>
                                         </div>
                                       ))}

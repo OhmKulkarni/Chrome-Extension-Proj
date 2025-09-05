@@ -882,4 +882,155 @@ export class LibraryDetector {
     };
     return descriptions[type] || 'Web development tool';
   }
+
+  /**
+   * 🎯 Smart library name truncation for better UI display
+   * Intelligently shortens long library names while preserving meaningful information
+   */
+  static truncateLibraryName(originalName: string, maxLength: number = 30): string {
+    // If already short enough, return as-is
+    if (originalName.length <= maxLength) {
+      return originalName;
+    }
+
+    // Pattern 1: Random hash-like strings (e.g., "p8dn7fp1liosd47cq1r3sb455.litix.io")
+    if (/^[a-z0-9]{20,}\./.test(originalName)) {
+      const parts = originalName.split('.');
+      if (parts.length >= 2) {
+        const hash = parts[0];
+        const domain = parts.slice(1).join('.');
+        // Keep first 8 chars of hash + "..." + domain
+        return `${hash.substring(0, 8)}...${domain}`;
+      }
+    }
+
+    // Pattern 2: Query parameter heavy URLs (like the livestream example)
+    if (originalName.includes('&') && originalName.includes('=')) {
+      // Extract meaningful parts from query string
+      const parts = originalName.split('&');
+      const meaningfulParams = [];
+      
+      // Look for key parameters that give context
+      const keyParams = ['cid', 'conf_csid', 'platform', 'playername', 'tenant', 'device_type'];
+      
+      for (const part of parts) {
+        const [key, value] = part.split('=');
+        if (keyParams.includes(key) && value) {
+          meaningfulParams.push(`${key}=${value}`);
+        }
+      }
+      
+      if (meaningfulParams.length > 0) {
+        let result = meaningfulParams.join('&');
+        if (result.length > maxLength) {
+          // Take first meaningful param and add "..."
+          result = meaningfulParams[0] + '&...';
+        }
+        return result;
+      }
+    }
+
+    // Pattern 3: Base64 or encoded content
+    if (/^[A-Za-z0-9+/=]{50,}$/.test(originalName)) {
+      return `${originalName.substring(0, 12)}...[encoded]`;
+    }
+
+    // Pattern 4: Version-like patterns (keep version info)
+    const versionMatch = originalName.match(/(\d+\.\d+(?:\.\d+)?)/);
+    if (versionMatch) {
+      const version = versionMatch[1];
+      const baseName = originalName.substring(0, originalName.indexOf(version));
+      if (baseName.length > 0) {
+        const maxBaseLength = maxLength - version.length - 1; // -1 for separator
+        if (baseName.length > maxBaseLength) {
+          return `${baseName.substring(0, maxBaseLength)}...v${version}`;
+        }
+        return `${baseName}v${version}`;
+      }
+    }
+
+    // Pattern 5: Domain-like structures
+    if (originalName.includes('.') && !originalName.includes('/')) {
+      const parts = originalName.split('.');
+      if (parts.length > 2) {
+        // Keep first and last part for context
+        const first = parts[0];
+        const last = parts[parts.length - 1];
+        const maxFirstLength = Math.floor((maxLength - last.length - 3) / 2); // -3 for "..."
+        
+        if (first.length > maxFirstLength) {
+          return `${first.substring(0, maxFirstLength)}...${last}`;
+        }
+        return `${first}...${last}`;
+      }
+    }
+
+    // Pattern 6: URL paths (extract meaningful directory/file names)
+    if (originalName.includes('/')) {
+      const pathParts = originalName.split('/');
+      const fileName = pathParts[pathParts.length - 1];
+      
+      // If filename is meaningful and not too long
+      if (fileName && fileName.length <= maxLength && !fileName.includes('?')) {
+        return fileName;
+      }
+      
+      // Otherwise, take first part + "..." + filename
+      if (pathParts.length > 1) {
+        const firstPart = pathParts[0];
+        const maxFirstLength = maxLength - fileName.length - 3; // -3 for "..."
+        
+        if (maxFirstLength > 5) {
+          return `${firstPart.substring(0, maxFirstLength)}.../${fileName}`;
+        }
+      }
+    }
+
+    // Pattern 7: Camelcase or underscore separated (extract key words)
+    const words = originalName.split(/[_\-\.]+/);
+    if (words.length > 1) {
+      // Take first meaningful word and last word
+      const meaningfulWords = words.filter(word => word.length > 2);
+      if (meaningfulWords.length >= 2) {
+        const first = meaningfulWords[0];
+        const last = meaningfulWords[meaningfulWords.length - 1];
+        const combined = `${first}...${last}`;
+        
+        if (combined.length <= maxLength) {
+          return combined;
+        }
+      }
+    }
+
+    // Fallback: Simple truncation with ellipsis
+    return `${originalName.substring(0, maxLength - 3)}...`;
+  }
+
+  /**
+   * 🎯 Get display name for library (combines truncation with meaningful context)
+   */
+  static getDisplayName(library: MinifiedLibrary | { name: string; version?: string; third_party_info?: any }, maxLength: number = 30): string {
+    // For known library types, try to extract more meaningful info
+    const truncatedName = this.truncateLibraryName(library.name, maxLength);
+    
+    // Add context based on third-party info (if available)
+    if (library.third_party_info?.type) {
+      const typeIndicators: Record<string, string> = {
+        'analytics': '📊',
+        'advertising': '📱',
+        'cdn': '🌐',
+        'social': '🔗',
+        'unknown': '🔧'
+      };
+      
+      const indicator = typeIndicators[library.third_party_info.type] || '🔧';
+      
+      // If name is very short after truncation, add type context
+      if (truncatedName.length < 15) {
+        return `${indicator} ${truncatedName}`;
+      }
+    }
+    
+    return truncatedName;
+  }
 }
