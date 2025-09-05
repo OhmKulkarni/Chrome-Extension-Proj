@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Label-Based Web Tool Categorization Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .category { margin: 20px 0; padding: 15px; border-left: 4px solid #007acc; background: #f5f5f5; }
+        .tool { margin: 5px 0; padding: 8px; background: white; border-radius: 4px; }
+        .description { color: #666; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <h1>🏷️ Label-Based Web Tool Categorization Test</h1>
+    <p>This test demonstrates the new approach: <strong>categorize everything with useful labels</strong> instead of filtering out "non-libraries".</p>
+    
+    <div id="results"></div>
+    
+    <script>
+        console.log('🧪 Testing label-based categorization...');
+        
+        // Test URLs representing different types of web tools
+        const testTools = [
+            // Traditional Libraries
+            { url: 'https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js', expected: 'utility' },
+            { url: 'https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js', expected: 'ui' },
+            { url: 'https://unpkg.com/react@17.0.2/umd/react.production.min.js', expected: 'framework' },
+            
+            // Privacy & Consent Tools
+            { url: 'https://cdn.cookielaw.org/scripttemplates/otSDKStub.js', expected: 'privacy-tools' },
+            { url: 'https://example.com/otgpp.js', expected: 'privacy-tools' },
+            { url: 'https://consent.cookiebot.com/uc.js', expected: 'privacy-tools' },
+            
+            // Identity & Tracking Tools
+            { url: 'https://example.com/iiquniversalid-sync.js', expected: 'tracking-tools' },
+            { url: 'https://example.com/i.js', expected: 'tracking-tools' },
+            { url: 'https://example.com/pixel.js', expected: 'tracking-tools' },
+            { url: 'https://example.com/tracking.js', expected: 'tracking-tools' },
+            
+            // Site-Specific Tools
+            { url: 'https://example.com/landingprod.js', expected: 'site-tools' },
+            { url: 'https://example.com/freeview.min.js', expected: 'site-tools' },
+            { url: 'https://example.com/auth.js', expected: 'site-tools' },
+            { url: 'https://example.com/zion-web-client.js', expected: 'site-tools' },
+            
+            // Media Tools
+            { url: 'https://example.com/jwplayer.js', expected: 'media-tools' },
+            { url: 'https://example.com/video-player.min.js', expected: 'media-tools' },
+            
+            // Performance Tools
+            { url: 'https://example.com/lazy-load.js', expected: 'performance-tools' },
+            { url: 'https://example.com/optimize.min.js', expected: 'performance-tools' },
+            
+            // Generic Tools
+            { url: 'https://example.com/tag.js', expected: 'utility' },
+            { url: 'https://example.com/load.js', expected: 'performance-tools' },
+            { url: 'https://example.com/psm.js', expected: 'utility' }
+        ];
+        
+        console.log('Test tools:', testTools);
+        
+        // Display expected categorization
+        const categories = {
+            'framework': { name: '🏗️ JavaScript Frameworks', tools: [], color: '#e74c3c' },
+            'utility': { name: '🔧 Utility Libraries', tools: [], color: '#3498db' },
+            'ui': { name: '🎨 UI Libraries', tools: [], color: '#9b59b6' },
+            'analytics': { name: '📊 Analytics Tools', tools: [], color: '#f39c12' },
+            'privacy-tools': { name: '🔒 Privacy & Consent Tools', tools: [], color: '#27ae60' },
+            'tracking-tools': { name: '🎯 Identity & Tracking Tools', tools: [], color: '#e67e22' },
+            'site-tools': { name: '⚙️ Site-Specific Tools', tools: [], color: '#34495e' },
+            'media-tools': { name: '🎬 Media & Content Tools', tools: [], color: '#8e44ad' },
+            'performance-tools': { name: '⚡ Performance Tools', tools: [], color: '#16a085' }
+        };
+        
+        // Categorize test tools
+        testTools.forEach(tool => {
+            const category = categories[tool.expected];
+            if (category) {
+                category.tools.push(tool);
+            }
+        });
+        
+        // Display results
+        let html = '<h2>Expected Categorization Results</h2>';
+        
+        Object.entries(categories).forEach(([key, category]) => {
+            if (category.tools.length > 0) {
+                html += `
+                    <div class="category" style="border-color: ${category.color}">
+                        <h3>${category.name} (${category.tools.length} tools)</h3>
+                        ${category.tools.map(tool => {
+                            const name = tool.url.split('/').pop().replace(/\.min\.js|\.js/, '');
+                            return `
+                                <div class="tool">
+                                    <strong>${name}</strong><br>
+                                    <small>${tool.url}</small><br>
+                                    <span class="description">Category: ${tool.expected}</span>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            }
+        });
+        
+        html += `
+            <div style="margin-top: 30px; padding: 20px; background: #e8f5e8; border-radius: 8px;">
+                <h3>✅ Benefits of Label-Based Categorization</h3>
+                <ul>
+                    <li><strong>Complete Visibility:</strong> Users see ALL web tools, not just "traditional libraries"</li>
+                    <li><strong>Informed Decisions:</strong> Clear labels help users understand what each tool does</li>
+                    <li><strong>Privacy Awareness:</strong> Privacy and tracking tools are clearly identified</li>
+                    <li><strong>No Information Loss:</strong> Nothing is hidden or filtered out</li>
+                    <li><strong>Educational Value:</strong> Users learn about different types of web technologies</li>
+                </ul>
+            </div>
+            
+            <div style="margin-top: 20px; padding: 20px; background: #f0f8ff; border-radius: 8px;">
+                <h3>🎯 CNN Example - What Users Would See</h3>
+                <p><strong>Before:</strong> "4 libraries detected" (14 items filtered out)</p>
+                <p><strong>After:</strong> "18 web tools detected and categorized"</p>
+                <ul>
+                    <li>🔒 Privacy Tools: OneTrust consent management (3 tools)</li>
+                    <li>🎯 Tracking Tools: Identity sync and pixels (2 tools)</li>
+                    <li>⚙️ Site Tools: CNN-specific functionality (5 tools)</li>
+                    <li>📊 Analytics: Real analytics libraries (4 tools)</li>
+                    <li>🔧 Utilities: Generic JavaScript tools (4 tools)</li>
+                </ul>
+                <p><em>Total: Complete transparency with meaningful categorization</em></p>
+            </div>
+        `;
+        
+        document.getElementById('results').innerHTML = html;
+        
+        // Simulate some categorization tests
+        setTimeout(() => {
+            console.log('🧪 Running categorization tests...');
+            
+            if (window.chrome && chrome.runtime) {
+                testTools.forEach((tool, index) => {
+                    setTimeout(() => {
+                        console.log(`🔍 Testing: ${tool.url} (expected: ${tool.expected})`);
+                        
+                        chrome.runtime.sendMessage({
+                            action: 'NETWORK_REQUEST_COMPLETED',
+                            data: {
+                                url: tool.url,
+                                method: 'GET',
+                                responseHeaders: {'content-type': 'application/javascript'},
+                                statusCode: 200,
+                                tabId: 'test-tab'
+                            }
+                        }).catch(err => console.log('Expected error in test:', err.message));
+                    }, index * 50);
+                });
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

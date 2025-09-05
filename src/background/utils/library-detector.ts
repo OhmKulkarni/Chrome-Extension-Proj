@@ -6,13 +6,14 @@ import { MinifiedLibrary } from '../storage-types';
 export interface LibraryInfo {
   name: string;
   version?: string;
-  type: 'framework' | 'utility' | 'ui' | 'analytics' | 'polyfill';
+  type: 'framework' | 'utility' | 'ui' | 'analytics' | 'polyfill' | 'privacy-tools' | 'tracking-tools' | 'site-tools' | 'media-tools' | 'performance-tools';
   url: string;
   cdnProvider?: string;
   isMinified: boolean;
   confidence: number;
   domain: string;
   detectionMethod: 'url-pattern' | 'content-analysis' | 'header-analysis' | 'cdn-detection' | 'dom-global' | 'script-analysis' | 'source-map';
+  description?: string; // Human-readable description of what this tool does
 }
 
 export interface DomainLibraryStats {
@@ -24,6 +25,11 @@ export interface DomainLibraryStats {
   uiLibrariesCount: number;
   analyticsCount: number;
   polyfillsCount: number;
+  privacyToolsCount: number;
+  trackingToolsCount: number;
+  siteToolsCount: number;
+  mediaToolsCount: number;
+  performanceToolsCount: number;
 }
 
 // Library detection patterns with DOM signatures
@@ -108,6 +114,86 @@ const LIBRARY_PATTERNS = {
     globalSignatures: ['bootstrap'],
     domSignatures: ['btn-', 'col-', 'row', 'container-', 'modal-'],
     bundleSignatures: ['bootstrap/dist/', 'bootstrap/scss/']
+  },
+
+  // Privacy & Consent Tools
+  onetrust: {
+    patterns: [/onetrust/i, /otgpp/i, /otbannersdk/i, /otsdkstub/i, /optanon/i],
+    type: 'privacy-tools' as const,
+    cdnPatterns: [/onetrust\.com/, /cookielaw\.org/],
+    globalSignatures: ['OneTrust', 'OptanonWrapper', 'OT'],
+    domSignatures: ['onetrust-', 'optanon-', 'ot-'],
+    bundleSignatures: ['onetrust', 'optanon'],
+    description: 'GDPR/Privacy compliance and cookie consent management'
+  },
+  cookiebot: {
+    patterns: [/cookiebot/i, /cookiebanner/i],
+    type: 'privacy-tools' as const,
+    cdnPatterns: [/consent\.cookiebot\.com/],
+    globalSignatures: ['Cookiebot'],
+    domSignatures: ['cookiebot-', 'cb-'],
+    bundleSignatures: ['cookiebot'],
+    description: 'Cookie consent and privacy compliance'
+  },
+
+  // Identity & Tracking Tools
+  universalid: {
+    patterns: [/universalid/i, /iiquniversalid/i, /id-sync/i, /identity.*sync/i],
+    type: 'tracking-tools' as const,
+    cdnPatterns: [/adsystem\.amazon/, /liveramp\.com/],
+    globalSignatures: ['universalId', 'iiq'],
+    domSignatures: [],
+    bundleSignatures: ['universalid', 'identity'],
+    description: 'Cross-site user identification and audience synchronization'
+  },
+  trackingpixel: {
+    patterns: [/pixel/i, /beacon/i, /collect/i, /track(?:ing)?/i],
+    type: 'tracking-tools' as const,
+    cdnPatterns: [/facebook\.com/, /google-analytics\.com/, /doubleclick\.net/],
+    globalSignatures: ['fbq', '_gaq', 'gtag'],
+    domSignatures: [],
+    bundleSignatures: ['pixel', 'tracking'],
+    description: 'User behavior tracking and analytics collection'
+  },
+
+  // Site-Specific Tools
+  authentication: {
+    patterns: [/auth(?:entication)?/i, /login/i, /oauth/i, /sso/i],
+    type: 'site-tools' as const,
+    cdnPatterns: [/auth0\.com/, /okta\.com/],
+    globalSignatures: ['Auth0', 'okta'],
+    domSignatures: ['auth-', 'login-'],
+    bundleSignatures: ['auth', 'login'],
+    description: 'User authentication and access control'
+  },
+  sitefeatures: {
+    patterns: [/landing/i, /freeview/i, /zion/i, /paywall/i],
+    type: 'site-tools' as const,
+    cdnPatterns: [],
+    globalSignatures: [],
+    domSignatures: [],
+    bundleSignatures: ['landing', 'freeview', 'zion'],
+    description: 'Site-specific features and business logic'
+  },
+
+  // Media & Performance Tools
+  videotools: {
+    patterns: [/video/i, /player/i, /stream/i, /jwplayer/i, /videojs/i],
+    type: 'media-tools' as const,
+    cdnPatterns: [/jwplatform\.com/, /vimeo\.com/, /youtube\.com/],
+    globalSignatures: ['jwplayer', 'videojs', 'Vimeo'],
+    domSignatures: ['video-', 'player-'],
+    bundleSignatures: ['video', 'player'],
+    description: 'Video streaming and media playback'
+  },
+  loadingtools: {
+    patterns: [/load(?:er)?/i, /lazy/i, /defer/i, /preload/i],
+    type: 'performance-tools' as const,
+    cdnPatterns: [],
+    globalSignatures: ['LazyLoad', 'IntersectionObserver'],
+    domSignatures: ['lazy-', 'loading-'],
+    bundleSignatures: ['lazy', 'loader'],
+    description: 'Content loading optimization and lazy loading'
   }
 };
 
@@ -201,83 +287,127 @@ export class LibraryDetector {
   }
 
   /**
-   * Enhanced generic library detection with ad/tracking URL filtering
+   * Enhanced generic tool detection with intelligent categorization
    */
   private static detectGenericLibrary(url: string): LibraryInfo | null {
-    const urlLower = url.toLowerCase();
+    const filename = url.split('/').pop() || '';
+    const baseName = filename.replace(/\.(?:min\.)?js$/i, '').toLowerCase();
 
-    // Enhanced ad/tracking URL patterns to filter out false positives
-    const adPatterns = [
-      /casalemedia\.com/,
-      /doubleclick\.net/,
-      /googlesyndication\.com/,
-      /googleadservices\.com/,
-      /amazon-adsystem\.com/,
-      /facebook\.net\/tr/,
-      /adsystem\.amazon/,
-      /googletagmanager\.com\/gtm/,
-      /google-analytics\.com\/analytics/,
-      /scorecardresearch\.com/,
-      /quantserve\.com/,
-      /adsymptotic\.com/,
-      /turn\.com/,
-      /rubiconproject\.com/,
-      /rlcdn\.com/,
-      /criteo\.com/,
-      /outbrain\.com/,
-      /taboola\.com/,
-      /ads\.yahoo\.com/,
-      /yimg\.com\/\w+\/ads/,
-      /facebook\.com\/tr/,
-      /twitter\.com\/i\/adsct/,
-      /linkedin\.com\/px/,
-      /reddit\.com\/api/,
-      /pinterest\.com\/v[0-9]/,
-      /tiktok\.com\/i18n/
+    // Only filter out obvious non-JavaScript resources
+    const nonJavaScriptPatterns = [
+      /\.(css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|pdf|xml|json)(\?|$)/i,
+      /\/images\//, /\/img\//, /\/css\//, /\/fonts\//
     ];
 
-    // Filter out advertising/tracking URLs
-    if (adPatterns.some(pattern => pattern.test(urlLower))) {
-      console.log('[LibraryDetector] Filtered out ad/tracking URL:', url);
+    if (nonJavaScriptPatterns.some(pattern => pattern.test(url))) {
       return null;
     }
 
-    // Check for library-like patterns in URLs
-    const libraryPatterns = [
-      { pattern: /\/([a-z-]+)[-.](\d+\.\d+\.\d+)[\w.-]*\.(?:min\.)?js$/i, confidence: 0.8 },
-      { pattern: /\/([a-z-]+)\.(?:min\.)?js$/i, confidence: 0.6 },
-      { pattern: /cdn.*\/([a-z-]+)[-.](\d+\.\d+)[\w.-]*\.js$/i, confidence: 0.7 },
-      { pattern: /lib.*\/([a-z-]+)\.js$/i, confidence: 0.6 }
-    ];
-
-    for (const { pattern, confidence } of libraryPatterns) {
-      const match = urlLower.match(pattern);
-      if (match) {
-        const libraryName = match[1];
-        const version = match[2] || undefined;
-
-        // Additional filtering for common non-library patterns
-        if (['api', 'analytics', 'track', 'pixel', 'beacon', 'ads', 'gtm'].includes(libraryName)) {
-          continue;
-        }
-
-        const cdnProvider = this.detectCdnProvider(url);
-
-        return {
-          name: libraryName,
-          version,
-          type: 'utility',
-          url,
-          cdnProvider,
-          isMinified: this.isMinified(url),
-          confidence,
-          domain: '',
-          detectionMethod: 'url-pattern'
-        };
-      }
+    // Extract tool name from URL
+    let toolName = baseName;
+    if (!toolName || toolName.length < 1) {
+      // Try to get name from path
+      const pathParts = url.split('/').filter(part => part && !part.includes('.'));
+      toolName = pathParts[pathParts.length - 1] || 'unknown-script';
     }
 
-    return null;
+    // Intelligent categorization based on patterns
+    const { type, description } = this.categorizeWebTool(toolName, url);
+
+    // Extract version if available
+    const versionMatch = url.match(/(\d+\.\d+(?:\.\d+)?)/);
+    const version = versionMatch ? versionMatch[1] : undefined;
+
+    return {
+      name: toolName,
+      version,
+      type,
+      url,
+      cdnProvider: this.detectCdnProvider(url),
+      isMinified: /\.min\.js/i.test(filename),
+      confidence: version ? 0.8 : 0.6, // Higher confidence if versioned
+      domain: '',
+      detectionMethod: 'url-pattern',
+      description
+    };
+  }
+
+  /**
+   * Categorize web tools based on name and URL patterns
+   */
+  private static categorizeWebTool(name: string, url: string): { type: LibraryInfo['type']; description: string } {
+    const nameLower = name.toLowerCase();
+    const urlLower = url.toLowerCase();
+
+    // Privacy & Consent Tools
+    if (/(?:onetrust|otgpp|otbanner|otsdkstub|cookiebot|consent|privacy|gdpr|ccpa|optanon)/i.test(nameLower + urlLower)) {
+      return { 
+        type: 'privacy-tools', 
+        description: 'Privacy compliance and consent management' 
+      };
+    }
+
+    // Identity & Tracking Tools
+    if (/(?:universalid|identity|sync|track|pixel|beacon|collect|analytics)/i.test(nameLower + urlLower)) {
+      return { 
+        type: 'tracking-tools', 
+        description: 'User tracking and identity management' 
+      };
+    }
+
+    // Site-Specific Tools
+    if (/(?:auth|login|landing|freeview|zion|paywall|checkout|cart)/i.test(nameLower + urlLower)) {
+      return { 
+        type: 'site-tools', 
+        description: 'Site-specific functionality and features' 
+      };
+    }
+
+    // Media Tools
+    if (/(?:video|player|stream|media|audio|jwplayer)/i.test(nameLower + urlLower)) {
+      return { 
+        type: 'media-tools', 
+        description: 'Media playback and streaming' 
+      };
+    }
+
+    // Performance Tools
+    if (/(?:load|lazy|defer|preload|cache|optimize|compress)/i.test(nameLower + urlLower)) {
+      return { 
+        type: 'performance-tools', 
+        description: 'Performance optimization and loading' 
+      };
+    }
+
+    // Framework Detection
+    if (/(?:react|vue|angular|ember|backbone)/i.test(nameLower)) {
+      return { 
+        type: 'framework', 
+        description: 'JavaScript framework' 
+      };
+    }
+
+    // UI Libraries
+    if (/(?:bootstrap|material|semantic|foundation|bulma|tailwind)/i.test(nameLower)) {
+      return { 
+        type: 'ui', 
+        description: 'User interface library' 
+      };
+    }
+
+    // Analytics Libraries
+    if (/(?:gtag|ga|google.*analytics|mixpanel|segment|amplitude|hotjar)/i.test(nameLower + urlLower)) {
+      return { 
+        type: 'analytics', 
+        description: 'Analytics and user behavior tracking' 
+      };
+    }
+
+    // Generic utilities (fallback)
+    return { 
+      type: 'utility', 
+      description: 'JavaScript utility or tool' 
+    };
   }
 
   /**
@@ -299,7 +429,8 @@ export class LibraryDetector {
             isMinified: this.isMinified(url),
             confidence: 0.7,
             domain: '',
-            detectionMethod: 'content-analysis'
+            detectionMethod: 'content-analysis',
+            description: this.getDefaultDescription(config.type)
           });
           break; // Avoid duplicates for the same library
         }
@@ -614,5 +745,24 @@ export class LibraryDetector {
       timestamp: Date.now(),
       main_domain: domain
     };
+  }
+
+  /**
+   * Get default description for library types
+   */
+  private static getDefaultDescription(type: LibraryInfo['type']): string {
+    const descriptions = {
+      'framework': 'JavaScript framework',
+      'utility': 'JavaScript utility library',
+      'ui': 'User interface library',
+      'analytics': 'Analytics and tracking tool',
+      'polyfill': 'Browser compatibility polyfill',
+      'privacy-tools': 'Privacy and consent management',
+      'tracking-tools': 'User tracking and identification',
+      'site-tools': 'Site-specific functionality',
+      'media-tools': 'Media and content tools',
+      'performance-tools': 'Performance optimization tools'
+    };
+    return descriptions[type] || 'Web development tool';
   }
 }
