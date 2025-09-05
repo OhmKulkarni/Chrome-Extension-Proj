@@ -1,12 +1,13 @@
 import { MinifiedLibrary } from '../storage-types';
 
 /**
- * Interface for detected library information
+ * Interface for detected web resource information
+ * Covers libraries, services, APIs, endpoints, and other web resources
  */
 export interface LibraryInfo {
   name: string;
   version?: string;
-  type: 'framework' | 'utility' | 'ui' | 'analytics' | 'polyfill' | 'privacy-tools' | 'tracking-tools' | 'site-tools' | 'media-tools' | 'performance-tools';
+  type: 'framework' | 'utility' | 'ui' | 'analytics' | 'polyfill' | 'privacy-tools' | 'tracking-tools' | 'site-tools' | 'media-tools' | 'performance-tools' | 'advertising-service' | 'api-endpoint' | 'streaming-service' | 'data-collector' | 'web-service';
   url: string;
   cdnProvider?: string;
   isMinified: boolean;
@@ -14,6 +15,7 @@ export interface LibraryInfo {
   domain: string;
   detectionMethod: 'url-pattern' | 'content-analysis' | 'header-analysis' | 'cdn-detection' | 'dom-global' | 'script-analysis' | 'source-map';
   description?: string; // Human-readable description of what this tool does
+  serviceType?: 'library' | 'service' | 'endpoint' | 'api' | 'stream' | 'collector'; // New field to distinguish resource types
 }
 
 export interface DomainLibraryStats {
@@ -30,6 +32,12 @@ export interface DomainLibraryStats {
   siteToolsCount: number;
   mediaToolsCount: number;
   performanceToolsCount: number;
+  // New service counts
+  advertisingServicesCount: number;
+  apiEndpointsCount: number;
+  streamingServicesCount: number;
+  dataCollectorsCount: number;
+  webServicesCount: number;
 }
 
 // Library detection patterns with DOM signatures
@@ -405,7 +413,7 @@ export class LibraryDetector {
     console.log('[LibraryDetector] Generic detection for:', { url, filename, toolName });
 
     // Intelligent categorization based on patterns
-    const { type, description } = this.categorizeWebTool(toolName, url);
+    const categorization = this.categorizeWebTool(toolName, url);
 
     // Extract version if available
     const versionMatch = url.match(/(\d+\.\d+(?:\.\d+)?)/);
@@ -414,69 +422,113 @@ export class LibraryDetector {
     return {
       name: toolName,
       version,
-      type,
+      type: categorization.type,
       url,
       cdnProvider: this.detectCdnProvider(url),
       isMinified: /\.min\.js/i.test(filename),
       confidence: version ? 0.8 : 0.6, // Higher confidence if versioned
       domain: '',
       detectionMethod: 'url-pattern',
-      description
+      description: categorization.description,
+      serviceType: categorization.serviceType as 'library' | 'service' | 'endpoint' | 'api' | 'stream' | 'collector'
     };
   }
 
   /**
    * Categorize web tools based on name and URL patterns
    */
-  private static categorizeWebTool(name: string, url: string): { type: LibraryInfo['type']; description: string } {
+  private static categorizeWebTool(name: string, url: string): { type: LibraryInfo['type']; description: string; serviceType?: string } {
     const nameLower = name.toLowerCase();
     const urlLower = url.toLowerCase();
 
-    // Privacy & Consent Tools (OneTrust, etc.)
-    if (/(?:onetrust|otgpp|otbanner|otsdkstub|cookiebot|consent|privacy|gdpr|ccpa|optanon)/i.test(nameLower + urlLower)) {
+    // 🎯 ADVERTISING & MARKETING SERVICES
+    if (/(?:casalemedia|criteo|adsrvr|pubmatic|doubleclick|adsystem|bidder|cdb|translator|hbopenbid|wunderkind|magnite|sodar|rid)/i.test(nameLower + urlLower)) {
+      return {
+        type: 'advertising-service',
+        description: 'Advertising and marketing service',
+        serviceType: 'service'
+      };
+    }
+
+    // 🎯 ANALYTICS & DATA COLLECTION SERVICES  
+    if (/(?:collector|logs|analytics|browser-intake|optimizely|events|datadog|segment|amplitude|hotjar|gtag|ga)/i.test(nameLower + urlLower)) {
+      return {
+        type: 'data-collector',
+        description: 'Analytics and data collection service',
+        serviceType: 'collector'
+      };
+    }
+
+    // 🎯 MEDIA & STREAMING SERVICES
+    if (/(?:livestream|manifests|streaming|warnermediacdn|live-manifests|video|player|stream|media|jwplayer|cygnus)/i.test(nameLower + urlLower)) {
+      return {
+        type: 'streaming-service',
+        description: 'Media streaming and content delivery service',
+        serviceType: 'stream'
+      };
+    }
+
+    // 🎯 API ENDPOINTS & WEB SERVICES
+    if (/(?:api|endpoint|service|reg|segments|desktop|pub|v2|receive|wmcdp|zetaglobal|lijit|direct|ssp|wknd)/i.test(nameLower + urlLower)) {
+      return {
+        type: 'api-endpoint',
+        description: 'API endpoint or web service',
+        serviceType: 'api'
+      };
+    }
+
+    // 🎯 PRIVACY & COMPLIANCE SERVICES
+    if (/(?:onetrust|otgpp|otbanner|otsdkstub|cookiebot|consent|privacy|gdpr|ccpa|optanon|adsafeprotected|adtrafficquality)/i.test(nameLower + urlLower)) {
       return {
         type: 'privacy-tools',
-        description: 'Privacy compliance and consent management'
+        description: 'Privacy compliance and security service',
+        serviceType: 'service'
       };
     }
 
-    // Identity & Tracking Tools (Universal ID, tracking pixels, etc.)
-    if (/(?:universalid|iiquniversalid|identity|sync|track|pixel|beacon|collect|analytics|tag)/i.test(nameLower + urlLower)) {
+    // 🎯 TRACKING & IDENTITY SERVICES (Traditional Libraries)
+    if (/(?:universalid|iiquniversalid|identity|sync|track|pixel|beacon|collect|tag|trackingpixel)/i.test(nameLower + urlLower)) {
       return {
         type: 'tracking-tools',
-        description: 'User tracking and identity management'
+        description: 'User tracking and identity management',
+        serviceType: 'library'
       };
     }
 
-    // Site-Specific Tools (Landing pages, auth, paywalls, etc.)
-    if (/(?:auth|login|landing|landingprod|freeview|zion|web-client|mb|paywall|checkout|cart)/i.test(nameLower + urlLower)) {
+    // 🎯 SITE-SPECIFIC FEATURES (Traditional Libraries)
+    if (/(?:auth|login|landing|landingprod|freeview|zion|web-client|mb|paywall|checkout|cart|alerts|sitefeatures)/i.test(nameLower + urlLower)) {
       return {
         type: 'site-tools',
-        description: 'Site-specific functionality and features'
+        description: 'Site-specific functionality and features',
+        serviceType: 'library'
       };
     }
 
-    // Media Tools
-    if (/(?:video|player|stream|media|audio|jwplayer)/i.test(nameLower + urlLower)) {
+    // 🎯 MEDIA LIBRARIES (Traditional Libraries)
+    if (/(?:videotools|d3|player)/i.test(nameLower)) {
       return {
         type: 'media-tools',
-        description: 'Media playback and streaming'
+        description: 'Media libraries and visualization tools',
+        serviceType: 'library'
       };
     }
 
-    // Performance Tools (Loading, optimization, etc.)
-    if (/(?:load|loader|lazy|defer|preload|cache|optimize|compress|psm|taglw)/i.test(nameLower + urlLower)) {
+    // 🎯 PERFORMANCE LIBRARIES (Traditional Libraries)
+    if (/(?:loadingtools|load|loader|lazy|defer|preload|cache|optimize|compress|psm|taglw)/i.test(nameLower + urlLower)) {
       return {
         type: 'performance-tools',
-        description: 'Performance optimization and loading'
+        description: 'Performance optimization and loading libraries',
+        serviceType: 'library'
       };
     }
 
+    // 🎯 TRADITIONAL JAVASCRIPT LIBRARIES
     // Framework Detection
     if (/(?:react|vue|angular|ember|backbone)/i.test(nameLower)) {
       return {
         type: 'framework',
-        description: 'JavaScript framework'
+        description: 'JavaScript framework',
+        serviceType: 'library'
       };
     }
 
@@ -484,22 +536,16 @@ export class LibraryDetector {
     if (/(?:bootstrap|material|semantic|foundation|bulma|tailwind)/i.test(nameLower)) {
       return {
         type: 'ui',
-        description: 'User interface library'
-      };
-    }
-
-    // Analytics Libraries
-    if (/(?:gtag|ga|google.*analytics|mixpanel|segment|amplitude|hotjar)/i.test(nameLower + urlLower)) {
-      return {
-        type: 'analytics',
-        description: 'Analytics and user behavior tracking'
+        description: 'User interface library',
+        serviceType: 'library'
       };
     }
 
     // Generic utilities (fallback)
     return {
       type: 'utility',
-      description: 'JavaScript utility or tool'
+      description: 'JavaScript utility or web resource',
+      serviceType: 'library'
     };
   }
 
@@ -865,7 +911,7 @@ export class LibraryDetector {
   }
 
   /**
-   * Get default description for library types
+   * Get default description for resource types
    */
   private static getDefaultDescription(type: LibraryInfo['type']): string {
     const descriptions = {
@@ -878,9 +924,14 @@ export class LibraryDetector {
       'tracking-tools': 'User tracking and identification',
       'site-tools': 'Site-specific functionality',
       'media-tools': 'Media and content tools',
-      'performance-tools': 'Performance optimization tools'
+      'performance-tools': 'Performance optimization tools',
+      'advertising-service': 'Advertising and marketing service',
+      'api-endpoint': 'API endpoint or web service',
+      'streaming-service': 'Media streaming service',
+      'data-collector': 'Data collection and analytics service',
+      'web-service': 'Web service or external API'
     };
-    return descriptions[type] || 'Web development tool';
+    return descriptions[type] || 'Web resource';
   }
 
   /**
