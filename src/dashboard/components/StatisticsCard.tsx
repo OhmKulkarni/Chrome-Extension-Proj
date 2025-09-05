@@ -218,24 +218,6 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     }
   };
 
-  // Helper function to get third-party type icon
-  const getThirdPartyIcon = (thirdPartyType?: string) => {
-    switch (thirdPartyType) {
-      case 'advertising':
-        return <Megaphone className="h-3 w-3" />;
-      case 'tracking':
-        return <Target className="h-3 w-3" />;
-      case 'cdn':
-        return <Globe className="h-3 w-3" />;
-      case 'analytics':
-        return <BarChart className="h-3 w-3" />;
-      case 'social':
-        return <Monitor className="h-3 w-3" />;
-      default:
-        return <Globe className="h-3 w-3" />;
-    }
-  };
-
   const toggleLibrarySourceDomains = (domain: string) => {
     const newExpanded = new Set(expandedLibraryDomains);
     if (newExpanded.has(domain)) {
@@ -1516,17 +1498,10 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                               <span className="truncate font-semibold">{stat.domain}</span>
                               {stat.isThirdParty && (
                                 <span
-                                  className={`inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded-md ${
-                                    stat.thirdPartyType === 'advertising' ? 'bg-red-100 text-red-800' :
-                                    stat.thirdPartyType === 'tracking' ? 'bg-orange-100 text-orange-800' :
-                                    stat.thirdPartyType === 'cdn' ? 'bg-blue-100 text-blue-800' :
-                                    stat.thirdPartyType === 'analytics' ? 'bg-purple-100 text-purple-800' :
-                                    stat.thirdPartyType === 'social' ? 'bg-pink-100 text-pink-800' :
-                                    'bg-gray-100 text-gray-800'
-                                  }`}
+                                  className="inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded-md bg-teal-100 text-teal-800"
                                   title={`3rd party ${stat.thirdPartyType || 'service'}`}
                                 >
-                                  {getThirdPartyIcon(stat.thirdPartyType)} 3rd party domain
+                                  3rd party domain
                                 </span>
                               )}
                               {/* Single total event count */}
@@ -1700,17 +1675,10 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                     <span className="text-sm font-medium">{stat.domain}</span>
                                     {stat.isThirdParty && (
                                       <span
-                                        className={`inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded-md ${
-                                          stat.thirdPartyType === 'advertising' ? 'bg-red-100 text-red-800' :
-                                          stat.thirdPartyType === 'tracking' ? 'bg-orange-100 text-orange-800' :
-                                          stat.thirdPartyType === 'cdn' ? 'bg-blue-100 text-blue-800' :
-                                          stat.thirdPartyType === 'analytics' ? 'bg-purple-100 text-purple-800' :
-                                          stat.thirdPartyType === 'social' ? 'bg-pink-100 text-pink-800' :
-                                          'bg-gray-100 text-gray-800'
-                                        }`}
+                                        className="inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded-md bg-teal-100 text-teal-800"
                                         title={`3rd party ${stat.thirdPartyType || 'service'}`}
                                       >
-                                        {getThirdPartyIcon(stat.thirdPartyType)} 3rd
+                                        3rd party domain
                                       </span>
                                     )}
                                   </div>
@@ -1821,8 +1789,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                                 {sourceDomain.count}
                                               </span>
                                               {sourceDomain.isThirdParty && (
-                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800" title="Third-party domain">
-                                                  {getThirdPartyIcon(sourceDomain.thirdPartyType)} 3rd
+                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-800" title="Third-party domain">
+                                                  3rd party domain
                                                 </span>
                                               )}
                                             </div>
