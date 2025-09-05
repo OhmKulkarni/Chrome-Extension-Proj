@@ -1041,7 +1041,7 @@ export class MessageRouterSimpleModule {
     sender: chrome.runtime.MessageSender
   ): Promise<void> {
     try {
-      const { libraries } = message;
+      const { libraries, domain } = message;
       const tabId = sender.tab?.id;
       const tabUrl = sender.tab?.url;
 
@@ -1050,20 +1050,22 @@ export class MessageRouterSimpleModule {
         return;
       }
 
-      const domain = this.extractMainDomain(tabUrl);
-      console.log(`📚 LibraryDetection: Received ${libraries?.length || 0} libraries from content script for ${domain}`);
+      // DOMAIN FIX: Use domain from content script (already processed) instead of re-extracting
+      // Content script now sends consistent main domain (e.g., yahoo.com instead of finance.yahoo.com)
+      const mainDomain = domain || this.extractMainDomain(tabUrl);
+      console.log(`📚 LibraryDetection: Received ${libraries?.length || 0} libraries from content script for ${mainDomain}`);
 
       if (libraries && Array.isArray(libraries)) {
         // Store each library from content script detection
         for (const library of libraries) {
           try {
-            const minifiedLibrary = LibraryDetector.toMinifiedLibrary(library, domain);
+            const minifiedLibrary = LibraryDetector.toMinifiedLibrary(library, mainDomain);
             await this.indexedDbStorage.insertMinifiedLibrary(minifiedLibrary);
           } catch (error) {
             console.warn('Failed to store content script library:', library.name, error);
           }
         }
-        console.log(`📚 LibraryDetection: Stored ${libraries.length} content script libraries for ${domain}`);
+        console.log(`📚 LibraryDetection: Stored ${libraries.length} content script libraries for ${mainDomain}`);
       }
     } catch (error) {
       console.error('Error handling content library detection:', error);
