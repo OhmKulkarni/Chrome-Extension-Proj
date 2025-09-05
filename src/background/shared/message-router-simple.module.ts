@@ -388,16 +388,16 @@ export class MessageRouterSimpleModule {
         case 'CHECK_LOGGING_PERMISSIONS':
           try {
             let tabId = message.tabId;
-            
+
             // If no tabId provided but URL is available, get tabId from sender
             if (!tabId && message.url && sender?.tab?.id) {
               tabId = sender.tab.id;
             }
-            
+
             if (tabId !== undefined) {
               // Import unified permission manager dynamically
               const { unifiedPermissionManager } = await import('../../utils/unified-permission-manager');
-              
+
               // Check if any of the three logging types are enabled for this tab
               const [networkEnabled, consoleEnabled, tokenEnabled] = await Promise.all([
                 unifiedPermissionManager.isFeatureEnabled(tabId, 'network'),
@@ -406,9 +406,9 @@ export class MessageRouterSimpleModule {
               ]);
 
               const hasAnyLoggingEnabled = networkEnabled || consoleEnabled || tokenEnabled;
-              
-              sendResponse({ 
-                success: true, 
+
+              sendResponse({
+                success: true,
                 hasLogging: hasAnyLoggingEnabled,
                 enabled: hasAnyLoggingEnabled,
                 details: {

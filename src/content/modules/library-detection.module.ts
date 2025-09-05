@@ -47,7 +47,7 @@ export class ContentLibraryDetectionModule {
       // DOMAIN CONSISTENCY FIX: Use same domain extraction logic as network processor
       // This ensures libraries are grouped under the same main domain (e.g., yahoo.com instead of finance.yahoo.com)
       const mainDomain = this.extractMainDomain(window.location.href);
-      
+
       const detectedLibraries: LibraryInfo[] = [];
 
       // 1. 🌍 DOM Global Detection - Check window objects
@@ -273,7 +273,7 @@ export class ContentLibraryDetectionModule {
     const globalCheckInterval = setInterval(async () => {
       const now = Date.now();
       if (now - lastGlobalCheck > 10000) { // Check every 10 seconds
-        
+
         // SECURITY FIX: Check permissions before dynamic detection
         const hasLoggingPermission = await this.checkLoggingPermissions();
         if (!hasLoggingPermission) {
