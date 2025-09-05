@@ -849,6 +849,14 @@ export class NetworkProcessorModule {
         // Import the unified permission manager directly
         const { unifiedPermissionManager } = await import('../../utils/unified-permission-manager');
 
+        // SECURITY FIX: Ensure permission manager is properly initialized before checking
+        // This prevents library detection during Chrome startup when permissions aren't loaded
+        const isReady = await unifiedPermissionManager.isReady();
+        if (!isReady) {
+          console.warn(`🚫 LibraryDetector: Permission manager not ready for tab ${tabId}, skipping detection`);
+          return;
+        }
+
         // Check if any of the three logging types are enabled for this tab
         const isNetworkEnabled = await unifiedPermissionManager.isFeatureEnabled(tabId, 'network');
         const isConsoleEnabled = await unifiedPermissionManager.isFeatureEnabled(tabId, 'console');
@@ -859,6 +867,20 @@ export class NetworkProcessorModule {
           console.log(`🚫 LibraryDetector: Skipping detection - no logging enabled for tab ${tabId}`);
           return;
         }
+
+        // DEBUG: Log permission states during startup to track behavior
+        if (Math.random() < 0.1) { // Sample 10% of checks
+          console.log(`📊 LibraryDetector: Permission check for tab ${tabId}:`, {
+            network: isNetworkEnabled,
+            console: isConsoleEnabled,
+            tokens: isTokenEnabled,
+            url: validatedRequestData.url?.substring(0, 50)
+          });
+        }
+      } else {
+        // No tab ID means we can't check permissions - skip detection
+        console.log('🚫 LibraryDetector: No tab ID available, skipping detection');
+        return;
       }
 
       // Extract headers for library detection
