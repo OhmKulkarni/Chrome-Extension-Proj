@@ -6,7 +6,7 @@
 1. **Domain Stats Table**: 6 subdomains
    - `query1.finance.yahoo.com`, `finance.yahoo.com`, `udc.yahoo.com`, `query2.finance.yahoo.com`, `yfc-server-query.finance.yahoo.com`, `s.yimg.com`
 
-2. **Domain Libraries Table**: 8 domains  
+2. **Domain Libraries Table**: 8 domains
    - `finance.yahoo.com`, `query1.finance.yahoo.com`, `query2.finance.yahoo.com`, `s.yimg.com`, `udc.yahoo.com`, `yahoo.com`, `yfc-server-query.finance.yahoo.com`, `yimg.com`
 
 3. **Web Resources Table**: 13 domains
@@ -70,7 +70,7 @@ The discrepancy is **technically correct** but **logically confusing**:
 ```
 yahoo.com                    8 libraries
 ├─ 📦 3 libraries from finance.yahoo.com
-├─ 🎨 5 libraries from s.yimg.com  
+├─ 🎨 5 libraries from s.yimg.com
 └─ 🔗 Affiliated domains: yimg.com, yahooapis.com
 ```
 

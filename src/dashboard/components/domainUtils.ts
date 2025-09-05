@@ -8,8 +8,8 @@ const DOMAIN_AFFILIATIONS: { [key: string]: string } = {
   'yimg.com': 'yahoo.com',
   'yahooapis.com': 'yahoo.com',
   'ymail.com': 'yahoo.com',
-  
-  // Google family domains  
+
+  // Google family domains
   'googleapis.com': 'google.com',
   'gstatic.com': 'google.com',
   'googleusercontent.com': 'google.com',
@@ -17,28 +17,28 @@ const DOMAIN_AFFILIATIONS: { [key: string]: string } = {
   'googletagmanager.com': 'google.com',
   'googleadservices.com': 'google.com',
   'youtube.com': 'google.com',
-  
+
   // Facebook/Meta family domains
   'fbcdn.net': 'facebook.com',
   'instagram.com': 'facebook.com',
   'whatsapp.com': 'facebook.com',
-  
+
   // Amazon family domains
   'amazonaws.com': 'amazon.com',
   'cloudfront.net': 'amazon.com',
-  
+
   // Microsoft family domains
   'live.com': 'microsoft.com',
   'outlook.com': 'microsoft.com',
   'office.com': 'microsoft.com',
   'azure.com': 'microsoft.com',
   'microsoftonline.com': 'microsoft.com',
-  
+
   // Apple family domains
   'icloud.com': 'apple.com',
   'me.com': 'apple.com',
   'mac.com': 'apple.com',
-  
+
   // Twitter family domains
   'twimg.com': 'twitter.com',
   't.co': 'twitter.com'
@@ -387,7 +387,7 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
 
     // Use the main_domain field if available, otherwise fall back to domain parsing
     let mainDomain = item.main_domain || extractBaseDomain(itemUrl);
-    
+
     // DOMAIN AFFILIATION: Group affiliated domains under their parent domain
     const parentDomain = getParentDomain(mainDomain);
     if (parentDomain !== mainDomain) {
@@ -511,7 +511,7 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
         console.log(`🔗 [LibraryAffiliation] Grouping library domain ${mainDomain} under parent ${parentDomain}`);
         mainDomain = parentDomain;
       }
-      
+
       if (!existingDomains.has(mainDomain)) {
         libraryDomains.add(mainDomain);
       }
@@ -607,7 +607,7 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
       if (lib.main_domain === mainDomain) {
         return true;
       }
-      
+
       // Also include libraries from affiliated domains
       const libParentDomain = getParentDomain(lib.main_domain);
       return libParentDomain === mainDomain;
