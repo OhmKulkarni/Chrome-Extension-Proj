@@ -684,8 +684,8 @@ export class LibraryDetector {
 
     // 🚨 PRIORITY 2: ADVERTISING & MARKETING SERVICES (include AdFuel + enhanced patterns)
     // Note: D3.js is handled above, so we can include 'd3' in ad patterns for other contexts
-    if (/(?:casalemedia|criteo|adsrvr|pubmatic|doubleclick|adsystem|bidder|cdb|hbopenbid|wunderkind|magnite|sodar|rid|adfuel|gpt|apstag|pubads|cygnus|3159)/i.test(nameLower + urlLower) ||
-        /(?:dfp_premium|instream|video_ad|video-ad)/i.test(urlLower)) {
+    if (/(?:casalemedia|criteo|adsrvr|pubmatic|doubleclick|adsystem|bidder|cdb|hbopenbid|wunderkind|magnite|cygnus|3159|gpt|apstag|pubads|adfuel|amazonad)/i.test(nameLower + urlLower) ||
+        /(?:dfp_premium|instream|video_ad|video-ad|securepubads)/i.test(urlLower)) {
       return {
         type: 'tracking-tools',
         description: 'Advertising and programmatic bidding service',
@@ -776,9 +776,9 @@ export class LibraryDetector {
     }
 
     // 🎯 API ENDPOINTS & WEB SERVICES (more restrictive now - LOWER PRIORITY)
-    // Exclude source maps, build artifacts, and common framework names explicitly
+    // Exclude source maps, build artifacts, advertising services, and common framework names explicitly
     if (/(?:api\/|endpoint|service|reg|segments|desktop|pub\/|v2\/|receive|wmcdp|zetaglobal|lijit|direct|ssp|wknd)/i.test(urlLower) &&
-        !(/(?:sync|track|collect|analytics|logs|stream|video|auth|tag|launch|vue|react|angular|d3|sodar|gpt|\.map)/i.test(nameLower + urlLower))) {
+        !(/(?:sync|track|collect|analytics|logs|stream|video|auth|tag|launch|vue|react|angular|d3|\.map|cdb|criteo|magnite|wunderkind|cygnus|casalemedia|bidder|hbopenbid|adsystem|doubleclick|pubmatic|adsrvr)/i.test(nameLower + urlLower))) {
       return {
         type: 'service',
         description: 'API endpoint or web service',
@@ -832,9 +832,9 @@ export class LibraryDetector {
       };
     }
 
-    // 🚨 IMPROVED FALLBACK: Handle truly generic file names
+    // 🚨 IMPROVED FALLBACK: Handle truly generic file names and common build artifacts
     // Check if this is a generic file name that should be marked as build artifact
-    const genericFileNames = /^(app|client|main|index|bundle|vendor|runtime|common|shared|core|global|base|js|script|min|compiled|build|public|dist|src|lib|libs|static|assets|web)$/i;
+    const genericFileNames = /^(app|client|main|index|bundle|vendor|runtime|common|shared|core|global|base|js|script|min|compiled|build|public|dist|src|lib|libs|static|assets|web|vue|sodar|vendorhashes|vendorhashes)$/i;
 
     if (genericFileNames.test(nameLower)) {
       return {
