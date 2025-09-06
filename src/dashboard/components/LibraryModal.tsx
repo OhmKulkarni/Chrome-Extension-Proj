@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Badge } from './ui/badge';
-import { X, ExternalLink, Package, Layers, Megaphone, BarChart, Shield, Library, Target, Settings, Film, Zap, Wrench, Database, HelpCircle, Search, Copy, CheckCircle, ArrowUpDown, Filter, Server, Lock, Box, ChevronDown } from 'lucide-react';
+import { X, ExternalLink, Package, Layers, BarChart, Shield, Library, Target, Settings, Film, Zap, Wrench, Database, HelpCircle, Search, Copy, CheckCircle, ArrowUpDown, Filter, Server, Lock, Box, ChevronDown, Globe } from 'lucide-react';
 import { LibraryInfo } from '../../background/utils/library-detector';
 import { useState, useMemo } from 'react';
 import React from 'react';
@@ -45,7 +45,7 @@ const getPrimaryCategoryIcon = (primaryType: string) => {
     case 'privacy':
       return <Shield className="h-4 w-4" />;
     case 'services':
-      return <Megaphone className="h-4 w-4" />;
+      return <Server className="h-4 w-4" />;
     case 'assets':
       return <Package className="h-4 w-4" />;
     default:
@@ -64,7 +64,7 @@ const getTypeIcon = (type: LibraryInfo['type']) => {
     case 'data-collector':
       return <Database className="h-4 w-4" />;
     case 'service':
-      return <Server className="h-4 w-4" />;
+      return <Globe className="h-4 w-4" />;
     case 'privacy-tools':
       return <Lock className="h-4 w-4" />;
     case 'tracking-tools':
@@ -155,7 +155,7 @@ const getPrimaryCategoryInfo = (primaryType: string) => {
     case 'privacy':
       return { icon: Shield, bgColor: 'bg-green-600', textColor: 'text-white', label: 'Privacy' };
     case 'services':
-      return { icon: Megaphone, bgColor: 'bg-rose-600', textColor: 'text-white', label: 'Services' };
+      return { icon: Server, bgColor: 'bg-rose-600', textColor: 'text-white', label: 'Services' };
     case 'assets':
       return { icon: Package, bgColor: 'bg-slate-600', textColor: 'text-white', label: 'Assets' };
     default:

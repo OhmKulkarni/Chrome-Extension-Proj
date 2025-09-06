@@ -1495,7 +1495,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                             <span>Privacy (consent management, protection)</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Megaphone className="h-3 w-3" />
+                            <Server className="h-3 w-3" />
                             <span>Services (APIs, streaming, workers)</span>
                           </div>
                           <div className="flex items-center gap-2">
@@ -1539,7 +1539,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                               <span>Privacy Tools</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Server className="h-3 w-3" />
+                              <Globe className="h-3 w-3" />
                               <span>Web Service</span>
                             </div>
                           </div>
