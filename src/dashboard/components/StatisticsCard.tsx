@@ -1401,7 +1401,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                   <div className="space-y-4">
                     <h4 className="text-sm font-semibold text-blue-800">Dashboard Icons & Features Guide</h4>
                     
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-xs text-blue-700">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-blue-700">
                       {/* Domain Status Icons */}
                       <div className="space-y-2">
                         <p className="font-medium text-blue-800">Domain Status Icons:</p>
@@ -1484,37 +1484,6 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                           <div className="flex items-center gap-2">
                             <Wrench className="h-3 w-3" />
                             <span>Other resources</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Action Icons */}
-                      <div className="space-y-2">
-                        <p className="font-medium text-blue-800">Action Icons:</p>
-                        <div className="space-y-1 ml-2">
-                          <div className="flex items-center gap-2">
-                            <BookOpen className="h-3 w-3" />
-                            <span>View library details</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <RefreshCw className="h-3 w-3" />
-                            <span>Refresh data</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Search className="h-3 w-3" />
-                            <span>Search functionality</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <ArrowUpDown className="h-3 w-3" />
-                            <span>Sort column</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Activity className="h-3 w-3" />
-                            <span>Analysis tools</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <HelpCircle className="h-3 w-3" />
-                            <span>Toggle this guide</span>
                           </div>
                         </div>
                       </div>
