@@ -462,20 +462,20 @@ export class LibraryDetector {
       /^[a-zA-Z0-9_-]*[-_]?v?\d*[-_]?[a-f0-9]{8,}(\.min)?\.(js|br\.js|gz\.js)$/i, // main-v2_59e560d0d47d739292b20b3756404e4f.br.js
       /^[a-zA-Z0-9_-]*[-_]?[a-f0-9]{32,}(\.min)?\.(js|br\.js|gz\.js)$/i, // content hashes
       /^[a-zA-Z0-9_-]*[-_]?[a-f0-9]{8,16}(\.min)?\.(js|br\.js|gz\.js)$/i, // shorter hashes
-      
+
       // Common build tool output patterns
       /^(main|app|bundle|chunk|vendor|runtime|commons?|manifest|polyfills?)[-_.]?[a-f0-9]{6,}(\.min)?\.(js|br\.js|gz\.js)$/i,
       /^[a-f0-9]{6,}\.(js|br\.js|gz\.js)$/i, // Pure hash filenames
-      
+
       // Build tool specific patterns
       /webpack[-_.]?[a-f0-9]/i, // webpack outputs
       /rollup[-_.]?[a-f0-9]/i,  // rollup outputs
       /vite[-_.]?[a-f0-9]/i,    // vite outputs
       /parcel[-_.]?[a-f0-9]/i,  // parcel outputs
-      
+
       // Compressed bundle indicators
       /\.(br|brotli|gz|gzip)\.js$/i, // Brotli/gzip compressed bundles
-      
+
       // Module/chunk patterns
       /^(esm|cjs|umd|iife)[-_.]?[a-f0-9]/i, // module format with hash
       /^[0-9]+\.[a-f0-9]{6,}\.js$/i, // numbered chunks with hashes
@@ -484,7 +484,7 @@ export class LibraryDetector {
     // URL-based build artifact detection
     const urlBuildPatterns = [
       /\/_next\//i,           // Next.js builds
-      /\/_nuxt\//i,           // Nuxt.js builds  
+      /\/_nuxt\//i,           // Nuxt.js builds
       /\/build\//i,           // Generic build directories
       /\/dist\//i,            // Distribution directories
       /\/assets\//i,          // Asset directories
@@ -510,13 +510,13 @@ export class LibraryDetector {
 
       // Extract meaningful name from build artifact
       let displayName = filename;
-      
+
       // Try to extract base name before hash/version
       const hashMatch = filenameLower.match(/^([a-zA-Z0-9_-]+?)[-_.]+[a-f0-9]{6,}/i);
       if (hashMatch) {
         displayName = hashMatch[1];
       }
-      
+
       // Clean up common build prefixes/suffixes
       displayName = displayName
         .replace(/\.(min\.)?js$/i, '')
