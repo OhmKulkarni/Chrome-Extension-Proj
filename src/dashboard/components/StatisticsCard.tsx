@@ -1466,6 +1466,14 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                             <span>Frameworks & libraries</span>
                           </div>
                           <div className="flex items-center gap-2">
+                            <Palette className="h-3 w-3" />
+                            <span>UI components & libraries</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Box className="h-3 w-3" />
+                            <span>Utility libraries</span>
+                          </div>
+                          <div className="flex items-center gap-2">
                             <Target className="h-3 w-3" />
                             <span>Tracking tools</span>
                           </div>

@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Badge } from './ui/badge';
-import { X, ExternalLink, Package, Globe, Layers, Megaphone, BarChart, Video, Shield, Library, Target, Settings, Film, Zap, Wrench, Wifi, Database, Cpu, Type, FileText } from 'lucide-react';
+import { X, ExternalLink, Package, Globe, Layers, Megaphone, BarChart, Video, Shield, Library, Target, Settings, Film, Zap, Wrench, Wifi, Database, Cpu, Type, FileText, Box, Palette } from 'lucide-react';
 
 interface LibraryInfo {
   name: string;
@@ -24,9 +24,11 @@ interface LibraryModalProps {
 const getTypeIcon = (type: LibraryInfo['type']) => {
   switch (type) {
     case 'framework':
-    case 'utility':
-    case 'ui':
       return <Library className="h-4 w-4" />;
+    case 'utility':
+      return <Box className="h-4 w-4" />;
+    case 'ui':
+      return <Palette className="h-4 w-4" />;
     case 'analytics':
     case 'data-collector':
       return <BarChart className="h-4 w-4" />;
@@ -70,9 +72,11 @@ const getTypeIcon = (type: LibraryInfo['type']) => {
 const getTypeColor = (type: LibraryInfo['type']) => {
   switch (type) {
     case 'framework':
-    case 'utility':
-    case 'ui':
       return 'bg-blue-100 text-blue-800';
+    case 'utility':
+      return 'bg-teal-100 text-teal-800';
+    case 'ui':
+      return 'bg-indigo-100 text-indigo-800';
     case 'analytics':
     case 'data-collector':
       return 'bg-purple-100 text-purple-800';
