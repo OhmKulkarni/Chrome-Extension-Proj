@@ -12,7 +12,7 @@ import { useChartSettingsRead } from '../hooks/useChartSettings';
 import { isFeatureEnabled, withPerformanceMonitoring } from '../utils/featureFlags';
 // Import domain chart components
 import DomainChartsPanel from './DomainChartsPanel';
-import LibrarySection from './LibrarySection';
+import InlineResourcesSection from './InlineResourcesSection';
 import { useExpandedRows } from '../hooks/useExpandedRows';
 // Import LibraryDetector for smart name truncation
 import { LibraryDetector } from '../../background/utils/library-detector';
@@ -2078,9 +2078,9 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                             {isLibrarySectionExpanded(stat.domain) && (
                               <TableRow key={`${stat.domain}-resources`}>
                                 <TableCell colSpan={3} className="p-0 bg-gray-50">
-                                  <LibrarySection
+                                  <InlineResourcesSection
                                     domain={stat.domain}
-                                    libraries={stat.libraries || []}
+                                    resources={stat.libraries || []}
                                     className="m-4"
                                   />
                                 </TableCell>

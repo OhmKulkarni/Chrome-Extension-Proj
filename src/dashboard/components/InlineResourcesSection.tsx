@@ -4,9 +4,9 @@ import { LibraryInfo } from '../../background/utils/library-detector';
 import { useState, useMemo } from 'react';
 import React from 'react';
 
-interface LibrarySectionProps {
+interface InlineResourcesSectionProps {
   domain: string;
-  libraries: LibraryInfo[];
+  resources: LibraryInfo[];
   className?: string;
 }
 
@@ -135,14 +135,14 @@ const formatTypeName = (type: LibraryInfo['type']) => {
   }
 };
 
-const LibrarySection: React.FC<LibrarySectionProps> = ({ domain, libraries, className = '' }) => {
+const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain, resources, className = '' }) => {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set(['libraries', 'analytics', 'privacy', 'services', 'assets']));
   const [searchTerm, setSearchTerm] = useState('');
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
 
-  // Group libraries by primary category
-  const groupedLibraries = useMemo(() => {
-    const filtered = libraries.filter(lib =>
+  // Group resources by primary category
+  const groupedResources = useMemo(() => {
+    const filtered = resources.filter(lib =>
       lib.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lib.url?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lib.type.toLowerCase().includes(searchTerm.toLowerCase())
@@ -154,7 +154,7 @@ const LibrarySection: React.FC<LibrarySectionProps> = ({ domain, libraries, clas
       acc[primary].push(lib);
       return acc;
     }, {} as Record<string, LibraryInfo[]>);
-  }, [libraries, searchTerm]);
+  }, [resources, searchTerm]);
 
   const toggleSection = (section: string) => {
     const newCollapsed = new Set(collapsedSections);
@@ -176,8 +176,8 @@ const LibrarySection: React.FC<LibrarySectionProps> = ({ domain, libraries, clas
     }
   };
 
-  const totalLibraries = libraries.length;
-  const filteredLibraries = Object.values(groupedLibraries).flat().length;
+  const totalResources = resources.length;
+  const filteredResources = Object.values(groupedResources).flat().length;
 
   return (
     <div className={`bg-gray-50 border rounded-lg ${className}`}>
@@ -188,7 +188,7 @@ const LibrarySection: React.FC<LibrarySectionProps> = ({ domain, libraries, clas
             <Library className="h-5 w-5 text-purple-600" />
             <h3 className="text-lg font-semibold text-gray-900">Libraries for {domain}</h3>
             <Badge variant="outline" className="ml-2">
-              {totalLibraries} total
+              {totalResources} total
             </Badge>
           </div>
         </div>
@@ -205,15 +205,15 @@ const LibrarySection: React.FC<LibrarySectionProps> = ({ domain, libraries, clas
           />
         </div>
 
-        {searchTerm && filteredLibraries !== totalLibraries && (
+        {searchTerm && filteredResources !== totalResources && (
           <div className="text-sm text-gray-600">
-            Showing {filteredLibraries} of {totalLibraries} libraries
+            Showing {filteredResources} of {totalResources} web resources
           </div>
         )}
 
         {/* Library Categories */}
         <div className="space-y-3 max-h-96 overflow-y-auto">
-          {Object.entries(groupedLibraries).map(([primaryType, libraryList]) => (
+          {Object.entries(groupedResources).map(([primaryType, resourceList]) => (
             <div key={primaryType} className="border border-gray-200 rounded-lg bg-white">
               <button
                 onClick={() => toggleSection(primaryType)}
@@ -222,7 +222,7 @@ const LibrarySection: React.FC<LibrarySectionProps> = ({ domain, libraries, clas
                 <div className="flex items-center gap-2">
                   {getPrimaryCategoryIcon(primaryType)}
                   <span className="font-medium text-gray-900 capitalize">
-                    {primaryType} ({libraryList.length})
+                    {primaryType} ({resourceList.length})
                   </span>
                 </div>
                 <ChevronDown
@@ -234,7 +234,7 @@ const LibrarySection: React.FC<LibrarySectionProps> = ({ domain, libraries, clas
 
               {!collapsedSections.has(primaryType) && (
                 <div className="px-3 pb-3 space-y-2 border-t border-gray-100">
-                  {libraryList.map((lib, index) => (
+                  {resourceList.map((lib, index) => (
                     <div
                       key={`${lib.name}-${index}`}
                       className="flex items-center justify-between p-3 bg-gray-50 rounded-md"
@@ -296,7 +296,7 @@ const LibrarySection: React.FC<LibrarySectionProps> = ({ domain, libraries, clas
           ))}
         </div>
 
-        {Object.keys(groupedLibraries).length === 0 && (
+        {Object.keys(groupedResources).length === 0 && (
           <div className="text-center py-8 text-gray-500">
             {searchTerm ? 'No libraries match your search.' : 'No libraries detected for this domain.'}
           </div>
@@ -306,4 +306,4 @@ const LibrarySection: React.FC<LibrarySectionProps> = ({ domain, libraries, clas
   );
 };
 
-export default LibrarySection;
+export default InlineResourcesSection;
