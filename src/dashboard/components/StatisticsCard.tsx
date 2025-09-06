@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Button } from './ui/button';
-import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen, Megaphone, BarChart, Shield, Library, Globe, HelpCircle, Package, Wrench, Target, Database, Settings, Film, Zap, Server, Lock, Box } from 'lucide-react';
+import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen, Megaphone, BarChart, Shield, Library, Globe, HelpCircle, Package, Wrench, Target, Database, Settings, Film, Zap, Server, Lock, Box, Puzzle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { groupDataByDomain, DomainStats } from './domainUtils';
 // Import the new shared data processing system
@@ -12,7 +12,7 @@ import { useChartSettingsRead } from '../hooks/useChartSettings';
 import { isFeatureEnabled, withPerformanceMonitoring } from '../utils/featureFlags';
 // Import domain chart components
 import DomainChartsPanel from './DomainChartsPanel';
-import LibraryModal from './LibraryModal';
+import LibrarySection from './LibrarySection';
 import { useExpandedRows } from '../hooks/useExpandedRows';
 // Import LibraryDetector for smart name truncation
 import { LibraryDetector } from '../../background/utils/library-detector';
@@ -242,22 +242,23 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     toggleRow: toggleDomainCharts
   } = useExpandedRows(3); // Allow up to 3 domain charts simultaneously
 
-  // Library modal state
-  const [libraryModalDomain, setLibraryModalDomain] = useState<string | null>(null);
-  const [isLibraryModalOpen, setIsLibraryModalOpen] = useState(false);
+  // Library section state
+  const [expandedLibrarySections, setExpandedLibrarySections] = useState<Set<string>>(new Set());
 
   // Library source domain dropdown state
   const [expandedLibraryDomains, setExpandedLibraryDomains] = useState<Set<string>>(new Set());
 
-  const toggleLibraryModal = (domain: string) => {
-    if (libraryModalDomain === domain && isLibraryModalOpen) {
-      setIsLibraryModalOpen(false);
-      setLibraryModalDomain(null);
+  const toggleLibrarySection = (domain: string) => {
+    const newExpanded = new Set(expandedLibrarySections);
+    if (newExpanded.has(domain)) {
+      newExpanded.delete(domain);
     } else {
-      setLibraryModalDomain(domain);
-      setIsLibraryModalOpen(true);
+      newExpanded.add(domain);
     }
+    setExpandedLibrarySections(newExpanded);
   };
+
+  const isLibrarySectionExpanded = (domain: string) => expandedLibrarySections.has(domain);
 
   const toggleLibrarySourceDomains = (domain: string) => {
     const newExpanded = new Set(expandedLibraryDomains);
@@ -1523,7 +1524,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                               <span>Utility</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Layers className="h-3 w-3" />
+                              <Puzzle className="h-3 w-3" />
                               <span>Polyfill</span>
                             </div>
                             <div className="flex items-center gap-2">
@@ -1581,8 +1582,12 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                     <p className="mt-3 pt-2 border-t border-blue-200 text-xs">
                       <strong>Smart Grouping:</strong> Domains are intelligently grouped by tab context and subdomain patterns.
                       Hover over any icon or label for detailed tooltips with additional information.<br/>
-                      <strong>Enhanced Modal:</strong> Library details now feature collapsible sections (collapsed by default), 
+                      <strong>Enhanced Modal:</strong> Library details now feature collapsible sections (collapsed by default),
                       improved badge visibility with high-contrast colors, and streamlined information display focusing on essential categorization data.
+                      <br/>
+                      <strong>Inline Library Details:</strong> Click the library detail button in the library view to expand comprehensive library information
+                      directly within the table, similar to domain charts. This provides detailed categorization, search functionality, and direct links
+                      without needing a separate modal window.
                     </p>
                   </div>
                 </div>
@@ -1864,8 +1869,9 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                         <TableBody>
                           {sortedDomainStats
                             .filter(stat => stat.libraryCount > 0) // Only show domains with libraries
-                            .map((stat, index) => (
-                            <TableRow key={index} className="hover:bg-purple-50/50">
+                            .map((stat) => (
+                            <React.Fragment key={stat.domain}>
+                            <TableRow className="hover:bg-purple-50/50">
                               <TableCell className="font-medium">
                                 <div className="flex flex-col gap-1">
                                   <div className="flex items-center gap-2">
@@ -2054,16 +2060,33 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                               </TableCell>
                               <TableCell className="text-center">
                                 <Button
-                                  variant="outline"
+                                  variant="ghost"
                                   size="sm"
-                                  onClick={() => toggleLibraryModal(stat.domain)}
-                                  className="h-8 w-8 p-0 hover:bg-purple-100 text-purple-700 border-purple-200"
-                                  title="View detailed library information"
+                                  onClick={() => toggleLibrarySection(stat.domain)}
+                                  className="h-6 w-6 p-0 hover:bg-purple-100"
+                                  title={isLibrarySectionExpanded(stat.domain) ? "Hide library details" : "Show library details"}
                                 >
-                                  <BookOpen className="h-4 w-4" />
+                                  {isLibrarySectionExpanded(stat.domain) ?
+                                    <EyeOff className="h-3 w-3 text-purple-600" /> :
+                                    <BookOpen className="h-3 w-3 text-gray-600" />
+                                  }
                                 </Button>
                               </TableCell>
                             </TableRow>
+
+                            {/* Inline Library Section - Similar to domain charts */}
+                            {isLibrarySectionExpanded(stat.domain) && (
+                              <TableRow key={`${stat.domain}-libraries`}>
+                                <TableCell colSpan={3} className="p-0 bg-gray-50">
+                                  <LibrarySection
+                                    domain={stat.domain}
+                                    libraries={stat.libraries || []}
+                                    className="m-4"
+                                  />
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </React.Fragment>
                           ))}
                           {sortedDomainStats.filter(stat => stat.libraryCount > 0).length === 0 && (
                             <TableRow>
@@ -2087,17 +2110,6 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
         </Tabs>
       </CardContent>
 
-      {/* Library Modal */}
-      {libraryModalDomain && (
-        <LibraryModal
-          isOpen={isLibraryModalOpen}
-          onClose={() => setIsLibraryModalOpen(false)}
-          domain={libraryModalDomain}
-          libraries={
-            sortedDomainStats.find(stat => stat.domain === libraryModalDomain)?.libraries || []
-          }
-        />
-      )}
     </Card>
   );
 };

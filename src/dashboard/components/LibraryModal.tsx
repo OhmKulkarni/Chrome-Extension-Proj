@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Badge } from './ui/badge';
-import { X, ExternalLink, Package, Layers, BarChart, Shield, Library, Target, Settings, Film, Zap, Wrench, Database, HelpCircle, Search, Copy, CheckCircle, ArrowUpDown, Filter, Server, Lock, Box, ChevronDown, Globe } from 'lucide-react';
+import { X, ExternalLink, Package, Layers, BarChart, Shield, Library, Target, Settings, Film, Zap, Wrench, Database, HelpCircle, Search, Copy, CheckCircle, ArrowUpDown, Filter, Server, Lock, Box, ChevronDown, Globe, Puzzle } from 'lucide-react';
 import { LibraryInfo } from '../../background/utils/library-detector';
 import { useState, useMemo } from 'react';
 import React from 'react';
@@ -60,7 +60,7 @@ const getTypeIcon = (type: LibraryInfo['type']) => {
     case 'utility':
       return <Wrench className="h-4 w-4" />;
     case 'polyfill':
-      return <Box className="h-4 w-4" />;
+      return <Puzzle className="h-4 w-4" />;
     case 'data-collector':
       return <Database className="h-4 w-4" />;
     case 'service':
