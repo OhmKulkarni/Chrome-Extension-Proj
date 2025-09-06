@@ -1400,7 +1400,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                   <Layers className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
                   <div className="space-y-4">
                     <h4 className="text-sm font-semibold text-blue-800">Dashboard Icons & Features Guide</h4>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-blue-700">
                       {/* Domain Status Icons */}
                       <div className="space-y-2">
@@ -1503,7 +1503,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                     </div>
 
                     <p className="mt-3 pt-2 border-t border-blue-200 text-xs">
-                      <strong>Smart Grouping:</strong> Domains are intelligently grouped by tab context and subdomain patterns. 
+                      <strong>Smart Grouping:</strong> Domains are intelligently grouped by tab context and subdomain patterns.
                       Hover over any icon or label for detailed tooltips with additional information.
                     </p>
                   </div>
@@ -1839,7 +1839,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                       {stat.libraries.slice(0, 4).map((lib, libIndex) => {
                                         // Apply smart truncation and categorization to main display
                                         const displayName = LibraryDetector.getDisplayName(lib, 20); // Shorter for main view
-                                        const fullName = `${lib.name}${lib.version ? `@${lib.version}` : ''}`;
+                                        const fullName = `${lib.name}${lib.version && lib.version !== 'unknown' ? `@${lib.version}` : ''}`;
 
                                         // Get resource type info for proper styling
                                         const getResourceTypeInfo = (libType: string) => {
@@ -1882,7 +1882,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                           >
                                             <IconComponent className="h-3 w-3 mr-1" />
                                             {displayName}
-                                            {lib.version && !displayName.includes('@') && (
+                                            {lib.version && lib.version !== 'unknown' && !displayName.includes('@') && (
                                               <span className="ml-1 opacity-75">@{lib.version}</span>
                                             )}
                                           </span>
@@ -1919,7 +1919,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                               {sourceDomain.libraries.map((lib, libIndex) => {
                                                 // Use smart truncation for better display
                                                 const displayName = LibraryDetector.getDisplayName(lib, 25);
-                                                const fullName = `${lib.name}${lib.version ? `@${lib.version}` : ''}`;
+                                                const fullName = `${lib.name}${lib.version && lib.version !== 'unknown' ? `@${lib.version}` : ''}`;
 
                                                 // Determine resource type and styling
                                                 const getResourceTypeInfo = (libType: string) => {
@@ -1962,7 +1962,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                                   >
                                                     <IconComponent className="h-3 w-3 mr-1" />
                                                     {displayName}
-                                                    {lib.version && !displayName.includes('@') && (
+                                                    {lib.version && lib.version !== 'unknown' && !displayName.includes('@') && (
                                                       <span className="ml-1 opacity-75">@{lib.version}</span>
                                                     )}
                                                   </span>
