@@ -117,7 +117,7 @@ const getTypeLabel = (type: string) => {
     case 'utility': return 'Utility';
     case 'polyfill': return 'Polyfill';
     case 'data-collector': return 'Data Collection';
-    case 'service': return 'Service';
+    case 'service': return 'Web Service';
     case 'privacy-tools': return 'Privacy Tool';
     case 'tracking-tools': return 'Tracking';
     case 'site-tools': return 'Site Tool';
