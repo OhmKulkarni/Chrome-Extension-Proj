@@ -84,36 +84,36 @@ const getTypeIcon = (type: LibraryInfo['type']) => {
 const getTypeColor = (type: LibraryInfo['type']) => {
   switch (type) {
     case 'framework':
-      return 'bg-blue-100 text-blue-800';
+      return 'bg-blue-100 text-blue-900 border border-blue-200';
     case 'utility':
-      return 'bg-teal-100 text-teal-800';
+      return 'bg-emerald-100 text-emerald-900 border border-emerald-200';
     case 'polyfill':
-      return 'bg-blue-100 text-blue-800';
+      return 'bg-amber-100 text-amber-900 border border-amber-200';
     case 'data-collector':
-      return 'bg-purple-100 text-purple-800';
+      return 'bg-purple-100 text-purple-900 border border-purple-200';
     case 'service':
-      return 'bg-red-100 text-red-800';
+      return 'bg-rose-100 text-rose-900 border border-rose-200';
     case 'privacy-tools':
-      return 'bg-gray-100 text-gray-800';
+      return 'bg-green-100 text-green-900 border border-green-200';
     case 'tracking-tools':
-      return 'bg-yellow-100 text-yellow-800';
+      return 'bg-orange-100 text-orange-900 border border-orange-200';
     case 'site-tools':
-      return 'bg-indigo-100 text-indigo-800';
+      return 'bg-indigo-100 text-indigo-900 border border-indigo-200';
     case 'media-tools':
-      return 'bg-pink-100 text-pink-800';
+      return 'bg-pink-100 text-pink-900 border border-pink-200';
     case 'performance-tools':
-      return 'bg-cyan-100 text-cyan-800';
+      return 'bg-cyan-100 text-cyan-900 border border-cyan-200';
     case 'build-artifact':
-      return 'bg-slate-100 text-slate-800';
+      return 'bg-slate-100 text-slate-900 border border-slate-200';
     default:
-      return 'bg-gray-100 text-gray-800';
+      return 'bg-gray-100 text-gray-900 border border-gray-200';
   }
 };
 
 const getConfidenceColor = (confidence: number) => {
-  if (confidence >= 0.8) return 'bg-green-100 text-green-800';
-  if (confidence >= 0.6) return 'bg-yellow-100 text-yellow-800';
-  return 'bg-red-100 text-red-800';
+  if (confidence >= 0.8) return 'bg-green-100 text-green-900 border border-green-200';
+  if (confidence >= 0.6) return 'bg-yellow-100 text-yellow-900 border border-yellow-200';
+  return 'bg-red-100 text-red-900 border border-red-200';
 };
 
 const getConfidenceLabel = (confidence: number) => {
@@ -160,17 +160,17 @@ const getTypeDescription = (type: string) => {
 const getPrimaryCategoryInfo = (primaryType: string) => {
   switch (primaryType) {
     case 'libraries':
-      return { icon: Library, bgColor: 'bg-blue-100', textColor: 'text-blue-800', label: 'Libraries' };
+      return { icon: Library, bgColor: 'bg-blue-100 border border-blue-200', textColor: 'text-blue-900', label: 'Libraries' };
     case 'analytics':
-      return { icon: BarChart, bgColor: 'bg-purple-100', textColor: 'text-purple-800', label: 'Analytics' };
+      return { icon: BarChart, bgColor: 'bg-purple-100 border border-purple-200', textColor: 'text-purple-900', label: 'Analytics' };
     case 'privacy':
-      return { icon: Shield, bgColor: 'bg-green-100', textColor: 'text-green-800', label: 'Privacy' };
+      return { icon: Shield, bgColor: 'bg-green-100 border border-green-200', textColor: 'text-green-900', label: 'Privacy' };
     case 'services':
-      return { icon: Megaphone, bgColor: 'bg-red-100', textColor: 'text-red-800', label: 'Services' };
+      return { icon: Megaphone, bgColor: 'bg-rose-100 border border-rose-200', textColor: 'text-rose-900', label: 'Services' };
     case 'assets':
-      return { icon: Package, bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Assets' };
+      return { icon: Package, bgColor: 'bg-slate-100 border border-slate-200', textColor: 'text-slate-900', label: 'Assets' };
     default:
-      return { icon: HelpCircle, bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Unknown' };
+      return { icon: HelpCircle, bgColor: 'bg-gray-100 border border-gray-200', textColor: 'text-gray-900', label: 'Unknown' };
   }
 };
 
