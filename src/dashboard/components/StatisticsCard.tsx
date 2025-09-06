@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Button } from './ui/button';
-import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen, Megaphone, BarChart, Video, Shield, Library, Target, Settings, Film, Zap, Wrench, Globe, HelpCircle, Package, Wifi, Database, Cpu, Type, FileText, Palette } from 'lucide-react';
+import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen, Megaphone, BarChart, Shield, Library, Globe, HelpCircle, Package } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { groupDataByDomain, DomainStats } from './domainUtils';
 // Import the new shared data processing system
@@ -31,6 +31,54 @@ import {
   LazyChartWrapper
 } from './LazyChartComponents';
 import { SimpleTestChart } from './SimpleTestChart';
+
+// Map detailed categories to primary categories for dashboard display
+const getPrimaryCategory = (type: string): 'libraries' | 'analytics' | 'privacy' | 'services' | 'assets' => {
+  switch (type) {
+    case 'framework':
+    case 'utility':
+    case 'polyfill':
+      return 'libraries';
+    case 'analytics':
+    case 'data-collector':
+    case 'tracking-tools':
+      return 'analytics';
+    case 'privacy-tools':
+      return 'privacy';
+    case 'service':
+    case 'streaming-service':
+    case 'websocket':
+    case 'graphql':
+    case 'service-worker':
+      return 'services';
+    case 'site-tools':
+    case 'media-tools':
+    case 'performance-tools':
+    case 'build-artifact':
+    case 'web-font':
+    case 'config-file':
+      return 'assets';
+    default:
+      return 'assets';
+  }
+};
+
+const getPrimaryCategoryInfo = (primaryType: string) => {
+  switch (primaryType) {
+    case 'libraries':
+      return { icon: Library, bgColor: 'bg-blue-100', textColor: 'text-blue-800', label: 'Libraries' };
+    case 'analytics':
+      return { icon: BarChart, bgColor: 'bg-purple-100', textColor: 'text-purple-800', label: 'Analytics' };
+    case 'privacy':
+      return { icon: Shield, bgColor: 'bg-green-100', textColor: 'text-green-800', label: 'Privacy' };
+    case 'services':
+      return { icon: Megaphone, bgColor: 'bg-red-100', textColor: 'text-red-800', label: 'Services' };
+    case 'assets':
+      return { icon: Package, bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Assets' };
+    default:
+      return { icon: HelpCircle, bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Unknown' };
+  }
+};
 
 interface StatisticsCardProps {
   networkRequests: any[];
@@ -1437,83 +1485,34 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                         </div>
                       </div>
 
-                      {/* Library Resource Type Icons */}
+                      {/* Primary Resource Categories */}
                       <div className="space-y-2">
-                        <p className="font-medium text-blue-800">Resource Type Icons:</p>
+                        <p className="font-medium text-blue-800">Primary Resource Categories:</p>
                         <div className="space-y-1 ml-2">
                           <div className="flex items-center gap-2">
                             <Library className="h-3 w-3" />
-                            <span>Frameworks & UI libraries</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Wrench className="h-3 w-3" />
-                            <span>Utility libraries</span>
+                            <span>Libraries (frameworks, utilities, polyfills)</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <BarChart className="h-3 w-3" />
-                            <span>Analytics & data collection</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Layers className="h-3 w-3" />
-                            <span>Browser polyfills</span>
+                            <span>Analytics (tracking, data collection)</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Shield className="h-3 w-3" />
-                            <span>Privacy & consent tools</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Target className="h-3 w-3" />
-                            <span>Tracking & identification</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Settings className="h-3 w-3" />
-                            <span>Site-specific tools</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Film className="h-3 w-3" />
-                            <span>Media processing tools</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Zap className="h-3 w-3" />
-                            <span>Performance optimization</span>
+                            <span>Privacy (consent management, protection)</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Megaphone className="h-3 w-3" />
-                            <span>Web services & APIs</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Video className="h-3 w-3" />
-                            <span>Media streaming services</span>
+                            <span>Services (APIs, streaming, workers)</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Package className="h-3 w-3" />
-                            <span>Build artifacts & bundles</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Wifi className="h-3 w-3" />
-                            <span>WebSocket connections</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Database className="h-3 w-3" />
-                            <span>GraphQL endpoints</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Cpu className="h-3 w-3" />
-                            <span>Service workers</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Type className="h-3 w-3" />
-                            <span>Web fonts</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <FileText className="h-3 w-3" />
-                            <span>Config & manifest files</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <HelpCircle className="h-3 w-3" />
-                            <span>Unknown/other resources</span>
+                            <span>Assets (tools, media, configs, fonts)</span>
                           </div>
                         </div>
+                        <p className="text-xs text-blue-600 mt-2">
+                          💡 <strong>Tip:</strong> Click any library to see detailed subcategories with specific technical classifications
+                        </p>
                       </div>
                     </div>
 
@@ -1869,54 +1868,50 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                         const displayName = LibraryDetector.getDisplayName(lib, 20); // Shorter for main view
                                         const fullName = `${lib.name}${lib.version && lib.version !== 'unknown' ? `@${lib.version}` : ''}`;
 
-                                        // Get resource type info for proper styling
-                                        const getResourceTypeInfo = (libType: string) => {
-                                          switch (libType) {
-                                            case 'service':
-                                              return { icon: Megaphone, bgColor: 'bg-red-100', textColor: 'text-red-800', label: 'Service' };
-                                            case 'data-collector':
-                                              return { icon: BarChart, bgColor: 'bg-purple-100', textColor: 'text-purple-800', label: 'Analytics' };
-                                            case 'streaming-service':
-                                              return { icon: Video, bgColor: 'bg-green-100', textColor: 'text-green-800', label: 'Media' };
-                                            case 'privacy-tools':
-                                              return { icon: Shield, bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Privacy' };
-                                            case 'framework':
-                                              return { icon: Library, bgColor: 'bg-blue-100', textColor: 'text-blue-800', label: 'Framework' };
-                                            case 'utility':
-                                              return { icon: Wrench, bgColor: 'bg-teal-100', textColor: 'text-teal-800', label: 'Utility' };
-                                            case 'tracking-tools':
-                                              return { icon: Target, bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', label: 'Tracking' };
-                                            case 'site-tools':
-                                              return { icon: Settings, bgColor: 'bg-indigo-100', textColor: 'text-indigo-800', label: 'Site Tool' };
-                                            case 'media-tools':
-                                              return { icon: Film, bgColor: 'bg-pink-100', textColor: 'text-pink-800', label: 'Media Tool' };
-                                            case 'performance-tools':
-                                              return { icon: Zap, bgColor: 'bg-cyan-100', textColor: 'text-cyan-800', label: 'Performance' };
-                                            case 'build-artifact':
-                                              return { icon: Package, bgColor: 'bg-slate-100', textColor: 'text-slate-800', label: 'Build Artifact' };
-                                            case 'websocket':
-                                              return { icon: Wifi, bgColor: 'bg-emerald-100', textColor: 'text-emerald-800', label: 'WebSocket' };
-                                            case 'graphql':
-                                              return { icon: Database, bgColor: 'bg-violet-100', textColor: 'text-violet-800', label: 'GraphQL' };
-                                            case 'service-worker':
-                                              return { icon: Cpu, bgColor: 'bg-amber-100', textColor: 'text-amber-800', label: 'Worker' };
-                                            case 'web-font':
-                                              return { icon: Type, bgColor: 'bg-rose-100', textColor: 'text-rose-800', label: 'Font' };
-                                            case 'config-file':
-                                              return { icon: FileText, bgColor: 'bg-stone-100', textColor: 'text-stone-800', label: 'Config' };
-                                            default:
-                                              return { icon: HelpCircle, bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Resource' };
-                                          }
+                                        // Get primary category info for dashboard display
+                                        const getPrimaryResourceTypeInfo = (libType: string) => {
+                                          const primaryCategory = getPrimaryCategory(libType);
+                                          const primaryInfo = getPrimaryCategoryInfo(primaryCategory);
+                                          
+                                          // Get detailed label for tooltip
+                                          const detailedLabel = (() => {
+                                            switch (libType) {
+                                              case 'framework': return 'Framework';
+                                              case 'utility': return 'Utility';
+                                              case 'polyfill': return 'Polyfill';
+                                              case 'analytics': return 'Analytics';
+                                              case 'data-collector': return 'Data Collector';
+                                              case 'tracking-tools': return 'Tracking';
+                                              case 'privacy-tools': return 'Privacy';
+                                              case 'service': return 'Service';
+                                              case 'streaming-service': return 'Streaming';
+                                              case 'websocket': return 'WebSocket';
+                                              case 'graphql': return 'GraphQL';
+                                              case 'service-worker': return 'Worker';
+                                              case 'site-tools': return 'Site Tool';
+                                              case 'media-tools': return 'Media Tool';
+                                              case 'performance-tools': return 'Performance';
+                                              case 'build-artifact': return 'Build Artifact';
+                                              case 'web-font': return 'Font';
+                                              case 'config-file': return 'Config';
+                                              default: return 'Resource';
+                                            }
+                                          })();
+                                          
+                                          return {
+                                            ...primaryInfo,
+                                            detailedLabel
+                                          };
                                         };
 
-                                        const typeInfo = getResourceTypeInfo(lib.type);
+                                        const typeInfo = getPrimaryResourceTypeInfo(lib.type);
                                         const IconComponent = typeInfo.icon;
 
                                         return (
                                           <span
                                             key={libIndex}
                                             className={`inline-flex items-center px-2 py-1 ${typeInfo.bgColor} ${typeInfo.textColor} text-xs font-medium rounded`}
-                                            title={`${fullName} (${typeInfo.label})`}
+                                            title={`${fullName} (${typeInfo.detailedLabel})`}
                                           >
                                             <IconComponent className="h-3 w-3 mr-1" />
                                             {displayName}
@@ -1959,58 +1954,50 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                                 const displayName = LibraryDetector.getDisplayName(lib, 25);
                                                 const fullName = `${lib.name}${lib.version && lib.version !== 'unknown' ? `@${lib.version}` : ''}`;
 
-                                                // Determine resource type and styling
-                                                const getResourceTypeInfo = (libType: string) => {
-                                                  switch (libType) {
-                                                    case 'advertising-service':
-                                                      return { icon: Megaphone, bgColor: 'bg-red-100', textColor: 'text-red-800', label: 'Ad Service' };
-                                                    case 'data-collector':
-                                                      return { icon: BarChart, bgColor: 'bg-purple-100', textColor: 'text-purple-800', label: 'Analytics' };
-                                                    case 'streaming-service':
-                                                      return { icon: Video, bgColor: 'bg-green-100', textColor: 'text-green-800', label: 'Media' };
-                                                    case 'api-endpoint':
-                                                      return { icon: Globe, bgColor: 'bg-orange-100', textColor: 'text-orange-800', label: 'API' };
-                                                    case 'privacy-tools':
-                                                      return { icon: Shield, bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Privacy' };
-                                                    case 'framework':
-                                                      return { icon: Library, bgColor: 'bg-blue-100', textColor: 'text-blue-800', label: 'Framework' };
-                                                    case 'utility':
-                                                      return { icon: Wrench, bgColor: 'bg-teal-100', textColor: 'text-teal-800', label: 'Utility' };
-                                                    case 'ui':
-                                                      return { icon: Palette, bgColor: 'bg-indigo-100', textColor: 'text-indigo-800', label: 'UI Component' };
-                                                    case 'tracking-tools':
-                                                      return { icon: Target, bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', label: 'Tracking' };
-                                                    case 'site-tools':
-                                                      return { icon: Settings, bgColor: 'bg-indigo-100', textColor: 'text-indigo-800', label: 'Site Tool' };
-                                                    case 'media-tools':
-                                                      return { icon: Film, bgColor: 'bg-pink-100', textColor: 'text-pink-800', label: 'Media Tool' };
-                                                    case 'performance-tools':
-                                                      return { icon: Zap, bgColor: 'bg-cyan-100', textColor: 'text-cyan-800', label: 'Performance' };
-                                                    case 'build-artifact':
-                                                      return { icon: Package, bgColor: 'bg-slate-100', textColor: 'text-slate-800', label: 'Build Artifact' };
-                                                    case 'websocket':
-                                                      return { icon: Wifi, bgColor: 'bg-emerald-100', textColor: 'text-emerald-800', label: 'WebSocket' };
-                                                    case 'graphql':
-                                                      return { icon: Database, bgColor: 'bg-violet-100', textColor: 'text-violet-800', label: 'GraphQL' };
-                                                    case 'service-worker':
-                                                      return { icon: Cpu, bgColor: 'bg-amber-100', textColor: 'text-amber-800', label: 'Worker' };
-                                                    case 'web-font':
-                                                      return { icon: Type, bgColor: 'bg-rose-100', textColor: 'text-rose-800', label: 'Font' };
-                                                    case 'config-file':
-                                                      return { icon: FileText, bgColor: 'bg-stone-100', textColor: 'text-stone-800', label: 'Config' };
-                                                    default:
-                                                      return { icon: HelpCircle, bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Resource' };
-                                                  }
+                                                // Get primary category info for domain library display
+                                                const getDomainPrimaryResourceTypeInfo = (libType: string) => {
+                                                  const primaryCategory = getPrimaryCategory(libType);
+                                                  const primaryInfo = getPrimaryCategoryInfo(primaryCategory);
+                                                  
+                                                  // Get detailed label for tooltip
+                                                  const detailedLabel = (() => {
+                                                    switch (libType) {
+                                                      case 'framework': return 'Framework';
+                                                      case 'utility': return 'Utility';
+                                                      case 'polyfill': return 'Polyfill';
+                                                      case 'analytics': return 'Analytics';
+                                                      case 'data-collector': return 'Data Collector';
+                                                      case 'tracking-tools': return 'Tracking';
+                                                      case 'privacy-tools': return 'Privacy';
+                                                      case 'service': return 'Service';
+                                                      case 'streaming-service': return 'Streaming';
+                                                      case 'websocket': return 'WebSocket';
+                                                      case 'graphql': return 'GraphQL';
+                                                      case 'service-worker': return 'Worker';
+                                                      case 'site-tools': return 'Site Tool';
+                                                      case 'media-tools': return 'Media Tool';
+                                                      case 'performance-tools': return 'Performance';
+                                                      case 'build-artifact': return 'Build Artifact';
+                                                      case 'web-font': return 'Font';
+                                                      case 'config-file': return 'Config';
+                                                      default: return 'Resource';
+                                                    }
+                                                  })();
+                                                  
+                                                  return {
+                                                    ...primaryInfo,
+                                                    detailedLabel
+                                                  };
                                                 };
 
-                                                const typeInfo = getResourceTypeInfo(lib.type);
+                                                const typeInfo = getDomainPrimaryResourceTypeInfo(lib.type);
                                                 const IconComponent = typeInfo.icon;
 
                                                 return (
                                                   <span
                                                     key={libIndex}
                                                     className={`inline-flex items-center px-2 py-1 ${typeInfo.bgColor} ${typeInfo.textColor} text-xs font-medium rounded`}
-                                                    title={`${fullName} (${typeInfo.label}) from ${sourceDomain.domain}`}
+                                                    title={`${fullName} (${typeInfo.detailedLabel}) from ${sourceDomain.domain}`}
                                                   >
                                                     <IconComponent className="h-3 w-3 mr-1" />
                                                     {displayName}

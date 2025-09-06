@@ -11,6 +11,54 @@ interface LibraryModalProps {
   libraries: LibraryInfo[];
 }
 
+// Map detailed categories to primary categories
+const getPrimaryCategory = (type: LibraryInfo['type']): 'libraries' | 'analytics' | 'privacy' | 'services' | 'assets' => {
+  switch (type) {
+    case 'framework':
+    case 'utility':
+    case 'polyfill':
+      return 'libraries';
+    case 'analytics':
+    case 'data-collector':
+    case 'tracking-tools':
+      return 'analytics';
+    case 'privacy-tools':
+      return 'privacy';
+    case 'service':
+    case 'streaming-service':
+    case 'websocket':
+    case 'graphql':
+    case 'service-worker':
+      return 'services';
+    case 'site-tools':
+    case 'media-tools':
+    case 'performance-tools':
+    case 'build-artifact':
+    case 'web-font':
+    case 'config-file':
+      return 'assets';
+    default:
+      return 'assets';
+  }
+};
+
+const getPrimaryCategoryIcon = (primaryType: string) => {
+  switch (primaryType) {
+    case 'libraries':
+      return <Library className="h-4 w-4" />;
+    case 'analytics':
+      return <BarChart className="h-4 w-4" />;
+    case 'privacy':
+      return <Shield className="h-4 w-4" />;
+    case 'services':
+      return <Megaphone className="h-4 w-4" />;
+    case 'assets':
+      return <Package className="h-4 w-4" />;
+    default:
+      return <HelpCircle className="h-4 w-4" />;
+  }
+};
+
 const getTypeIcon = (type: LibraryInfo['type']) => {
   switch (type) {
     case 'framework':
@@ -306,6 +354,23 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
               <X className="h-5 w-5" />
             </button>
           </div>
+          
+          {/* Primary Category Overview */}
+          {libraries.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {['libraries', 'analytics', 'privacy', 'services', 'assets'].map(primaryCategory => {
+                const count = libraries.filter(lib => getPrimaryCategory(lib.type) === primaryCategory).length;
+                if (count === 0) return null;
+                
+                return (
+                  <div key={primaryCategory} className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded-full text-sm">
+                    {getPrimaryCategoryIcon(primaryCategory)}
+                    <span className="capitalize">{primaryCategory}: {count}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </DialogHeader>
 
         {libraries.length === 0 ? (
