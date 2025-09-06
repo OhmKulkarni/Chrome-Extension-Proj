@@ -332,16 +332,17 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
                               </div>
                             </div>
                             
-                            <div className="flex gap-1 flex-shrink-0">
+                            {/* Copy button - make it more visible */}
+                            <div className="flex items-start pt-1">
                               <button
                                 onClick={() => copyToClipboard(lib.url!)}
-                                className="hover:text-purple-600 transition-colors"
+                                className="p-1 hover:bg-purple-100 hover:text-purple-600 transition-colors rounded border border-gray-300"
                                 title="Copy full URL"
                               >
                                 {copiedUrl === lib.url ? (
-                                  <CheckCircle className="h-3 w-3 text-green-600" />
+                                  <CheckCircle className="h-4 w-4 text-green-600" />
                                 ) : (
-                                  <Copy className="h-3 w-3" />
+                                  <Copy className="h-4 w-4 text-gray-600" />
                                 )}
                               </button>
                             </div>
