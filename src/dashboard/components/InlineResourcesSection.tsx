@@ -180,7 +180,7 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
   const filteredResources = Object.values(groupedResources).flat().length;
 
   return (
-    <div className={`bg-gray-50 border rounded-lg ${className}`}>
+    <div className={`bg-gray-50 border rounded-lg max-w-4xl ${className}`}>
       <div className="p-4 space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -212,9 +212,9 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
         )}
 
         {/* Library Categories */}
-        <div className="space-y-3 max-h-96 overflow-y-auto">
+        <div className="space-y-3 max-h-96 overflow-y-auto w-full">
           {Object.entries(groupedResources).map(([primaryType, resourceList]) => (
-            <div key={primaryType} className="border border-gray-200 rounded-lg bg-white">
+            <div key={primaryType} className="border border-gray-200 rounded-lg bg-white w-full">
               <button
                 onClick={() => toggleSection(primaryType)}
                 className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50"
@@ -237,33 +237,33 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
                   {resourceList.map((lib, index) => (
                     <div
                       key={`${lib.name}-${index}`}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-md"
+                      className="flex flex-col p-3 bg-gray-50 rounded-md w-full"
                     >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="font-medium text-gray-900 truncate">{lib.name}</span>
+                      <div className="w-full">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <span className="font-medium text-gray-900 break-words">{lib.name}</span>
                           {lib.version && lib.version !== 'unknown' && (
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="outline" className="text-xs flex-shrink-0">
                               v{lib.version}
                             </Badge>
                           )}
                         </div>
 
-                        <div className="flex items-center gap-2 mb-2">
-                          <Badge className={`text-xs flex items-center gap-1 ${getPrimaryCategoryColor(primaryType)}`}>
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <Badge className={`text-xs flex items-center gap-1 ${getPrimaryCategoryColor(primaryType)} flex-shrink-0`}>
                             {getPrimaryCategoryIcon(primaryType)}
                             <span className="capitalize">{primaryType}</span>
                           </Badge>
-                          <Badge className={`text-xs flex items-center gap-1 ${getTypeBadgeColor(lib.type)}`}>
+                          <Badge className={`text-xs flex items-center gap-1 ${getTypeBadgeColor(lib.type)} flex-shrink-0`}>
                             {getTypeIcon(lib.type)}
                             <span>{formatTypeName(lib.type)}</span>
                           </Badge>
                         </div>
 
                         {lib.url && (
-                          <div className="flex items-center gap-2 text-xs text-gray-600">
-                            <span className="truncate max-w-xs">{lib.url}</span>
-                            <div className="flex gap-1">
+                          <div className="flex items-start gap-2 text-xs text-gray-600">
+                            <span className="break-all flex-1 leading-relaxed">{lib.url}</span>
+                            <div className="flex gap-1 flex-shrink-0">
                               <button
                                 onClick={() => copyToClipboard(lib.url!)}
                                 className="hover:text-purple-600 transition-colors"
