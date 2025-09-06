@@ -242,10 +242,10 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     toggleRow: toggleDomainCharts
   } = useExpandedRows(3); // Allow up to 3 domain charts simultaneously
 
-  // Library section state
+  // Web resources section state
   const [expandedLibrarySections, setExpandedLibrarySections] = useState<Set<string>>(new Set());
 
-  // Library source domain dropdown state
+  // Web resources source domain dropdown state
   const [expandedLibraryDomains, setExpandedLibraryDomains] = useState<Set<string>>(new Set());
 
   const toggleLibrarySection = (domain: string) => {
@@ -277,7 +277,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   const [chartSearch, setChartSearch] = useState('');
 
   // Domain view mode state
-  const [domainViewMode, setDomainViewMode] = useState<'stats' | 'libraries'>('stats');
+  const [domainViewMode, setDomainViewMode] = useState<'stats' | 'resources'>('stats');
 
   // Help section visibility state
   const [showHelp, setShowHelp] = useState(false);
@@ -1582,10 +1582,10 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                     <p className="mt-3 pt-2 border-t border-blue-200 text-xs">
                       <strong>Smart Grouping:</strong> Domains are intelligently grouped by tab context and subdomain patterns.
                       Hover over any icon or label for detailed tooltips with additional information.<br/>
-                      <strong>Enhanced Modal:</strong> Library details now feature collapsible sections (collapsed by default),
+                      <strong>Enhanced Section:</strong> Web resource details now feature collapsible sections (collapsed by default),
                       improved badge visibility with high-contrast colors, and streamlined information display focusing on essential categorization data.
                       <br/>
-                      <strong>Inline Library Details:</strong> Click the library detail button in the library view to expand comprehensive library information
+                      <strong>Inline Web Resource Details:</strong> Click the web resource detail button in the resources view to expand comprehensive resource information
                       directly within the table, similar to domain charts. This provides detailed categorization, search functionality, and direct links
                       without needing a separate modal window.
                     </p>
@@ -1607,13 +1607,13 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                   Domain Stats
                 </Button>
                 <Button
-                  variant={domainViewMode === 'libraries' ? 'default' : 'outline'}
+                  variant={domainViewMode === 'resources' ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setDomainViewMode('libraries')}
+                  onClick={() => setDomainViewMode('resources')}
                   className="flex items-center gap-2"
                 >
                   <BookOpen className="h-4 w-4" />
-                  Domain Libraries
+                  Domain Web Resources
                 </Button>
               </div>
             </div>
@@ -1832,13 +1832,13 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                 </motion.div>
               ) : (
                 <motion.div
-                  key="domain-libraries-view"
+                  key="domain-resources-view"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.3 }}
                 >
-                  {/* Domain Libraries Table */}
+                  {/* Domain Web Resources Table */}
                   <div className="rounded-md border overflow-hidden">
                     <div className="overflow-x-auto">
                       <Table className="w-full">
@@ -1868,7 +1868,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                         </TableHeader>
                         <TableBody>
                           {sortedDomainStats
-                            .filter(stat => stat.libraryCount > 0) // Only show domains with libraries
+                            .filter(stat => stat.libraryCount > 0) // Only show domains with web resources
                             .map((stat) => (
                             <React.Fragment key={stat.domain}>
                             <TableRow className="hover:bg-purple-50/50">
@@ -1917,7 +1917,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                     )}
                                   </div>
 
-                                  {/* Collapsed view - show first few libraries */}
+                                  {/* Collapsed view - show first few web resources */}
                                   {!expandedLibraryDomains.has(stat.domain) && (
                                     <div className="flex flex-wrap gap-1 max-w-md">
                                       {stat.libraries.slice(0, 4).map((lib, libIndex) => {
@@ -1979,7 +1979,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                     </div>
                                   )}
 
-                                  {/* Expanded view - scrollable container for library details */}
+                                  {/* Expanded view - scrollable container for web resource details */}
                                   {expandedLibraryDomains.has(stat.domain) && (
                                     <div className="mt-2 border rounded-md bg-gray-50/50 max-h-64 overflow-y-auto">
                                       <div className="p-3 space-y-3">
@@ -2064,7 +2064,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                   size="sm"
                                   onClick={() => toggleLibrarySection(stat.domain)}
                                   className="h-6 w-6 p-0 hover:bg-purple-100"
-                                  title={isLibrarySectionExpanded(stat.domain) ? "Hide library details" : "Show library details"}
+                                  title={isLibrarySectionExpanded(stat.domain) ? "Hide web resource details" : "Show web resource details"}
                                 >
                                   {isLibrarySectionExpanded(stat.domain) ?
                                     <EyeOff className="h-3 w-3 text-purple-600" /> :
@@ -2074,9 +2074,9 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                               </TableCell>
                             </TableRow>
 
-                            {/* Inline Library Section - Similar to domain charts */}
+                            {/* Inline Web Resources Section - Similar to domain charts */}
                             {isLibrarySectionExpanded(stat.domain) && (
-                              <TableRow key={`${stat.domain}-libraries`}>
+                              <TableRow key={`${stat.domain}-resources`}>
                                 <TableCell colSpan={3} className="p-0 bg-gray-50">
                                   <LibrarySection
                                     domain={stat.domain}
@@ -2093,8 +2093,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                               <TableCell colSpan={3} className="text-center text-gray-500 py-8">
                                 <div className="flex flex-col items-center gap-2">
                                   <BookOpen className="h-8 w-8 text-gray-400" />
-                                  <div>No libraries detected yet</div>
-                                  <div className="text-xs text-gray-400">Libraries will appear here as they are detected on visited pages</div>
+                                  <div>No web resources detected yet</div>
+                                  <div className="text-xs text-gray-400">Web resources will appear here as they are detected on visited pages</div>
                                 </div>
                               </TableCell>
                             </TableRow>
