@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Button } from './ui/button';
-import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen, Megaphone, BarChart, Video, Shield, Library, Target, Settings, Film, Zap, Wrench, Globe, HelpCircle } from 'lucide-react';
+import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen, Megaphone, BarChart, Video, Shield, Library, Target, Settings, Film, Zap, Wrench, Globe, HelpCircle, Package, Wifi, Database, Cpu, Type, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { groupDataByDomain, DomainStats } from './domainUtils';
 // Import the new shared data processing system
@@ -1482,6 +1482,30 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                             <span>Performance tools</span>
                           </div>
                           <div className="flex items-center gap-2">
+                            <Package className="h-3 w-3" />
+                            <span>Build artifacts & bundles</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Wifi className="h-3 w-3" />
+                            <span>WebSocket connections</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Database className="h-3 w-3" />
+                            <span>GraphQL endpoints</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Cpu className="h-3 w-3" />
+                            <span>Service workers</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Type className="h-3 w-3" />
+                            <span>Web fonts</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-3 w-3" />
+                            <span>Config & manifest files</span>
+                          </div>
+                          <div className="flex items-center gap-2">
                             <Wrench className="h-3 w-3" />
                             <span>Other resources</span>
                           </div>
@@ -1866,6 +1890,18 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                               return { icon: Film, bgColor: 'bg-pink-100', textColor: 'text-pink-800', label: 'Media Tool' };
                                             case 'performance-tools':
                                               return { icon: Zap, bgColor: 'bg-cyan-100', textColor: 'text-cyan-800', label: 'Performance' };
+                                            case 'build-artifact':
+                                              return { icon: Package, bgColor: 'bg-slate-100', textColor: 'text-slate-800', label: 'Build Artifact' };
+                                            case 'websocket':
+                                              return { icon: Wifi, bgColor: 'bg-emerald-100', textColor: 'text-emerald-800', label: 'WebSocket' };
+                                            case 'graphql':
+                                              return { icon: Database, bgColor: 'bg-violet-100', textColor: 'text-violet-800', label: 'GraphQL' };
+                                            case 'service-worker':
+                                              return { icon: Cpu, bgColor: 'bg-amber-100', textColor: 'text-amber-800', label: 'Worker' };
+                                            case 'web-font':
+                                              return { icon: Type, bgColor: 'bg-rose-100', textColor: 'text-rose-800', label: 'Font' };
+                                            case 'config-file':
+                                              return { icon: FileText, bgColor: 'bg-stone-100', textColor: 'text-stone-800', label: 'Config' };
                                             default:
                                               return { icon: Wrench, bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Resource' };
                                           }
@@ -1946,6 +1982,18 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                                       return { icon: Film, bgColor: 'bg-pink-100', textColor: 'text-pink-800', label: 'Media Tool' };
                                                     case 'performance-tools':
                                                       return { icon: Zap, bgColor: 'bg-cyan-100', textColor: 'text-cyan-800', label: 'Performance' };
+                                                    case 'build-artifact':
+                                                      return { icon: Package, bgColor: 'bg-slate-100', textColor: 'text-slate-800', label: 'Build Artifact' };
+                                                    case 'websocket':
+                                                      return { icon: Wifi, bgColor: 'bg-emerald-100', textColor: 'text-emerald-800', label: 'WebSocket' };
+                                                    case 'graphql':
+                                                      return { icon: Database, bgColor: 'bg-violet-100', textColor: 'text-violet-800', label: 'GraphQL' };
+                                                    case 'service-worker':
+                                                      return { icon: Cpu, bgColor: 'bg-amber-100', textColor: 'text-amber-800', label: 'Worker' };
+                                                    case 'web-font':
+                                                      return { icon: Type, bgColor: 'bg-rose-100', textColor: 'text-rose-800', label: 'Font' };
+                                                    case 'config-file':
+                                                      return { icon: FileText, bgColor: 'bg-stone-100', textColor: 'text-stone-800', label: 'Config' };
                                                     default:
                                                       return { icon: Wrench, bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Resource' };
                                                   }
