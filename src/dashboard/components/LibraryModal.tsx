@@ -209,6 +209,24 @@ const getTypeDescription = (type: string) => {
   }
 };
 
+// Primary category info function for badge styling
+const getPrimaryCategoryInfo = (primaryType: string) => {
+  switch (primaryType) {
+    case 'libraries':
+      return { icon: Library, bgColor: 'bg-blue-100', textColor: 'text-blue-800', label: 'Libraries' };
+    case 'analytics':
+      return { icon: BarChart, bgColor: 'bg-purple-100', textColor: 'text-purple-800', label: 'Analytics' };
+    case 'privacy':
+      return { icon: Shield, bgColor: 'bg-green-100', textColor: 'text-green-800', label: 'Privacy' };
+    case 'services':
+      return { icon: Megaphone, bgColor: 'bg-red-100', textColor: 'text-red-800', label: 'Services' };
+    case 'assets':
+      return { icon: Package, bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Assets' };
+    default:
+      return { icon: HelpCircle, bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Unknown' };
+  }
+};
+
 export default function LibraryModal({ isOpen, onClose, domain, libraries }: LibraryModalProps) {
   // Enhanced UX features state
   const [searchTerm, setSearchTerm] = useState('');
@@ -521,7 +539,12 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
                                 v{library.version}
                               </Badge>
                             )}
-                            <Badge className={`text-xs ${getTypeColor(library.type)}`}>
+                            {/* Primary Category Badge */}
+                            <Badge className={`text-xs ${getPrimaryCategoryInfo(getPrimaryCategory(library.type)).bgColor} ${getPrimaryCategoryInfo(getPrimaryCategory(library.type)).textColor}`}>
+                              {getPrimaryCategoryInfo(getPrimaryCategory(library.type)).label}
+                            </Badge>
+                            {/* Detailed Technical Type Badge */}
+                            <Badge variant="outline" className={`text-xs ${getTypeColor(library.type)}`}>
                               {getTypeLabel(library.type)}
                             </Badge>
                             <Badge className={`text-xs ${getConfidenceColor(library.confidence)}`}>

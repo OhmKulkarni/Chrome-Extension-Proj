@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Button } from './ui/button';
-import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen, Megaphone, BarChart, Shield, Library, Globe, HelpCircle, Package } from 'lucide-react';
+import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen, Megaphone, BarChart, Shield, Library, Globe, HelpCircle, Package, Wrench, Target, Video, Wifi, Database, Cpu, Settings, Film, Zap, Type, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { groupDataByDomain, DomainStats } from './domainUtils';
 // Import the new shared data processing system
@@ -1514,6 +1514,89 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                           💡 <strong>Tip:</strong> Click any library to see detailed subcategories with specific technical classifications
                         </p>
                       </div>
+
+                      {/* Secondary Resource Categories (Detailed Types) */}
+                      <div className="space-y-2">
+                        <p className="font-medium text-blue-800">Secondary Categories (in modal detail):</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-blue-700 ml-2">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <Library className="h-3 w-3" />
+                              <span>Framework</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Wrench className="h-3 w-3" />
+                              <span>Utility</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Shield className="h-3 w-3" />
+                              <span>Polyfill</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <BarChart className="h-3 w-3" />
+                              <span>Analytics</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <BarChart className="h-3 w-3" />
+                              <span>Data Collector</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Target className="h-3 w-3" />
+                              <span>Tracking Tools</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Shield className="h-3 w-3" />
+                              <span>Privacy Tools</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Megaphone className="h-3 w-3" />
+                              <span>Service</span>
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <Video className="h-3 w-3" />
+                              <span>Streaming Service</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Wifi className="h-3 w-3" />
+                              <span>WebSocket</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Database className="h-3 w-3" />
+                              <span>GraphQL</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Cpu className="h-3 w-3" />
+                              <span>Service Worker</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Settings className="h-3 w-3" />
+                              <span>Site Tools</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Film className="h-3 w-3" />
+                              <span>Media Tools</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Zap className="h-3 w-3" />
+                              <span>Performance</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Package className="h-3 w-3" />
+                              <span>Build Artifact</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Type className="h-3 w-3" />
+                              <span>Web Font</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-3 w-3" />
+                              <span>Config File</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Third Party Domain Explanation - Separate Section */}
@@ -1872,7 +1955,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                         const getPrimaryResourceTypeInfo = (libType: string) => {
                                           const primaryCategory = getPrimaryCategory(libType);
                                           const primaryInfo = getPrimaryCategoryInfo(primaryCategory);
-                                          
+
                                           // Get detailed label for tooltip
                                           const detailedLabel = (() => {
                                             switch (libType) {
@@ -1897,7 +1980,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                               default: return 'Resource';
                                             }
                                           })();
-                                          
+
                                           return {
                                             ...primaryInfo,
                                             detailedLabel
@@ -1958,7 +2041,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                                 const getDomainPrimaryResourceTypeInfo = (libType: string) => {
                                                   const primaryCategory = getPrimaryCategory(libType);
                                                   const primaryInfo = getPrimaryCategoryInfo(primaryCategory);
-                                                  
+
                                                   // Get detailed label for tooltip
                                                   const detailedLabel = (() => {
                                                     switch (libType) {
@@ -1983,7 +2066,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                                       default: return 'Resource';
                                                     }
                                                   })();
-                                                  
+
                                                   return {
                                                     ...primaryInfo,
                                                     detailedLabel
