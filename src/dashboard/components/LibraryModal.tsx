@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Badge } from './ui/badge';
-import { X, ExternalLink, Package, Layers, Megaphone, BarChart, Shield, Library, Target, Settings, Film, Zap, Wrench, Database, HelpCircle, Search, Copy, CheckCircle, ArrowUpDown, Filter, Server, Lock, Box } from 'lucide-react';
+import { X, ExternalLink, Package, Layers, Megaphone, BarChart, Shield, Library, Target, Settings, Film, Zap, Wrench, Database, HelpCircle, Search, Copy, CheckCircle, ArrowUpDown, Filter, Server, Lock, Box, ChevronDown } from 'lucide-react';
 import { LibraryInfo } from '../../background/utils/library-detector';
 import { useState, useMemo } from 'react';
 
@@ -180,6 +180,20 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
   const [sortBy, setSortBy] = useState<'name' | 'type' | 'confidence'>('type');
   const [filterType, setFilterType] = useState<string>('all');
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+
+  // Toggle section collapse
+  const toggleSection = (sectionKey: string) => {
+    setCollapsedSections(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(sectionKey)) {
+        newSet.delete(sectionKey);
+      } else {
+        newSet.add(sectionKey);
+      }
+      return newSet;
+    });
+  };
 
   // Enhanced filtering and sorting
   const filteredAndSortedLibraries = useMemo(() => {
@@ -452,19 +466,33 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
                 return b.count - a.count; // default: count descending
               })
               .map(([typeKey, typeData]) => (
-              <div key={typeKey} className="space-y-3">
-                <h3 className="flex items-center gap-2 text-lg font-semibold border-b pb-2">
-                  {getTypeIcon(typeData.type as LibraryInfo['type'])}
-                  <div className="flex flex-col">
-                    <span>
-                      {typeData.label} ({typeData.count})
-                      <span className="text-sm font-normal text-gray-500 ml-2">
-                        [{getPrimaryCategoryInfo(getPrimaryCategory(typeData.type as LibraryInfo['type'])).label}]
+              <div key={typeKey} className="space-y-3 border border-gray-200 rounded-lg bg-white">
+                {/* Collapsible Section Header */}
+                <button
+                  onClick={() => toggleSection(typeKey)}
+                  className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition-colors rounded-t-lg border-b"
+                >
+                  <div className="flex items-center gap-2 text-lg font-semibold">
+                    {getTypeIcon(typeData.type as LibraryInfo['type'])}
+                    <div className="flex flex-col text-left">
+                      <span>
+                        {typeData.label} ({typeData.count})
+                        <span className="text-sm font-normal text-gray-500 ml-2">
+                          [{getPrimaryCategoryInfo(getPrimaryCategory(typeData.type as LibraryInfo['type'])).label}]
+                        </span>
                       </span>
-                    </span>
-                    <span className="text-sm font-normal text-gray-500">{typeData.description}</span>
+                      <span className="text-sm font-normal text-gray-500">{typeData.description}</span>
+                    </div>
                   </div>
-                </h3>
+                  <ChevronDown 
+                    className={`w-5 h-5 transition-transform ${
+                      collapsedSections.has(typeKey) ? '-rotate-90' : 'rotate-0'
+                    }`} 
+                  />
+                </button>
+
+                {/* Collapsible Content */}
+                {!collapsedSections.has(typeKey) && (
 
                 <div className="grid gap-3">
                   {typeData.libraries.map((library, index) => (
@@ -541,6 +569,7 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
                     </div>
                   ))}
                 </div>
+                )}
               </div>
             ))}
           </div>
