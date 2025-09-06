@@ -1,6 +1,6 @@
 // Domain intelligence utilities - SIMPLIFIED VERSION with main_domain field approach
 
-import { LibraryDetector } from '../../background/utils/library-detector';
+import { LibraryDetector, LibraryInfo } from '../../background/utils/library-detector';
 
 // Domain affiliation mapping for related domains that should be grouped together
 const DOMAIN_AFFILIATIONS: { [key: string]: string } = {
@@ -65,18 +65,6 @@ function getAffiliatedDomains(parentDomain: string): string[] {
 }
 
 // Library information interface
-export interface LibraryInfo {
-  name: string;
-  version?: string;
-  type: 'framework' | 'utility' | 'ui' | 'analytics' | 'polyfill' | 'privacy-tools' | 'tracking-tools' | 'site-tools' | 'media-tools' | 'performance-tools' | 'advertising-service' | 'api-endpoint' | 'streaming-service' | 'data-collector' | 'web-service' | 'build-artifact' | 'websocket' | 'graphql' | 'service-worker' | 'web-font' | 'config-file';
-  confidence: 'high' | 'medium' | 'low';
-  source: 'url' | 'content' | 'headers';
-  cdnProvider?: string;
-  minified: boolean;
-  size?: number;
-  url: string;
-}
-
 export interface DomainInfo {
   fullDomain: string;
   baseDomain: string;
@@ -632,12 +620,15 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
           name: lib.name,
           version: lib.version,
           type: inferLibraryType(lib.name, lib.url),
-          confidence: 'high' as const,
-          source: 'url' as const,
-          minified: true,
-          size: lib.size,
-          url: lib.url
-        })),
+          confidence: 0.9,
+          detectionMethod: 'url-pattern' as const,
+          isMinified: true,
+          domain: sourceDomain,
+          url: lib.url,
+          cdnProvider: undefined,
+          description: undefined,
+          serviceType: 'library' as const
+        } as LibraryInfo)),
         count: libs.length,
         isThirdParty: thirdPartyInfo.isThirdParty,
         thirdPartyType: thirdPartyInfo.thirdPartyType
@@ -649,11 +640,14 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
       name: lib.name,
       version: lib.version,
       type: inferLibraryType(lib.name, lib.url),
-      confidence: 'high' as const,
-      source: 'url' as const,
-      minified: true,
-      size: lib.size,
-      url: lib.url
+      confidence: 0.9, // High confidence for detected libraries
+      detectionMethod: 'url-pattern' as const,
+      isMinified: true,
+      domain: mainDomain,
+      url: lib.url,
+      cdnProvider: undefined,
+      description: undefined,
+      serviceType: 'library' as const
     }));
 
     // Calculate library counts by type

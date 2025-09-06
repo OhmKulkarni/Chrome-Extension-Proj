@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Button } from './ui/button';
-import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen, Megaphone, BarChart, Video, Shield, Library, Target, Settings, Film, Zap, Wrench, Globe, HelpCircle, Package, Wifi, Database, Cpu, Type, FileText, Box, Palette } from 'lucide-react';
+import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen, Megaphone, BarChart, Video, Shield, Library, Target, Settings, Film, Zap, Wrench, Globe, HelpCircle, Package, Wifi, Database, Cpu, Type, FileText, Palette } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { groupDataByDomain, DomainStats } from './domainUtils';
 // Import the new shared data processing system
@@ -1470,7 +1470,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                             <span>UI components & libraries</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Box className="h-3 w-3" />
+                            <Wrench className="h-3 w-3" />
                             <span>Utility libraries</span>
                           </div>
                           <div className="flex items-center gap-2">
@@ -1514,7 +1514,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                             <span>Config & manifest files</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Wrench className="h-3 w-3" />
+                            <HelpCircle className="h-3 w-3" />
                             <span>Other resources</span>
                           </div>
                         </div>
@@ -1889,7 +1889,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                             case 'framework':
                                               return { icon: Library, bgColor: 'bg-blue-100', textColor: 'text-blue-800', label: 'Framework' };
                                             case 'utility':
-                                              return { icon: Box, bgColor: 'bg-teal-100', textColor: 'text-teal-800', label: 'Utility' };
+                                              return { icon: Wrench, bgColor: 'bg-teal-100', textColor: 'text-teal-800', label: 'Utility' };
                                             case 'ui':
                                               return { icon: Palette, bgColor: 'bg-indigo-100', textColor: 'text-indigo-800', label: 'UI Component' };
                                             case 'tracking-tools':
@@ -1913,7 +1913,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                             case 'config-file':
                                               return { icon: FileText, bgColor: 'bg-stone-100', textColor: 'text-stone-800', label: 'Config' };
                                             default:
-                                              return { icon: Wrench, bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Resource' };
+                                              return { icon: HelpCircle, bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Resource' };
                                           }
                                         };
 
@@ -1983,7 +1983,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                                     case 'framework':
                                                       return { icon: Library, bgColor: 'bg-blue-100', textColor: 'text-blue-800', label: 'Framework' };
                                                     case 'utility':
-                                                      return { icon: Box, bgColor: 'bg-teal-100', textColor: 'text-teal-800', label: 'Utility' };
+                                                      return { icon: Wrench, bgColor: 'bg-teal-100', textColor: 'text-teal-800', label: 'Utility' };
                                                     case 'ui':
                                                       return { icon: Palette, bgColor: 'bg-indigo-100', textColor: 'text-indigo-800', label: 'UI Component' };
                                                     case 'tracking-tools':
@@ -2007,7 +2007,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                                     case 'config-file':
                                                       return { icon: FileText, bgColor: 'bg-stone-100', textColor: 'text-stone-800', label: 'Config' };
                                                     default:
-                                                      return { icon: Wrench, bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Resource' };
+                                                      return { icon: HelpCircle, bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Resource' };
                                                   }
                                                 };
 

@@ -1,18 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Badge } from './ui/badge';
-import { X, ExternalLink, Package, Globe, Layers, Megaphone, BarChart, Video, Shield, Library, Target, Settings, Film, Zap, Wrench, Wifi, Database, Cpu, Type, FileText, Box, Palette } from 'lucide-react';
-
-interface LibraryInfo {
-  name: string;
-  version?: string;
-  type: 'framework' | 'utility' | 'ui' | 'analytics' | 'polyfill' | 'privacy-tools' | 'tracking-tools' | 'site-tools' | 'media-tools' | 'performance-tools' | 'advertising-service' | 'api-endpoint' | 'streaming-service' | 'data-collector' | 'web-service' | 'build-artifact' | 'websocket' | 'graphql' | 'service-worker' | 'web-font' | 'config-file';
-  confidence: 'high' | 'medium' | 'low';
-  source: 'url' | 'content' | 'headers';
-  cdnProvider?: string;
-  minified: boolean;
-  size?: number;
-  url: string;
-}
+import { X, ExternalLink, Package, Globe, Layers, Megaphone, BarChart, Video, Shield, Library, Target, Settings, Film, Zap, Wrench, Wifi, Database, Cpu, Type, FileText, Palette, HelpCircle } from 'lucide-react';
+import { LibraryInfo } from '../../background/utils/library-detector';
 
 interface LibraryModalProps {
   isOpen: boolean;
@@ -26,7 +15,7 @@ const getTypeIcon = (type: LibraryInfo['type']) => {
     case 'framework':
       return <Library className="h-4 w-4" />;
     case 'utility':
-      return <Box className="h-4 w-4" />;
+      return <Wrench className="h-4 w-4" />;
     case 'ui':
       return <Palette className="h-4 w-4" />;
     case 'analytics':
@@ -65,7 +54,7 @@ const getTypeIcon = (type: LibraryInfo['type']) => {
     case 'web-service':
       return <Globe className="h-4 w-4" />;
     default:
-      return <Wrench className="h-4 w-4" />;
+      return <HelpCircle className="h-4 w-4" />;
   }
 };
 
@@ -117,20 +106,43 @@ const getTypeColor = (type: LibraryInfo['type']) => {
   }
 };
 
-const getConfidenceColor = (confidence: LibraryInfo['confidence']) => {
-  switch (confidence) {
-    case 'high': return 'bg-green-100 text-green-800';
-    case 'medium': return 'bg-yellow-100 text-yellow-800';
-    case 'low': return 'bg-red-100 text-red-800';
-    default: return 'bg-gray-100 text-gray-800';
-  }
+const getConfidenceColor = (confidence: number) => {
+  if (confidence >= 0.8) return 'bg-green-100 text-green-800';
+  if (confidence >= 0.6) return 'bg-yellow-100 text-yellow-800';
+  return 'bg-red-100 text-red-800';
 };
 
-const formatSize = (size?: number) => {
-  if (!size) return null;
-  if (size < 1024) return `${size}B`;
-  if (size < 1024 * 1024) return `${Math.round(size / 1024)}KB`;
-  return `${Math.round(size / (1024 * 1024) * 10) / 10}MB`;
+const getConfidenceLabel = (confidence: number) => {
+  if (confidence >= 0.8) return 'High';
+  if (confidence >= 0.6) return 'Medium';
+  return 'Low';
+};
+
+const getTypeLabel = (type: string) => {
+  switch (type) {
+    case 'framework': return 'Framework';
+    case 'utility': return 'Utility';
+    case 'ui': return 'UI Component';
+    case 'analytics': return 'Analytics';
+    case 'data-collector': return 'Data Collection';
+    case 'advertising-service': return 'Advertising';
+    case 'streaming-service': return 'Media Streaming';
+    case 'api-endpoint': return 'API Endpoint';
+    case 'privacy-tools': return 'Privacy Tool';
+    case 'tracking-tools': return 'Tracking';
+    case 'site-tools': return 'Site Tool';
+    case 'media-tools': return 'Media Tool';
+    case 'performance-tools': return 'Performance';
+    case 'build-artifact': return 'Build Artifact';
+    case 'websocket': return 'WebSocket';
+    case 'graphql': return 'GraphQL';
+    case 'service-worker': return 'Service Worker';
+    case 'web-font': return 'Web Font';
+    case 'config-file': return 'Configuration';
+    case 'polyfill': return 'Polyfill';
+    case 'web-service': return 'Web Service';
+    default: return type.replace('-', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+  }
 };
 
 export default function LibraryModal({ isOpen, onClose, domain, libraries }: LibraryModalProps) {
@@ -175,9 +187,9 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
   const stats = {
     total: libraries.length,
     types: Object.keys(librariesByType).length,
-    minified: libraries.filter(lib => lib.minified).length,
+    minified: libraries.filter(lib => lib.isMinified).length,
     buildArtifacts: libraries.filter(lib => lib.type === 'build-artifact').length,
-    totalSize: libraries.reduce((sum, lib) => sum + (lib.size || 0), 0),
+    // totalSize: libraries.reduce((sum, lib) => sum + (lib.size || 0), 0), // Size not tracked in current system
     // Top resource types
     frameworks: libraries.filter(lib => lib.type === 'framework').length,
     analytics: libraries.filter(lib => ['analytics', 'data-collector', 'tracking-tools'].includes(lib.type)).length,
@@ -228,10 +240,8 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
                 <div className="text-sm text-gray-600">Build Assets</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-orange-600">
-                  {stats.totalSize > 0 ? formatSize(stats.totalSize) : 'N/A'}
-                </div>
-                <div className="text-sm text-gray-600">Total Size</div>
+                <div className="text-2xl font-bold text-indigo-600">{stats.types}</div>
+                <div className="text-sm text-gray-600">Unique Types</div>
               </div>
             </div>
 
@@ -280,12 +290,12 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
                               </Badge>
                             )}
                             <Badge className={`text-xs ${getTypeColor(library.type)}`}>
-                              {library.type.replace('-', ' ')}
+                              {getTypeLabel(library.type)}
                             </Badge>
                             <Badge className={`text-xs ${getConfidenceColor(library.confidence)}`}>
-                              {library.confidence}
+                              {getConfidenceLabel(library.confidence)} ({Math.round(library.confidence * 100)}%)
                             </Badge>
-                            {library.minified && (
+                            {library.isMinified && (
                               <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
                                 Minified
                               </Badge>
@@ -294,18 +304,14 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
                             <div>
-                              <span className="font-medium">Detection:</span> {library.source}
+                              <span className="font-medium">Detection:</span> {library.detectionMethod}
                             </div>
                             {library.cdnProvider && (
                               <div>
                                 <span className="font-medium">CDN:</span> {library.cdnProvider}
                               </div>
                             )}
-                            {library.size && (
-                              <div>
-                                <span className="font-medium">Size:</span> {formatSize(library.size)}
-                              </div>
-                            )}
+                            {/* Size information not available in current system */}
                             <div className="md:col-span-2">
                               <div className="flex items-center gap-2">
                                 <span className="font-medium">URL:</span>
