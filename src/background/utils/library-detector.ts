@@ -457,18 +457,32 @@ export class LibraryDetector {
     const filenameLower = filename.toLowerCase();
 
     // 🚨 PRIORITY: Source Maps (highest priority for build artifacts)
-    if (/\.map(\?|$)/i.test(url) || /\.map$/i.test(filename)) {
+    // Enhanced detection for source maps including query parameters
+    if (/\.map(\?|$|&)/i.test(url) || /\.map$/i.test(filename) || /\.map\?/i.test(url)) {
       let baseName = filename.replace(/\.map$/i, '').replace(/\?.*$/, '');
-      
+
       // Handle source maps in query parameters like "tag?...&upapi=true.map"
-      if (/\.map(\?|$)/i.test(url) && !baseName) {
-        const urlParts = url.split('?');
-        baseName = urlParts[0].split('/').pop() || 'source-map';
-        if (baseName.includes('.map')) {
-          baseName = baseName.replace(/\.map.*$/, '');
+      if (/\.map(\?|$|&)/i.test(url) && !baseName) {
+        // Extract filename from URL path or query
+        const urlObj = new URL(url);
+        let potentialName = urlObj.pathname.split('/').pop() || '';
+        
+        // Check if .map appears in query parameters
+        if (urlObj.search.includes('.map')) {
+          const queryMatch = urlObj.search.match(/(\w+)\.map/);
+          if (queryMatch) {
+            potentialName = queryMatch[1];
+          }
         }
+        
+        // Fallback to path-based name
+        if (!potentialName || potentialName.includes('?')) {
+          potentialName = urlObj.pathname.split('/').pop()?.split('?')[0] || 'source-map';
+        }
+        
+        baseName = potentialName.replace(/\.map.*$/, '') || 'source-map';
       }
-      
+
       return {
         name: baseName || 'source-map',
         version: undefined,
@@ -596,7 +610,7 @@ export class LibraryDetector {
     const urlLower = url.toLowerCase();
 
     // 🚨 PRIORITY 1: TRACKING & SYNC SERVICES (very specific patterns first)
-    if (/(?:sync\?|trackingpixel|beacon|universalid-sync|track\?|pixel\?|collect\?)/i.test(urlLower) || 
+    if (/(?:sync\?|trackingpixel|beacon|universalid-sync|track\?|pixel\?|collect\?)/i.test(urlLower) ||
         /(?:universalid|iiquniversalid|sync|trackingpixel|beacon)/i.test(nameLower)) {
       return {
         type: 'tracking-tools',
@@ -605,8 +619,9 @@ export class LibraryDetector {
       };
     }
 
-    // 🚨 PRIORITY 2: ADVERTISING & MARKETING SERVICES (include AdFuel)
-    if (/(?:casalemedia|criteo|adsrvr|pubmatic|doubleclick|adsystem|bidder|cdb|translator|hbopenbid|wunderkind|magnite|sodar|rid|adfuel|gpt|apstag|pubads)/i.test(nameLower + urlLower)) {
+    // 🚨 PRIORITY 2: ADVERTISING & MARKETING SERVICES (include AdFuel + enhanced patterns)
+    if (/(?:casalemedia|criteo|adsrvr|pubmatic|doubleclick|adsystem|bidder|cdb|translator|hbopenbid|wunderkind|magnite|sodar|rid|adfuel|gpt|apstag|pubads|cygnus|d3|videotools|3159)/i.test(nameLower + urlLower) ||
+        /(?:dfp_premium|instream|video_ad|video-ad)/i.test(urlLower)) {
       return {
         type: 'advertising-service',
         description: 'Advertising and marketing service',
@@ -614,8 +629,8 @@ export class LibraryDetector {
       };
     }
 
-    // 🚨 PRIORITY 3: ANALYTICS & DATA COLLECTION (include chartbeat_video)
-    if (/(?:collector|logs|analytics|browser-intake|optimizely|events|datadog|segment|amplitude|hotjar|gtag|ga|chartbeat|streamsense)/i.test(nameLower + urlLower)) {
+    // 🚨 PRIORITY 3: ANALYTICS & DATA COLLECTION (include chartbeat_video + enhanced patterns)
+    if (/(?:collector|logs|analytics|browser-intake|optimizely|events|datadog|segment|amplitude|hotjar|gtag|ga|chartbeat|streamsense|tp2|trackingpixel|turner|geo4)/i.test(nameLower + urlLower)) {
       return {
         type: 'data-collector',
         description: 'Analytics and data collection service',
@@ -623,8 +638,8 @@ export class LibraryDetector {
       };
     }
 
-    // 🚨 PRIORITY 4: TAG MANAGEMENT & LAUNCH TOOLS (include Adobe Launch)
-    if (/(?:launch[-_.]|adobe|tag|gtm|googletagmanager|tealium)/i.test(nameLower + urlLower)) {
+    // 🚨 PRIORITY 4: TAG MANAGEMENT & LAUNCH TOOLS (include Adobe Launch + enhanced patterns)
+    if (/(?:launch[-_.]|adobe|tag|gtm|googletagmanager|tealium|launch-[a-f0-9]{10,})/i.test(nameLower + urlLower)) {
       return {
         type: 'site-tools',
         description: 'Tag management and site optimization',
@@ -633,8 +648,8 @@ export class LibraryDetector {
     }
 
     // 🚨 PRIORITY 5: MEDIA & STREAMING SERVICES (more restrictive now)
-    if (/(?:livestream|manifests|streaming|warnermediacdn|live-manifests|jwplayer|cygnus|video-stream|media-stream)/i.test(nameLower + urlLower) &&
-        !(/(?:chartbeat|analytics|track|collect)/i.test(nameLower + urlLower))) {
+    if (/(?:livestream|manifests|streaming|warnermediacdn|live-manifests|jwplayer|media-stream|cnn-adfuel)/i.test(nameLower + urlLower) &&
+        !(/(?:chartbeat|analytics|track|collect|cygnus|d3|videotools)/i.test(nameLower + urlLower))) {
       return {
         type: 'streaming-service',
         description: 'Media streaming and content delivery service',
@@ -642,8 +657,8 @@ export class LibraryDetector {
       };
     }
 
-    // 🎯 PRIVACY & COMPLIANCE SERVICES
-    if (/(?:onetrust|otgpp|otbanner|otsdkstub|cookiebot|consent|privacy|gdpr|ccpa|optanon|adsafeprotected|adtrafficquality|iaspet)/i.test(nameLower + urlLower)) {
+    // 🎯 PRIVACY & COMPLIANCE SERVICES (enhanced patterns)
+    if (/(?:onetrust|otgpp|otbanner|otsdkstub|cookiebot|consent|privacy|gdpr|ccpa|optanon|adsafeprotected|adtrafficquality|iaspet|sitefeatures)/i.test(nameLower + urlLower)) {
       return {
         type: 'privacy-tools',
         description: 'Privacy compliance and security service',
@@ -652,7 +667,7 @@ export class LibraryDetector {
     }
 
     // 🎯 SITE-SPECIFIC FEATURES (Traditional Libraries)
-    if (/(?:auth|login|landing|landingprod|freeview|zion|web-client|mb|paywall|checkout|cart|alerts|sitefeatures)/i.test(nameLower + urlLower)) {
+    if (/(?:auth|login|landing|landingprod|freeview|zion|web-client|mb|paywall|checkout|cart|alerts|authentication|reg)/i.test(nameLower + urlLower)) {
       return {
         type: 'site-tools',
         description: 'Site-specific functionality and features',
@@ -670,7 +685,7 @@ export class LibraryDetector {
     }
 
     // 🎯 PERFORMANCE LIBRARIES (Traditional Libraries)
-    if (/(?:loadingtools|load|loader|lazy|defer|preload|cache|optimize|compress|psm|taglw)/i.test(nameLower + urlLower)) {
+    if (/(?:loadingtools|load|loader|lazy|defer|preload|cache|optimize|compress|psm|taglw|campaign-index|website|build-bundle)/i.test(nameLower + urlLower)) {
       return {
         type: 'performance-tools',
         description: 'Performance optimization and loading libraries',
@@ -745,11 +760,29 @@ export class LibraryDetector {
       };
     }
 
-    // UI Libraries
+    // UI Libraries (distinguished from utilities)
     if (/(?:bootstrap|material|semantic|foundation|bulma|tailwind)/i.test(nameLower)) {
       return {
         type: 'ui',
         description: 'User interface library',
+        serviceType: 'library'
+      };
+    }
+
+    // Utility Libraries (DOM manipulation, HTTP, general-purpose)
+    if (/(?:jquery|lodash|underscore|axios|fetch|polyfill|moment|dayjs|uuid|validator|ramda|rxjs|immutable)/i.test(nameLower)) {
+      return {
+        type: 'utility',
+        description: 'JavaScript utility library',
+        serviceType: 'library'
+      };
+    }
+
+    // Resource Collections (multiple mixed tools/libraries from CDNs)
+    if (/(?:rc[a-f0-9]{32}|ex[a-f0-9]{32}|zfh-\d+)/i.test(nameLower)) {
+      return {
+        type: 'utility',
+        description: 'Resource collection or mixed utility bundle',
         serviceType: 'library'
       };
     }
