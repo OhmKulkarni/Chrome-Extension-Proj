@@ -1,7 +1,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Badge } from './ui/badge';
-import { X, ExternalLink, Package, Globe, Layers, Megaphone, BarChart, Video, Shield, Library, Target, Settings, Film, Zap, Wrench, Wifi, Database, Cpu, Type, FileText, Palette, HelpCircle } from 'lucide-react';
+import { X, ExternalLink, Package, Globe, Layers, Megaphone, BarChart, Video, Shield, Library, Target, Settings, Film, Zap, Wrench, Wifi, Database, Cpu, Type, FileText, Palette, HelpCircle, Search, Copy, CheckCircle, ArrowUpDown, Filter } from 'lucide-react';
 import { LibraryInfo } from '../../background/utils/library-detector';
+import { useState, useMemo } from 'react';
 
 interface LibraryModalProps {
   isOpen: boolean;
@@ -145,7 +146,113 @@ const getTypeLabel = (type: string) => {
   }
 };
 
+const getTypeDescription = (type: string) => {
+  switch (type) {
+    case 'framework': return 'JavaScript frameworks and libraries';
+    case 'utility': return 'Utility libraries and helper functions';
+    case 'ui': return 'User interface components and styling';
+    case 'analytics': return 'Analytics and tracking services';
+    case 'data-collector': return 'Data collection and metrics tools';
+    case 'advertising-service': return 'Advertisement and marketing services';
+    case 'streaming-service': return 'Video and media streaming services';
+    case 'api-endpoint': return 'External API and service endpoints';
+    case 'privacy-tools': return 'Privacy and consent management tools';
+    case 'tracking-tools': return 'User tracking and behavior analytics';
+    case 'site-tools': return 'Website functionality and management tools';
+    case 'media-tools': return 'Media processing and manipulation tools';
+    case 'performance-tools': return 'Performance monitoring and optimization';
+    case 'build-artifact': return 'Build and development artifacts';
+    case 'websocket': return 'Real-time communication protocols';
+    case 'graphql': return 'GraphQL API and query language';
+    case 'service-worker': return 'Progressive web app functionality';
+    case 'web-font': return 'Web fonts and typography resources';
+    case 'config-file': return 'Configuration and settings files';
+    case 'polyfill': return 'Browser compatibility polyfills';
+    case 'web-service': return 'Web services and API integrations';
+    default: return `${type.replace('-', ' ')} related resources`;
+  }
+};
+
 export default function LibraryModal({ isOpen, onClose, domain, libraries }: LibraryModalProps) {
+  // Enhanced UX features state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<'name' | 'type' | 'confidence'>('type');
+  const [filterType, setFilterType] = useState<string>('all');
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+
+  // Enhanced filtering and sorting
+  const filteredAndSortedLibraries = useMemo(() => {
+    let filtered = libraries;
+
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(lib =>
+        lib.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lib.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (lib.description && lib.description.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+
+    // Apply type filter
+    if (filterType !== 'all') {
+      filtered = filtered.filter(lib => lib.type === filterType);
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'name':
+          return a.name.localeCompare(b.name);
+        case 'confidence':
+          return b.confidence - a.confidence;
+        case 'type':
+        default:
+          return a.type.localeCompare(b.type);
+      }
+    });
+
+    return filtered;
+  }, [libraries, searchTerm, filterType, sortBy]);
+
+  // Group filtered libraries by type for display
+  const filteredLibrariesByType = useMemo(() => {
+    const grouped: { [key: string]: { label: string; type: string; description: string; count: number; libraries: LibraryInfo[] } } = {};
+    
+    filteredAndSortedLibraries.forEach(library => {
+      const key = library.type;
+      if (!grouped[key]) {
+        grouped[key] = {
+          label: getTypeLabel(library.type),
+          type: library.type,
+          description: getTypeDescription(library.type),
+          count: 0,
+          libraries: []
+        };
+      }
+      grouped[key].count++;
+      grouped[key].libraries.push(library);
+    });
+
+    return grouped;
+  }, [filteredAndSortedLibraries]);
+
+  // Copy URL functionality
+  const copyUrl = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedUrl(url);
+      setTimeout(() => setCopiedUrl(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy URL:', err);
+    }
+  };
+
+  // Get unique types for filter dropdown
+  const uniqueTypes = useMemo(() => {
+    const types = [...new Set(libraries.map(lib => lib.type))];
+    return types.sort();
+  }, [libraries]);
+
   // Define resource type sections with proper labels and descriptions
   const resourceTypeSections = [
     { type: 'framework', label: 'Frameworks', description: 'JavaScript frameworks and libraries' },
@@ -216,11 +323,79 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
         {libraries.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <Package className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <p>No libraries detected for this domain</p>
+            <p className="font-medium">No libraries detected for this domain</p>
             <p className="text-sm mt-2">Library detection happens automatically as JavaScript files are loaded.</p>
           </div>
         ) : (
           <div className="space-y-6">
+            {/* Enhanced Search and Filter Controls */}
+            <div className="space-y-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
+              <div className="flex flex-col sm:flex-row gap-3">
+                {/* Search Input */}
+                <div className="relative flex-1">
+                  <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search libraries, types, or descriptions..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                
+                {/* Type Filter */}
+                <div className="relative">
+                  <Filter className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <select
+                    value={filterType}
+                    onChange={(e) => setFilterType(e.target.value)}
+                    className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white min-w-[140px]"
+                  >
+                    <option value="all">All Types</option>
+                    {uniqueTypes.map(type => (
+                      <option key={type} value={type}>
+                        {getTypeLabel(type)} ({libraries.filter(lib => lib.type === type).length})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Sort Options */}
+                <div className="relative">
+                  <ArrowUpDown className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as 'name' | 'type' | 'confidence')}
+                    className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white min-w-[140px]"
+                  >
+                    <option value="type">Sort by Type</option>
+                    <option value="name">Sort by Name</option>
+                    <option value="confidence">Sort by Confidence</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Search Results Summary */}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">
+                  {filteredAndSortedLibraries.length === libraries.length 
+                    ? `Showing all ${libraries.length} resources`
+                    : `Showing ${filteredAndSortedLibraries.length} of ${libraries.length} resources`
+                  }
+                </span>
+                {(searchTerm || filterType !== 'all') && (
+                  <button
+                    onClick={() => {
+                      setSearchTerm('');
+                      setFilterType('all');
+                    }}
+                    className="text-blue-600 hover:text-blue-800 font-medium text-xs px-2 py-1 rounded border border-blue-200 hover:bg-blue-50"
+                  >
+                    Clear filters
+                  </button>
+                )}
+              </div>
+            </div>
             {/* Statistics Overview */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 p-4 bg-gray-50 rounded-lg">
               <div className="text-center">
@@ -262,8 +437,12 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
             </div>
 
             {/* Libraries by Individual Type */}
-            {Object.entries(librariesByType)
-              .sort(([, a], [, b]) => b.count - a.count) // Sort by count descending
+            {Object.entries(filteredLibrariesByType)
+              .sort(([, a], [, b]) => {
+                if (sortBy === 'name') return a.label.localeCompare(b.label);
+                if (sortBy === 'type') return a.type.localeCompare(b.type);
+                return b.count - a.count; // default: count descending
+              })
               .map(([typeKey, typeData]) => (
               <div key={typeKey} className="space-y-3">
                 <h3 className="flex items-center gap-2 text-lg font-semibold border-b pb-2">
@@ -276,7 +455,7 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
 
                 <div className="grid gap-3">
                   {typeData.libraries.map((library, index) => (
-                    <div key={index} className="border rounded-lg p-4 hover:bg-gray-50">
+                    <div key={index} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
@@ -325,6 +504,17 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
                                   {library.url.split('/').pop() || library.url}
                                   <ExternalLink className="h-3 w-3" />
                                 </a>
+                                <button
+                                  onClick={() => copyUrl(library.url)}
+                                  className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                                  title="Copy URL"
+                                >
+                                  {copiedUrl === library.url ? (
+                                    <CheckCircle className="h-4 w-4 text-green-500" />
+                                  ) : (
+                                    <Copy className="h-4 w-4" />
+                                  )}
+                                </button>
                               </div>
                             </div>
                           </div>
