@@ -506,7 +506,7 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
                               {getPrimaryCategoryInfo(getPrimaryCategory(library.type)).label}
                             </Badge>
                             {/* Detailed Technical Type Badge */}
-                            <Badge variant="outline" className={`text-xs flex items-center gap-1 ${getTypeColor(library.type)}`}>
+                            <Badge className={`text-xs flex items-center gap-1 ${getTypeColor(library.type)}`}>
                               {getTypeIcon(library.type)}
                               {getTypeLabel(library.type)}
                             </Badge>
