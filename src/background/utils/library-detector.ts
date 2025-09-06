@@ -327,6 +327,15 @@ export class LibraryDetector {
 
     console.log('[LibraryDetector] detectFromUrl starting:', { url, urlLower });
 
+    // 🚨 PRIORITY CHECK: Build artifacts (source maps) should be detected FIRST
+    // This prevents them from being misclassified as API endpoints or other types
+    const filename = url.split('/').pop() || '';
+    const buildArtifactInfo = this.detectBuildArtifact(url, filename);
+    if (buildArtifactInfo) {
+      console.log('[LibraryDetector] Build artifact detected early:', buildArtifactInfo);
+      return [buildArtifactInfo]; // Return immediately - no need for further processing
+    }
+
     // Check against known library patterns
     for (const [libraryName, config] of Object.entries(LIBRARY_PATTERNS)) {
       for (const pattern of config.patterns) {
@@ -381,12 +390,7 @@ export class LibraryDetector {
       return null;
     }
 
-    // 🚀 PRIORITY 1: Detect Build Artifacts FIRST (before generic library detection)
-    const buildArtifactInfo = this.detectBuildArtifact(url, filename);
-    if (buildArtifactInfo) {
-      console.log('[LibraryDetector] Build artifact detected:', buildArtifactInfo);
-      return buildArtifactInfo;
-    }
+    // Note: Build artifact detection is now handled earlier in detectFromUrl for priority
 
     // Extract tool name from URL - be more flexible about file extensions
     let toolName = '';
@@ -408,15 +412,20 @@ export class LibraryDetector {
 
     // If still no name, try to extract from URL path more aggressively
     if (!toolName || toolName.length < 1) {
-      const urlPath = new URL(url).pathname;
-      const pathSegments = urlPath.split('/').filter(segment => segment.length > 0);
-      toolName = pathSegments[pathSegments.length - 1] || 'unknown-script';
+      try {
+        const urlPath = new URL(url, 'https://example.com').pathname;
+        const pathSegments = urlPath.split('/').filter(segment => segment.length > 0);
+        toolName = pathSegments[pathSegments.length - 1] || 'unknown-script';
 
-      // Clean up the tool name
-      toolName = toolName
-        .replace(/\?.*$/, '') // Remove query params
-        .replace(/\.(min\.)?js$/i, '') // Remove JS extensions
-        .toLowerCase();
+        // Clean up the tool name
+        toolName = toolName
+          .replace(/\?.*$/, '') // Remove query params
+          .replace(/\.(min\.)?js$/i, '') // Remove JS extensions
+          .toLowerCase();
+      } catch (e) {
+        // Fallback for invalid URLs
+        toolName = 'unknown-script';
+      }
     }
 
     // Skip if tool name is too short or generic
@@ -458,29 +467,63 @@ export class LibraryDetector {
 
     // 🚨 PRIORITY: Source Maps (highest priority for build artifacts)
     // Enhanced detection for source maps including query parameters
-    if (/\.map(\?|$|&)/i.test(url) || /\.map$/i.test(filename) || /\.map\?/i.test(url)) {
+    // Multiple robust detection patterns for source maps
+    const isSourceMap = 
+      /\.map(\?|$|&)/i.test(url) ||           // .map followed by query, end, or &
+      /\.map$/i.test(filename) ||             // filename ends with .map
+      /\.map\?/i.test(url) ||                 // .map followed by query params
+      url.endsWith('.map') ||                 // URL ends with .map
+      filename.endsWith('.map') ||            // filename ends with .map
+      /[?&]\w+\.map($|&)/i.test(url) ||      // .map in query parameters
+      /\.map[?&]/i.test(url);                 // .map followed by query params
+
+    if (isSourceMap) {
       let baseName = filename.replace(/\.map$/i, '').replace(/\?.*$/, '');
 
       // Handle source maps in query parameters like "tag?...&upapi=true.map"
-      if (/\.map(\?|$|&)/i.test(url) && !baseName) {
-        // Extract filename from URL path or query
-        const urlObj = new URL(url);
-        let potentialName = urlObj.pathname.split('/').pop() || '';
-        
-        // Check if .map appears in query parameters
-        if (urlObj.search.includes('.map')) {
-          const queryMatch = urlObj.search.match(/(\w+)\.map/);
-          if (queryMatch) {
-            potentialName = queryMatch[1];
+      if (!baseName || baseName.includes('?')) {
+        try {
+          // Try to parse as full URL first
+          let urlObj;
+          if (url.startsWith('http')) {
+            urlObj = new URL(url);
+          } else {
+            // Handle relative URLs by adding a dummy base
+            urlObj = new URL(url, 'https://example.com/');
+          }
+          
+          let potentialName = urlObj.pathname.split('/').pop() || '';
+          
+          // Check if .map appears in query parameters
+          if (urlObj.search.includes('.map')) {
+            const queryMatch = urlObj.search.match(/(\w+)\.map/);
+            if (queryMatch) {
+              potentialName = queryMatch[1];
+            }
+          }
+          
+          // Fallback to path-based name
+          if (!potentialName || potentialName.includes('?')) {
+            potentialName = urlObj.pathname.split('/').pop()?.split('?')[0] || 'source-map';
+          }
+          
+          baseName = potentialName.replace(/\.map.*$/, '') || 'source-map';
+        } catch (e) {
+          // Fallback parsing for problematic URLs
+          const parts = url.split(/[?&]/);
+          for (const part of parts) {
+            if (part.includes('.map')) {
+              const mapMatch = part.match(/(\w+)\.map/);
+              if (mapMatch) {
+                baseName = mapMatch[1];
+                break;
+              }
+            }
+          }
+          if (!baseName) {
+            baseName = 'source-map';
           }
         }
-        
-        // Fallback to path-based name
-        if (!potentialName || potentialName.includes('?')) {
-          potentialName = urlObj.pathname.split('/').pop()?.split('?')[0] || 'source-map';
-        }
-        
-        baseName = potentialName.replace(/\.map.*$/, '') || 'source-map';
       }
 
       return {
@@ -492,7 +535,7 @@ export class LibraryDetector {
         isMinified: false,
         confidence: 0.99, // Very high confidence for source maps
         domain: '',
-        detectionMethod: 'url-pattern',
+        detectionMethod: 'source-map',
         description: 'Source map for debugging',
         serviceType: 'build-artifact'
       };
@@ -742,8 +785,9 @@ export class LibraryDetector {
     }
 
     // 🎯 API ENDPOINTS & WEB SERVICES (more restrictive now - LOWER PRIORITY)
+    // Exclude source maps and build artifacts explicitly
     if (/(?:api\/|endpoint|service|reg|segments|desktop|pub\/|v2\/|receive|wmcdp|zetaglobal|lijit|direct|ssp|wknd)/i.test(urlLower) &&
-        !(/(?:sync|track|collect|analytics|logs|stream|video|auth|tag|launch)/i.test(nameLower + urlLower))) {
+        !(/(?:sync|track|collect|analytics|logs|stream|video|auth|tag|launch|\.map)/i.test(nameLower + urlLower))) {
       return {
         type: 'api-endpoint',
         description: 'API endpoint or web service',
