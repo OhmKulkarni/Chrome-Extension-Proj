@@ -261,7 +261,8 @@ export class LibraryDetector {
     // Ad/tracking domains
     const adTrackingDomains = [
       'casalemedia.com', 'criteo.com', 'adsrvr.org', 'pubmatic.com', 'doubleclick.net',
-      'googlesyndication.com', 'googleadservices.com', 'amazon-adsystem.com'
+      'googlesyndication.com', 'googleadservices.com', 'amazon-adsystem.com',
+      'wknd.ai', 'ssp.wknd.ai', 'bidder.criteo.com'
     ];
 
     // Check CDN
@@ -683,7 +684,9 @@ export class LibraryDetector {
 
     // 🎯 PRIORITY 1.5: FRAMEWORK LIBRARIES (before advertising check)
     // Vue.js and D3.js detection by name alone, regardless of URL format
-    if (/\b(?:vue|d3)(?:\.min)?\.js\b/i.test(urlLower) || /\b(?:vue|d3)\b/i.test(nameLower)) {
+    // BUT exclude advertising domains to avoid false positives
+    if ((/\b(?:vue|d3)(?:\.min)?\.js\b/i.test(urlLower) || /\b(?:vue|d3)\b/i.test(nameLower)) &&
+        !(/(?:ssp\.wknd\.ai|wknd\.ai|adsrvr|casalemedia|criteo|pubmatic|doubleclick|adsystem)/i.test(urlLower))) {
       const isVue = /vue/i.test(nameLower + urlLower);
       return {
         type: 'framework',
