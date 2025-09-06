@@ -3,6 +3,7 @@ import { Badge } from './ui/badge';
 import { X, ExternalLink, Package, Layers, Megaphone, BarChart, Shield, Library, Target, Settings, Film, Zap, Wrench, Database, HelpCircle, Search, Copy, CheckCircle, ArrowUpDown, Filter, Server, Lock, Box, ChevronDown } from 'lucide-react';
 import { LibraryInfo } from '../../background/utils/library-detector';
 import { useState, useMemo } from 'react';
+import React from 'react';
 
 interface LibraryModalProps {
   isOpen: boolean;
@@ -84,29 +85,29 @@ const getTypeIcon = (type: LibraryInfo['type']) => {
 const getTypeColor = (type: LibraryInfo['type']) => {
   switch (type) {
     case 'framework':
-      return 'bg-blue-100 text-blue-900 border border-blue-200';
+      return 'bg-blue-700 text-white border border-blue-700';
     case 'utility':
-      return 'bg-emerald-100 text-emerald-900 border border-emerald-200';
+      return 'bg-emerald-700 text-white border border-emerald-700';
     case 'polyfill':
-      return 'bg-amber-100 text-amber-900 border border-amber-200';
+      return 'bg-amber-700 text-white border border-amber-700';
     case 'data-collector':
-      return 'bg-purple-100 text-purple-900 border border-purple-200';
+      return 'bg-purple-700 text-white border border-purple-700';
     case 'service':
-      return 'bg-rose-100 text-rose-900 border border-rose-200';
+      return 'bg-rose-700 text-white border border-rose-700';
     case 'privacy-tools':
-      return 'bg-green-100 text-green-900 border border-green-200';
+      return 'bg-green-700 text-white border border-green-700';
     case 'tracking-tools':
-      return 'bg-orange-100 text-orange-900 border border-orange-200';
+      return 'bg-orange-700 text-white border border-orange-700';
     case 'site-tools':
-      return 'bg-indigo-100 text-indigo-900 border border-indigo-200';
+      return 'bg-indigo-700 text-white border border-indigo-700';
     case 'media-tools':
-      return 'bg-pink-100 text-pink-900 border border-pink-200';
+      return 'bg-pink-700 text-white border border-pink-700';
     case 'performance-tools':
-      return 'bg-cyan-100 text-cyan-900 border border-cyan-200';
+      return 'bg-cyan-700 text-white border border-cyan-700';
     case 'build-artifact':
-      return 'bg-slate-100 text-slate-900 border border-slate-200';
+      return 'bg-slate-700 text-white border border-slate-700';
     default:
-      return 'bg-gray-100 text-gray-900 border border-gray-200';
+      return 'bg-gray-700 text-white border border-gray-700';
   }
 };
 
@@ -148,17 +149,17 @@ const getTypeDescription = (type: string) => {
 const getPrimaryCategoryInfo = (primaryType: string) => {
   switch (primaryType) {
     case 'libraries':
-      return { icon: Library, bgColor: 'bg-blue-100 border border-blue-200', textColor: 'text-blue-900', label: 'Libraries' };
+      return { icon: Library, bgColor: 'bg-blue-600', textColor: 'text-white', label: 'Libraries' };
     case 'analytics':
-      return { icon: BarChart, bgColor: 'bg-purple-100 border border-purple-200', textColor: 'text-purple-900', label: 'Analytics' };
+      return { icon: BarChart, bgColor: 'bg-purple-600', textColor: 'text-white', label: 'Analytics' };
     case 'privacy':
-      return { icon: Shield, bgColor: 'bg-green-100 border border-green-200', textColor: 'text-green-900', label: 'Privacy' };
+      return { icon: Shield, bgColor: 'bg-green-600', textColor: 'text-white', label: 'Privacy' };
     case 'services':
-      return { icon: Megaphone, bgColor: 'bg-rose-100 border border-rose-200', textColor: 'text-rose-900', label: 'Services' };
+      return { icon: Megaphone, bgColor: 'bg-rose-600', textColor: 'text-white', label: 'Services' };
     case 'assets':
-      return { icon: Package, bgColor: 'bg-slate-100 border border-slate-200', textColor: 'text-slate-900', label: 'Assets' };
+      return { icon: Package, bgColor: 'bg-slate-600', textColor: 'text-white', label: 'Assets' };
     default:
-      return { icon: HelpCircle, bgColor: 'bg-gray-100 border border-gray-200', textColor: 'text-gray-900', label: 'Unknown' };
+      return { icon: HelpCircle, bgColor: 'bg-gray-600', textColor: 'text-white', label: 'Unknown' };
   }
 };
 
@@ -500,11 +501,13 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
                               </Badge>
                             )}
                             {/* Primary Category Badge */}
-                            <Badge className={`text-xs ${getPrimaryCategoryInfo(getPrimaryCategory(library.type)).bgColor} ${getPrimaryCategoryInfo(getPrimaryCategory(library.type)).textColor}`}>
+                            <Badge className={`text-xs flex items-center gap-1 ${getPrimaryCategoryInfo(getPrimaryCategory(library.type)).bgColor} ${getPrimaryCategoryInfo(getPrimaryCategory(library.type)).textColor}`}>
+                              {React.createElement(getPrimaryCategoryInfo(getPrimaryCategory(library.type)).icon, { className: "h-3 w-3" })}
                               {getPrimaryCategoryInfo(getPrimaryCategory(library.type)).label}
                             </Badge>
                             {/* Detailed Technical Type Badge */}
-                            <Badge variant="outline" className={`text-xs ${getTypeColor(library.type)}`}>
+                            <Badge variant="outline" className={`text-xs flex items-center gap-1 ${getTypeColor(library.type)}`}>
+                              {getTypeIcon(library.type)}
                               {getTypeLabel(library.type)}
                             </Badge>
                             {library.isMinified && (
