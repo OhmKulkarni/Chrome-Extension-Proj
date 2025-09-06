@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Badge } from './ui/badge';
-import { X, ExternalLink, Package, Globe, Layers, Megaphone, BarChart, Video, Shield, Library, Target, Settings, Film, Zap, Wrench, Wifi, Database, Cpu, Type, FileText, Palette, HelpCircle, Search, Copy, CheckCircle, ArrowUpDown, Filter } from 'lucide-react';
+import { X, ExternalLink, Package, Layers, Megaphone, BarChart, Video, Shield, Library, Target, Settings, Film, Zap, Wrench, Wifi, Database, Cpu, Type, FileText, HelpCircle, Search, Copy, CheckCircle, ArrowUpDown, Filter } from 'lucide-react';
 import { LibraryInfo } from '../../background/utils/library-detector';
 import { useState, useMemo } from 'react';
 
@@ -17,17 +17,13 @@ const getTypeIcon = (type: LibraryInfo['type']) => {
       return <Library className="h-4 w-4" />;
     case 'utility':
       return <Wrench className="h-4 w-4" />;
-    case 'ui':
-      return <Palette className="h-4 w-4" />;
     case 'analytics':
     case 'data-collector':
       return <BarChart className="h-4 w-4" />;
-    case 'advertising-service':
+    case 'service':
       return <Megaphone className="h-4 w-4" />;
     case 'streaming-service':
       return <Video className="h-4 w-4" />;
-    case 'api-endpoint':
-      return <Globe className="h-4 w-4" />;
     case 'privacy-tools':
       return <Shield className="h-4 w-4" />;
     case 'tracking-tools':
@@ -52,8 +48,6 @@ const getTypeIcon = (type: LibraryInfo['type']) => {
       return <FileText className="h-4 w-4" />;
     case 'polyfill':
       return <Layers className="h-4 w-4" />;
-    case 'web-service':
-      return <Globe className="h-4 w-4" />;
     default:
       return <HelpCircle className="h-4 w-4" />;
   }
@@ -65,17 +59,13 @@ const getTypeColor = (type: LibraryInfo['type']) => {
       return 'bg-blue-100 text-blue-800';
     case 'utility':
       return 'bg-teal-100 text-teal-800';
-    case 'ui':
-      return 'bg-indigo-100 text-indigo-800';
     case 'analytics':
     case 'data-collector':
       return 'bg-purple-100 text-purple-800';
-    case 'advertising-service':
+    case 'service':
       return 'bg-red-100 text-red-800';
     case 'streaming-service':
       return 'bg-green-100 text-green-800';
-    case 'api-endpoint':
-      return 'bg-orange-100 text-orange-800';
     case 'privacy-tools':
       return 'bg-gray-100 text-gray-800';
     case 'tracking-tools':
@@ -100,8 +90,6 @@ const getTypeColor = (type: LibraryInfo['type']) => {
       return 'bg-stone-100 text-stone-800';
     case 'polyfill':
       return 'bg-yellow-100 text-yellow-800';
-    case 'web-service':
-      return 'bg-gray-100 text-gray-800';
     default:
       return 'bg-gray-100 text-gray-800';
   }

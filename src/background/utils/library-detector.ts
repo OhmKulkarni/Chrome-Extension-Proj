@@ -7,7 +7,7 @@ import { MinifiedLibrary } from '../storage-types';
 export interface LibraryInfo {
   name: string;
   version?: string;
-  type: 'framework' | 'utility' | 'ui' | 'analytics' | 'polyfill' | 'privacy-tools' | 'tracking-tools' | 'site-tools' | 'media-tools' | 'performance-tools' | 'advertising-service' | 'api-endpoint' | 'streaming-service' | 'data-collector' | 'web-service' | 'build-artifact' | 'websocket' | 'graphql' | 'service-worker' | 'web-font' | 'config-file';
+  type: 'framework' | 'utility' | 'analytics' | 'polyfill' | 'privacy-tools' | 'tracking-tools' | 'site-tools' | 'media-tools' | 'performance-tools' | 'service' | 'streaming-service' | 'data-collector' | 'build-artifact' | 'websocket' | 'graphql' | 'service-worker' | 'web-font' | 'config-file';
   url: string;
   cdnProvider?: string;
   isMinified: boolean;
@@ -24,7 +24,6 @@ export interface DomainLibraryStats {
   totalLibraries: number;
   frameworksCount: number;
   utilitiesCount: number;
-  uiLibrariesCount: number;
   analyticsCount: number;
   polyfillsCount: number;
   privacyToolsCount: number;
@@ -33,11 +32,9 @@ export interface DomainLibraryStats {
   mediaToolsCount: number;
   performanceToolsCount: number;
   // Service counts
-  advertisingServicesCount: number;
-  apiEndpointsCount: number;
+  servicesCount: number;
   streamingServicesCount: number;
   dataCollectorsCount: number;
-  webServicesCount: number;
   buildArtifactsCount: number;
   // New resource type counts
   websocketCount: number;
@@ -679,7 +676,7 @@ export class LibraryDetector {
     if (/(?:casalemedia|criteo|adsrvr|pubmatic|doubleclick|adsystem|bidder|cdb|translator|hbopenbid|wunderkind|magnite|sodar|rid|adfuel|gpt|apstag|pubads|cygnus|videotools|3159)/i.test(nameLower + urlLower) ||
         /(?:dfp_premium|instream|video_ad|video-ad)/i.test(urlLower)) {
       return {
-        type: 'advertising-service',
+        type: 'service',
         description: 'Advertising and marketing service',
         serviceType: 'service'
       };
@@ -792,7 +789,7 @@ export class LibraryDetector {
     if (/(?:api\/|endpoint|service|reg|segments|desktop|pub\/|v2\/|receive|wmcdp|zetaglobal|lijit|direct|ssp|wknd)/i.test(urlLower) &&
         !(/(?:sync|track|collect|analytics|logs|stream|video|auth|tag|launch|\.map)/i.test(nameLower + urlLower))) {
       return {
-        type: 'api-endpoint',
+        type: 'service',
         description: 'API endpoint or web service',
         serviceType: 'api'
       };
@@ -811,7 +808,7 @@ export class LibraryDetector {
     // UI Libraries (distinguished from utilities)
     if (/(?:bootstrap|material|semantic|foundation|bulma|tailwind)/i.test(nameLower)) {
       return {
-        type: 'ui',
+        type: 'framework',
         description: 'User interface library and framework',
         serviceType: 'library'
       };
@@ -1042,7 +1039,7 @@ export class LibraryDetector {
           let type: 'framework' | 'utility' | 'ui' | 'analytics' | 'polyfill' = 'utility';
           if (libName.toLowerCase().includes('framework')) type = 'framework';
           else if (libName.toLowerCase().includes('analytics') || libName.toLowerCase().includes('tracking')) type = 'analytics';
-          else if (libName.toLowerCase().includes('ui') || libName.toLowerCase().includes('component')) type = 'ui';
+          else if (libName.toLowerCase().includes('ui') || libName.toLowerCase().includes('component')) type = 'framework';
 
           libraries.push({
             name: libName,
@@ -1256,9 +1253,8 @@ export class LibraryDetector {
    */
   private static getDefaultDescription(type: LibraryInfo['type']): string {
     const descriptions = {
-      'framework': 'JavaScript framework',
+      'framework': 'JavaScript framework or UI library',
       'utility': 'JavaScript utility library',
-      'ui': 'User interface library',
       'analytics': 'Analytics and tracking tool',
       'polyfill': 'Browser compatibility polyfill',
       'privacy-tools': 'Privacy and consent management',
@@ -1266,11 +1262,9 @@ export class LibraryDetector {
       'site-tools': 'Site-specific functionality',
       'media-tools': 'Media and content tools',
       'performance-tools': 'Performance optimization tools',
-      'advertising-service': 'Advertising and marketing service',
-      'api-endpoint': 'API endpoint or web service',
+      'service': 'Web service, API, or external endpoint',
       'streaming-service': 'Media streaming service',
       'data-collector': 'Data collection and analytics service',
-      'web-service': 'Web service or external API',
       'build-artifact': 'Build tool output or bundled asset',
       'websocket': 'Real-time communication channel',
       'graphql': 'GraphQL API endpoint',

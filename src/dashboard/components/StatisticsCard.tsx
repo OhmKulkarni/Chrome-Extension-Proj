@@ -1876,22 +1876,18 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                         // Get resource type info for proper styling
                                         const getResourceTypeInfo = (libType: string) => {
                                           switch (libType) {
-                                            case 'advertising-service':
-                                              return { icon: Megaphone, bgColor: 'bg-red-100', textColor: 'text-red-800', label: 'Ad Service' };
+                                            case 'service':
+                                              return { icon: Megaphone, bgColor: 'bg-red-100', textColor: 'text-red-800', label: 'Service' };
                                             case 'data-collector':
                                               return { icon: BarChart, bgColor: 'bg-purple-100', textColor: 'text-purple-800', label: 'Analytics' };
                                             case 'streaming-service':
                                               return { icon: Video, bgColor: 'bg-green-100', textColor: 'text-green-800', label: 'Media' };
-                                            case 'api-endpoint':
-                                              return { icon: Globe, bgColor: 'bg-orange-100', textColor: 'text-orange-800', label: 'API' };
                                             case 'privacy-tools':
                                               return { icon: Shield, bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Privacy' };
                                             case 'framework':
                                               return { icon: Library, bgColor: 'bg-blue-100', textColor: 'text-blue-800', label: 'Framework' };
                                             case 'utility':
                                               return { icon: Wrench, bgColor: 'bg-teal-100', textColor: 'text-teal-800', label: 'Utility' };
-                                            case 'ui':
-                                              return { icon: Palette, bgColor: 'bg-indigo-100', textColor: 'text-indigo-800', label: 'UI Component' };
                                             case 'tracking-tools':
                                               return { icon: Target, bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', label: 'Tracking' };
                                             case 'site-tools':

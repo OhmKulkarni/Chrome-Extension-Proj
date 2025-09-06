@@ -179,7 +179,7 @@ function inferLibraryType(name: string, url: string): LibraryInfo['type'] {
 
   // 🎯 ADVERTISING & MARKETING SERVICES
   if (/(?:casalemedia|criteo|adsrvr|pubmatic|doubleclick|adsystem|bidder|cdb|translator|hbopenbid|wunderkind|magnite|sodar|rid)/i.test(nameLower + urlLower)) {
-    return 'advertising-service';
+    return 'service';
   }
 
   // 🎯 ANALYTICS & DATA COLLECTION SERVICES
@@ -194,7 +194,7 @@ function inferLibraryType(name: string, url: string): LibraryInfo['type'] {
 
   // 🎯 API ENDPOINTS & WEB SERVICES
   if (/(?:api|endpoint|service|reg|segments|desktop|pub|v2|receive|wmcdp|zetaglobal|lijit|direct|ssp|wknd)/i.test(nameLower + urlLower)) {
-    return 'api-endpoint';
+    return 'service';
   }
 
   // 🎯 PRIVACY & COMPLIANCE SERVICES
@@ -228,7 +228,7 @@ function inferLibraryType(name: string, url: string): LibraryInfo['type'] {
   }
 
   if (/(?:bootstrap|material|semantic|foundation|bulma|tailwind)/i.test(nameLower)) {
-    return 'ui';
+    return 'framework';
   }
 
   // Fallback
