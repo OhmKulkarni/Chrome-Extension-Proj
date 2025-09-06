@@ -266,9 +266,15 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
                               {/* Truncated URL display */}
                               <div className="font-mono text-xs text-gray-500 truncate max-w-xs" title={lib.url}>
                                 {(() => {
-                                  const url = new URL(lib.url);
-                                  const filename = url.pathname.split('/').pop() || url.pathname;
-                                  return filename && filename !== '/' ? filename : url.hostname;
+                                  try {
+                                    const url = new URL(lib.url);
+                                    const filename = url.pathname.split('/').pop() || url.pathname;
+                                    return filename && filename !== '/' ? filename : url.hostname;
+                                  } catch (error) {
+                                    // If URL is invalid, just show the last part after the last slash
+                                    const parts = lib.url.split('/');
+                                    return parts[parts.length - 1] || lib.url;
+                                  }
                                 })()}
                               </div>
                               
