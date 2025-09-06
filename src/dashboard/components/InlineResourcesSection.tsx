@@ -1,5 +1,5 @@
 import { Badge } from './ui/badge';
-import { ExternalLink, Package, Layers, BarChart, Shield, Library, Target, Settings, Film, Zap, Wrench, Database, HelpCircle, Search, Copy, CheckCircle, Server, Lock, Box, ChevronDown, Globe, Puzzle } from 'lucide-react';
+import { Package, Layers, BarChart, Shield, Library, Target, Settings, Film, Zap, Wrench, Database, HelpCircle, Search, Copy, CheckCircle, Server, Lock, Box, ChevronDown, Globe, Puzzle } from 'lucide-react';
 import { LibraryInfo } from '../../background/utils/library-detector';
 import { useState, useMemo } from 'react';
 import React from 'react';
@@ -275,15 +275,59 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
                                   <Copy className="h-3 w-3" />
                                 )}
                               </button>
-                              <a
-                                href={lib.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="hover:text-purple-600 transition-colors"
-                                title="Open in new tab"
-                              >
-                                <ExternalLink className="h-3 w-3" />
-                              </a>
+                              <div className="flex items-center gap-1 text-xs">
+                                {(() => {
+                                  // Show CDN provider or source info
+                                  const getSourceInfo = () => {
+                                    if (lib.cdnProvider) {
+                                      return {
+                                        icon: "🌐",
+                                        text: lib.cdnProvider,
+                                        color: "text-blue-600"
+                                      };
+                                    } else if (lib.url.includes(lib.domain)) {
+                                      return {
+                                        icon: "🏠",
+                                        text: "Self-hosted",
+                                        color: "text-green-600"
+                                      };
+                                    } else {
+                                      return {
+                                        icon: "📦",
+                                        text: "External",
+                                        color: "text-orange-600"
+                                      };
+                                    }
+                                  };
+
+                                  // Show confidence level
+                                  const getConfidenceInfo = () => {
+                                    if (lib.confidence >= 0.8) {
+                                      return { icon: "✅", text: "High", color: "text-green-600" };
+                                    } else if (lib.confidence >= 0.6) {
+                                      return { icon: "⚠️", text: "Medium", color: "text-yellow-600" };
+                                    } else {
+                                      return { icon: "❓", text: "Low", color: "text-red-600" };
+                                    }
+                                  };
+
+                                  const sourceInfo = getSourceInfo();
+                                  const confidenceInfo = getConfidenceInfo();
+
+                                  return (
+                                    <div className="flex flex-col items-end gap-1">
+                                      <div className={`flex items-center gap-1 ${sourceInfo.color}`} title="Resource source">
+                                        <span>{sourceInfo.icon}</span>
+                                        <span className="text-xs font-medium">{sourceInfo.text}</span>
+                                      </div>
+                                      <div className={`flex items-center gap-1 ${confidenceInfo.color}`} title="Detection confidence">
+                                        <span>{confidenceInfo.icon}</span>
+                                        <span className="text-xs">{confidenceInfo.text}</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
+                              </div>
                             </div>
                           </div>
                         )}
