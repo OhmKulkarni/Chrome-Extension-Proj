@@ -242,7 +242,7 @@ const LibrarySection: React.FC<LibrarySectionProps> = ({ domain, libraries, clas
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2">
                           <span className="font-medium text-gray-900 truncate">{lib.name}</span>
-                          {lib.version && (
+                          {lib.version && lib.version !== 'unknown' && (
                             <Badge variant="outline" className="text-xs">
                               v{lib.version}
                             </Badge>
