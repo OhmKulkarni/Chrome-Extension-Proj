@@ -1442,28 +1442,24 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                         <p className="font-medium text-blue-800">Resource Type Icons:</p>
                         <div className="space-y-1 ml-2">
                           <div className="flex items-center gap-2">
-                            <Megaphone className="h-3 w-3" />
-                            <span>Web services & APIs</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <BarChart className="h-3 w-3" />
-                            <span>Analytics & data collection</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Video className="h-3 w-3" />
-                            <span>Media/streaming services</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Shield className="h-3 w-3" />
-                            <span>Privacy & security tools</span>
-                          </div>
-                          <div className="flex items-center gap-2">
                             <Library className="h-3 w-3" />
                             <span>Frameworks & UI libraries</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Wrench className="h-3 w-3" />
                             <span>Utility libraries</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <BarChart className="h-3 w-3" />
+                            <span>Analytics & data collection</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Layers className="h-3 w-3" />
+                            <span>Browser polyfills</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Shield className="h-3 w-3" />
+                            <span>Privacy & consent tools</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Target className="h-3 w-3" />
@@ -1482,8 +1478,12 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                             <span>Performance optimization</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Layers className="h-3 w-3" />
-                            <span>Browser polyfills</span>
+                            <Megaphone className="h-3 w-3" />
+                            <span>Web services & APIs</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Video className="h-3 w-3" />
+                            <span>Media streaming services</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Package className="h-3 w-3" />
@@ -1511,7 +1511,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                           </div>
                           <div className="flex items-center gap-2">
                             <HelpCircle className="h-3 w-3" />
-                            <span>Other resources</span>
+                            <span>Unknown/other resources</span>
                           </div>
                         </div>
                       </div>
