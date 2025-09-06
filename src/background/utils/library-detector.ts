@@ -663,9 +663,10 @@ export class LibraryDetector {
     }
 
     // 🎯 PRIORITY 1.5: DATA VISUALIZATION LIBRARIES (D3.js specifically - before advertising check)
-    if (/\bd3(?:\.min)?\.js\b/i.test(urlLower) || (/\bd3\b/i.test(nameLower) && /\.js$/i.test(urlLower))) {
+    // Fixed: D3.js can be detected by name alone, regardless of URL format
+    if (/\bd3(?:\.min)?\.js\b/i.test(urlLower) || /\bd3\b/i.test(nameLower)) {
       return {
-        type: 'media-tools',
+        type: 'framework',
         description: 'Data visualization library (D3.js)',
         serviceType: 'library'
       };
