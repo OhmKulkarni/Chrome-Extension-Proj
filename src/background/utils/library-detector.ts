@@ -671,6 +671,16 @@ export class LibraryDetector {
       };
     }
 
+    // 🚨 PRIORITY 1.1: SPECIFIC ADVERTISING TOOLS (catch specific tool names)
+    if (/(?:translator|videotools|pwt|id5prebidmodule|pubads_impl)/i.test(nameLower) ||
+        /(?:id5-sync\.com|prebid|prebidmodule)/i.test(urlLower)) {
+      return {
+        type: 'tracking-tools',
+        description: 'Advertising technology and prebid services',
+        serviceType: 'advertising'
+      };
+    }
+
     // 🎯 PRIORITY 1.5: FRAMEWORK LIBRARIES (before advertising check)
     // Vue.js and D3.js detection by name alone, regardless of URL format
     if (/\b(?:vue|d3)(?:\.min)?\.js\b/i.test(urlLower) || /\b(?:vue|d3)\b/i.test(nameLower)) {
@@ -684,8 +694,8 @@ export class LibraryDetector {
 
     // 🚨 PRIORITY 2: ADVERTISING & MARKETING SERVICES (include AdFuel + enhanced patterns)
     // Note: D3.js is handled above, so we can include 'd3' in ad patterns for other contexts
-    if (/(?:casalemedia|criteo|adsrvr|pubmatic|doubleclick|adsystem|bidder|cdb|hbopenbid|wunderkind|magnite|cygnus|3159|gpt|apstag|pubads|adfuel|amazonad)/i.test(nameLower + urlLower) ||
-        /(?:dfp_premium|instream|video_ad|video-ad|securepubads)/i.test(urlLower)) {
+    if (/(?:casalemedia|criteo|adsrvr|pubmatic|doubleclick|adsystem|bidder|cdb|hbopenbid|wunderkind|magnite|cygnus|3159|gpt|apstag|pubads|adfuel|amazonad|amazon-adsystem|googlesyndication|adtrafficquality)/i.test(nameLower + urlLower) ||
+        /(?:dfp_premium|instream|video_ad|video-ad|securepubads|btloader|jadserve|postrelease|bounceexchange)/i.test(urlLower)) {
       return {
         type: 'tracking-tools',
         description: 'Advertising and programmatic bidding service',
@@ -778,7 +788,7 @@ export class LibraryDetector {
     // 🎯 API ENDPOINTS & WEB SERVICES (more restrictive now - LOWER PRIORITY)
     // Exclude source maps, build artifacts, advertising services, and common framework names explicitly
     if (/(?:api\/|endpoint|service|reg|segments|desktop|pub\/|v2\/|receive|wmcdp|zetaglobal|lijit|direct|ssp|wknd)/i.test(urlLower) &&
-        !(/(?:sync|track|collect|analytics|logs|stream|video|auth|tag|launch|vue|react|angular|d3|\.map|cdb|criteo|magnite|wunderkind|cygnus|casalemedia|bidder|hbopenbid|adsystem|doubleclick|pubmatic|adsrvr)/i.test(nameLower + urlLower))) {
+        !(/(?:sync|track|collect|analytics|logs|stream|video|auth|tag|launch|vue|react|angular|d3|\.map|cdb|criteo|magnite|wunderkind|cygnus|casalemedia|bidder|hbopenbid|adsystem|doubleclick|pubmatic|adsrvr|amazon-adsystem|googlesyndication|adtrafficquality|bounceexchange)/i.test(nameLower + urlLower))) {
       return {
         type: 'service',
         description: 'API endpoint or web service',
@@ -834,7 +844,7 @@ export class LibraryDetector {
 
     // 🚨 IMPROVED FALLBACK: Handle truly generic file names and common build artifacts
     // Check if this is a generic file name that should be marked as build artifact
-    const genericFileNames = /^(app|client|main|index|bundle|vendor|runtime|common|shared|core|global|base|js|script|min|compiled|build|public|dist|src|lib|libs|static|assets|web|vue|sodar|vendorhashes|vendorhashes)$/i;
+    const genericFileNames = /^(app|client|main|index|bundle|vendor|runtime|common|shared|core|global|base|js|script|min|compiled|build|public|dist|src|lib|libs|static|assets|web|vue|sodar|vendorhashes|vendorhashes|get|tag|t|v2|ads-v2|onsite-v2|inbox-v2)$/i;
 
     if (genericFileNames.test(nameLower)) {
       return {
