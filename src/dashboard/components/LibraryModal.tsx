@@ -169,7 +169,7 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
   const [sortBy, setSortBy] = useState<'name' | 'type'>('type');
   const [filterType, setFilterType] = useState<string>('all');
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
-  
+
   // Initialize all sections as collapsed by default
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(() => {
     // Create a set with all possible section keys collapsed by default
@@ -291,7 +291,7 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
   const stats = {
     total: libraries.length,
     types: Object.keys(librariesByType).length,
-    minified: libraries.filter(lib => lib.isMinified).length,
+    cdnHosted: libraries.filter(lib => lib.cdnProvider).length,
     buildArtifacts: libraries.filter(lib => lib.type === 'build-artifact').length,
     // totalSize: libraries.reduce((sum, lib) => sum + (lib.size || 0), 0), // Size not tracked in current system
     // Top resource types
@@ -436,8 +436,8 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
             {/* Additional Stats Row */}
             <div className="grid grid-cols-3 gap-4 p-3 bg-blue-50 rounded-lg">
               <div className="text-center">
-                <div className="text-lg font-bold text-gray-600">{stats.minified}</div>
-                <div className="text-xs text-gray-500">Minified</div>
+                <div className="text-lg font-bold text-blue-600">{stats.cdnHosted}</div>
+                <div className="text-xs text-gray-500">CDN Hosted</div>
               </div>
               <div className="text-center">
                 <div className="text-lg font-bold text-yellow-600">{stats.analytics}</div>
@@ -510,11 +510,6 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
                               {getTypeIcon(library.type)}
                               {getTypeLabel(library.type)}
                             </Badge>
-                            {library.isMinified && (
-                              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
-                                Minified
-                              </Badge>
-                            )}
                           </div>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
