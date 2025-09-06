@@ -457,8 +457,18 @@ export class LibraryDetector {
     const filenameLower = filename.toLowerCase();
 
     // 🚨 PRIORITY: Source Maps (highest priority for build artifacts)
-    if (/\.map$/i.test(filename) || /\.map\?/i.test(url)) {
-      const baseName = filename.replace(/\.map$/i, '').replace(/\?.*$/, '');
+    if (/\.map(\?|$)/i.test(url) || /\.map$/i.test(filename)) {
+      let baseName = filename.replace(/\.map$/i, '').replace(/\?.*$/, '');
+      
+      // Handle source maps in query parameters like "tag?...&upapi=true.map"
+      if (/\.map(\?|$)/i.test(url) && !baseName) {
+        const urlParts = url.split('?');
+        baseName = urlParts[0].split('/').pop() || 'source-map';
+        if (baseName.includes('.map')) {
+          baseName = baseName.replace(/\.map.*$/, '');
+        }
+      }
+      
       return {
         name: baseName || 'source-map',
         version: undefined,
@@ -595,7 +605,7 @@ export class LibraryDetector {
       };
     }
 
-    // 🚨 PRIORITY 2: ADVERTISING & MARKETING SERVICES  
+    // 🚨 PRIORITY 2: ADVERTISING & MARKETING SERVICES (include AdFuel)
     if (/(?:casalemedia|criteo|adsrvr|pubmatic|doubleclick|adsystem|bidder|cdb|translator|hbopenbid|wunderkind|magnite|sodar|rid|adfuel|gpt|apstag|pubads)/i.test(nameLower + urlLower)) {
       return {
         type: 'advertising-service',
@@ -604,7 +614,7 @@ export class LibraryDetector {
       };
     }
 
-    // 🚨 PRIORITY 3: ANALYTICS & DATA COLLECTION (differentiate from streaming)
+    // 🚨 PRIORITY 3: ANALYTICS & DATA COLLECTION (include chartbeat_video)
     if (/(?:collector|logs|analytics|browser-intake|optimizely|events|datadog|segment|amplitude|hotjar|gtag|ga|chartbeat|streamsense)/i.test(nameLower + urlLower)) {
       return {
         type: 'data-collector',
@@ -613,8 +623,8 @@ export class LibraryDetector {
       };
     }
 
-    // 🚨 PRIORITY 4: TAG MANAGEMENT & LAUNCH TOOLS
-    if (/(?:launch|adobe|tag|gtm|googletagmanager|tealium)/i.test(nameLower + urlLower)) {
+    // 🚨 PRIORITY 4: TAG MANAGEMENT & LAUNCH TOOLS (include Adobe Launch)
+    if (/(?:launch[-_.]|adobe|tag|gtm|googletagmanager|tealium)/i.test(nameLower + urlLower)) {
       return {
         type: 'site-tools',
         description: 'Tag management and site optimization',
