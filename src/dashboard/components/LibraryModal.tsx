@@ -110,18 +110,6 @@ const getTypeColor = (type: LibraryInfo['type']) => {
   }
 };
 
-const getConfidenceColor = (confidence: number) => {
-  if (confidence >= 0.8) return 'bg-green-100 text-green-900 border border-green-200';
-  if (confidence >= 0.6) return 'bg-yellow-100 text-yellow-900 border border-yellow-200';
-  return 'bg-red-100 text-red-900 border border-red-200';
-};
-
-const getConfidenceLabel = (confidence: number) => {
-  if (confidence >= 0.8) return 'High';
-  if (confidence >= 0.6) return 'Medium';
-  return 'Low';
-};
-
 const getTypeLabel = (type: string) => {
   switch (type) {
     case 'framework': return 'Framework';
@@ -177,10 +165,15 @@ const getPrimaryCategoryInfo = (primaryType: string) => {
 export default function LibraryModal({ isOpen, onClose, domain, libraries }: LibraryModalProps) {
   // Enhanced UX features state
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState<'name' | 'type' | 'confidence'>('type');
+  const [sortBy, setSortBy] = useState<'name' | 'type'>('type');
   const [filterType, setFilterType] = useState<string>('all');
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
-  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  
+  // Initialize all sections as collapsed by default
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(() => {
+    // Create a set with all possible section keys collapsed by default
+    return new Set(['framework', 'utility', 'polyfill', 'data-collector', 'service', 'privacy-tools', 'tracking-tools', 'site-tools', 'media-tools', 'performance-tools', 'build-artifact']);
+  });
 
   // Toggle section collapse
   const toggleSection = (sectionKey: string) => {
@@ -218,8 +211,6 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
       switch (sortBy) {
         case 'name':
           return a.name.localeCompare(b.name);
-        case 'confidence':
-          return b.confidence - a.confidence;
         case 'type':
         default:
           return a.type.localeCompare(b.type);
@@ -387,12 +378,11 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
                   <ArrowUpDown className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                   <select
                     value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as 'name' | 'type' | 'confidence')}
+                    onChange={(e) => setSortBy(e.target.value as 'name' | 'type')}
                     className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white min-w-[140px]"
                   >
                     <option value="type">Sort by Type</option>
                     <option value="name">Sort by Name</option>
-                    <option value="confidence">Sort by Confidence</option>
                   </select>
                 </div>
               </div>
@@ -484,10 +474,10 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
                       <span className="text-sm font-normal text-gray-500">{typeData.description}</span>
                     </div>
                   </div>
-                  <ChevronDown 
+                  <ChevronDown
                     className={`w-5 h-5 transition-transform ${
                       collapsedSections.has(typeKey) ? '-rotate-90' : 'rotate-0'
-                    }`} 
+                    }`}
                   />
                 </button>
 
@@ -517,9 +507,6 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
                             <Badge variant="outline" className={`text-xs ${getTypeColor(library.type)}`}>
                               {getTypeLabel(library.type)}
                             </Badge>
-                            <Badge className={`text-xs ${getConfidenceColor(library.confidence)}`}>
-                              {getConfidenceLabel(library.confidence)} ({Math.round(library.confidence * 100)}%)
-                            </Badge>
                             {library.isMinified && (
                               <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
                                 Minified
@@ -528,9 +515,6 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
                           </div>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
-                            <div>
-                              <span className="font-medium">Detection:</span> {library.detectionMethod}
-                            </div>
                             {library.cdnProvider && (
                               <div>
                                 <span className="font-medium">CDN:</span> {library.cdnProvider}
