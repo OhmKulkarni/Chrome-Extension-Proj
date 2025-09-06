@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Button } from './ui/button';
-import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen, Megaphone, BarChart, Video, Shield, Library, Target, Settings, Film, Zap, Wrench, Globe, HelpCircle, Package, Wifi, Database, Cpu, Type, FileText } from 'lucide-react';
+import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen, Megaphone, BarChart, Video, Shield, Library, Target, Settings, Film, Zap, Wrench, Globe, HelpCircle, Package, Wifi, Database, Cpu, Type, FileText, Box, Palette } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { groupDataByDomain, DomainStats } from './domainUtils';
 // Import the new shared data processing system
@@ -1879,9 +1879,11 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                             case 'privacy-tools':
                                               return { icon: Shield, bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Privacy' };
                                             case 'framework':
+                                              return { icon: Library, bgColor: 'bg-blue-100', textColor: 'text-blue-800', label: 'Framework' };
                                             case 'utility':
+                                              return { icon: Box, bgColor: 'bg-teal-100', textColor: 'text-teal-800', label: 'Utility' };
                                             case 'ui':
-                                              return { icon: Library, bgColor: 'bg-blue-100', textColor: 'text-blue-800', label: 'Library' };
+                                              return { icon: Palette, bgColor: 'bg-indigo-100', textColor: 'text-indigo-800', label: 'UI Component' };
                                             case 'tracking-tools':
                                               return { icon: Target, bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', label: 'Tracking' };
                                             case 'site-tools':
@@ -1971,9 +1973,11 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                                     case 'privacy-tools':
                                                       return { icon: Shield, bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Privacy' };
                                                     case 'framework':
+                                                      return { icon: Library, bgColor: 'bg-blue-100', textColor: 'text-blue-800', label: 'Framework' };
                                                     case 'utility':
+                                                      return { icon: Box, bgColor: 'bg-teal-100', textColor: 'text-teal-800', label: 'Utility' };
                                                     case 'ui':
-                                                      return { icon: Library, bgColor: 'bg-blue-100', textColor: 'text-blue-800', label: 'Library' };
+                                                      return { icon: Palette, bgColor: 'bg-indigo-100', textColor: 'text-indigo-800', label: 'UI Component' };
                                                     case 'tracking-tools':
                                                       return { icon: Target, bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', label: 'Tracking' };
                                                     case 'site-tools':
