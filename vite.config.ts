@@ -9,8 +9,8 @@ export default defineConfig({
     crx({
       manifest: {
         manifest_version: 3,
-        name: "Chrome Extension Proj",
-        version: "1.0.0",
+        name: "🔧 TESTING DEBUG VERSION 🔧",
+        version: "1.0.1",
         description: "Chrome Extension with Manifest V3, TypeScript, and Vite",
         permissions: [
           "storage",

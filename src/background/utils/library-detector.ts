@@ -293,6 +293,7 @@ export class LibraryDetector {
    * Main detection method that analyzes a request for library usage
    */
   static detectFromRequest(url: string, headers: Record<string, any> = {}, responseBody?: string): LibraryInfo[] {
+    console.log('🔧 DEBUG: detectFromRequest called with URL:', url);
     console.log('[LibraryDetector] Analyzing request:', { url, hasHeaders: Object.keys(headers).length > 0, hasBody: !!responseBody });
 
     const libraries: LibraryInfo[] = [];
@@ -369,14 +370,33 @@ export class LibraryDetector {
       }
     }
 
-    // Try generic library detection for URLs that look like libraries
-    console.log('[LibraryDetector] Attempting generic detection for:', url);
-    const genericLibrary = this.detectGenericLibrary(url);
-    if (genericLibrary) {
-      console.log('[LibraryDetector] Generic detection success:', genericLibrary);
-      libraries.push(genericLibrary);
+    // Only try generic library detection if no known patterns matched
+    if (libraries.length === 0) {
+      console.log('[LibraryDetector] No pattern matches found, attempting generic detection for:', url);
+      const genericLibrary = this.detectGenericLibrary(url);
+      if (genericLibrary) {
+        // CRITICAL FIX: Override generic detection for known libraries
+        const filename = url.split('/').pop() || '';
+        const toolName = filename.replace(/\.(?:min\.)?js(\?.*)?$/i, '').replace(/\?.*$/, '').toLowerCase();
+
+        if (/^(d3|vue|react|jquery)$/i.test(toolName)) {
+          console.log('[LibraryDetector] Overriding generic detection for known library:', toolName);
+          genericLibrary.type = 'framework';
+          genericLibrary.description = toolName === 'd3' ? 'Data visualization library (D3.js)' :
+                                     toolName === 'vue' ? 'Vue.js framework library' :
+                                     toolName === 'react' ? 'React framework library' :
+                                     'JavaScript framework library';
+          genericLibrary.serviceType = 'library';
+          genericLibrary.confidence = 0.9; // High confidence for known libraries
+        }
+
+        console.log('[LibraryDetector] Generic detection success:', genericLibrary);
+        libraries.push(genericLibrary);
+      } else {
+        console.log('[LibraryDetector] Generic detection failed for:', url);
+      }
     } else {
-      console.log('[LibraryDetector] Generic detection failed for:', url);
+      console.log('[LibraryDetector] Skipping generic detection due to existing pattern matches:', libraries.length);
     }
 
     console.log('[LibraryDetector] detectFromUrl finished:', { url, foundCount: libraries.length, libraries });
@@ -451,6 +471,27 @@ export class LibraryDetector {
     const versionMatch = url.match(/(\d+\.\d+(?:\.\d+)?)/);
     const version = versionMatch ? versionMatch[1] : undefined;
 
+    // Calculate confidence based on multiple factors
+    let confidence = 0.5; // Base confidence
+
+    // Boost confidence for known patterns
+    if (version) confidence += 0.2; // Has version
+    if (this.detectCdnProvider(url)) confidence += 0.2; // From CDN
+    if (/\.(min\.js|js)$/i.test(filename)) confidence += 0.1; // Proper JS file
+
+    // Boost confidence for known library names
+    if (/^(d3|jquery|lodash|axios|react|vue|angular)$/i.test(toolName)) {
+      confidence += 0.3; // Known libraries get higher confidence
+    }
+
+    // Reduce confidence for very generic names
+    if (/^(app|main|index|bundle|vendor|get|tag|c|t|js)$/i.test(toolName)) {
+      confidence -= 0.2; // Generic names get lower confidence
+    }
+
+    // Cap confidence between 0.3 and 0.95
+    confidence = Math.max(0.3, Math.min(0.95, confidence));
+
     return {
       name: toolName,
       version,
@@ -458,7 +499,7 @@ export class LibraryDetector {
       url,
       cdnProvider: this.detectCdnProvider(url),
       isMinified: /\.min\.js/i.test(filename),
-      confidence: version ? 0.8 : 0.6, // Higher confidence if versioned
+      confidence: confidence,
       domain: '',
       detectionMethod: 'url-pattern',
       description: categorization.description,
@@ -662,8 +703,17 @@ export class LibraryDetector {
     const nameLower = name.toLowerCase();
     const urlLower = url.toLowerCase();
 
-    // 🚨 PRIORITY 1: TRACKING & SYNC SERVICES (very specific patterns first)
-    if (/(?:sync\?|trackingpixel|beacon|universalid-sync|track\?|pixel\?|collect\?|tp2|events\?|\.map$)/i.test(urlLower) ||
+    // 🚨 PRIORITY 1: SOURCE MAPS (highest priority - should be detected first)
+    if (/\.map(\?|$|&)/i.test(urlLower) || /\.map$/i.test(nameLower)) {
+      return {
+        type: 'build-artifact',
+        description: 'Source map file for debugging',
+        serviceType: 'build-artifact'
+      };
+    }
+
+    // 🚨 PRIORITY 1.1: TRACKING & SYNC SERVICES (very specific patterns, excluding source maps)
+    if (/(?:sync\?|trackingpixel|beacon|universalid-sync|track\?|pixel\?|collect\?|tp2|events\?)/i.test(urlLower) ||
         /(?:universalid|iiquniversalid|sync|trackingpixel|beacon|tp2|events)/i.test(nameLower)) {
       return {
         type: 'tracking-tools',
@@ -672,7 +722,35 @@ export class LibraryDetector {
       };
     }
 
-    // 🚨 PRIORITY 1.1: SPECIFIC ADVERTISING TOOLS (catch specific tool names)
+    // 🚨 PRIORITY 1.2: KNOWN LIBRARIES (highest priority for exact matches)
+    // Handle exact library names that might be misclassified as generic
+    if (/^(d3|vue|react|jquery|lodash|axios|moment|dayjs|underscore|backbone|ember)$/i.test(nameLower) &&
+        !(/(?:casalemedia|criteo|pubmatic|doubleclick|adsystem|advertising)/i.test(urlLower))) {
+      const libraryType = /^(d3|react|vue|jquery)$/i.test(nameLower) ? 'framework' : 'utility';
+      const libraryDesc = nameLower === 'd3' ? 'Data visualization library (D3.js)' :
+                         nameLower === 'vue' ? 'Vue.js framework library' :
+                         nameLower === 'react' ? 'React framework library' :
+                         nameLower === 'jquery' ? 'JavaScript framework library' :
+                         'JavaScript utility library';
+      return {
+        type: libraryType,
+        description: libraryDesc,
+        serviceType: 'library'
+      };
+    }
+
+    // 🚨 PRIORITY 1.3: VERY GENERIC NAMES (catch before other processing)
+    // These are almost certainly build artifacts, not libraries
+    if (/^(c|js|tag|get|app|main|index|bundle|vendor|runtime|min|t|v2|ui)$/i.test(nameLower) &&
+        !(/(?:d3|react|vue|jquery|angular)/i.test(urlLower))) {
+      return {
+        type: 'build-artifact',
+        description: 'Generic build output or application file',
+        serviceType: 'build-artifact'
+      };
+    }
+
+    // 🚨 PRIORITY 1.4: SPECIFIC ADVERTISING TOOLS (catch specific tool names)
     if (/(?:translator|videotools|pwt|id5prebidmodule|pubads_impl)/i.test(nameLower) ||
         /(?:id5-sync\.com|prebid|prebidmodule)/i.test(urlLower)) {
       return {
@@ -682,10 +760,9 @@ export class LibraryDetector {
       };
     }
 
-    // 🎯 PRIORITY 1.5: FRAMEWORK LIBRARIES (before advertising check)
-    // Vue.js and D3.js detection by name alone, regardless of URL format
-    // BUT exclude advertising domains to avoid false positives
-    if ((/\b(?:vue|d3)(?:\.min)?\.js\b/i.test(urlLower) || /\b(?:vue|d3)\b/i.test(nameLower)) &&
+    // 🎯 PRIORITY 1.6: FRAMEWORK LIBRARIES WITH EXTENSIONS (for .js files)
+    // Vue.js and D3.js detection by file extension patterns
+    if ((/\b(?:vue|d3)(?:\.min)?\.js\b/i.test(urlLower)) &&
         !(/(?:ssp\.wknd\.ai|wknd\.ai|adsrvr|casalemedia|criteo|pubmatic|doubleclick|adsystem)/i.test(urlLower))) {
       const isVue = /vue/i.test(nameLower + urlLower);
       return {
@@ -695,7 +772,7 @@ export class LibraryDetector {
       };
     }
 
-    // 🚨 PRIORITY 2: ADVERTISING & MARKETING SERVICES (include AdFuel + enhanced patterns)
+    // 🚨 PRIORITY 1.7: ADVERTISING & MARKETING SERVICES (include AdFuel + enhanced patterns)
     // Note: D3.js is handled above, so we can include 'd3' in ad patterns for other contexts
     if (/(?:casalemedia|criteo|adsrvr|pubmatic|doubleclick|adsystem|bidder|cdb|hbopenbid|wunderkind|magnite|cygnus|3159|gpt|apstag|pubads|adfuel|amazonad|amazon-adsystem|googlesyndication|adtrafficquality)/i.test(nameLower + urlLower) ||
         /(?:dfp_premium|instream|video_ad|video-ad|securepubads|btloader|jadserve|postrelease|bounceexchange)/i.test(urlLower)) {
@@ -847,9 +924,11 @@ export class LibraryDetector {
 
     // 🚨 IMPROVED FALLBACK: Handle truly generic file names and common build artifacts
     // Check if this is a generic file name that should be marked as build artifact
-    const genericFileNames = /^(app|client|main|index|bundle|vendor|runtime|common|shared|core|global|base|js|script|min|compiled|build|public|dist|src|lib|libs|static|assets|web|vue|sodar|vendorhashes|vendorhashes|get|tag|t|v2|ads-v2|onsite-v2|inbox-v2)$/i;
+    // EXCLUDE known library names that might be short (d3, vue, etc.)
+    const genericFileNames = /^(app|client|main|index|bundle|vendor|runtime|common|shared|core|global|base|js|script|min|compiled|build|public|dist|src|lib|libs|static|assets|web|sodar|vendorhashes|vendorhashes|get|tag|t|v2|ads-v2|onsite-v2|inbox-v2|c)$/i;
+    const knownLibraryNames = /^(d3|vue|react|angular|jquery|lodash|axios|moment|dayjs|underscore|backbone|ember)$/i;
 
-    if (genericFileNames.test(nameLower)) {
+    if (genericFileNames.test(nameLower) && !knownLibraryNames.test(nameLower)) {
       return {
         type: 'build-artifact',
         description: 'Generic build output or application file',
@@ -949,15 +1028,75 @@ export class LibraryDetector {
    * Remove duplicate libraries based on name and domain
    */
   private static deduplicateLibraries(libraries: LibraryInfo[]): LibraryInfo[] {
-    const seen = new Set<string>();
-    return libraries.filter(lib => {
-      const key = `${lib.name}-${lib.domain}`;
-      if (seen.has(key)) {
-        return false;
+    const seen = new Map<string, LibraryInfo>();
+
+    for (const lib of libraries) {
+      // Create multiple possible keys for better deduplication
+      const keys = [
+        `${lib.name}-${lib.domain}`,
+        `${lib.name}-${lib.type}`, // Handle same library, different detection methods
+        lib.name // Also check just the name for exact library matches
+      ];
+
+      let shouldAdd = true;
+      let bestKey = keys[0];
+
+      // Check if any variant of this library already exists
+      for (const key of keys) {
+        if (seen.has(key)) {
+          const existing = seen.get(key)!;
+
+          // Priority: Known library types > generic types
+          const libTypePriority = this.getTypePriority(lib.type);
+          const existingTypePriority = this.getTypePriority(existing.type);
+
+          if (libTypePriority > existingTypePriority) {
+            // This library has higher priority, replace existing
+            seen.delete(key);
+            bestKey = key;
+            break;
+          } else if (libTypePriority === existingTypePriority) {
+            // Same priority, use confidence
+            if (lib.confidence > existing.confidence) {
+              seen.delete(key);
+              bestKey = key;
+              break;
+            } else {
+              shouldAdd = false;
+              break;
+            }
+          } else {
+            // Existing has higher priority
+            shouldAdd = false;
+            break;
+          }
+        }
       }
-      seen.add(key);
-      return true;
-    });
+
+      if (shouldAdd) {
+        seen.set(bestKey, lib);
+      }
+    }
+
+    return Array.from(seen.values());
+  }
+
+  private static getTypePriority(type: LibraryInfo['type']): number {
+    // Higher number = higher priority
+    const priorities = {
+      'framework': 10,
+      'utility': 8,
+      'polyfill': 6,
+      'privacy-tools': 5,
+      'tracking-tools': 4,
+      'site-tools': 4,
+      'media-tools': 4,
+      'performance-tools': 4,
+      'data-collector': 3,
+      'service': 2,
+      'build-artifact': 1
+    };
+    return priorities[type] || 0;
   }
 
   /**

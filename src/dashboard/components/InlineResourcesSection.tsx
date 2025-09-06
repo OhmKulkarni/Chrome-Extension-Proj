@@ -1,5 +1,5 @@
 import { Badge } from './ui/badge';
-import { Package, Layers, BarChart, Shield, Library, Target, Settings, Film, Zap, Wrench, Database, HelpCircle, Search, Copy, CheckCircle, Server, Lock, Box, ChevronDown, Globe, Puzzle } from 'lucide-react';
+import { Package, Layers, BarChart, Shield, Library, Target, Settings, Film, Zap, Wrench, Database, HelpCircle, Search, Copy, CheckCircle, Server, Lock, Box, ChevronDown, Globe, Puzzle, Home, ExternalLink } from 'lucide-react';
 import { LibraryInfo } from '../../background/utils/library-detector';
 import { useState, useMemo } from 'react';
 import React from 'react';
@@ -277,7 +277,7 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
                                   }
                                 })()}
                               </div>
-                              
+
                               {/* Source and Confidence info */}
                               <div className="flex items-center gap-3 mt-1">
                                 {/* Source info */}
@@ -293,14 +293,14 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
                                     } else if (lib.url.includes(lib.domain)) {
                                       return (
                                         <>
-                                          <Server className="h-3 w-3 text-green-600" />
+                                          <Home className="h-3 w-3 text-green-600" />
                                           <span className="text-xs text-green-600">Self-hosted</span>
                                         </>
                                       );
                                     } else {
                                       return (
                                         <>
-                                          <Package className="h-3 w-3 text-orange-600" />
+                                          <ExternalLink className="h-3 w-3 text-orange-600" />
                                           <span className="text-xs text-orange-600">External</span>
                                         </>
                                       );
@@ -337,9 +337,9 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
                                 </div>
                               </div>
                             </div>
-                            
-                            {/* Copy button - make it more visible */}
-                            <div className="flex items-start pt-1">
+
+                            {/* Copy buttons - make them more visible */}
+                            <div className="flex items-start pt-1 gap-1">
                               <button
                                 onClick={() => copyToClipboard(lib.url!)}
                                 className="p-1 hover:bg-purple-100 hover:text-purple-600 transition-colors rounded border border-gray-300"
@@ -350,6 +350,13 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
                                 ) : (
                                   <Copy className="h-4 w-4 text-gray-600" />
                                 )}
+                              </button>
+                              <button
+                                onClick={() => window.open(lib.url, '_blank')}
+                                className="p-1 hover:bg-blue-100 hover:text-blue-600 transition-colors rounded border border-gray-300"
+                                title="Open URL in new tab"
+                              >
+                                <ExternalLink className="h-4 w-4 text-gray-600" />
                               </button>
                             </div>
                           </div>
