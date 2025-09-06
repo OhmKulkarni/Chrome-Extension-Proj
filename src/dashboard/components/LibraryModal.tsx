@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Badge } from './ui/badge';
-import { X, ExternalLink, Package, Layers, Megaphone, BarChart, Video, Shield, Library, Target, Settings, Film, Zap, Wrench, Wifi, Database, Cpu, Type, FileText, HelpCircle, Search, Copy, CheckCircle, ArrowUpDown, Filter } from 'lucide-react';
+import { X, ExternalLink, Package, Layers, Megaphone, BarChart, Video, Shield, Library, Target, Settings, Film, Zap, Wrench, Wifi, Database, Cpu, Type, FileText, HelpCircle, Search, Copy, CheckCircle, ArrowUpDown, Filter, TrendingUp, Server, Lock, Box, GitBranch } from 'lucide-react';
 import { LibraryInfo } from '../../background/utils/library-detector';
 import { useState, useMemo } from 'react';
 
@@ -62,18 +62,19 @@ const getPrimaryCategoryIcon = (primaryType: string) => {
 const getTypeIcon = (type: LibraryInfo['type']) => {
   switch (type) {
     case 'framework':
-      return <Library className="h-4 w-4" />;
+      return <Layers className="h-4 w-4" />;
     case 'utility':
       return <Wrench className="h-4 w-4" />;
     case 'analytics':
+      return <TrendingUp className="h-4 w-4" />;
     case 'data-collector':
-      return <BarChart className="h-4 w-4" />;
+      return <Database className="h-4 w-4" />;
     case 'service':
-      return <Megaphone className="h-4 w-4" />;
+      return <Server className="h-4 w-4" />;
     case 'streaming-service':
       return <Video className="h-4 w-4" />;
     case 'privacy-tools':
-      return <Shield className="h-4 w-4" />;
+      return <Lock className="h-4 w-4" />;
     case 'tracking-tools':
       return <Target className="h-4 w-4" />;
     case 'site-tools':
@@ -83,11 +84,11 @@ const getTypeIcon = (type: LibraryInfo['type']) => {
     case 'performance-tools':
       return <Zap className="h-4 w-4" />;
     case 'build-artifact':
-      return <Package className="h-4 w-4" />;
+      return <Box className="h-4 w-4" />;
     case 'websocket':
       return <Wifi className="h-4 w-4" />;
     case 'graphql':
-      return <Database className="h-4 w-4" />;
+      return <GitBranch className="h-4 w-4" />;
     case 'service-worker':
       return <Cpu className="h-4 w-4" />;
     case 'web-font':

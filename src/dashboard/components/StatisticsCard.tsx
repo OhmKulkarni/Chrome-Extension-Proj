@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Button } from './ui/button';
-import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen, Megaphone, BarChart, Shield, Library, Globe, HelpCircle, Package, Wrench, Target, Video, Wifi, Database, Cpu, Settings, Film, Zap, Type, FileText } from 'lucide-react';
+import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen, Megaphone, BarChart, Shield, Library, Globe, HelpCircle, Package, Wrench, Target, Video, Wifi, Database, Cpu, Settings, Film, Zap, Type, FileText, Server, Lock, Box, GitBranch } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { groupDataByDomain, DomainStats } from './domainUtils';
 // Import the new shared data processing system
@@ -1521,7 +1521,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-blue-700 ml-2">
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <Library className="h-3 w-3" />
+                              <Layers className="h-3 w-3" />
                               <span>Framework</span>
                             </div>
                             <div className="flex items-center gap-2">
@@ -1533,11 +1533,11 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                               <span>Polyfill</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <BarChart className="h-3 w-3" />
+                              <TrendingUp className="h-3 w-3" />
                               <span>Analytics</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <BarChart className="h-3 w-3" />
+                              <Database className="h-3 w-3" />
                               <span>Data Collector</span>
                             </div>
                             <div className="flex items-center gap-2">
@@ -1545,11 +1545,11 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                               <span>Tracking Tools</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Shield className="h-3 w-3" />
+                              <Lock className="h-3 w-3" />
                               <span>Privacy Tools</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Megaphone className="h-3 w-3" />
+                              <Server className="h-3 w-3" />
                               <span>Service</span>
                             </div>
                           </div>
@@ -1563,7 +1563,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                               <span>WebSocket</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Database className="h-3 w-3" />
+                              <GitBranch className="h-3 w-3" />
                               <span>GraphQL</span>
                             </div>
                             <div className="flex items-center gap-2">
@@ -1583,7 +1583,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                               <span>Performance</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Package className="h-3 w-3" />
+                              <Box className="h-3 w-3" />
                               <span>Build Artifact</span>
                             </div>
                             <div className="flex items-center gap-2">
