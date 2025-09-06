@@ -262,12 +262,81 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
 
                         {lib.url && (
                           <div className="flex items-start gap-2 text-xs text-gray-600">
-                            <span className="break-all flex-1 leading-relaxed">{lib.url}</span>
+                            <div className="flex-1">
+                              {/* Truncated URL display */}
+                              <div className="font-mono text-xs text-gray-500 truncate max-w-xs" title={lib.url}>
+                                {(() => {
+                                  const url = new URL(lib.url);
+                                  const filename = url.pathname.split('/').pop() || url.pathname;
+                                  return filename && filename !== '/' ? filename : url.hostname;
+                                })()}
+                              </div>
+                              
+                              {/* Source and Confidence info */}
+                              <div className="flex items-center gap-3 mt-1">
+                                {/* Source info */}
+                                <div className="flex items-center gap-1" title="Resource Source">
+                                  {(() => {
+                                    if (lib.cdnProvider) {
+                                      return (
+                                        <>
+                                          <Globe className="h-3 w-3 text-blue-600" />
+                                          <span className="text-xs text-blue-600 font-medium">{lib.cdnProvider}</span>
+                                        </>
+                                      );
+                                    } else if (lib.url.includes(lib.domain)) {
+                                      return (
+                                        <>
+                                          <Server className="h-3 w-3 text-green-600" />
+                                          <span className="text-xs text-green-600">Self-hosted</span>
+                                        </>
+                                      );
+                                    } else {
+                                      return (
+                                        <>
+                                          <Package className="h-3 w-3 text-orange-600" />
+                                          <span className="text-xs text-orange-600">External</span>
+                                        </>
+                                      );
+                                    }
+                                  })()}
+                                </div>
+
+                                {/* Confidence info */}
+                                <div className="flex items-center gap-1" title="Detection Confidence">
+                                  {(() => {
+                                    if (lib.confidence >= 0.8) {
+                                      return (
+                                        <>
+                                          <CheckCircle className="h-3 w-3 text-green-600" />
+                                          <span className="text-xs text-green-600">High</span>
+                                        </>
+                                      );
+                                    } else if (lib.confidence >= 0.6) {
+                                      return (
+                                        <>
+                                          <HelpCircle className="h-3 w-3 text-yellow-600" />
+                                          <span className="text-xs text-yellow-600">Medium</span>
+                                        </>
+                                      );
+                                    } else {
+                                      return (
+                                        <>
+                                          <Search className="h-3 w-3 text-red-600" />
+                                          <span className="text-xs text-red-600">Low</span>
+                                        </>
+                                      );
+                                    }
+                                  })()}
+                                </div>
+                              </div>
+                            </div>
+                            
                             <div className="flex gap-1 flex-shrink-0">
                               <button
                                 onClick={() => copyToClipboard(lib.url!)}
                                 className="hover:text-purple-600 transition-colors"
-                                title="Copy URL"
+                                title="Copy full URL"
                               >
                                 {copiedUrl === lib.url ? (
                                   <CheckCircle className="h-3 w-3 text-green-600" />
@@ -275,59 +344,6 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
                                   <Copy className="h-3 w-3" />
                                 )}
                               </button>
-                              <div className="flex items-center gap-1 text-xs">
-                                {(() => {
-                                  // Show CDN provider or source info
-                                  const getSourceInfo = () => {
-                                    if (lib.cdnProvider) {
-                                      return {
-                                        icon: "🌐",
-                                        text: lib.cdnProvider,
-                                        color: "text-blue-600"
-                                      };
-                                    } else if (lib.url.includes(lib.domain)) {
-                                      return {
-                                        icon: "🏠",
-                                        text: "Self-hosted",
-                                        color: "text-green-600"
-                                      };
-                                    } else {
-                                      return {
-                                        icon: "📦",
-                                        text: "External",
-                                        color: "text-orange-600"
-                                      };
-                                    }
-                                  };
-
-                                  // Show confidence level
-                                  const getConfidenceInfo = () => {
-                                    if (lib.confidence >= 0.8) {
-                                      return { icon: "✅", text: "High", color: "text-green-600" };
-                                    } else if (lib.confidence >= 0.6) {
-                                      return { icon: "⚠️", text: "Medium", color: "text-yellow-600" };
-                                    } else {
-                                      return { icon: "❓", text: "Low", color: "text-red-600" };
-                                    }
-                                  };
-
-                                  const sourceInfo = getSourceInfo();
-                                  const confidenceInfo = getConfidenceInfo();
-
-                                  return (
-                                    <div className="flex flex-col items-end gap-1">
-                                      <div className={`flex items-center gap-1 ${sourceInfo.color}`} title="Resource source">
-                                        <span>{sourceInfo.icon}</span>
-                                        <span className="text-xs font-medium">{sourceInfo.text}</span>
-                                      </div>
-                                      <div className={`flex items-center gap-1 ${confidenceInfo.color}`} title="Detection confidence">
-                                        <span>{confidenceInfo.icon}</span>
-                                        <span className="text-xs">{confidenceInfo.text}</span>
-                                      </div>
-                                    </div>
-                                  );
-                                })()}
-                              </div>
                             </div>
                           </div>
                         )}

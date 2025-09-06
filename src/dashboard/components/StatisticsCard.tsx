@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Button } from './ui/button';
-import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen, Megaphone, BarChart, Shield, Library, Globe, HelpCircle, Package, Wrench, Target, Database, Settings, Film, Zap, Server, Lock, Box, Puzzle } from 'lucide-react';
+import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen, Megaphone, BarChart, Shield, Library, Globe, HelpCircle, Package, Wrench, Target, Database, Settings, Film, Zap, Server, Lock, Box, Puzzle, CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { groupDataByDomain, DomainStats } from './domainUtils';
 // Import the new shared data processing system
@@ -1564,6 +1564,44 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                           </div>
                         </div>
                       </div>
+
+                      {/* Resource Source Icons */}
+                      <div className="space-y-2">
+                        <p className="font-medium text-blue-800">Resource Source Icons:</p>
+                        <div className="space-y-1 ml-2">
+                          <div className="flex items-center gap-2">
+                            <Globe className="h-3 w-3 text-blue-600" />
+                            <span>CDN Provider (Cloudflare, unpkg, jsDelivr, etc.)</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Server className="h-3 w-3 text-green-600" />
+                            <span>Self-hosted (same domain)</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Package className="h-3 w-3 text-orange-600" />
+                            <span>External source</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Detection Confidence Icons */}
+                      <div className="space-y-2">
+                        <p className="font-medium text-blue-800">Detection Confidence Icons:</p>
+                        <div className="space-y-1 ml-2">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="h-3 w-3 text-green-600" />
+                            <span>High confidence (80%+ accurate)</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <HelpCircle className="h-3 w-3 text-yellow-600" />
+                            <span>Medium confidence (60-80% accurate)</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Search className="h-3 w-3 text-red-600" />
+                            <span>Low confidence (possible match)</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Third Party Domain Explanation - Separate Section */}
@@ -1586,8 +1624,10 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                       improved badge visibility with high-contrast colors, and streamlined information display focusing on essential categorization data.
                       <br/>
                       <strong>Inline Web Resource Details:</strong> Click the web resource detail button in the resources view to expand comprehensive resource information
-                      directly within the table, similar to domain charts. This provides detailed categorization, search functionality, and direct links
-                      without needing a separate modal window.
+                      directly within the table. This displays truncated filenames for readability, while the copy button copies the full URL.
+                      Source icons show where resources come from (CDN, self-hosted, or external), and confidence icons indicate detection accuracy.
+                      <br/>
+                      <strong>Copy Function:</strong> The copy button 📋 copies the complete URL for technical use, while the display shows only the filename for readability.
                     </p>
                   </div>
                 </div>
