@@ -7,7 +7,7 @@ import { MinifiedLibrary } from '../storage-types';
 export interface LibraryInfo {
   name: string;
   version?: string;
-  type: 'framework' | 'utility' | 'analytics' | 'polyfill' | 'privacy-tools' | 'tracking-tools' | 'site-tools' | 'media-tools' | 'performance-tools' | 'service' | 'streaming-service' | 'data-collector' | 'build-artifact' | 'websocket' | 'graphql' | 'service-worker' | 'web-font' | 'config-file';
+  type: 'framework' | 'utility' | 'polyfill' | 'privacy-tools' | 'tracking-tools' | 'site-tools' | 'media-tools' | 'performance-tools' | 'service' | 'data-collector' | 'build-artifact';
   url: string;
   cdnProvider?: string;
   isMinified: boolean;
@@ -15,7 +15,7 @@ export interface LibraryInfo {
   domain: string;
   detectionMethod: 'url-pattern' | 'content-analysis' | 'header-analysis' | 'cdn-detection' | 'dom-global' | 'script-analysis' | 'source-map';
   description?: string; // Human-readable description of what this tool does
-  serviceType?: 'library' | 'service' | 'endpoint' | 'api' | 'stream' | 'collector' | 'build-artifact' | 'communication' | 'worker' | 'asset' | 'config'; // New field to distinguish resource types
+  serviceType?: 'library' | 'service' | 'endpoint' | 'api' | 'stream' | 'collector' | 'build-artifact'; // New field to distinguish resource types
 }
 
 export interface DomainLibraryStats {
@@ -111,7 +111,7 @@ const LIBRARY_PATTERNS = {
   // Analytics & Tracking
   gtag: {
     patterns: [/gtag/i, /google-analytics/i, /googletagmanager/i, /analytics\.js/i, /ga\.js/i],
-    type: 'analytics' as const,
+    type: 'data-collector' as const,
     cdnPatterns: [/googletagmanager\.com/, /google-analytics\.com/],
     globalSignatures: ['gtag', 'ga', 'GoogleAnalyticsObject'],
     domSignatures: [],
@@ -206,6 +206,17 @@ const LIBRARY_PATTERNS = {
     domSignatures: ['lazy-', 'loading-'],
     bundleSignatures: ['lazy', 'loader'],
     description: 'Content loading optimization and lazy loading'
+  },
+
+  // Browser Compatibility Polyfills
+  polyfills: {
+    patterns: [/polyfill/i, /babel-polyfill/i, /core-js/i, /es[5-9]?-shim/i, /es6-promise/i, /whatwg-fetch/i],
+    type: 'polyfill' as const,
+    cdnPatterns: [/polyfill\.io/, /cdnjs\.cloudflare\.com/, /unpkg\.com/],
+    globalSignatures: ['polyfill', '_babelPolyfill', 'core'],
+    domSignatures: [],
+    bundleSignatures: ['polyfill', 'babel-polyfill', 'core-js', 'es6-shim'],
+    description: 'Browser compatibility and feature polyfills'
   }
 };
 
@@ -700,11 +711,11 @@ export class LibraryDetector {
       };
     }
 
-    // 🚨 PRIORITY 5: MEDIA & STREAMING SERVICES (more restrictive now)
+    // 🚨 PRIORITY 5: MEDIA & STREAMING SERVICES (consolidated with media-tools)
     if (/(?:livestream|manifests|streaming|warnermediacdn|live-manifests|jwplayer|media-stream|cnn-adfuel)/i.test(nameLower + urlLower) &&
         !(/(?:chartbeat|analytics|track|collect|cygnus|d3|videotools)/i.test(nameLower + urlLower))) {
       return {
-        type: 'streaming-service',
+        type: 'media-tools',
         description: 'Media streaming and content delivery service',
         serviceType: 'stream'
       };
@@ -737,50 +748,30 @@ export class LibraryDetector {
       };
     }
 
-    // 🎯 NEW RESOURCE TYPES
-
-    // WebSocket and Real-time Communication
-    if (/(?:websocket|ws|socket\.io|sockjs|realtime|sse|server-sent|push-notifications)/i.test(nameLower + urlLower)) {
+    // 🎯 REAL-TIME COMMUNICATION & API SERVICES (consolidated with service)
+    if (/(?:websocket|ws|socket\.io|sockjs|realtime|sse|server-sent|push-notifications|graphql|gql|apollo|relay|query|mutation|subscription)/i.test(nameLower + urlLower)) {
       return {
-        type: 'websocket',
-        description: 'Real-time communication and WebSocket connection',
-        serviceType: 'communication'
+        type: 'service',
+        description: 'Real-time communication or API service',
+        serviceType: 'service'
       };
     }
 
-    // GraphQL APIs
-    if (/(?:graphql|gql|apollo|relay|query|mutation|subscription)/i.test(nameLower + urlLower)) {
-      return {
-        type: 'graphql',
-        description: 'GraphQL API endpoint and query service',
-        serviceType: 'api'
-      };
-    }
-
-    // Service Workers and Background Scripts
+    // 🎯 BACKGROUND SCRIPTS & WORKERS (consolidated with utility)
     if (/(?:service-worker|serviceworker|sw\.js|worker|webworker|background)/i.test(nameLower + urlLower)) {
       return {
-        type: 'service-worker',
-        description: 'Background worker or service worker script',
-        serviceType: 'worker'
+        type: 'utility',
+        description: 'Background worker or service script',
+        serviceType: 'library'
       };
     }
 
-    // Web Fonts
-    if (/(?:font|typeface|typography|woff|woff2|ttf|otf|eot|webfont)/i.test(nameLower + urlLower)) {
+    // 🎯 FONTS & CONFIG (consolidated with build-artifact for non-JS resources)
+    if (/(?:font|typeface|typography|woff|woff2|ttf|otf|eot|webfont|config|manifest|settings|env|environment|\.json|\.xml|\.yaml|\.yml)/i.test(nameLower + urlLower)) {
       return {
-        type: 'web-font',
-        description: 'Web font and typography resource',
-        serviceType: 'asset'
-      };
-    }
-
-    // Configuration and Manifest Files
-    if (/(?:config|manifest|settings|env|environment|\.json|\.xml|\.yaml|\.yml)/i.test(nameLower + urlLower)) {
-      return {
-        type: 'config-file',
-        description: 'Configuration or application manifest file',
-        serviceType: 'config'
+        type: 'build-artifact',
+        description: 'Asset, configuration, or non-JavaScript resource',
+        serviceType: 'build-artifact'
       };
     }
 
@@ -814,11 +805,20 @@ export class LibraryDetector {
       };
     }
 
-    // Utility Libraries (DOM manipulation, HTTP, general-purpose - excluding jQuery and D3)
-    if (/(?:lodash|underscore|axios|fetch|polyfill|moment|dayjs|uuid|validator|ramda|rxjs|immutable)/i.test(nameLower)) {
+    // Utility Libraries (DOM manipulation, HTTP, general-purpose)
+    if (/(?:lodash|underscore|axios|fetch|moment|dayjs|uuid|validator|ramda|rxjs|immutable)/i.test(nameLower)) {
       return {
         type: 'utility',
         description: 'JavaScript utility library',
+        serviceType: 'library'
+      };
+    }
+
+    // Browser Compatibility Polyfills
+    if (/(?:polyfill|babel-polyfill|core-js|es[5-9]?-shim|es6-promise|whatwg-fetch)/i.test(nameLower)) {
+      return {
+        type: 'polyfill',
+        description: 'Browser compatibility and feature polyfills',
         serviceType: 'library'
       };
     }
@@ -1036,9 +1036,9 @@ export class LibraryDetector {
           const version = libObj.version || libObj.VERSION;
 
           // Determine library type from name patterns
-          let type: 'framework' | 'utility' | 'ui' | 'analytics' | 'polyfill' = 'utility';
+          let type: 'framework' | 'utility' | 'data-collector' | 'polyfill' = 'utility';
           if (libName.toLowerCase().includes('framework')) type = 'framework';
-          else if (libName.toLowerCase().includes('analytics') || libName.toLowerCase().includes('tracking')) type = 'analytics';
+          else if (libName.toLowerCase().includes('analytics') || libName.toLowerCase().includes('tracking')) type = 'data-collector';
           else if (libName.toLowerCase().includes('ui') || libName.toLowerCase().includes('component')) type = 'framework';
 
           libraries.push({

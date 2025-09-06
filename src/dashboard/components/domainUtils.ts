@@ -187,9 +187,9 @@ function inferLibraryType(name: string, url: string): LibraryInfo['type'] {
     return 'data-collector';
   }
 
-  // 🎯 MEDIA & STREAMING SERVICES
+  // 🎯 MEDIA & STREAMING SERVICES (consolidated with media-tools)
   if (/(?:livestream|manifests|streaming|warnermediacdn|live-manifests|video|player|stream|media|jwplayer|cygnus)/i.test(nameLower + urlLower)) {
-    return 'streaming-service';
+    return 'media-tools';
   }
 
   // 🎯 API ENDPOINTS & WEB SERVICES

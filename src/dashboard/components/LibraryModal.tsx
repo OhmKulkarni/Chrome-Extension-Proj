@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Badge } from './ui/badge';
-import { X, ExternalLink, Package, Layers, Megaphone, BarChart, Video, Shield, Library, Target, Settings, Film, Zap, Wrench, Wifi, Database, Cpu, Type, FileText, HelpCircle, Search, Copy, CheckCircle, ArrowUpDown, Filter, TrendingUp, Server, Lock, Box, GitBranch } from 'lucide-react';
+import { X, ExternalLink, Package, Layers, Megaphone, BarChart, Shield, Library, Target, Settings, Film, Zap, Wrench, Database, HelpCircle, Search, Copy, CheckCircle, ArrowUpDown, Filter, Server, Lock, Box } from 'lucide-react';
 import { LibraryInfo } from '../../background/utils/library-detector';
 import { useState, useMemo } from 'react';
 
@@ -18,24 +18,17 @@ const getPrimaryCategory = (type: LibraryInfo['type']): 'libraries' | 'analytics
     case 'utility':
     case 'polyfill':
       return 'libraries';
-    case 'analytics':
     case 'data-collector':
     case 'tracking-tools':
       return 'analytics';
     case 'privacy-tools':
       return 'privacy';
     case 'service':
-    case 'streaming-service':
-    case 'websocket':
-    case 'graphql':
-    case 'service-worker':
       return 'services';
     case 'site-tools':
     case 'media-tools':
     case 'performance-tools':
     case 'build-artifact':
-    case 'web-font':
-    case 'config-file':
       return 'assets';
     default:
       return 'assets';
@@ -65,14 +58,12 @@ const getTypeIcon = (type: LibraryInfo['type']) => {
       return <Layers className="h-4 w-4" />;
     case 'utility':
       return <Wrench className="h-4 w-4" />;
-    case 'analytics':
-      return <TrendingUp className="h-4 w-4" />;
+    case 'polyfill':
+      return <Box className="h-4 w-4" />;
     case 'data-collector':
       return <Database className="h-4 w-4" />;
     case 'service':
       return <Server className="h-4 w-4" />;
-    case 'streaming-service':
-      return <Video className="h-4 w-4" />;
     case 'privacy-tools':
       return <Lock className="h-4 w-4" />;
     case 'tracking-tools':
@@ -85,18 +76,6 @@ const getTypeIcon = (type: LibraryInfo['type']) => {
       return <Zap className="h-4 w-4" />;
     case 'build-artifact':
       return <Box className="h-4 w-4" />;
-    case 'websocket':
-      return <Wifi className="h-4 w-4" />;
-    case 'graphql':
-      return <GitBranch className="h-4 w-4" />;
-    case 'service-worker':
-      return <Cpu className="h-4 w-4" />;
-    case 'web-font':
-      return <Type className="h-4 w-4" />;
-    case 'config-file':
-      return <FileText className="h-4 w-4" />;
-    case 'polyfill':
-      return <Layers className="h-4 w-4" />;
     default:
       return <HelpCircle className="h-4 w-4" />;
   }
@@ -108,13 +87,12 @@ const getTypeColor = (type: LibraryInfo['type']) => {
       return 'bg-blue-100 text-blue-800';
     case 'utility':
       return 'bg-teal-100 text-teal-800';
-    case 'analytics':
+    case 'polyfill':
+      return 'bg-blue-100 text-blue-800';
     case 'data-collector':
       return 'bg-purple-100 text-purple-800';
     case 'service':
       return 'bg-red-100 text-red-800';
-    case 'streaming-service':
-      return 'bg-green-100 text-green-800';
     case 'privacy-tools':
       return 'bg-gray-100 text-gray-800';
     case 'tracking-tools':
@@ -127,18 +105,6 @@ const getTypeColor = (type: LibraryInfo['type']) => {
       return 'bg-cyan-100 text-cyan-800';
     case 'build-artifact':
       return 'bg-slate-100 text-slate-800';
-    case 'websocket':
-      return 'bg-emerald-100 text-emerald-800';
-    case 'graphql':
-      return 'bg-violet-100 text-violet-800';
-    case 'service-worker':
-      return 'bg-amber-100 text-amber-800';
-    case 'web-font':
-      return 'bg-rose-100 text-rose-800';
-    case 'config-file':
-      return 'bg-stone-100 text-stone-800';
-    case 'polyfill':
-      return 'bg-yellow-100 text-yellow-800';
     default:
       return 'bg-gray-100 text-gray-800';
   }
@@ -160,25 +126,15 @@ const getTypeLabel = (type: string) => {
   switch (type) {
     case 'framework': return 'Framework';
     case 'utility': return 'Utility';
-    case 'ui': return 'UI Component';
-    case 'analytics': return 'Analytics';
+    case 'polyfill': return 'Polyfill';
     case 'data-collector': return 'Data Collection';
-    case 'advertising-service': return 'Advertising';
-    case 'streaming-service': return 'Media Streaming';
-    case 'api-endpoint': return 'API Endpoint';
+    case 'service': return 'Service';
     case 'privacy-tools': return 'Privacy Tool';
     case 'tracking-tools': return 'Tracking';
     case 'site-tools': return 'Site Tool';
     case 'media-tools': return 'Media Tool';
     case 'performance-tools': return 'Performance';
     case 'build-artifact': return 'Build Artifact';
-    case 'websocket': return 'WebSocket';
-    case 'graphql': return 'GraphQL';
-    case 'service-worker': return 'Service Worker';
-    case 'web-font': return 'Web Font';
-    case 'config-file': return 'Configuration';
-    case 'polyfill': return 'Polyfill';
-    case 'web-service': return 'Web Service';
     default: return type.replace('-', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
   }
 };
@@ -187,25 +143,15 @@ const getTypeDescription = (type: string) => {
   switch (type) {
     case 'framework': return 'JavaScript frameworks and libraries';
     case 'utility': return 'Utility libraries and helper functions';
-    case 'ui': return 'User interface components and styling';
-    case 'analytics': return 'Analytics and tracking services';
+    case 'polyfill': return 'Browser compatibility and feature polyfills';
     case 'data-collector': return 'Data collection and metrics tools';
-    case 'advertising-service': return 'Advertisement and marketing services';
-    case 'streaming-service': return 'Video and media streaming services';
-    case 'api-endpoint': return 'External API and service endpoints';
+    case 'service': return 'Web services and API integrations';
     case 'privacy-tools': return 'Privacy and consent management tools';
     case 'tracking-tools': return 'User tracking and behavior analytics';
     case 'site-tools': return 'Website functionality and management tools';
     case 'media-tools': return 'Media processing and manipulation tools';
     case 'performance-tools': return 'Performance monitoring and optimization';
     case 'build-artifact': return 'Build and development artifacts';
-    case 'websocket': return 'Real-time communication protocols';
-    case 'graphql': return 'GraphQL API and query language';
-    case 'service-worker': return 'Progressive web app functionality';
-    case 'web-font': return 'Web fonts and typography resources';
-    case 'config-file': return 'Configuration and settings files';
-    case 'polyfill': return 'Browser compatibility polyfills';
-    case 'web-service': return 'Web services and API integrations';
     default: return `${type.replace('-', ' ')} related resources`;
   }
 };
@@ -312,25 +258,15 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
   const resourceTypeSections = [
     { type: 'framework', label: 'Frameworks', description: 'JavaScript frameworks and libraries' },
     { type: 'utility', label: 'Utilities', description: 'Utility libraries and tools' },
-    { type: 'ui', label: 'UI Components', description: 'User interface libraries and components' },
-    { type: 'analytics', label: 'Analytics', description: 'Analytics and tracking services' },
+    { type: 'polyfill', label: 'Polyfills', description: 'Browser compatibility and feature polyfills' },
     { type: 'data-collector', label: 'Data Collection', description: 'Data collection and metrics tools' },
-    { type: 'advertising-service', label: 'Advertising', description: 'Advertisement and marketing services' },
-    { type: 'streaming-service', label: 'Media Streaming', description: 'Video and media streaming services' },
-    { type: 'api-endpoint', label: 'API Endpoints', description: 'External API and service endpoints' },
+    { type: 'service', label: 'Services', description: 'Web services and API integrations' },
     { type: 'privacy-tools', label: 'Privacy Tools', description: 'Privacy and consent management tools' },
     { type: 'tracking-tools', label: 'Tracking', description: 'User tracking and behavior analytics' },
     { type: 'site-tools', label: 'Site Tools', description: 'Website functionality and management tools' },
     { type: 'media-tools', label: 'Media Tools', description: 'Media processing and manipulation tools' },
     { type: 'performance-tools', label: 'Performance', description: 'Performance monitoring and optimization' },
-    { type: 'build-artifact', label: 'Build Artifacts', description: 'Compiled bundles and build outputs' },
-    { type: 'websocket', label: 'WebSocket', description: 'Real-time communication connections' },
-    { type: 'graphql', label: 'GraphQL', description: 'GraphQL endpoints and queries' },
-    { type: 'service-worker', label: 'Service Workers', description: 'Background service worker scripts' },
-    { type: 'web-font', label: 'Web Fonts', description: 'Font files and typography resources' },
-    { type: 'config-file', label: 'Configuration', description: 'Configuration and manifest files' },
-    { type: 'polyfill', label: 'Polyfills', description: 'Browser compatibility polyfills' },
-    { type: 'web-service', label: 'Web Services', description: 'General web services and APIs' }
+    { type: 'build-artifact', label: 'Build Artifacts', description: 'Compiled bundles and build outputs' }
   ];
 
   // Organize libraries by individual resource types
@@ -355,7 +291,7 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
     // Top resource types
     frameworks: libraries.filter(lib => lib.type === 'framework').length,
     analytics: libraries.filter(lib => ['analytics', 'data-collector', 'tracking-tools'].includes(lib.type)).length,
-    services: libraries.filter(lib => ['advertising-service', 'streaming-service', 'api-endpoint', 'web-service'].includes(lib.type)).length
+    services: libraries.filter(lib => lib.type === 'service').length
   };
 
   return (

@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Button } from './ui/button';
-import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen, Megaphone, BarChart, Shield, Library, Globe, HelpCircle, Package, Wrench, Target, Video, Wifi, Database, Cpu, Settings, Film, Zap, Type, FileText, Server, Lock, Box, GitBranch } from 'lucide-react';
+import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen, Megaphone, BarChart, Shield, Library, Globe, HelpCircle, Package, Wrench, Target, Database, Settings, Film, Zap, Server, Lock, Box } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { groupDataByDomain, DomainStats } from './domainUtils';
 // Import the new shared data processing system
@@ -39,24 +39,17 @@ const getPrimaryCategory = (type: string): 'libraries' | 'analytics' | 'privacy'
     case 'utility':
     case 'polyfill':
       return 'libraries';
-    case 'analytics':
     case 'data-collector':
     case 'tracking-tools':
       return 'analytics';
     case 'privacy-tools':
       return 'privacy';
     case 'service':
-    case 'streaming-service':
-    case 'websocket':
-    case 'graphql':
-    case 'service-worker':
       return 'services';
     case 'site-tools':
     case 'media-tools':
     case 'performance-tools':
     case 'build-artifact':
-    case 'web-font':
-    case 'config-file':
       return 'assets';
     default:
       return 'assets';
@@ -1533,10 +1526,6 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                               <span>Polyfill</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <TrendingUp className="h-3 w-3" />
-                              <span>Analytics</span>
-                            </div>
-                            <div className="flex items-center gap-2">
                               <Database className="h-3 w-3" />
                               <span>Data Collector</span>
                             </div>
@@ -1555,22 +1544,6 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                           </div>
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <Video className="h-3 w-3" />
-                              <span>Streaming Service</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Wifi className="h-3 w-3" />
-                              <span>WebSocket</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <GitBranch className="h-3 w-3" />
-                              <span>GraphQL</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Cpu className="h-3 w-3" />
-                              <span>Service Worker</span>
-                            </div>
-                            <div className="flex items-center gap-2">
                               <Settings className="h-3 w-3" />
                               <span>Site Tools</span>
                             </div>
@@ -1585,14 +1558,6 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                             <div className="flex items-center gap-2">
                               <Box className="h-3 w-3" />
                               <span>Build Artifact</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Type className="h-3 w-3" />
-                              <span>Web Font</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <FileText className="h-3 w-3" />
-                              <span>Config File</span>
                             </div>
                           </div>
                         </div>
@@ -1962,21 +1927,14 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                               case 'framework': return 'Framework';
                                               case 'utility': return 'Utility';
                                               case 'polyfill': return 'Polyfill';
-                                              case 'analytics': return 'Analytics';
                                               case 'data-collector': return 'Data Collector';
                                               case 'tracking-tools': return 'Tracking';
                                               case 'privacy-tools': return 'Privacy';
                                               case 'service': return 'Service';
-                                              case 'streaming-service': return 'Streaming';
-                                              case 'websocket': return 'WebSocket';
-                                              case 'graphql': return 'GraphQL';
-                                              case 'service-worker': return 'Worker';
                                               case 'site-tools': return 'Site Tool';
                                               case 'media-tools': return 'Media Tool';
                                               case 'performance-tools': return 'Performance';
                                               case 'build-artifact': return 'Build Artifact';
-                                              case 'web-font': return 'Font';
-                                              case 'config-file': return 'Config';
                                               default: return 'Resource';
                                             }
                                           })();
@@ -2048,21 +2006,14 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                                       case 'framework': return 'Framework';
                                                       case 'utility': return 'Utility';
                                                       case 'polyfill': return 'Polyfill';
-                                                      case 'analytics': return 'Analytics';
                                                       case 'data-collector': return 'Data Collector';
                                                       case 'tracking-tools': return 'Tracking';
                                                       case 'privacy-tools': return 'Privacy';
                                                       case 'service': return 'Service';
-                                                      case 'streaming-service': return 'Streaming';
-                                                      case 'websocket': return 'WebSocket';
-                                                      case 'graphql': return 'GraphQL';
-                                                      case 'service-worker': return 'Worker';
                                                       case 'site-tools': return 'Site Tool';
                                                       case 'media-tools': return 'Media Tool';
                                                       case 'performance-tools': return 'Performance';
                                                       case 'build-artifact': return 'Build Artifact';
-                                                      case 'web-font': return 'Font';
-                                                      case 'config-file': return 'Config';
                                                       default: return 'Resource';
                                                     }
                                                   })();
