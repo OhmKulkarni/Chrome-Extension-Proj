@@ -1529,7 +1529,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                               <span>Utility</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Shield className="h-3 w-3" />
+                              <Layers className="h-3 w-3" />
                               <span>Polyfill</span>
                             </div>
                             <div className="flex items-center gap-2">

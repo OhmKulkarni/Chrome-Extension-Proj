@@ -271,7 +271,7 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
   // Group filtered libraries by type for display
   const filteredLibrariesByType = useMemo(() => {
     const grouped: { [key: string]: { label: string; type: string; description: string; count: number; libraries: LibraryInfo[] } } = {};
-    
+
     filteredAndSortedLibraries.forEach(library => {
       const key = library.type;
       if (!grouped[key]) {
@@ -372,14 +372,14 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
               <X className="h-5 w-5" />
             </button>
           </div>
-          
+
           {/* Primary Category Overview */}
           {libraries.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {['libraries', 'analytics', 'privacy', 'services', 'assets'].map(primaryCategory => {
                 const count = libraries.filter(lib => getPrimaryCategory(lib.type) === primaryCategory).length;
                 if (count === 0) return null;
-                
+
                 return (
                   <div key={primaryCategory} className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded-full text-sm">
                     {getPrimaryCategoryIcon(primaryCategory)}
@@ -413,7 +413,7 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
-                
+
                 {/* Type Filter */}
                 <div className="relative">
                   <Filter className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -449,7 +449,7 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
               {/* Search Results Summary */}
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">
-                  {filteredAndSortedLibraries.length === libraries.length 
+                  {filteredAndSortedLibraries.length === libraries.length
                     ? `Showing all ${libraries.length} resources`
                     : `Showing ${filteredAndSortedLibraries.length} of ${libraries.length} resources`
                   }
