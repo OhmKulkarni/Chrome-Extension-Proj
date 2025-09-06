@@ -619,8 +619,18 @@ export class LibraryDetector {
       };
     }
 
+    // 🎯 PRIORITY 1.5: DATA VISUALIZATION LIBRARIES (D3.js specifically - before advertising check)
+    if (/\bd3(?:\.min)?\.js\b/i.test(urlLower) || (/\bd3\b/i.test(nameLower) && /\.js$/i.test(urlLower))) {
+      return {
+        type: 'media-tools',
+        description: 'Data visualization library (D3.js)',
+        serviceType: 'library'
+      };
+    }
+
     // 🚨 PRIORITY 2: ADVERTISING & MARKETING SERVICES (include AdFuel + enhanced patterns)
-    if (/(?:casalemedia|criteo|adsrvr|pubmatic|doubleclick|adsystem|bidder|cdb|translator|hbopenbid|wunderkind|magnite|sodar|rid|adfuel|gpt|apstag|pubads|cygnus|d3|videotools|3159)/i.test(nameLower + urlLower) ||
+    // Note: D3.js is handled above, so we can include 'd3' in ad patterns for other contexts
+    if (/(?:casalemedia|criteo|adsrvr|pubmatic|doubleclick|adsystem|bidder|cdb|translator|hbopenbid|wunderkind|magnite|sodar|rid|adfuel|gpt|apstag|pubads|cygnus|videotools|3159)/i.test(nameLower + urlLower) ||
         /(?:dfp_premium|instream|video_ad|video-ad)/i.test(urlLower)) {
       return {
         type: 'advertising-service',
@@ -671,15 +681,6 @@ export class LibraryDetector {
       return {
         type: 'site-tools',
         description: 'Site-specific functionality and features',
-        serviceType: 'library'
-      };
-    }
-
-    // 🎯 MEDIA LIBRARIES (Traditional Libraries)
-    if (/(?:videotools|d3|player)/i.test(nameLower) && !(/(?:stream|live)/i.test(urlLower))) {
-      return {
-        type: 'media-tools',
-        description: 'Media libraries and visualization tools',
         serviceType: 'library'
       };
     }
