@@ -662,8 +662,8 @@ export class LibraryDetector {
     const urlLower = url.toLowerCase();
 
     // 🚨 PRIORITY 1: TRACKING & SYNC SERVICES (very specific patterns first)
-    if (/(?:sync\?|trackingpixel|beacon|universalid-sync|track\?|pixel\?|collect\?)/i.test(urlLower) ||
-        /(?:universalid|iiquniversalid|sync|trackingpixel|beacon)/i.test(nameLower)) {
+    if (/(?:sync\?|trackingpixel|beacon|universalid-sync|track\?|pixel\?|collect\?|tp2|events\?|\.map$)/i.test(urlLower) ||
+        /(?:universalid|iiquniversalid|sync|trackingpixel|beacon|tp2|events)/i.test(nameLower)) {
       return {
         type: 'tracking-tools',
         description: 'User tracking and identity synchronization',
@@ -684,12 +684,12 @@ export class LibraryDetector {
 
     // 🚨 PRIORITY 2: ADVERTISING & MARKETING SERVICES (include AdFuel + enhanced patterns)
     // Note: D3.js is handled above, so we can include 'd3' in ad patterns for other contexts
-    if (/(?:casalemedia|criteo|adsrvr|pubmatic|doubleclick|adsystem|bidder|cdb|translator|hbopenbid|wunderkind|magnite|sodar|rid|adfuel|gpt|apstag|pubads|cygnus|videotools|3159)/i.test(nameLower + urlLower) ||
+    if (/(?:casalemedia|criteo|adsrvr|pubmatic|doubleclick|adsystem|bidder|cdb|hbopenbid|wunderkind|magnite|sodar|rid|adfuel|gpt|apstag|pubads|cygnus|3159)/i.test(nameLower + urlLower) ||
         /(?:dfp_premium|instream|video_ad|video-ad)/i.test(urlLower)) {
       return {
-        type: 'service',
-        description: 'Advertising and marketing service',
-        serviceType: 'service'
+        type: 'tracking-tools',
+        description: 'Advertising and programmatic bidding service',
+        serviceType: 'advertising'
       };
     }
 
@@ -712,8 +712,8 @@ export class LibraryDetector {
     }
 
     // 🚨 PRIORITY 5: MEDIA & STREAMING SERVICES (consolidated with media-tools)
-    if (/(?:livestream|manifests|streaming|warnermediacdn|live-manifests|jwplayer|media-stream|cnn-adfuel)/i.test(nameLower + urlLower) &&
-        !(/(?:chartbeat|analytics|track|collect|cygnus|d3|videotools)/i.test(nameLower + urlLower))) {
+    if (/(?:livestream|manifests|streaming|warnermediacdn|live-manifests|jwplayer|media-stream|cnn-adfuel|videotools|translator|chartbeat_video)/i.test(nameLower + urlLower) &&
+        !(/(?:chartbeat|analytics|track|collect|cygnus|d3)/i.test(nameLower + urlLower))) {
       return {
         type: 'media-tools',
         description: 'Media streaming and content delivery service',
@@ -776,9 +776,9 @@ export class LibraryDetector {
     }
 
     // 🎯 API ENDPOINTS & WEB SERVICES (more restrictive now - LOWER PRIORITY)
-    // Exclude source maps and build artifacts explicitly
+    // Exclude source maps, build artifacts, and common framework names explicitly
     if (/(?:api\/|endpoint|service|reg|segments|desktop|pub\/|v2\/|receive|wmcdp|zetaglobal|lijit|direct|ssp|wknd)/i.test(urlLower) &&
-        !(/(?:sync|track|collect|analytics|logs|stream|video|auth|tag|launch|\.map)/i.test(nameLower + urlLower))) {
+        !(/(?:sync|track|collect|analytics|logs|stream|video|auth|tag|launch|vue|react|angular|d3|sodar|gpt|\.map)/i.test(nameLower + urlLower))) {
       return {
         type: 'service',
         description: 'API endpoint or web service',
