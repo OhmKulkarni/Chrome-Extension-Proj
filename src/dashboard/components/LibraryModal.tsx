@@ -519,7 +519,12 @@ export default function LibraryModal({ isOpen, onClose, domain, libraries }: Lib
                 <h3 className="flex items-center gap-2 text-lg font-semibold border-b pb-2">
                   {getTypeIcon(typeData.type as LibraryInfo['type'])}
                   <div className="flex flex-col">
-                    <span>{typeData.label} ({typeData.count})</span>
+                    <span>
+                      {typeData.label} ({typeData.count})
+                      <span className="text-sm font-normal text-gray-500 ml-2">
+                        [{getPrimaryCategoryInfo(getPrimaryCategory(typeData.type as LibraryInfo['type'])).label}]
+                      </span>
+                    </span>
                     <span className="text-sm font-normal text-gray-500">{typeData.description}</span>
                   </div>
                 </h3>
