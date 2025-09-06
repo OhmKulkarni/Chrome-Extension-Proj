@@ -1504,7 +1504,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                           </div>
                         </div>
                         <p className="text-xs text-blue-600 mt-2">
-                          💡 <strong>Tip:</strong> Click any library to see detailed subcategories with specific technical classifications
+                          💡 <strong>Tip:</strong> Click any library to see detailed subcategories with specific technical classifications.<br/>
+                          🎨 <strong>New:</strong> Each category now displays with color-coded badges and matching icons for better visual identification.
                         </p>
                       </div>
 
@@ -1539,7 +1540,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                             </div>
                             <div className="flex items-center gap-2">
                               <Server className="h-3 w-3" />
-                              <span>Service</span>
+                              <span>Web Service</span>
                             </div>
                           </div>
                           <div className="space-y-1">
@@ -1579,7 +1580,9 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
 
                     <p className="mt-3 pt-2 border-t border-blue-200 text-xs">
                       <strong>Smart Grouping:</strong> Domains are intelligently grouped by tab context and subdomain patterns.
-                      Hover over any icon or label for detailed tooltips with additional information.
+                      Hover over any icon or label for detailed tooltips with additional information.<br/>
+                      <strong>Enhanced Modal:</strong> Library details now feature collapsible sections (collapsed by default), 
+                      improved badge visibility with high-contrast colors, and streamlined information display focusing on essential categorization data.
                     </p>
                   </div>
                 </div>
