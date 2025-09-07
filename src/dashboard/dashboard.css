@@ -54,20 +54,22 @@ body {
 .custom-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 #f1f5f9;
+  padding-right: 4px; /* Add padding to move content away from scrollbar */
 }
 
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
+  width: 8px; /* Slightly wider for better visibility */
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
   background: #f1f5f9;
-  border-radius: 3px;
+  border-radius: 4px;
+  margin-right: 0; /* Ensure track is at the far right */
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: #cbd5e1;
-  border-radius: 3px;
+  border-radius: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {

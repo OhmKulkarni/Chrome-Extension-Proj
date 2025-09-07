@@ -1447,148 +1447,152 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-start gap-3">
                   <Layers className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <div className="space-y-4 max-h-72 overflow-y-auto custom-scrollbar">
-                    <h4 className="text-sm font-semibold text-blue-800">Dashboard Icons & Features Guide</h4>
+                  <div className="flex-1">
+                    <div className="max-h-72 overflow-y-auto custom-scrollbar pr-2">
+                      <div className="space-y-4">
+                        <h4 className="text-sm font-semibold text-blue-800">Dashboard Icons & Features Guide</h4>
 
-                    <div className="space-y-4 text-xs text-blue-700">
-                      {/* Domain Status Icons */}
-                      <div className="space-y-2">
-                        <p className="font-medium text-blue-800">Domain Status Icons:</p>
-                        <div className="space-y-1 ml-2">
-                          <div className="flex items-center gap-2">
-                            <Layers className="h-3 w-3" />
-                            <span>Grouped subdomains - Shows when multiple related subdomains are grouped together</span>
+                        <div className="space-y-4 text-xs text-blue-700">
+                          {/* Domain Status Icons */}
+                          <div className="space-y-2">
+                            <p className="font-medium text-blue-800">Domain Status Icons:</p>
+                            <div className="space-y-1 ml-2">
+                              <div className="flex items-start gap-2">
+                                <Layers className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Grouped subdomains - Automatically identifies and groups related subdomains under a single parent domain for cleaner organization. This helps reduce clutter when websites use multiple subdomains like api.example.com, cdn.example.com, and static.example.com.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Monitor className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Main tab domain - Highlights the primary domain of the currently active browser tab, making it easy to distinguish the main website from third-party resources and embedded content.</span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Monitor className="h-3 w-3" />
-                            <span>Main tab domain - Indicates the primary domain of the current tab</span>
-                          </div>
-                        </div>
-                      </div>
 
-                      {/* Primary Resource Categories */}
-                      <div className="space-y-2">
-                        <p className="font-medium text-blue-800">Primary Resource Categories:</p>
-                        <div className="space-y-1 ml-2">
-                          <div className="flex items-center gap-2">
-                            <Library className="h-3 w-3" />
-                            <span>Libraries - JavaScript frameworks, utility libraries, and polyfills that extend browser functionality</span>
+                          {/* Primary Resource Categories */}
+                          <div className="space-y-2">
+                            <p className="font-medium text-blue-800">Primary Resource Categories:</p>
+                            <div className="space-y-1 ml-2">
+                              <div className="flex items-start gap-2">
+                                <Library className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Libraries - Essential JavaScript frameworks, utility libraries, and polyfills that extend browser functionality. Includes popular frameworks like React, Vue, Angular, utility libraries like Lodash, and polyfills that enable modern JavaScript features in older browsers.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <BarChart className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Analytics - Comprehensive tracking scripts, data collection tools, and user behavior analysis services. Encompasses Google Analytics, Adobe Analytics, heat mapping tools, A/B testing platforms, and conversion tracking systems that help websites understand user interactions.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Shield className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Privacy - Consent management platforms, privacy protection tools, and compliance scripts essential for GDPR, CCPA, and other privacy regulations. Includes cookie consent banners, privacy policy managers, and data protection utilities.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Server className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Services - Backend API endpoints, streaming services, web workers, and third-party integrations that provide core functionality. Includes payment processors, authentication services, content delivery systems, and real-time communication tools.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Package className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Assets - Static resources including images, fonts, stylesheets, configuration files, and media content that support the visual and functional aspects of websites. Also includes favicon files, web fonts, and CSS frameworks.</span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <BarChart className="h-3 w-3" />
-                            <span>Analytics - Tracking scripts, data collection tools, and user behavior analysis services</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Shield className="h-3 w-3" />
-                            <span>Privacy - Consent management platforms, privacy protection tools, and compliance scripts</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Server className="h-3 w-3" />
-                            <span>Services - API endpoints, streaming services, web workers, and backend integrations</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Package className="h-3 w-3" />
-                            <span>Assets - Static resources including images, fonts, stylesheets, and configuration files</span>
-                          </div>
-                        </div>
-                      </div>
 
-                      {/* Secondary Resource Categories (Detailed Types) */}
-                      <div className="space-y-2">
-                        <p className="font-medium text-blue-800">Secondary Categories (in modal detail):</p>
-                        <div className="space-y-1 ml-2">
-                          <div className="flex items-center gap-2">
-                            <Layers className="h-3 w-3" />
-                            <span>Framework - Core development frameworks like React, Angular, Vue</span>
+                          {/* Secondary Resource Categories (Detailed Types) */}
+                          <div className="space-y-2">
+                            <p className="font-medium text-blue-800">Secondary Categories (in modal detail):</p>
+                            <div className="space-y-1 ml-2">
+                              <div className="flex items-start gap-2">
+                                <Layers className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Framework - Core development frameworks like React, Angular, Vue, Svelte, and their associated ecosystems that provide structured approaches to building modern web applications with component-based architectures.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Wrench className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Utility - Helper libraries for common programming tasks including date manipulation (Moment.js), functional programming (Lodash), HTTP requests (Axios), and other utilities that simplify development workflows.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Puzzle className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Polyfill - Code that provides modern JavaScript functionality on older browsers, ensuring compatibility across different browser versions. Includes ES6+ feature support, Web API polyfills, and CSS feature compatibility layers.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Database className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Data Collector - Scripts that systematically gather user data including form submissions, click events, scroll behavior, and interaction patterns for analytics, personalization, and business intelligence purposes.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Target className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Tracking Tools - Specialized systems for user behavior tracking, conversion tracking, marketing attribution, and analytics integration that help businesses understand customer journeys and optimize their digital strategies.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Lock className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Privacy Tools - GDPR compliance tools, cookie consent management, data protection utilities, and privacy-first analytics solutions that help websites maintain regulatory compliance while respecting user privacy preferences.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Globe className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Web Service - External API calls, third-party integrations, microservices, and cloud-based services that extend website functionality through external platforms and service providers.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Settings className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Site Tools - Website functionality tools including live chat widgets, search functionality, form builders, customer support systems, and interactive components that enhance user experience and site functionality.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Film className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Media Tools - Video players (YouTube, Vimeo), image galleries, audio controls, media processing libraries, and content delivery systems that handle multimedia content presentation and manipulation.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Zap className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Performance - Speed optimization tools, lazy loading libraries, image compression, caching systems, and performance monitoring tools that improve website loading times and user experience.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Box className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Build Artifact - Compiled code bundles, minified scripts, build output files, and processed assets generated by build tools like Webpack, Vite, or Rollup during the development and deployment process.</span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Wrench className="h-3 w-3" />
-                            <span>Utility - Helper libraries for common programming tasks and operations</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Puzzle className="h-3 w-3" />
-                            <span>Polyfill - Code that provides modern functionality on older browsers</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Database className="h-3 w-3" />
-                            <span>Data Collector - Scripts that gather user data, form submissions, and interactions</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Target className="h-3 w-3" />
-                            <span>Tracking Tools - User behavior tracking, conversion tracking, and analytics integration</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Lock className="h-3 w-3" />
-                            <span>Privacy Tools - GDPR compliance, cookie consent, and data protection utilities</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Globe className="h-3 w-3" />
-                            <span>Web Service - External API calls, third-party integrations, and web services</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Settings className="h-3 w-3" />
-                            <span>Site Tools - Website functionality tools, widgets, and interactive components</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Film className="h-3 w-3" />
-                            <span>Media Tools - Video players, image galleries, audio controls, and media processing</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Zap className="h-3 w-3" />
-                            <span>Performance - Speed optimization tools, lazy loading, and performance monitoring</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Box className="h-3 w-3" />
-                            <span>Build Artifact - Compiled code bundles, minified scripts, and build output files</span>
-                          </div>
-                        </div>
-                      </div>
 
-                      {/* Resource Source Icons */}
-                      <div className="space-y-2">
-                        <p className="font-medium text-blue-800">Resource Source Icons:</p>
-                        <div className="space-y-1 ml-2">
-                          <div className="flex items-center gap-2">
-                            <Globe className="h-3 w-3 text-blue-600" />
-                            <span>CDN Provider - Content delivery networks like Cloudflare, unpkg, jsDelivr for fast global access</span>
+                          {/* Resource Source Icons */}
+                          <div className="space-y-2">
+                            <p className="font-medium text-blue-800">Resource Source Icons:</p>
+                            <div className="space-y-1 ml-2">
+                              <div className="flex items-start gap-2">
+                                <Globe className="h-3 w-3 mt-0.5 flex-shrink-0 text-blue-600" />
+                                <span>CDN Provider - Content delivery networks like Cloudflare, unpkg, jsDelivr, and Google Fonts that provide fast global access to libraries and assets through geographically distributed servers, improving loading times worldwide.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Server className="h-3 w-3 mt-0.5 flex-shrink-0 text-green-600" />
+                                <span>Self-hosted - Resources hosted on the same domain as the website, providing better control over content delivery, security, and privacy, while reducing dependencies on external services.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Package className="h-3 w-3 mt-0.5 flex-shrink-0 text-orange-600" />
+                                <span>External source - Third-party resources from different domains and providers, including social media widgets, advertising networks, and specialized service providers that extend website functionality.</span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Server className="h-3 w-3 text-green-600" />
-                            <span>Self-hosted - Resources hosted on the same domain as the website for better control</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Package className="h-3 w-3 text-orange-600" />
-                            <span>External source - Third-party resources from different domains and providers</span>
-                          </div>
-                        </div>
-                      </div>
 
-                      {/* Detection Confidence Icons */}
-                      <div className="space-y-2">
-                        <p className="font-medium text-blue-800">Detection Confidence Icons:</p>
-                        <div className="space-y-1 ml-2">
-                          <div className="flex items-center gap-2">
-                            <CheckCircle className="h-3 w-3 text-green-600" />
-                            <span>High confidence - Library detection is 80%+ accurate based on strong signature matches</span>
+                          {/* Detection Confidence Icons */}
+                          <div className="space-y-2">
+                            <p className="font-medium text-blue-800">Detection Confidence Icons:</p>
+                            <div className="space-y-1 ml-2">
+                              <div className="flex items-start gap-2">
+                                <CheckCircle className="h-3 w-3 mt-0.5 flex-shrink-0 text-green-600" />
+                                <span>High confidence - Library detection is 80%+ accurate based on strong signature matches, unique identifiers, and multiple verification points. These identifications are highly reliable and can be trusted for analysis.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <HelpCircle className="h-3 w-3 mt-0.5 flex-shrink-0 text-yellow-600" />
+                                <span>Medium confidence - Detection is 60-80% accurate with some uncertainty in identification due to partial matches or ambiguous signatures. These may require additional verification for critical decisions.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Search className="h-3 w-3 mt-0.5 flex-shrink-0 text-red-600" />
+                                <span>Low confidence - Possible match with limited evidence, requiring manual verification. These detections are based on weak signals and should be investigated further before making conclusions.</span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <HelpCircle className="h-3 w-3 text-yellow-600" />
-                            <span>Medium confidence - Detection is 60-80% accurate with some uncertainty in identification</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Search className="h-3 w-3 text-red-600" />
-                            <span>Low confidence - Possible match with limited evidence, may need manual verification</span>
-                          </div>
-                        </div>
-                      </div>
 
-                      {/* Domain Labels */}
-                      <div className="space-y-2">
-                        <p className="font-medium text-blue-800">Domain Labels:</p>
-                        <div className="space-y-1 ml-2">
-                          <div className="flex items-center gap-2">
-                            <span className="inline-block px-2 py-1 text-xs font-medium rounded bg-teal-100 text-teal-800">3rd party domain</span>
-                            <span>Classification label for external domains - indicates resources loaded from outside the main website</span>
+                          {/* Domain Labels */}
+                          <div className="space-y-2">
+                            <p className="font-medium text-blue-800">Domain Labels:</p>
+                            <div className="space-y-1 ml-2">
+                              <div className="flex items-start gap-2">
+                                <span className="inline-block px-2 py-1 text-xs font-medium rounded bg-teal-100 text-teal-800 mt-0.5 flex-shrink-0">3rd party domain</span>
+                                <span>Classification label for external domains that indicates resources loaded from outside the main website. Helps identify potential privacy implications, performance impacts, and third-party dependencies.</span>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
