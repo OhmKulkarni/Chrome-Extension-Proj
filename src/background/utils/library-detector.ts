@@ -1,0 +1,1580 @@
+import { MinifiedLibrary } from '../storage-types';
+
+/**
+ * Interface for detected web resource information
+ * Covers libraries, services, APIs, endpoints, and other web resources
+ */
+export interface LibraryInfo {
+  name: string;
+  version?: string;
+  type: 'framework' | 'utility' | 'polyfill' | 'privacy-tools' | 'tracking-tools' | 'site-tools' | 'media-tools' | 'performance-tools' | 'service' | 'data-collector' | 'build-artifact';
+  url: string;
+  cdnProvider?: string;
+  isMinified: boolean;
+  confidence: number;
+  domain: string;
+  detectionMethod: 'url-pattern' | 'content-analysis' | 'header-analysis' | 'cdn-detection' | 'dom-global' | 'script-analysis' | 'source-map';
+  description?: string; // Human-readable description of what this tool does
+  serviceType?: 'library' | 'service' | 'endpoint' | 'api' | 'stream' | 'collector' | 'build-artifact'; // New field to distinguish resource types
+}
+
+export interface DomainLibraryStats {
+  domain: string;
+  libraries: LibraryInfo[];
+  totalLibraries: number;
+  frameworksCount: number;
+  utilitiesCount: number;
+  analyticsCount: number;
+  polyfillsCount: number;
+  privacyToolsCount: number;
+  trackingToolsCount: number;
+  siteToolsCount: number;
+  mediaToolsCount: number;
+  performanceToolsCount: number;
+  // Service counts
+  servicesCount: number;
+  streamingServicesCount: number;
+  dataCollectorsCount: number;
+  buildArtifactsCount: number;
+  // New resource type counts
+  websocketCount: number;
+  graphqlCount: number;
+  serviceWorkerCount: number;
+  webFontCount: number;
+  configFileCount: number;
+}
+
+// Library detection patterns with DOM signatures
+const LIBRARY_PATTERNS = {
+  // Major Frameworks
+  react: {
+    patterns: [/react(?:[-.](\d+\.\d+\.\d+))?/i, /react-dom/i, /react\.production/i, /react\.development/i],
+    type: 'framework' as const,
+    cdnPatterns: [/unpkg\.com/, /cdnjs\.cloudflare\.com/, /jsdelivr\.net/],
+    globalSignatures: ['React', 'ReactDOM', '__REACT_DEVTOOLS_GLOBAL_HOOK__'],
+    domSignatures: ['[data-reactroot]', '[data-react-helmet]', '._react'],
+    bundleSignatures: ['react/lib/', 'react-dom/lib/', 'scheduler/lib/']
+  },
+  vue: {
+    patterns: [/vue(?:[-.](\d+\.\d+\.\d+))?/i, /vue\.js/i, /vue\.min/i, /vue\.runtime/i],
+    type: 'framework' as const,
+    cdnPatterns: [/unpkg\.com/, /cdnjs\.cloudflare\.com/, /jsdelivr\.net/],
+    globalSignatures: ['Vue', '__VUE__', '$vue'],
+    domSignatures: ['[data-v-]', 'v-if', 'v-for', 'v-model'],
+    bundleSignatures: ['vue/dist/', 'vue-router/', 'vuex/']
+  },
+  angular: {
+    patterns: [/angular(?:[-.](\d+\.\d+\.\d+))?/i, /@angular/i, /angular\.min/i],
+    type: 'framework' as const,
+    cdnPatterns: [/unpkg\.com/, /cdnjs\.cloudflare\.com/, /jsdelivr\.net/],
+    globalSignatures: ['angular', 'ng', '__NG_ELEMENTS__'],
+    domSignatures: ['[ng-app]', '[ng-controller]', 'ng-scope', '_ngcontent'],
+    bundleSignatures: ['@angular/', 'angular/core', 'angular/common']
+  },
+
+  // jQuery - Popular JavaScript framework
+  jquery: {
+    patterns: [/jquery(?:[-.](\d+\.\d+\.\d+))?/i, /jquery\.min/i, /jquery\.slim/i],
+    type: 'framework' as const,
+    cdnPatterns: [/ajax\.googleapis\.com/, /code\.jquery\.com/, /cdnjs\.cloudflare\.com/],
+    globalSignatures: ['jQuery', '$', '__jquery'],
+    domSignatures: ['jquery-', '.ui-'],
+    bundleSignatures: ['jquery/dist/', 'jquery.min']
+  },
+  lodash: {
+    patterns: [/lodash(?:[-.](\d+\.\d+\.\d+))?/i, /lodash\.min/i],
+    type: 'utility' as const,
+    cdnPatterns: [/unpkg\.com/, /cdnjs\.cloudflare\.com/, /jsdelivr\.net/],
+    globalSignatures: ['_', 'lodash'],
+    domSignatures: [],
+    bundleSignatures: ['lodash/']
+  },
+  axios: {
+    patterns: [/axios(?:[-.](\d+\.\d+\.\d+))?/i, /axios\.min/i],
+    type: 'utility' as const,
+    cdnPatterns: [/unpkg\.com/, /cdnjs\.cloudflare\.com/, /jsdelivr\.net/],
+    globalSignatures: ['axios'],
+    domSignatures: [],
+    bundleSignatures: ['axios/dist/', 'axios/lib/']
+  },
+
+  // Data Visualization Framework
+  d3: {
+    patterns: [/d3(?:[-.](\d+\.\d+\.\d+))?/i, /d3\.min/i, /d3\.v[4-7]/i],
+    type: 'framework' as const,
+    cdnPatterns: [/d3js\.org/, /unpkg\.com/, /cdnjs\.cloudflare\.com/],
+    globalSignatures: ['d3'],
+    domSignatures: ['d3-', '[data-d3]'],
+    bundleSignatures: ['d3-', 'd3/dist/']
+  },
+
+  // Analytics & Tracking
+  gtag: {
+    patterns: [/gtag/i, /google-analytics/i, /googletagmanager/i, /analytics\.js/i, /ga\.js/i],
+    type: 'data-collector' as const,
+    cdnPatterns: [/googletagmanager\.com/, /google-analytics\.com/],
+    globalSignatures: ['gtag', 'ga', 'GoogleAnalyticsObject'],
+    domSignatures: [],
+    bundleSignatures: ['gtag/', 'google-analytics']
+  },
+
+  // CSS/JS Framework
+  bootstrap: {
+    patterns: [/bootstrap(?:[-.](\d+\.\d+\.\d+))?/i, /bootstrap\.min/i],
+    type: 'framework' as const,
+    cdnPatterns: [/maxcdn\.bootstrapcdn\.com/, /cdnjs\.cloudflare\.com/, /jsdelivr\.net/],
+    globalSignatures: ['bootstrap'],
+    domSignatures: ['btn-', 'col-', 'row', 'container-', 'modal-'],
+    bundleSignatures: ['bootstrap/dist/', 'bootstrap/scss/']
+  },
+
+  // Privacy & Consent Tools
+  onetrust: {
+    patterns: [/onetrust/i, /otgpp/i, /otbannersdk/i, /otsdkstub/i, /optanon/i],
+    type: 'privacy-tools' as const,
+    cdnPatterns: [/onetrust\.com/, /cookielaw\.org/],
+    globalSignatures: ['OneTrust', 'OptanonWrapper', 'OT'],
+    domSignatures: ['onetrust-', 'optanon-', 'ot-'],
+    bundleSignatures: ['onetrust', 'optanon'],
+    description: 'GDPR/Privacy compliance and cookie consent management'
+  },
+  cookiebot: {
+    patterns: [/cookiebot/i, /cookiebanner/i],
+    type: 'privacy-tools' as const,
+    cdnPatterns: [/consent\.cookiebot\.com/],
+    globalSignatures: ['Cookiebot'],
+    domSignatures: ['cookiebot-', 'cb-'],
+    bundleSignatures: ['cookiebot'],
+    description: 'Cookie consent and privacy compliance'
+  },
+
+  // Identity & Tracking Tools
+  universalid: {
+    patterns: [/universalid/i, /iiquniversalid/i, /id-sync/i, /identity.*sync/i],
+    type: 'tracking-tools' as const,
+    cdnPatterns: [/adsystem\.amazon/, /liveramp\.com/],
+    globalSignatures: ['universalId', 'iiq'],
+    domSignatures: [],
+    bundleSignatures: ['universalid', 'identity'],
+    description: 'Cross-site user identification and audience synchronization'
+  },
+  trackingpixel: {
+    patterns: [/pixel/i, /beacon/i, /collect/i, /track(?:ing)?/i],
+    type: 'tracking-tools' as const,
+    cdnPatterns: [/facebook\.com/, /google-analytics\.com/, /doubleclick\.net/],
+    globalSignatures: ['fbq', '_gaq', 'gtag'],
+    domSignatures: [],
+    bundleSignatures: ['pixel', 'tracking'],
+    description: 'User behavior tracking and analytics collection'
+  },
+
+  // Site-Specific Tools
+  authentication: {
+    patterns: [/auth(?:entication)?/i, /login/i, /oauth/i, /sso/i],
+    type: 'site-tools' as const,
+    cdnPatterns: [/auth0\.com/, /okta\.com/],
+    globalSignatures: ['Auth0', 'okta'],
+    domSignatures: ['auth-', 'login-'],
+    bundleSignatures: ['auth', 'login'],
+    description: 'User authentication and access control'
+  },
+  sitefeatures: {
+    patterns: [/landing/i, /freeview/i, /zion/i, /paywall/i],
+    type: 'site-tools' as const,
+    cdnPatterns: [],
+    globalSignatures: [],
+    domSignatures: [],
+    bundleSignatures: ['landing', 'freeview', 'zion'],
+    description: 'Site-specific features and business logic'
+  },
+
+  // Media & Performance Tools
+  videotools: {
+    patterns: [/video/i, /player/i, /stream/i, /jwplayer/i, /videojs/i],
+    type: 'media-tools' as const,
+    cdnPatterns: [/jwplatform\.com/, /vimeo\.com/, /youtube\.com/],
+    globalSignatures: ['jwplayer', 'videojs', 'Vimeo'],
+    domSignatures: ['video-', 'player-'],
+    bundleSignatures: ['video', 'player'],
+    description: 'Video streaming and media playback'
+  },
+  loadingtools: {
+    patterns: [/load(?:er)?/i, /lazy/i, /defer/i, /preload/i],
+    type: 'performance-tools' as const,
+    cdnPatterns: [],
+    globalSignatures: ['LazyLoad', 'IntersectionObserver'],
+    domSignatures: ['lazy-', 'loading-'],
+    bundleSignatures: ['lazy', 'loader'],
+    description: 'Content loading optimization and lazy loading'
+  },
+
+  // Browser Compatibility Polyfills
+  polyfills: {
+    patterns: [/polyfill/i, /babel-polyfill/i, /core-js/i, /es[5-9]?-shim/i, /es6-promise/i, /whatwg-fetch/i],
+    type: 'polyfill' as const,
+    cdnPatterns: [/polyfill\.io/, /cdnjs\.cloudflare\.com/, /unpkg\.com/],
+    globalSignatures: ['polyfill', '_babelPolyfill', 'core'],
+    domSignatures: [],
+    bundleSignatures: ['polyfill', 'babel-polyfill', 'core-js', 'es6-shim'],
+    description: 'Browser compatibility and feature polyfills'
+  }
+};
+
+// CDN provider detection
+const CDN_PROVIDERS = {
+  'cdnjs.cloudflare.com': 'Cloudflare',
+  'unpkg.com': 'UNPKG',
+  'jsdelivr.net': 'jsDelivr',
+  'ajax.googleapis.com': 'Google Hosted Libraries',
+  'code.jquery.com': 'jQuery CDN',
+  'maxcdn.bootstrapcdn.com': 'Bootstrap CDN',
+  'static.hotjar.com': 'Hotjar',
+  'cdn.segment.com': 'Segment',
+  'googletagmanager.com': 'Google Tag Manager',
+  'polyfill.io': 'Polyfill.io'
+};
+
+export class LibraryDetector {
+  /**
+   * Classify the type of 3rd party domain for UI indicators
+   */
+  static classifyThirdPartyDomain(domain: string): { isThirdParty: boolean; thirdPartyType?: 'advertising' | 'tracking' | 'cdn' | 'analytics' | 'social' | 'other' } {
+    // CDN domains
+    const cdnDomains = [
+      'cdnjs.cloudflare.com', 'cdn.jsdelivr.net', 'unpkg.com', 'ajax.googleapis.com',
+      'code.jquery.com', 'stackpath.bootstrapcdn.com', 'maxcdn.bootstrapcdn.com',
+      'use.fontawesome.com', 'fonts.googleapis.com', 'fonts.gstatic.com'
+    ];
+
+    // Analytics domains
+    const analyticsDomains = [
+      'google-analytics.com', 'googletagmanager.com', 'hotjar.com', 'mixpanel.com',
+      'segment.com', 'amplitude.com', 'browser-intake-datadoghq.com'
+    ];
+
+    // Social media domains
+    const socialDomains = [
+      'facebook.net', 'twitter.com', 'linkedin.com', 'pinterest.com',
+      'instagram.com', 'snapchat.com', 'tiktok.com'
+    ];
+
+    // Ad/tracking domains
+    const adTrackingDomains = [
+      'casalemedia.com', 'criteo.com', 'adsrvr.org', 'pubmatic.com', 'doubleclick.net',
+      'googlesyndication.com', 'googleadservices.com', 'amazon-adsystem.com',
+      'wknd.ai', 'ssp.wknd.ai', 'bidder.criteo.com'
+    ];
+
+    // Check CDN
+    if (cdnDomains.some(cdn => domain.includes(cdn)) || /cdn|static|assets/.test(domain)) {
+      return { isThirdParty: true, thirdPartyType: 'cdn' };
+    }
+
+    // Check analytics
+    if (analyticsDomains.some(analytics => domain.includes(analytics))) {
+      return { isThirdParty: true, thirdPartyType: 'analytics' };
+    }
+
+    // Check social
+    if (socialDomains.some(social => domain.includes(social))) {
+      return { isThirdParty: true, thirdPartyType: 'social' };
+    }
+
+    // Check advertising/tracking
+    if (adTrackingDomains.some(ad => domain.includes(ad))) {
+      return { isThirdParty: true, thirdPartyType: 'advertising' };
+    }
+
+    // Default: not identified as 3rd party
+    return { isThirdParty: false };
+  }
+
+  /**
+   * Main detection method that analyzes a request for library usage
+   */
+  static detectFromRequest(url: string, headers: Record<string, any> = {}, responseBody?: string): LibraryInfo[] {
+    console.log('🔧 DEBUG: detectFromRequest called with URL:', url);
+    console.log('[LibraryDetector] Analyzing request:', { url, hasHeaders: Object.keys(headers).length > 0, hasBody: !!responseBody });
+
+    const libraries: LibraryInfo[] = [];
+    const domain = new URL(url).hostname;
+
+    // Detect from URL patterns
+    const urlLibraries = this.detectFromUrl(url);
+    console.log('[LibraryDetector] URL pattern detection:', { url, found: urlLibraries.length, libraries: urlLibraries });
+    libraries.push(...urlLibraries);
+
+    // Detect from headers if available
+    if (Object.keys(headers).length > 0) {
+      const headerLibraries = this.detectFromHeaders(headers, url);
+      console.log('[LibraryDetector] Header detection:', { url, found: headerLibraries.length, libraries: headerLibraries });
+      libraries.push(...headerLibraries);
+    }
+
+    // Detect from response content if available
+    if (responseBody) {
+      const contentLibraries = this.detectFromContent(responseBody, url);
+      console.log('[LibraryDetector] Content detection:', { url, found: contentLibraries.length, libraries: contentLibraries });
+      libraries.push(...contentLibraries);
+    }
+
+    // Deduplicate and set domain for all libraries
+    const uniqueLibraries = this.deduplicateLibraries(libraries);
+    uniqueLibraries.forEach(lib => {
+      lib.domain = domain;
+    });
+
+    console.log('[LibraryDetector] Final detection results:', { url, detectedCount: uniqueLibraries.length, libraries: uniqueLibraries });
+    return uniqueLibraries;
+  }
+
+  /**
+   * Detect libraries based on URL patterns
+   */
+  private static detectFromUrl(url: string): LibraryInfo[] {
+    const libraries: LibraryInfo[] = [];
+    const urlLower = url.toLowerCase();
+
+    console.log('[LibraryDetector] detectFromUrl starting:', { url, urlLower });
+
+    // 🚨 PRIORITY CHECK: Build artifacts (source maps) should be detected FIRST
+    // This prevents them from being misclassified as API endpoints or other types
+    const filename = url.split('/').pop() || '';
+    const buildArtifactInfo = this.detectBuildArtifact(url, filename);
+    if (buildArtifactInfo) {
+      console.log('[LibraryDetector] Build artifact detected early:', buildArtifactInfo);
+      return [buildArtifactInfo]; // Return immediately - no need for further processing
+    }
+
+    // Check against known library patterns
+    for (const [libraryName, config] of Object.entries(LIBRARY_PATTERNS)) {
+      for (const pattern of config.patterns) {
+        const match = urlLower.match(pattern);
+        if (match) {
+          console.log('[LibraryDetector] Pattern match found:', { libraryName, pattern: pattern.source, url });
+          const version = match[1] || undefined;
+          const cdnProvider = this.detectCdnProvider(url);
+
+          libraries.push({
+            name: libraryName,
+            version,
+            type: config.type,
+            url,
+            cdnProvider,
+            isMinified: this.isMinified(url),
+            confidence: cdnProvider ? 0.9 : 0.7, // Higher confidence for CDN sources
+            domain: '',
+            detectionMethod: 'url-pattern'
+          });
+        }
+      }
+    }
+
+    // Only try generic library detection if no known patterns matched
+    if (libraries.length === 0) {
+      console.log('[LibraryDetector] No pattern matches found, attempting generic detection for:', url);
+      const genericLibrary = this.detectGenericLibrary(url);
+      if (genericLibrary) {
+        // CRITICAL FIX: Override generic detection for known libraries
+        const filename = url.split('/').pop() || '';
+        const toolName = filename.replace(/\.(?:min\.)?js(\?.*)?$/i, '').replace(/\?.*$/, '').toLowerCase();
+
+        if (/^(d3|vue|react|jquery)$/i.test(toolName)) {
+          console.log('[LibraryDetector] Overriding generic detection for known library:', toolName);
+          genericLibrary.type = 'framework';
+          genericLibrary.description = toolName === 'd3' ? 'Data visualization library (D3.js)' :
+                                     toolName === 'vue' ? 'Vue.js framework library' :
+                                     toolName === 'react' ? 'React framework library' :
+                                     'JavaScript framework library';
+          genericLibrary.serviceType = 'library';
+          genericLibrary.confidence = 0.9; // High confidence for known libraries
+        }
+
+        console.log('[LibraryDetector] Generic detection success:', genericLibrary);
+        libraries.push(genericLibrary);
+      } else {
+        console.log('[LibraryDetector] Generic detection failed for:', url);
+      }
+    } else {
+      console.log('[LibraryDetector] Skipping generic detection due to existing pattern matches:', libraries.length);
+    }
+
+    console.log('[LibraryDetector] detectFromUrl finished:', { url, foundCount: libraries.length, libraries });
+    return libraries;
+  }
+
+  /**
+   * Enhanced generic tool detection with intelligent categorization
+   */
+  private static detectGenericLibrary(url: string): LibraryInfo | null {
+    const filename = url.split('/').pop() || '';
+
+    // Only filter out obvious non-JavaScript resources
+    const nonJavaScriptPatterns = [
+      /\.(css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|pdf|xml|json)(\?|$)/i,
+      /\/images\//, /\/img\//, /\/css\//, /\/fonts\//
+    ];
+
+    if (nonJavaScriptPatterns.some(pattern => pattern.test(url))) {
+      return null;
+    }
+
+    // Note: Build artifact detection is now handled earlier in detectFromUrl for priority
+
+    // Extract tool name from URL - be more flexible about file extensions
+    let toolName = '';
+
+    // First try to get name from filename
+    if (filename) {
+      // Remove common JavaScript extensions and query parameters
+      toolName = filename
+        .replace(/\.(?:min\.)?js(\?.*)?$/i, '') // Remove .js, .min.js with query params
+        .replace(/\?.*$/, '') // Remove any remaining query parameters
+        .toLowerCase();
+    }
+
+    // If no good filename, try to get name from path
+    if (!toolName || toolName.length < 1) {
+      const pathParts = url.split('/').filter(part => part && !part.includes('.') && part.length > 0);
+      toolName = pathParts[pathParts.length - 1] || '';
+    }
+
+    // If still no name, try to extract from URL path more aggressively
+    if (!toolName || toolName.length < 1) {
+      try {
+        const urlPath = new URL(url, 'https://example.com').pathname;
+        const pathSegments = urlPath.split('/').filter(segment => segment.length > 0);
+        toolName = pathSegments[pathSegments.length - 1] || 'unknown-script';
+
+        // Clean up the tool name
+        toolName = toolName
+          .replace(/\?.*$/, '') // Remove query params
+          .replace(/\.(min\.)?js$/i, '') // Remove JS extensions
+          .toLowerCase();
+      } catch (e) {
+        // Fallback for invalid URLs
+        toolName = 'unknown-script';
+      }
+    }
+
+    // Skip if tool name is too short or generic
+    if (!toolName || toolName.length < 2 || toolName === 'unknown-script') {
+      return null;
+    }
+
+    console.log('[LibraryDetector] Generic detection for:', { url, filename, toolName });
+
+    // Intelligent categorization based on patterns
+    const categorization = this.categorizeWebTool(toolName, url);
+
+    // Extract version if available
+    const versionMatch = url.match(/(\d+\.\d+(?:\.\d+)?)/);
+    const version = versionMatch ? versionMatch[1] : undefined;
+
+    // Calculate confidence based on multiple factors
+    let confidence = 0.5; // Base confidence
+
+    // Boost confidence for known patterns
+    if (version) confidence += 0.2; // Has version
+    if (this.detectCdnProvider(url)) confidence += 0.2; // From CDN
+    if (/\.(min\.js|js)$/i.test(filename)) confidence += 0.1; // Proper JS file
+
+    // Boost confidence for known library names
+    if (/^(d3|jquery|lodash|axios|react|vue|angular)$/i.test(toolName)) {
+      confidence += 0.3; // Known libraries get higher confidence
+    }
+
+    // Reduce confidence for very generic names
+    if (/^(app|main|index|bundle|vendor|get|tag|c|t|js)$/i.test(toolName)) {
+      confidence -= 0.2; // Generic names get lower confidence
+    }
+
+    // Cap confidence between 0.3 and 0.95
+    confidence = Math.max(0.3, Math.min(0.95, confidence));
+
+    return {
+      name: toolName,
+      version,
+      type: categorization.type,
+      url,
+      cdnProvider: this.detectCdnProvider(url),
+      isMinified: /\.min\.js/i.test(filename),
+      confidence: confidence,
+      domain: '',
+      detectionMethod: 'url-pattern',
+      description: categorization.description,
+      serviceType: categorization.serviceType as 'library' | 'service' | 'endpoint' | 'api' | 'stream' | 'collector' | 'build-artifact'
+    };
+  }
+
+  /**
+   * 🏗️ NEW: Detect Build Artifacts (webpack bundles, minified builds, etc.)
+   * These are NOT libraries but bundled/compiled assets from build tools
+   */
+  private static detectBuildArtifact(url: string, filename: string): LibraryInfo | null {
+    const urlLower = url.toLowerCase();
+    const filenameLower = filename.toLowerCase();
+
+    // 🚨 PRIORITY: Source Maps (highest priority for build artifacts)
+    // Enhanced detection for source maps including query parameters
+    // Multiple robust detection patterns for source maps
+    const isSourceMap =
+      /\.map(\?|$|&)/i.test(url) ||           // .map followed by query, end, or &
+      /\.map$/i.test(filename) ||             // filename ends with .map
+      /\.map\?/i.test(url) ||                 // .map followed by query params
+      url.endsWith('.map') ||                 // URL ends with .map
+      filename.endsWith('.map') ||            // filename ends with .map
+      /[?&]\w+\.map($|&)/i.test(url) ||      // .map in query parameters
+      /\.map[?&]/i.test(url);                 // .map followed by query params
+
+    if (isSourceMap) {
+      let baseName = filename.replace(/\.map$/i, '').replace(/\?.*$/, '');
+
+      // Handle source maps in query parameters like "tag?...&upapi=true.map"
+      if (!baseName || baseName.includes('?')) {
+        try {
+          // Try to parse as full URL first
+          let urlObj;
+          if (url.startsWith('http')) {
+            urlObj = new URL(url);
+          } else {
+            // Handle relative URLs by adding a dummy base
+            urlObj = new URL(url, 'https://example.com/');
+          }
+
+          let potentialName = urlObj.pathname.split('/').pop() || '';
+
+          // Check if .map appears in query parameters
+          if (urlObj.search.includes('.map')) {
+            const queryMatch = urlObj.search.match(/(\w+)\.map/);
+            if (queryMatch) {
+              potentialName = queryMatch[1];
+            }
+          }
+
+          // Fallback to path-based name
+          if (!potentialName || potentialName.includes('?')) {
+            potentialName = urlObj.pathname.split('/').pop()?.split('?')[0] || 'source-map';
+          }
+
+          baseName = potentialName.replace(/\.map.*$/, '') || 'source-map';
+        } catch (e) {
+          // Fallback parsing for problematic URLs
+          const parts = url.split(/[?&]/);
+          for (const part of parts) {
+            if (part.includes('.map')) {
+              const mapMatch = part.match(/(\w+)\.map/);
+              if (mapMatch) {
+                baseName = mapMatch[1];
+                break;
+              }
+            }
+          }
+          if (!baseName) {
+            baseName = 'source-map';
+          }
+        }
+      }
+
+      return {
+        name: baseName || 'source-map',
+        version: undefined,
+        type: 'build-artifact',
+        url,
+        cdnProvider: this.detectCdnProvider(url),
+        isMinified: false,
+        confidence: 0.99, // Very high confidence for source maps
+        domain: '',
+        detectionMethod: 'source-map',
+        description: 'Source map for debugging',
+        serviceType: 'build-artifact'
+      };
+    }
+
+    // Build artifact patterns - files generated by build tools, not actual libraries
+    // STRICT PATTERNS: Only match files that clearly have content hashes/build signatures
+    const buildArtifactPatterns = [
+      // Webpack/Bundle patterns with content hashes - more flexible for version numbers
+      /^[a-zA-Z0-9_-]+(?:-v?\d+)?[-_][a-f0-9]{8,}(\.min)?\.(js|br\.js|gz\.js)$/i, // main-v2_59e560d0d47d739292b20b3756404e4f.br.js
+      /^[a-zA-Z0-9_-]*[-_]?[a-f0-9]{32,}(\.min)?\.(js|br\.js|gz\.js)$/i, // content hashes
+      /^[a-zA-Z0-9_-]*[-_]?[a-f0-9]{16,31}(\.min)?\.(js|br\.js|gz\.js)$/i, // medium hashes
+
+      // Common build tool output patterns (REQUIRE hash - more strict)
+      /^(main|app|bundle|chunk|vendor|runtime|commons?|manifest|polyfills?)[-_\.][a-f0-9]{8,}(\.min)?\.(js|br\.js|gz\.js)$/i,
+      /^[a-f0-9]{8,}\.(js|br\.js|gz\.js)$/i, // Pure hash filenames (require 8+ chars)
+
+      // Build tool specific patterns (REQUIRE hash)
+      /webpack[-_\.][a-f0-9]{6,}/i, // webpack outputs
+      /rollup[-_\.][a-f0-9]{6,}/i,  // rollup outputs
+      /vite[-_\.][a-f0-9]{6,}/i,    // vite outputs
+      /parcel[-_\.][a-f0-9]{6,}/i,  // parcel outputs
+
+      // Compressed bundle indicators
+      /\.(br|brotli|gz|gzip)\.js$/i, // Brotli/gzip compressed bundles
+
+      // Module/chunk patterns (REQUIRE hash)
+      /^(esm|cjs|umd|iife)[-_\.][a-f0-9]{6,}/i, // module format with hash
+      /^[0-9]+\.[a-f0-9]{8,}\.js$/i, // numbered chunks with hashes (require 8+ chars)
+    ];
+
+    // URL-based build artifact detection
+    const urlBuildPatterns = [
+      /\/_next\//i,           // Next.js builds
+      /\/_nuxt\//i,           // Nuxt.js builds
+      /\/build\//i,           // Generic build directories
+      /\/dist\//i,            // Distribution directories
+      /\/assets\//i,          // Asset directories
+      /\/static\/js\//i,      // Static JavaScript assets
+      /\/chunks?\//i,         // Chunk directories
+      /\/bundles?\//i,        // Bundle directories
+    ];
+
+    // Check filename patterns
+    const hasContentHash = /[a-f0-9]{8,}/.test(filenameLower);
+    const isCompressed = /\.(br|brotli|gz|gzip)\.js$/i.test(filenameLower);
+    const matchesBuildPattern = buildArtifactPatterns.some(pattern => pattern.test(filenameLower));
+    const matchesUrlPattern = urlBuildPatterns.some(pattern => pattern.test(urlLower));
+
+    if (matchesBuildPattern || (hasContentHash && (isCompressed || matchesUrlPattern))) {
+      console.log('[LibraryDetector] Build artifact detected:', {
+        filename: filenameLower,
+        hasContentHash,
+        isCompressed,
+        matchesBuildPattern,
+        matchesUrlPattern
+      });
+
+      // Extract meaningful name from build artifact
+      let displayName = filename;
+
+      // Try to extract base name before hash/version
+      const hashMatch = filenameLower.match(/^([a-zA-Z0-9_-]+?)[-_.]+[a-f0-9]{6,}/i);
+      if (hashMatch) {
+        displayName = hashMatch[1];
+      }
+
+      // Clean up common build prefixes/suffixes
+      displayName = displayName
+        .replace(/\.(min\.)?js$/i, '')
+        .replace(/^(main|app|bundle|chunk|vendor|runtime|commons?|manifest|polyfills?)[-_.]?/i, '')
+        .replace(/[-_.]?(min|minified)$/i, '');
+
+      // If name becomes too generic, use more descriptive naming
+      if (!displayName || displayName.length < 2 || /^[a-f0-9]+$/i.test(displayName)) {
+        if (filenameLower.includes('main')) displayName = 'main-bundle';
+        else if (filenameLower.includes('vendor')) displayName = 'vendor-bundle';
+        else if (filenameLower.includes('chunk')) displayName = 'chunk-bundle';
+        else if (filenameLower.includes('runtime')) displayName = 'runtime-bundle';
+        else if (isCompressed) displayName = 'compressed-bundle';
+        else displayName = 'build-bundle';
+      }
+
+      // Detect build tool if possible
+      let buildTool = 'unknown';
+      if (urlLower.includes('webpack')) buildTool = 'webpack';
+      else if (urlLower.includes('rollup')) buildTool = 'rollup';
+      else if (urlLower.includes('vite')) buildTool = 'vite';
+      else if (urlLower.includes('parcel')) buildTool = 'parcel';
+      else if (urlLower.includes('_next')) buildTool = 'next.js';
+      else if (urlLower.includes('_nuxt')) buildTool = 'nuxt.js';
+
+      return {
+        name: displayName,
+        version: buildTool !== 'unknown' ? buildTool : undefined,
+        type: 'build-artifact',
+        url,
+        cdnProvider: this.detectCdnProvider(url),
+        isMinified: /\.min\./i.test(filename) || isCompressed,
+        confidence: 0.95, // High confidence for build artifacts
+        domain: '',
+        detectionMethod: 'url-pattern',
+        description: `Build tool output${buildTool !== 'unknown' ? ` (${buildTool})` : ''}${isCompressed ? ' - compressed' : ''}`,
+        serviceType: 'build-artifact'
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Categorize web tools based on name and URL patterns
+   */
+  private static categorizeWebTool(name: string, url: string): { type: LibraryInfo['type']; description: string; serviceType?: string } {
+    const nameLower = name.toLowerCase();
+    const urlLower = url.toLowerCase();
+
+    // 🚨 PRIORITY 1: SOURCE MAPS (highest priority - should be detected first)
+    if (/\.map(\?|$|&)/i.test(urlLower) || /\.map$/i.test(nameLower)) {
+      return {
+        type: 'build-artifact',
+        description: 'Source map file for debugging',
+        serviceType: 'build-artifact'
+      };
+    }
+
+    // 🚨 PRIORITY 1.1: TRACKING & SYNC SERVICES (very specific patterns, excluding source maps)
+    if (/(?:sync\?|trackingpixel|beacon|universalid-sync|track\?|pixel\?|collect\?|tp2|events\?)/i.test(urlLower) ||
+        /(?:universalid|iiquniversalid|sync|trackingpixel|beacon|tp2|events)/i.test(nameLower)) {
+      return {
+        type: 'tracking-tools',
+        description: 'User tracking and identity synchronization',
+        serviceType: 'tracking'
+      };
+    }
+
+    // 🚨 PRIORITY 1.2: KNOWN LIBRARIES (highest priority for exact matches)
+    // Handle exact library names that might be misclassified as generic
+    if (/^(d3|vue|react|jquery|lodash|axios|moment|dayjs|underscore|backbone|ember)$/i.test(nameLower) &&
+        !(/(?:casalemedia|criteo|pubmatic|doubleclick|adsystem|advertising)/i.test(urlLower))) {
+      const libraryType = /^(d3|react|vue|jquery)$/i.test(nameLower) ? 'framework' : 'utility';
+      const libraryDesc = nameLower === 'd3' ? 'Data visualization library (D3.js)' :
+                         nameLower === 'vue' ? 'Vue.js framework library' :
+                         nameLower === 'react' ? 'React framework library' :
+                         nameLower === 'jquery' ? 'JavaScript framework library' :
+                         'JavaScript utility library';
+      return {
+        type: libraryType,
+        description: libraryDesc,
+        serviceType: 'library'
+      };
+    }
+
+    // 🚨 PRIORITY 1.3: VERY GENERIC NAMES (catch before other processing)
+    // These are almost certainly build artifacts, not libraries
+    if (/^(c|js|tag|get|app|main|index|bundle|vendor|runtime|min|t|v2|ui)$/i.test(nameLower) &&
+        !(/(?:d3|react|vue|jquery|angular)/i.test(urlLower))) {
+      return {
+        type: 'build-artifact',
+        description: 'Generic build output or application file',
+        serviceType: 'build-artifact'
+      };
+    }
+
+    // 🚨 PRIORITY 1.4: SPECIFIC ADVERTISING TOOLS (catch specific tool names)
+    if (/(?:translator|videotools|pwt|id5prebidmodule|pubads_impl)/i.test(nameLower) ||
+        /(?:id5-sync\.com|prebid|prebidmodule)/i.test(urlLower)) {
+      return {
+        type: 'tracking-tools',
+        description: 'Advertising technology and prebid services',
+        serviceType: 'advertising'
+      };
+    }
+
+    // 🎯 PRIORITY 1.6: FRAMEWORK LIBRARIES WITH EXTENSIONS (for .js files)
+    // Vue.js and D3.js detection by file extension patterns
+    if ((/\b(?:vue|d3)(?:\.min)?\.js\b/i.test(urlLower)) &&
+        !(/(?:ssp\.wknd\.ai|wknd\.ai|adsrvr|casalemedia|criteo|pubmatic|doubleclick|adsystem)/i.test(urlLower))) {
+      const isVue = /vue/i.test(nameLower + urlLower);
+      return {
+        type: 'framework',
+        description: isVue ? 'Vue.js framework library' : 'Data visualization library (D3.js)',
+        serviceType: 'library'
+      };
+    }
+
+    // 🚨 PRIORITY 1.7: ADVERTISING & MARKETING SERVICES (include AdFuel + enhanced patterns)
+    // Note: D3.js is handled above, so we can include 'd3' in ad patterns for other contexts
+    if (/(?:casalemedia|criteo|adsrvr|pubmatic|doubleclick|adsystem|bidder|cdb|hbopenbid|wunderkind|magnite|cygnus|3159|gpt|apstag|pubads|adfuel|amazonad|amazon-adsystem|googlesyndication|adtrafficquality)/i.test(nameLower + urlLower) ||
+        /(?:dfp_premium|instream|video_ad|video-ad|securepubads|btloader|jadserve|postrelease|bounceexchange)/i.test(urlLower)) {
+      return {
+        type: 'tracking-tools',
+        description: 'Advertising and programmatic bidding service',
+        serviceType: 'advertising'
+      };
+    }
+
+    // 🚨 PRIORITY 3: ANALYTICS & DATA COLLECTION (include chartbeat_video + enhanced patterns)
+    if (/(?:collector|logs|analytics|browser-intake|optimizely|events|datadog|segment|amplitude|hotjar|gtag|ga|chartbeat|streamsense|tp2|trackingpixel|turner|geo4)/i.test(nameLower + urlLower)) {
+      return {
+        type: 'data-collector',
+        description: 'Analytics and data collection service',
+        serviceType: 'collector'
+      };
+    }
+
+    // 🚨 PRIORITY 4: TAG MANAGEMENT & LAUNCH TOOLS (include Adobe Launch + enhanced patterns)
+    if (/(?:launch[-_.]|adobe|tag|gtm|googletagmanager|tealium|launch-[a-f0-9]{10,})/i.test(nameLower + urlLower)) {
+      return {
+        type: 'site-tools',
+        description: 'Tag management and site optimization',
+        serviceType: 'library'
+      };
+    }
+
+    // 🚨 PRIORITY 5: MEDIA & STREAMING SERVICES (consolidated with media-tools)
+    if (/(?:livestream|manifests|streaming|warnermediacdn|live-manifests|jwplayer|media-stream|cnn-adfuel|videotools|translator|chartbeat_video)/i.test(nameLower + urlLower) &&
+        !(/(?:chartbeat|analytics|track|collect|cygnus|d3)/i.test(nameLower + urlLower))) {
+      return {
+        type: 'media-tools',
+        description: 'Media streaming and content delivery service',
+        serviceType: 'stream'
+      };
+    }
+
+    // 🎯 PRIVACY & COMPLIANCE SERVICES (enhanced patterns)
+    if (/(?:onetrust|otgpp|otbanner|otsdkstub|cookiebot|consent|privacy|gdpr|ccpa|optanon|adsafeprotected|adtrafficquality|iaspet|sitefeatures)/i.test(nameLower + urlLower)) {
+      return {
+        type: 'privacy-tools',
+        description: 'Privacy compliance and security service',
+        serviceType: 'service'
+      };
+    }
+
+    // 🎯 SITE-SPECIFIC FEATURES (Traditional Libraries)
+    if (/(?:auth|login|landing|landingprod|freeview|zion|web-client|mb|paywall|checkout|cart|alerts|authentication|reg)/i.test(nameLower + urlLower)) {
+      return {
+        type: 'site-tools',
+        description: 'Site-specific functionality and features',
+        serviceType: 'library'
+      };
+    }
+
+    // 🎯 PERFORMANCE LIBRARIES (Traditional Libraries)
+    if (/(?:loadingtools|load|loader|lazy|defer|preload|cache|optimize|compress|psm|taglw|campaign-index|website|build-bundle)/i.test(nameLower + urlLower)) {
+      return {
+        type: 'performance-tools',
+        description: 'Performance optimization and loading libraries',
+        serviceType: 'library'
+      };
+    }
+
+    // 🎯 REAL-TIME COMMUNICATION & API SERVICES (consolidated with service)
+    if (/(?:websocket|ws|socket\.io|sockjs|realtime|sse|server-sent|push-notifications|graphql|gql|apollo|relay|query|mutation|subscription)/i.test(nameLower + urlLower)) {
+      return {
+        type: 'service',
+        description: 'Real-time communication or API service',
+        serviceType: 'service'
+      };
+    }
+
+    // 🎯 BACKGROUND SCRIPTS & WORKERS (consolidated with utility)
+    if (/(?:service-worker|serviceworker|sw\.js|worker|webworker|background)/i.test(nameLower + urlLower)) {
+      return {
+        type: 'utility',
+        description: 'Background worker or service script',
+        serviceType: 'library'
+      };
+    }
+
+    // 🎯 FONTS & CONFIG (consolidated with build-artifact for non-JS resources)
+    if (/(?:font|typeface|typography|woff|woff2|ttf|otf|eot|webfont|config|manifest|settings|env|environment|\.json|\.xml|\.yaml|\.yml)/i.test(nameLower + urlLower)) {
+      return {
+        type: 'build-artifact',
+        description: 'Asset, configuration, or non-JavaScript resource',
+        serviceType: 'build-artifact'
+      };
+    }
+
+    // 🎯 API ENDPOINTS & WEB SERVICES (more restrictive now - LOWER PRIORITY)
+    // Exclude source maps, build artifacts, advertising services, and common framework names explicitly
+    if (/(?:api\/|endpoint|service|reg|segments|desktop|pub\/|v2\/|receive|wmcdp|zetaglobal|lijit|direct|ssp|wknd)/i.test(urlLower) &&
+        !(/(?:sync|track|collect|analytics|logs|stream|video|auth|tag|launch|vue|react|angular|d3|\.map|cdb|criteo|magnite|wunderkind|cygnus|casalemedia|bidder|hbopenbid|adsystem|doubleclick|pubmatic|adsrvr|amazon-adsystem|googlesyndication|adtrafficquality|bounceexchange)/i.test(nameLower + urlLower))) {
+      return {
+        type: 'service',
+        description: 'API endpoint or web service',
+        serviceType: 'api'
+      };
+    }
+
+    // 🎯 TRADITIONAL JAVASCRIPT LIBRARIES
+    // Framework Detection (includes jQuery, which is foundational)
+    if (/(?:react|vue|angular|ember|backbone|jquery|d3)/i.test(nameLower)) {
+      return {
+        type: 'framework',
+        description: 'JavaScript framework or foundational library',
+        serviceType: 'library'
+      };
+    }
+
+    // UI Libraries (distinguished from utilities)
+    if (/(?:bootstrap|material|semantic|foundation|bulma|tailwind)/i.test(nameLower)) {
+      return {
+        type: 'framework',
+        description: 'User interface library and framework',
+        serviceType: 'library'
+      };
+    }
+
+    // Utility Libraries (DOM manipulation, HTTP, general-purpose)
+    if (/(?:lodash|underscore|axios|fetch|moment|dayjs|uuid|validator|ramda|rxjs|immutable)/i.test(nameLower)) {
+      return {
+        type: 'utility',
+        description: 'JavaScript utility library',
+        serviceType: 'library'
+      };
+    }
+
+    // Browser Compatibility Polyfills
+    if (/(?:polyfill|babel-polyfill|core-js|es[5-9]?-shim|es6-promise|whatwg-fetch)/i.test(nameLower)) {
+      return {
+        type: 'polyfill',
+        description: 'Browser compatibility and feature polyfills',
+        serviceType: 'library'
+      };
+    }
+
+    // Resource Collections (multiple mixed tools/libraries from CDNs)
+    if (/(?:rc[a-f0-9]{32}|ex[a-f0-9]{32}|zfh-\d+)/i.test(nameLower)) {
+      return {
+        type: 'utility',
+        description: 'Resource collection or mixed utility bundle',
+        serviceType: 'library'
+      };
+    }
+
+    // 🚨 IMPROVED FALLBACK: Handle truly generic file names and common build artifacts
+    // Check if this is a generic file name that should be marked as build artifact
+    // EXCLUDE known library names that might be short (d3, vue, etc.)
+    const genericFileNames = /^(app|client|main|index|bundle|vendor|runtime|common|shared|core|global|base|js|script|min|compiled|build|public|dist|src|lib|libs|static|assets|web|sodar|vendorhashes|vendorhashes|get|tag|t|v2|ads-v2|onsite-v2|inbox-v2|c)$/i;
+    const knownLibraryNames = /^(d3|vue|react|angular|jquery|lodash|axios|moment|dayjs|underscore|backbone|ember)$/i;
+
+    if (genericFileNames.test(nameLower) && !knownLibraryNames.test(nameLower)) {
+      return {
+        type: 'build-artifact',
+        description: 'Generic build output or application file',
+        serviceType: 'build-artifact'
+      };
+    }
+
+    // Generic utilities (fallback for more specific names)
+    return {
+      type: 'utility',
+      description: 'JavaScript utility or web resource',
+      serviceType: 'library'
+    };
+  }
+
+  /**
+   * Detect libraries from response content
+   */
+  private static detectFromContent(content: string, url: string): LibraryInfo[] {
+    const libraries: LibraryInfo[] = [];
+
+    // Look for library signatures in the content
+    for (const [libraryName, config] of Object.entries(LIBRARY_PATTERNS)) {
+      for (const pattern of config.patterns) {
+        if (pattern.test(content)) {
+          libraries.push({
+            name: libraryName,
+            version: undefined,
+            type: config.type,
+            url,
+            cdnProvider: this.detectCdnProvider(url),
+            isMinified: this.isMinified(url),
+            confidence: 0.7,
+            domain: '',
+            detectionMethod: 'content-analysis',
+            description: this.getDefaultDescription(config.type)
+          });
+          break; // Avoid duplicates for the same library
+        }
+      }
+    }
+
+    return libraries;
+  }
+
+  /**
+   * Detect libraries from HTTP headers
+   */
+  private static detectFromHeaders(headers: Record<string, any>, url: string): LibraryInfo[] {
+    const libraries: LibraryInfo[] = [];
+
+    // Check common headers that might indicate library usage
+    const headerString = JSON.stringify(headers).toLowerCase();
+
+    for (const [libraryName, config] of Object.entries(LIBRARY_PATTERNS)) {
+      for (const pattern of config.patterns) {
+        if (pattern.test(headerString)) {
+          libraries.push({
+            name: libraryName,
+            version: undefined,
+            type: config.type,
+            url,
+            cdnProvider: this.detectCdnProvider(url),
+            isMinified: this.isMinified(url),
+            confidence: 0.6,
+            domain: '',
+            detectionMethod: 'header-analysis'
+          });
+          break;
+        }
+      }
+    }
+
+    return libraries;
+  }
+
+  /**
+   * Detect CDN provider from URL
+   */
+  private static detectCdnProvider(url: string): string | undefined {
+    for (const [cdnPattern, cdnName] of Object.entries(CDN_PROVIDERS)) {
+      if (url.includes(cdnPattern)) {
+        return cdnName;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Check if a JavaScript file is minified
+   */
+  private static isMinified(url: string): boolean {
+    return /\.min\.js$/i.test(url) || url.includes('minified');
+  }
+
+  /**
+   * Remove duplicate libraries based on name and domain
+   */
+  private static deduplicateLibraries(libraries: LibraryInfo[]): LibraryInfo[] {
+    const seen = new Map<string, LibraryInfo>();
+
+    for (const lib of libraries) {
+      // Create multiple possible keys for better deduplication
+      const keys = [
+        `${lib.name}-${lib.domain}`,
+        `${lib.name}-${lib.type}`, // Handle same library, different detection methods
+        lib.name // Also check just the name for exact library matches
+      ];
+
+      let shouldAdd = true;
+      let bestKey = keys[0];
+
+      // Check if any variant of this library already exists
+      for (const key of keys) {
+        if (seen.has(key)) {
+          const existing = seen.get(key)!;
+
+          // Priority: Known library types > generic types
+          const libTypePriority = this.getTypePriority(lib.type);
+          const existingTypePriority = this.getTypePriority(existing.type);
+
+          if (libTypePriority > existingTypePriority) {
+            // This library has higher priority, replace existing
+            seen.delete(key);
+            bestKey = key;
+            break;
+          } else if (libTypePriority === existingTypePriority) {
+            // Same priority, use confidence
+            if (lib.confidence > existing.confidence) {
+              seen.delete(key);
+              bestKey = key;
+              break;
+            } else {
+              shouldAdd = false;
+              break;
+            }
+          } else {
+            // Existing has higher priority
+            shouldAdd = false;
+            break;
+          }
+        }
+      }
+
+      if (shouldAdd) {
+        seen.set(bestKey, lib);
+      }
+    }
+
+    return Array.from(seen.values());
+  }
+
+  private static getTypePriority(type: LibraryInfo['type']): number {
+    // Higher number = higher priority
+    const priorities = {
+      'framework': 10,
+      'utility': 8,
+      'polyfill': 6,
+      'privacy-tools': 5,
+      'tracking-tools': 4,
+      'site-tools': 4,
+      'media-tools': 4,
+      'performance-tools': 4,
+      'data-collector': 3,
+      'service': 2,
+      'build-artifact': 1
+    };
+    return priorities[type] || 0;
+  }
+
+  /**
+   * 🚀 ADVANCED: Detect libraries from DOM globals and window objects
+   * This can detect libraries that were loaded before network monitoring started
+   */
+  static detectFromDOMGlobals(windowObj: any, domain: string): LibraryInfo[] {
+    const libraries: LibraryInfo[] = [];
+
+    // Native browser APIs that should NOT be detected as libraries
+    const NATIVE_BROWSER_APIS = new Set([
+      'IntersectionObserver', 'MutationObserver', 'ResizeObserver', 'PerformanceObserver',
+      'AbortController', 'AbortSignal', 'Blob', 'URL', 'URLSearchParams',
+      'FormData', 'Headers', 'Request', 'Response', 'fetch',
+      'XMLHttpRequest', 'EventSource', 'WebSocket',
+      'localStorage', 'sessionStorage', 'indexedDB',
+      'crypto', 'console', 'navigator', 'location', 'history',
+      'document', 'window', 'screen', 'performance'
+    ]);
+
+    for (const [libraryName, config] of Object.entries(LIBRARY_PATTERNS)) {
+      if (config.globalSignatures) {
+        for (const signature of config.globalSignatures) {
+          // Skip native browser APIs
+          if (NATIVE_BROWSER_APIS.has(signature)) {
+            console.log(`🚫 [LibraryDetector] Skipping native API: ${signature}`);
+            continue;
+          }
+
+          if (windowObj[signature]) {
+            const globalObj = windowObj[signature];
+            let version: string | undefined;
+
+            // Try to extract version from common version properties
+            if (globalObj.version) version = globalObj.version;
+            else if (globalObj.VERSION) version = globalObj.VERSION;
+            else if (globalObj.fn && globalObj.fn.jquery) version = globalObj.fn.jquery; // jQuery specific
+            else if (globalObj.VERSION_INFO) version = globalObj.VERSION_INFO;
+
+            libraries.push({
+              name: libraryName,
+              version,
+              type: config.type,
+              url: `${domain}/detected-from-global`,
+              isMinified: false, // Can't determine from global
+              confidence: 0.9,
+              domain,
+              detectionMethod: 'dom-global'
+            });
+
+            console.log(`🌍 [LibraryDetector] Detected ${libraryName} from global:`, signature, version ? `v${version}` : 'unknown version');
+            break; // Found one signature, don't need to check others
+          }
+        }
+      }
+    }
+
+    // ENHANCED: Also check for custom/unknown libraries with version properties
+    console.log('🔍 [LibraryDetector] Scanning for custom libraries with version properties...');
+
+    // Look for objects on window that have version properties (common library pattern)
+    const customLibraryNames = [
+      'MyCustomFramework', 'AnalyticsSDK', 'UIComponents', 'TestFramework',
+      'fakeAnalytics', 'customLibrary', 'myLibrary'
+    ];
+
+    // DEBUG: Log what's actually on the window object
+    console.log('🔍 [LibraryDetector] Window object inspection:', {
+      MyCustomFramework: !!windowObj.MyCustomFramework,
+      AnalyticsSDK: !!windowObj.AnalyticsSDK,
+      UIComponents: !!windowObj.UIComponents,
+      React: !!windowObj.React,
+      _: !!windowObj._,
+      jQuery: !!windowObj.jQuery,
+      $: !!windowObj.$
+    });
+
+    for (const libName of customLibraryNames) {
+      console.log(`🔍 [LibraryDetector] Checking ${libName}:`, {
+        exists: !!windowObj[libName],
+        type: typeof windowObj[libName],
+        hasVersion: windowObj[libName]?.version,
+        hasVERSION: windowObj[libName]?.VERSION
+      });
+
+      if (windowObj[libName] && typeof windowObj[libName] === 'object') {
+        const libObj = windowObj[libName];
+        if (libObj.version || libObj.VERSION) {
+          const version = libObj.version || libObj.VERSION;
+
+          // Determine library type from name patterns
+          let type: 'framework' | 'utility' | 'data-collector' | 'polyfill' = 'utility';
+          if (libName.toLowerCase().includes('framework')) type = 'framework';
+          else if (libName.toLowerCase().includes('analytics') || libName.toLowerCase().includes('tracking')) type = 'data-collector';
+          else if (libName.toLowerCase().includes('ui') || libName.toLowerCase().includes('component')) type = 'framework';
+
+          libraries.push({
+            name: libName,
+            version: String(version),
+            type,
+            url: `${domain}/custom-library`,
+            isMinified: false,
+            confidence: 0.8, // Slightly lower confidence for custom detection
+            domain,
+            detectionMethod: 'dom-global'
+          });
+
+          console.log(`🌟 [LibraryDetector] Detected custom library ${libName} v${version}`);
+        }
+      }
+    }
+
+    return libraries;
+  }
+
+  /**
+   * 🚀 ADVANCED: Detect libraries from DOM structure and CSS classes
+   * This can identify UI frameworks by their CSS patterns and DOM attributes
+   */
+  static detectFromDOMStructure(documentObj: Document, domain: string): LibraryInfo[] {
+    const libraries: LibraryInfo[] = [];
+
+    for (const [libraryName, config] of Object.entries(LIBRARY_PATTERNS)) {
+      if (config.domSignatures && config.domSignatures.length > 0) {
+        let foundSignatures = 0;
+
+        for (const signature of config.domSignatures) {
+          try {
+            // Check if it's an attribute selector
+            if (signature.startsWith('[') && signature.endsWith(']')) {
+              if (documentObj.querySelector(signature)) {
+                foundSignatures++;
+              }
+            } else {
+              // Check for CSS classes or element names
+              const elements = documentObj.querySelectorAll(`[class*="${signature}"], [id*="${signature}"]`);
+              if (elements.length > 0) {
+                foundSignatures++;
+              }
+            }
+          } catch (e) {
+            // Invalid selector, skip
+          }
+        }
+
+        // If we found multiple signatures, it's likely this library
+        if (foundSignatures >= Math.min(2, config.domSignatures.length)) {
+          libraries.push({
+            name: libraryName,
+            version: undefined,
+            type: config.type,
+            url: `${domain}/detected-from-dom`,
+            isMinified: false,
+            confidence: 0.8,
+            domain,
+            detectionMethod: 'dom-global'
+          });
+
+          console.log(`🎨 [LibraryDetector] Detected ${libraryName} from DOM structure:`, `${foundSignatures}/${config.domSignatures.length} signatures found`);
+        }
+      }
+    }
+
+    return libraries;
+  }
+
+  /**
+   * 🚀 ADVANCED: Analyze bundled JavaScript for library signatures
+   * This can detect minified/bundled libraries by analyzing source code patterns
+   */
+  static detectFromBundleAnalysis(scriptContent: string, scriptUrl: string, domain: string): LibraryInfo[] {
+    const libraries: LibraryInfo[] = [];
+
+    for (const [libraryName, config] of Object.entries(LIBRARY_PATTERNS)) {
+      if (config.bundleSignatures) {
+        let confidence = 0;
+        let detectedSignatures: string[] = [];
+
+        for (const signature of config.bundleSignatures) {
+          if (scriptContent.includes(signature)) {
+            confidence += 0.3;
+            detectedSignatures.push(signature);
+          }
+        }
+
+        // Additional pattern checks for more confidence
+        for (const pattern of config.patterns) {
+          if (pattern.test(scriptContent)) {
+            confidence += 0.4;
+          }
+        }
+
+        // If confidence is high enough, consider it detected
+        if (confidence >= 0.6) {
+          libraries.push({
+            name: libraryName,
+            version: undefined, // Hard to extract from minified code
+            type: config.type,
+            url: scriptUrl,
+            isMinified: this.isMinified(scriptUrl) || scriptContent.length > 50000, // Large files likely minified
+            confidence: Math.min(confidence, 1.0),
+            domain,
+            detectionMethod: 'script-analysis'
+          });
+
+          console.log(`📦 [LibraryDetector] Detected ${libraryName} from bundle analysis:`, {
+            url: scriptUrl.substring(0, 80),
+            signatures: detectedSignatures,
+            confidence: confidence.toFixed(2)
+          });
+        }
+      }
+    }
+
+    return libraries;
+  }
+
+  /**
+   * 🚀 ADVANCED: Detect libraries from source maps
+   * This can identify original library sources even in production builds
+   */
+  static detectFromSourceMaps(sourceMapData: any, domain: string): LibraryInfo[] {
+    const libraries: LibraryInfo[] = [];
+
+    if (!sourceMapData || !sourceMapData.sources) return libraries;
+
+    const sources = sourceMapData.sources || [];
+
+    for (const source of sources) {
+      const sourceLower = source.toLowerCase();
+
+      for (const [libraryName, config] of Object.entries(LIBRARY_PATTERNS)) {
+        if (config.bundleSignatures) {
+          for (const signature of config.bundleSignatures) {
+            if (sourceLower.includes(signature.toLowerCase())) {
+              // Try to extract version from source path
+              const versionMatch = source.match(/(\d+\.\d+\.\d+)/);
+
+              libraries.push({
+                name: libraryName,
+                version: versionMatch ? versionMatch[1] : undefined,
+                type: config.type,
+                url: `${domain}/source-map-detected`,
+                isMinified: true, // Source maps typically indicate minified builds
+                confidence: 0.95, // Very high confidence from source maps
+                domain,
+                detectionMethod: 'source-map'
+              });
+
+              console.log(`🗺️ [LibraryDetector] Detected ${libraryName} from source map:`, {
+                source,
+                version: versionMatch ? versionMatch[1] : 'unknown'
+              });
+
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    return this.deduplicateLibraries(libraries);
+  }
+
+  /**
+   * Convert LibraryInfo to MinifiedLibrary for storage
+   */
+  static toMinifiedLibrary(library: LibraryInfo, domain: string): MinifiedLibrary {
+    // Extract source domain from the library URL
+    let sourceDomain = '';
+    try {
+      const urlObj = new URL(library.url);
+      sourceDomain = urlObj.hostname;
+
+      // Validate that we have a proper domain
+      if (!sourceDomain || sourceDomain === 'localhost' || sourceDomain.length < 3) {
+        console.warn('[LibraryDetector] Invalid source domain for library:', { url: library.url, domain: sourceDomain });
+        sourceDomain = 'unknown';
+      }
+    } catch (error) {
+      console.warn('[LibraryDetector] Failed to parse library URL:', { url: library.url, error: String(error) });
+      sourceDomain = 'unknown';
+    }
+
+    // Get third-party classification
+    const thirdPartyInfo = this.classifyThirdPartyDomain(sourceDomain);
+
+    return {
+      name: library.name,
+      version: library.version || 'unknown',
+      size: 0, // Size will be determined from actual content when available
+      source_map_available: false, // Will be updated when source maps are detected
+      url: library.url,
+      timestamp: Date.now(),
+      main_domain: domain,
+      source_domain: sourceDomain,
+      third_party_info: thirdPartyInfo.isThirdParty ? {
+        type: thirdPartyInfo.thirdPartyType as 'cdn' | 'analytics' | 'advertising' | 'social' | 'unknown',
+        classification: thirdPartyInfo.thirdPartyType || 'unknown'
+      } : undefined
+    };
+  }
+
+  /**
+   * Get default description for resource types
+   */
+  private static getDefaultDescription(type: LibraryInfo['type']): string {
+    const descriptions = {
+      'framework': 'JavaScript framework or UI library',
+      'utility': 'JavaScript utility library',
+      'analytics': 'Analytics and tracking tool',
+      'polyfill': 'Browser compatibility polyfill',
+      'privacy-tools': 'Privacy and consent management',
+      'tracking-tools': 'User tracking and identification',
+      'site-tools': 'Site-specific functionality',
+      'media-tools': 'Media and content tools',
+      'performance-tools': 'Performance optimization tools',
+      'service': 'Web service, API, or external endpoint',
+      'streaming-service': 'Media streaming service',
+      'data-collector': 'Data collection and analytics service',
+      'build-artifact': 'Build tool output or bundled asset',
+      'websocket': 'Real-time communication channel',
+      'graphql': 'GraphQL API endpoint',
+      'service-worker': 'Background worker script',
+      'web-font': 'Typography and font resource',
+      'config-file': 'Configuration or manifest file'
+    };
+    return descriptions[type] || 'Web resource';
+  }
+
+  /**
+   * 🎯 Smart library name truncation for better UI display
+   * Intelligently shortens long library names while preserving meaningful information
+   */
+  static truncateLibraryName(originalName: string, maxLength: number = 30): string {
+    // If already short enough, return as-is
+    if (originalName.length <= maxLength) {
+      return originalName;
+    }
+
+    // Pattern 1: Random hash-like strings (e.g., "p8dn7fp1liosd47cq1r3sb455.litix.io")
+    if (/^[a-z0-9]{20,}\./.test(originalName)) {
+      const parts = originalName.split('.');
+      if (parts.length >= 2) {
+        const hash = parts[0];
+        const domain = parts.slice(1).join('.');
+        // Keep first 8 chars of hash + "..." + domain
+        return `${hash.substring(0, 8)}...${domain}`;
+      }
+    }
+
+    // Pattern 2: Query parameter heavy URLs (like the livestream example)
+    if (originalName.includes('&') && originalName.includes('=')) {
+      // Extract meaningful parts from query string
+      const parts = originalName.split('&');
+      const meaningfulParams = [];
+
+      // Look for key parameters that give context
+      const keyParams = ['cid', 'conf_csid', 'platform', 'playername', 'tenant', 'device_type'];
+
+      for (const part of parts) {
+        const [key, value] = part.split('=');
+        if (keyParams.includes(key) && value) {
+          meaningfulParams.push(`${key}=${value}`);
+        }
+      }
+
+      if (meaningfulParams.length > 0) {
+        let result = meaningfulParams.join('&');
+        if (result.length > maxLength) {
+          // Take first meaningful param and add "..."
+          result = meaningfulParams[0] + '&...';
+        }
+        return result;
+      }
+    }
+
+    // Pattern 3: Base64 or encoded content
+    if (/^[A-Za-z0-9+/=]{50,}$/.test(originalName)) {
+      return `${originalName.substring(0, 12)}...[encoded]`;
+    }
+
+    // Pattern 4: Version-like patterns (keep version info)
+    const versionMatch = originalName.match(/(\d+\.\d+(?:\.\d+)?)/);
+    if (versionMatch) {
+      const version = versionMatch[1];
+      const baseName = originalName.substring(0, originalName.indexOf(version));
+      if (baseName.length > 0) {
+        const maxBaseLength = maxLength - version.length - 1; // -1 for separator
+        if (baseName.length > maxBaseLength) {
+          return `${baseName.substring(0, maxBaseLength)}...v${version}`;
+        }
+        return `${baseName}v${version}`;
+      }
+    }
+
+    // Pattern 5: Domain-like structures
+    if (originalName.includes('.') && !originalName.includes('/')) {
+      const parts = originalName.split('.');
+      if (parts.length > 2) {
+        // Keep first and last part for context
+        const first = parts[0];
+        const last = parts[parts.length - 1];
+        const maxFirstLength = Math.floor((maxLength - last.length - 3) / 2); // -3 for "..."
+
+        if (first.length > maxFirstLength) {
+          return `${first.substring(0, maxFirstLength)}...${last}`;
+        }
+        return `${first}...${last}`;
+      }
+    }
+
+    // Pattern 6: URL paths (extract meaningful directory/file names)
+    if (originalName.includes('/')) {
+      const pathParts = originalName.split('/');
+      const fileName = pathParts[pathParts.length - 1];
+
+      // If filename is meaningful and not too long
+      if (fileName && fileName.length <= maxLength && !fileName.includes('?')) {
+        return fileName;
+      }
+
+      // Otherwise, take first part + "..." + filename
+      if (pathParts.length > 1) {
+        const firstPart = pathParts[0];
+        const maxFirstLength = maxLength - fileName.length - 3; // -3 for "..."
+
+        if (maxFirstLength > 5) {
+          return `${firstPart.substring(0, maxFirstLength)}.../${fileName}`;
+        }
+      }
+    }
+
+    // Pattern 7: Camelcase or underscore separated (extract key words)
+    const words = originalName.split(/[_\-\.]+/);
+    if (words.length > 1) {
+      // Take first meaningful word and last word
+      const meaningfulWords = words.filter(word => word.length > 2);
+      if (meaningfulWords.length >= 2) {
+        const first = meaningfulWords[0];
+        const last = meaningfulWords[meaningfulWords.length - 1];
+        const combined = `${first}...${last}`;
+
+        if (combined.length <= maxLength) {
+          return combined;
+        }
+      }
+    }
+
+    // Fallback: Simple truncation with ellipsis
+    return `${originalName.substring(0, maxLength - 3)}...`;
+  }
+
+  /**
+   * 🎯 Get display name for library (combines truncation with meaningful context)
+   */
+  static getDisplayName(library: MinifiedLibrary | { name: string; version?: string; third_party_info?: any }, maxLength: number = 30): string {
+    // For known library types, try to extract more meaningful info
+    const truncatedName = this.truncateLibraryName(library.name, maxLength);
+
+    // Add context based on third-party info (if available)
+    if (library.third_party_info?.type) {
+      const typeIndicators: Record<string, string> = {
+        'analytics': '📊',
+        'advertising': '📱',
+        'cdn': '🌐',
+        'social': '🔗',
+        'unknown': '🔧'
+      };
+
+      const indicator = typeIndicators[library.third_party_info.type] || '🔧';
+
+      // If name is very short after truncation, add type context
+      if (truncatedName.length < 15) {
+        return `${indicator} ${truncatedName}`;
+      }
+    }
+
+    return truncatedName;
+  }
+}

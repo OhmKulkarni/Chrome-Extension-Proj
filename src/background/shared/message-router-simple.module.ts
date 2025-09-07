@@ -11,13 +11,17 @@ import { ConsoleHandlerModule } from '../modules/console-handler.module';
 import { TokenTrackerModule } from '../modules/token-tracker.module';
 import { ExtensionStateModule } from '../modules/extension-state.module';
 import { UnifiedPermissionService } from '../services/unified-permission-service';
+import { EnvironmentStorageManager } from '../environment-storage-manager';
+import { ChromeSyncService } from '../../services/chrome-sync-service';
 import { SafetyConfig } from '../types/background-types';
+import { LibraryDetector } from '../utils/library-detector';
 
 import { unifiedPermissionManager } from '../../utils/unified-permission-manager';
 
 export class MessageRouterSimpleModule {
   private readonly chromeApi: ChromeApiModule;
   private readonly storageManager: StorageManagerModule;
+  private readonly indexedDbStorage: EnvironmentStorageManager;
   private readonly networkProcessor: NetworkProcessorModule;
   private readonly consoleHandler: ConsoleHandlerModule;
   private readonly tokenTracker: TokenTrackerModule;
@@ -31,6 +35,7 @@ export class MessageRouterSimpleModule {
   constructor(
     chromeApi: ChromeApiModule,
     storageManager: StorageManagerModule,
+    indexedDbStorage: EnvironmentStorageManager,
     networkProcessor: NetworkProcessorModule,
     consoleHandler: ConsoleHandlerModule,
     tokenTracker: TokenTrackerModule,
@@ -40,6 +45,7 @@ export class MessageRouterSimpleModule {
   ) {
     this.chromeApi = chromeApi;
     this.storageManager = storageManager;
+    this.indexedDbStorage = indexedDbStorage;
     this.networkProcessor = networkProcessor;
     this.consoleHandler = consoleHandler;
     this.tokenTracker = tokenTracker;
@@ -222,6 +228,12 @@ export class MessageRouterSimpleModule {
           sendResponse(consoleResult);
           break;
 
+        // Library Detection from Content Script
+        case 'CONTENT_LIBRARY_DETECTION':
+          await this.handleContentLibraryDetection(message, sender);
+          sendResponse({ success: true });
+          break;
+
         case 'getConsoleErrors':
           const consoleErrors = await this.consoleHandler.getConsoleErrors(
             message.limit || 50,
@@ -370,6 +382,46 @@ export class MessageRouterSimpleModule {
             }
           } else {
             sendResponse({ success: false, error: 'Tab ID required' });
+          }
+          break;
+
+        case 'CHECK_LOGGING_PERMISSIONS':
+          try {
+            let tabId = message.tabId;
+
+            // If no tabId provided but URL is available, get tabId from sender
+            if (!tabId && message.url && sender?.tab?.id) {
+              tabId = sender.tab.id;
+            }
+
+            if (tabId !== undefined) {
+              // Import unified permission manager dynamically
+              const { unifiedPermissionManager } = await import('../../utils/unified-permission-manager');
+
+              // Check if any of the three logging types are enabled for this tab
+              const [networkEnabled, consoleEnabled, tokenEnabled] = await Promise.all([
+                unifiedPermissionManager.isFeatureEnabled(tabId, 'network'),
+                unifiedPermissionManager.isFeatureEnabled(tabId, 'console'),
+                unifiedPermissionManager.isFeatureEnabled(tabId, 'tokens')
+              ]);
+
+              const hasAnyLoggingEnabled = networkEnabled || consoleEnabled || tokenEnabled;
+
+              sendResponse({
+                success: true,
+                hasLogging: hasAnyLoggingEnabled,
+                enabled: hasAnyLoggingEnabled,
+                details: {
+                  network: networkEnabled,
+                  console: consoleEnabled,
+                  tokens: tokenEnabled
+                }
+              });
+            } else {
+              sendResponse({ success: false, error: 'Tab ID required' });
+            }
+          } catch (error) {
+            sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to check logging permissions' });
           }
           break;
 
@@ -636,6 +688,21 @@ export class MessageRouterSimpleModule {
           sendResponse(tokenResponse);
           break;
 
+        // Minified Libraries
+        case 'getMinifiedLibraries':
+          try {
+            const libraries = await this.networkProcessor.getMinifiedLibraries(
+              message.limit || 100,
+              message.offset || 0
+            );
+            console.log('📚 MessageRouter: getMinifiedLibraries response:', { librariesCount: libraries.length });
+            sendResponse({ success: true, libraries });
+          } catch (error) {
+            console.error('MessageRouter: Failed to get minified libraries:', error);
+            sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to get libraries', libraries: [] });
+          }
+          break;
+
         // Data Management
         case 'getTableCounts':
           // Get counts from each module (which get data from IndexedDB)
@@ -723,8 +790,31 @@ export class MessageRouterSimpleModule {
           break;
 
         case 'clearAllData':
-          await this.storageManager.clearAllData();
-          sendResponse({ success: true });
+          try {
+            // Clear all three storage systems comprehensively
+            console.log('🧹 MessageRouter: Clearing all data from ALL storage systems...');
+
+            // Clear Chrome Local Storage (settings, states, etc.)
+            await this.storageManager.clearAllData();
+            console.log('✅ Chrome Local Storage cleared');
+
+            // Clear IndexedDB (network requests, console errors, token events)
+            await this.indexedDbStorage.clearAllData();
+            console.log('✅ IndexedDB cleared');
+
+            // Clear Chrome Sync Storage (user preferences, domain settings)
+            const chromeSyncService = ChromeSyncService.getInstance();
+            await chromeSyncService.clearAllSyncStorage();
+            console.log('✅ Chrome Sync Storage cleared');
+
+            sendResponse({ success: true, message: 'All data cleared from all storage systems (Local, IndexedDB, Sync)' });
+          } catch (error) {
+            console.error('❌ MessageRouter: Error clearing all data:', error);
+            sendResponse({
+              success: false,
+              error: error instanceof Error ? error.message : 'Failed to clear all data'
+            });
+          }
           break;
 
         // Debug Permission Actions
@@ -940,6 +1030,65 @@ export class MessageRouterSimpleModule {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
       });
+    }
+  }
+
+  /**
+   * Handle content script library detection results
+   */
+  private async handleContentLibraryDetection(
+    message: any,
+    sender: chrome.runtime.MessageSender
+  ): Promise<void> {
+    try {
+      const { libraries, domain } = message;
+      const tabId = sender.tab?.id;
+      const tabUrl = sender.tab?.url;
+
+      if (!tabId || !tabUrl) {
+        console.warn('LibraryDetection: No tab ID or URL available from content script');
+        return;
+      }
+
+      // DOMAIN FIX: Use domain from content script (already processed) instead of re-extracting
+      // Content script now sends consistent main domain (e.g., yahoo.com instead of finance.yahoo.com)
+      const mainDomain = domain || this.extractMainDomain(tabUrl);
+      console.log(`📚 LibraryDetection: Received ${libraries?.length || 0} libraries from content script for ${mainDomain}`);
+
+      if (libraries && Array.isArray(libraries)) {
+        // Store each library from content script detection
+        for (const library of libraries) {
+          try {
+            const minifiedLibrary = LibraryDetector.toMinifiedLibrary(library, mainDomain);
+            await this.indexedDbStorage.insertMinifiedLibrary(minifiedLibrary);
+          } catch (error) {
+            console.warn('Failed to store content script library:', library.name, error);
+          }
+        }
+        console.log(`📚 LibraryDetection: Stored ${libraries.length} content script libraries for ${mainDomain}`);
+      }
+    } catch (error) {
+      console.error('Error handling content library detection:', error);
+    }
+  }
+
+  /**
+   * Extract main domain from URL (helper method)
+   */
+  private extractMainDomain(url: string): string {
+    try {
+      const parsedUrl = new URL(url);
+      const hostname = parsedUrl.hostname;
+
+      // Remove 'www.' prefix if present
+      if (hostname.startsWith('www.')) {
+        return hostname.substring(4);
+      }
+
+      return hostname;
+    } catch (error) {
+      console.warn('Failed to extract domain from URL:', url, error);
+      return 'unknown';
     }
   }
 

@@ -11,6 +11,7 @@ import { StorageManagerModule } from '../shared/storage-manager.module';
 import { TokenTrackerModule } from './token-tracker.module';
 import { EnvironmentStorageManager } from '../environment-storage-manager';
 import { UnifiedPermissionService } from '../services/unified-permission-service';
+import { LibraryDetector } from '../utils/library-detector';
 import {
   NetworkRequestData,
   SafetyConfig
@@ -100,6 +101,17 @@ export class NetworkProcessorModule {
     sender?: chrome.runtime.MessageSender
   ): Promise<{ success: boolean; reason?: string; tokenEvent?: any }> {
     return this.executeWithSafety('processNetworkRequest', async () => {
+      // DEBUG: Log all incoming requests to identify the issue
+      if (requestData?.url?.includes('httpbin.org')) {
+        console.log('🔍 NETWORK PROCESSOR: Received httpbin.org request:', {
+          url: requestData.url,
+          hasRequestData: !!requestData,
+          hasSender: !!sender,
+          senderTabId: sender?.tab?.id,
+          senderTabUrl: sender?.tab?.url?.substring(0, 100)
+        });
+      }
+
       // Validate input data
       if (!requestData || typeof requestData !== 'object') {
         return { success: false, reason: 'Invalid request data' };
@@ -107,6 +119,10 @@ export class NetworkProcessorModule {
 
       // Handle data from main world script (different format)
       let url, method, status, headers, body, timestamp, tabId, tabUrl;
+
+      // ENHANCED DEBUG: Define debug condition early for problematic domains
+      const shouldDebugUrl = requestData.url?.includes('dianomi.com') ||
+                            requestData.url?.includes('cnn.io');
 
       if (requestData.type === 'fetch' || requestData.type === 'xhr') {
         // Data from main world script
@@ -117,9 +133,107 @@ export class NetworkProcessorModule {
         body = requestData.requestBody || '';
         timestamp = requestData.timestamp;
 
-        // For main world data, get tab info from sender
+        // For main world data, get tab info from sender and use tabUrl from content script
         tabId = sender?.tab?.id;
-        tabUrl = sender?.tab?.url || requestData.url;
+
+        // IFRAME FIX: Prefer sender.tab.url for cross-origin iframes
+        // If tabUrl is a data URI or doesn't match the tab domain, use sender.tab.url instead
+        const contentScriptTabUrl = requestData.tabUrl;
+        const senderTabUrl = sender?.tab?.url;
+
+        if (shouldDebugUrl) {
+          console.log('🔍 RAW REQUEST DATA DEBUG:', {
+            requestDataKeys: Object.keys(requestData),
+            requestDataUrl: requestData.url,
+            requestDataTabUrl: requestData.tabUrl,
+            requestDataType: requestData.type,
+            requestDataMethod: requestData.method,
+            hasTabUrlProperty: 'tabUrl' in requestData,
+            tabUrlType: typeof requestData.tabUrl,
+            tabUrlValue: requestData.tabUrl,
+            allRequestData: requestData
+          });
+
+          console.log(`🔍 IFRAME DEBUG - Before URL selection:`, {
+            requestUrl: url.substring(0, 100),
+            contentScriptTabUrl: contentScriptTabUrl || 'MISSING',
+            senderTabUrl: senderTabUrl || 'MISSING',
+            senderAvailable: !!sender?.tab,
+            tabIdFromSender: sender?.tab?.id,
+            frameId: sender?.frameId,
+            isMainFrame: sender?.frameId === 0,
+            hasContentScriptUrl: !!contentScriptTabUrl,
+            hasSenderTabUrl: !!senderTabUrl,
+            willEnterSmartSelection: !!(senderTabUrl && contentScriptTabUrl)
+          });
+        }
+
+        if (senderTabUrl && contentScriptTabUrl) {
+          // If content script tabUrl is a data URI or cross-origin, prefer sender tab URL
+          const isDataUri = contentScriptTabUrl.startsWith('data:');
+          const isBlobUri = contentScriptTabUrl.startsWith('blob:');
+          const sameOrigin = this.isSameOrigin(contentScriptTabUrl, senderTabUrl);
+
+          if (shouldDebugUrl) {
+            console.log(`🔍 IFRAME DEBUG - URL analysis:`, {
+              isDataUri,
+              isBlobUri,
+              sameOrigin,
+              contentDomain: this.extractMainDomain(contentScriptTabUrl),
+              senderDomain: this.extractMainDomain(senderTabUrl)
+            });
+          }
+
+          // ENHANCED: Smart domain grouping for third-party embeds
+          if (isDataUri || isBlobUri || !sameOrigin) {
+            // This is likely a cross-origin iframe/embed
+            tabUrl = senderTabUrl; // Use the parent page URL for domain grouping
+
+            if (shouldDebugUrl) {
+              console.log(`🎯 IFRAME GROUPING - Cross-origin detected:`, {
+                parentDomain: this.extractMainDomain(senderTabUrl),
+                embedDomain: this.extractMainDomain(contentScriptTabUrl),
+                willGroupUnder: this.extractMainDomain(senderTabUrl),
+                reason: 'cross-origin iframe detected'
+              });
+              console.log(`✅ IFRAME DEBUG - Using sender tab URL for grouping: ${senderTabUrl.substring(0, 100)}`);
+            }
+          } else {
+            tabUrl = contentScriptTabUrl;
+            if (shouldDebugUrl) {
+              console.log(`✅ IFRAME DEBUG - Using content script tab URL: ${contentScriptTabUrl.substring(0, 100)}`);
+            }
+          }
+        } else {
+          tabUrl = senderTabUrl || contentScriptTabUrl || requestData.url;
+          if (shouldDebugUrl) {
+            console.log(`⚠️ IFRAME DEBUG - Fallback URL selection: ${tabUrl?.substring(0, 100) || 'NONE'}`);
+            console.log(`⚠️ IFRAME DEBUG - Fallback reason:`, {
+              senderTabUrlExists: !!senderTabUrl,
+              contentScriptTabUrlExists: !!contentScriptTabUrl,
+              senderTabUrlValue: senderTabUrl?.substring(0, 100),
+              contentScriptTabUrlValue: contentScriptTabUrl?.substring(0, 100),
+              bothExistButConditionFailed: !!(senderTabUrl && contentScriptTabUrl)
+            });
+          }
+        }
+
+        // ADDITIONAL: Smart grouping based on URL patterns and known third-party domains
+        if (senderTabUrl && this.shouldGroupUnderParentDomain(url, senderTabUrl)) {
+          const originalGrouping = this.extractMainDomain(tabUrl || url);
+          tabUrl = senderTabUrl;
+
+          if (shouldDebugUrl) {
+            console.log(`🔗 SMART GROUPING - Third-party domain detected:`, {
+              requestUrl: url.substring(0, 80),
+              requestDomain: this.extractMainDomain(url),
+              parentDomain: this.extractMainDomain(senderTabUrl),
+              originalGrouping,
+              newGrouping: this.extractMainDomain(senderTabUrl),
+              reason: 'Known third-party advertising/analytics domain'
+            });
+          }
+        }
       } else {
         // Data from other sources (direct API calls)
         ({ url, method, status, headers, body, timestamp } = requestData);
@@ -198,6 +312,48 @@ export class NetworkProcessorModule {
       // Extract main domain for intelligent grouping
       const mainDomain = tabUrl ? this.extractMainDomain(tabUrl) : this.extractMainDomain(url);
 
+      // Prevent storing requests with invalid main domains
+      if (!mainDomain || mainDomain === 'unknown' || mainDomain === 'Unknown' || mainDomain === 'Unknown URL') {
+        return { success: false, reason: 'Invalid or unknown main domain' };
+      }
+
+      // Debug logging for problematic domains
+      if (url.includes('casalemedia') || url.includes('unknown') || !tabUrl) {
+        console.log('🔍 DOMAIN GROUPING DEBUG:', {
+          url: url.substring(0, 100),
+          tabUrl: tabUrl?.substring(0, 100) || 'MISSING',
+          extractedMainDomain: mainDomain,
+          hasTabUrl: !!tabUrl,
+          urlDomain: this.extractMainDomain(url)
+        });
+      }
+
+      // ENHANCED DEBUG: Always log for problematic domains
+      if (shouldDebugUrl) {
+        console.log(`🎯 IFRAME DEBUG - Final domain grouping:`, {
+          requestUrl: url.substring(0, 100),
+          finalTabUrl: tabUrl?.substring(0, 100) || 'MISSING',
+          extractedMainDomain: mainDomain,
+          willGroupUnder: mainDomain,
+          requestDomain: this.extractMainDomain(url)
+        });
+      }
+
+      // DEBUG: Enhanced logging to troubleshoot domain grouping
+      if (url.includes('dianomi.com') || url.includes('dataviz.cnn.io') || Math.random() < 0.05) {
+        console.log(`🎯 Domain Grouping Debug:`, {
+          requestUrl: url.substring(0, 80) + '...',
+          contentScriptTabUrl: requestData.tabUrl ? requestData.tabUrl.substring(0, 80) + '...' : 'MISSING',
+          senderTabUrl: sender?.tab?.url ? sender.tab.url.substring(0, 80) + '...' : 'MISSING',
+          finalTabUrl: tabUrl ? tabUrl.substring(0, 80) + '...' : 'MISSING',
+          mainDomain,
+          hasTabUrl: !!tabUrl,
+          requestDataType: requestData.type,
+          isDataUri: requestData.tabUrl?.startsWith('data:') || false,
+          isBlobUri: requestData.tabUrl?.startsWith('blob:') || false
+        });
+      }
+
       // Create validated network request data with proper field mapping
       const validatedRequestData: NetworkRequestData = {
         url,
@@ -207,6 +363,7 @@ export class NetworkProcessorModule {
         body: this.sanitizeBody(body, networkConfig.bodyCapture?.maxBodySize || 2000),
         timestamp: timestamp || new Date().toISOString(),
         source_url: tabUrl || url,
+        main_domain: mainDomain, // Add main_domain for proper library grouping
         ...(tabId && { tabId })
       };
 
@@ -291,6 +448,12 @@ export class NetworkProcessorModule {
           performance_metrics: requestData.performanceMetrics ? JSON.stringify(requestData.performanceMetrics) : undefined
         };
 
+        // LIBRARY DETECTION: Detect libraries asynchronously without blocking storage
+        // This runs in parallel with storage to avoid performance impact
+        this.detectAndStoreLibraries(validatedRequestData, requestData).catch(error => {
+          console.warn('NetworkProcessorModule: Library detection failed (non-blocking):', error);
+        });
+
         // Use IndexedDB storage with race condition protection
         if (this.config.enableRaceConditionProtection) {
           await this.indexedDbStorage.insertApiCall(apiCallData);
@@ -363,7 +526,9 @@ export class NetworkProcessorModule {
         payload_size: apiCall.payload_size || 0,
         request_size: apiCall.request_size || 0,
         response_size: apiCall.response_size || 0,
-        performanceMetrics: apiCall.performance_metrics ? JSON.parse(apiCall.performance_metrics) : undefined
+        performanceMetrics: apiCall.performance_metrics ? JSON.parse(apiCall.performance_metrics) : undefined,
+        // CRITICAL: Add the main_domain field for smart grouping
+        main_domain: apiCall.main_domain
       }));
     });
   }
@@ -559,6 +724,21 @@ export class NetworkProcessorModule {
   }
 
   /**
+   * Check if two URLs have the same origin (protocol + hostname + port)
+   */
+  private isSameOrigin(url1: string, url2: string): boolean {
+    try {
+      const urlObj1 = new URL(url1);
+      const urlObj2 = new URL(url2);
+
+      return urlObj1.origin === urlObj2.origin;
+    } catch (error) {
+      // If either URL is invalid, they're not same origin
+      return false;
+    }
+  }
+
+  /**
    * Sanitize request body to prevent memory issues
    */
   private sanitizeBody(body: any, maxSize: number): string | undefined {
@@ -654,6 +834,102 @@ export class NetworkProcessorModule {
   }
 
   /**
+   * Detect libraries from network request (async, non-blocking)
+   * This method runs independently to avoid impacting main request processing
+   */
+  private async detectAndStoreLibraries(
+    validatedRequestData: NetworkRequestData,
+    requestData: any
+  ): Promise<void> {
+    try {
+      // Check if any logging is enabled before proceeding with library detection
+      const tabId = validatedRequestData.tabId;
+
+      if (tabId) {
+        // Import the unified permission manager directly
+        const { unifiedPermissionManager } = await import('../../utils/unified-permission-manager');
+
+        // SECURITY FIX: Ensure permission manager is properly initialized before checking
+        // This prevents library detection during Chrome startup when permissions aren't loaded
+        const isReady = await unifiedPermissionManager.isReady();
+        if (!isReady) {
+          console.warn(`🚫 LibraryDetector: Permission manager not ready for tab ${tabId}, skipping detection`);
+          return;
+        }
+
+        // Check if any of the three logging types are enabled for this tab
+        const isNetworkEnabled = await unifiedPermissionManager.isFeatureEnabled(tabId, 'network');
+        const isConsoleEnabled = await unifiedPermissionManager.isFeatureEnabled(tabId, 'console');
+        const isTokenEnabled = await unifiedPermissionManager.isFeatureEnabled(tabId, 'tokens');
+
+        // If no logging is enabled, skip library detection
+        if (!isNetworkEnabled && !isConsoleEnabled && !isTokenEnabled) {
+          console.log(`🚫 LibraryDetector: Skipping detection - no logging enabled for tab ${tabId}`);
+          return;
+        }
+
+        // DEBUG: Log permission states during startup to track behavior
+        if (Math.random() < 0.1) { // Sample 10% of checks
+          console.log(`📊 LibraryDetector: Permission check for tab ${tabId}:`, {
+            network: isNetworkEnabled,
+            console: isConsoleEnabled,
+            tokens: isTokenEnabled,
+            url: validatedRequestData.url?.substring(0, 50)
+          });
+        }
+      } else {
+        // No tab ID means we can't check permissions - skip detection
+        console.log('🚫 LibraryDetector: No tab ID available, skipping detection');
+        return;
+      }
+
+      // Extract headers for library detection
+      const url = validatedRequestData.url;
+      const headers = validatedRequestData.headers || {};
+      const responseBody = requestData.responseBody;
+
+      // Detect libraries using our detection utility
+      const detectedLibraries = LibraryDetector.detectFromRequest(url, headers, responseBody);
+
+      // Only store if libraries were detected
+      if (detectedLibraries.length > 0) {
+        // Log detected libraries (with sampling to avoid spam)
+        if (Math.random() < 0.1) { // Log 10% of detections
+          console.log(`📚 LibraryDetector: Found ${detectedLibraries.length} libraries in ${url.substring(0, 50)}...`,
+            detectedLibraries.map(lib => `${lib.name}${lib.version ? `@${lib.version}` : ''}`));
+        }
+
+        // Store each detected library in IndexedDB
+        for (const library of detectedLibraries) {
+          try {
+            const minifiedLibrary = LibraryDetector.toMinifiedLibrary(library, validatedRequestData.main_domain || this.extractMainDomain(url));
+            await this.indexedDbStorage.insertMinifiedLibrary(minifiedLibrary);
+          } catch (storageError) {
+            console.warn('Failed to store library detection:', library.name, storageError);
+          }
+        }
+
+        console.log(`📚 LibraryDetector: Stored ${detectedLibraries.length} libraries for ${this.extractMainDomain(validatedRequestData.source_url || url)}`);
+      }
+    } catch (error) {
+      // Fail silently to avoid impacting main request processing
+      console.warn('NetworkProcessorModule: Library detection error (non-critical):', error);
+    }
+  }
+
+  /**
+   * Get minified libraries from storage
+   */
+  async getMinifiedLibraries(limit: number = 100, offset: number = 0): Promise<any[]> {
+    try {
+      return await this.indexedDbStorage.getMinifiedLibraries(limit, offset);
+    } catch (error) {
+      console.error('NetworkProcessorModule: Failed to get minified libraries:', error);
+      return [];
+    }
+  }
+
+  /**
    * Get module status for debugging
    */
   getStatus(): {
@@ -670,5 +946,90 @@ export class NetworkProcessorModule {
         memoryUsage: this.chromeApi.getMemoryUsage()
       })
     };
+  }
+
+  /**
+   * Determine if a request should be grouped under parent domain based on known third-party patterns
+   */
+  private shouldGroupUnderParentDomain(requestUrl: string, parentUrl: string): boolean {
+    try {
+      const requestDomain = this.extractMainDomain(requestUrl);
+      const parentDomain = this.extractMainDomain(parentUrl);
+
+      // Don't group if they're already the same domain
+      if (requestDomain === parentDomain) {
+        return false;
+      }
+
+      // Known third-party advertising/analytics domains that should be grouped with their parent
+      const thirdPartyDomains = [
+        // Advertising
+        'btloader.com',
+        'criteo.com',
+        'doubleclick.net',
+        'googlesyndication.com',
+        'amazon-adsystem.com',
+        'adsystem.amazon.com',
+        'casalemedia.com',
+        'outbrain.com',
+        'taboola.com',
+        'dianomi.com',
+
+        // Analytics
+        'optimizely.com',
+        'google-analytics.com',
+        'googletagmanager.com',
+        'mixpanel.com',
+        'amplitude.com',
+        'segment.com',
+        'hotjar.com',
+        'fullstory.com',
+
+        // CNN-specific
+        'dataviz.cnn.io',
+        'cnn.io',
+
+        // Common CDNs and utilities when embedded
+        'cloudflare.com',
+        'fastly.com',
+        'akamai.net',
+        'jsdelivr.net',
+
+        // Social media widgets
+        'connect.facebook.net',
+        'platform.twitter.com',
+        'platform.linkedin.com'
+      ];
+
+      // Check if request domain matches any known third-party domain
+      const isThirdPartyDomain = thirdPartyDomains.some(domain =>
+        requestDomain.includes(domain) || domain.includes(requestDomain)
+      );
+
+      if (isThirdPartyDomain) {
+        return true;
+      }
+
+      // Additional heuristic: If parent is a major news/content site, group advertising/analytics subdomains
+      const majorContentSites = ['cnn.com', 'bbc.com', 'nytimes.com', 'washingtonpost.com', 'theguardian.com'];
+      const isContentSite = majorContentSites.some(site => parentDomain.includes(site));
+
+      if (isContentSite) {
+        // Patterns that suggest advertising/analytics
+        const adPatterns = ['ad', 'ads', 'analytics', 'tracking', 'metrics', 'pixel', 'tag'];
+        const hasAdPattern = adPatterns.some(pattern =>
+          requestUrl.toLowerCase().includes(pattern) || requestDomain.includes(pattern)
+        );
+
+        if (hasAdPattern) {
+          return true;
+        }
+      }
+
+      return false;
+    } catch (error) {
+      console.warn('NetworkProcessorModule: Error in shouldGroupUnderParentDomain:', error);
+      return false;
+    }
   }
 }

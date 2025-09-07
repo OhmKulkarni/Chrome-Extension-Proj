@@ -486,11 +486,12 @@ export class IndexedDBStorage implements StorageOperations {
       console.log('🔧 IndexedDB: Starting database initialization...')
 
       // MEMORY LEAK FIX: Replace Promise constructor with direct event-to-promise pattern
-      const request = indexedDB.open('DevToolsExtension', 5) // Increment version to trigger schema upgrade - removed tabStates
+      const request = indexedDB.open('DevToolsExtension', 6) // Increment version to add new indexes for library deduplication
 
       // Handle database upgrade first
-      request.onupgradeneeded = () => {
+      request.onupgradeneeded = (event) => {
         const db = request.result
+        const transaction = (event.target as IDBOpenDBRequest).transaction!
         console.log('🔄 IndexedDB: Database upgrade needed, current version:', db.version)
         console.log('🔄 IndexedDB: Existing stores:', Array.from(db.objectStoreNames))
 
@@ -519,7 +520,24 @@ export class IndexedDBStorage implements StorageOperations {
         if (!db.objectStoreNames.contains('minifiedLibraries')) {
           const libraryStore = db.createObjectStore('minifiedLibraries', { keyPath: 'id', autoIncrement: true })
           libraryStore.createIndex('domain', 'domain', { unique: false })
-          console.log('📦 IndexedDB: Created minifiedLibraries store with auto-increment')
+          libraryStore.createIndex('timestamp', 'timestamp', { unique: false })
+          libraryStore.createIndex('uniqueKey', ['name', 'version', 'main_domain'], { unique: false })
+          console.log('📦 IndexedDB: Created minifiedLibraries store with auto-increment and indexes')
+        } else {
+          // Upgrade existing minifiedLibraries store to add missing indexes
+          const libraryStore = transaction.objectStore('minifiedLibraries')
+
+          // Add timestamp index if it doesn't exist
+          if (!libraryStore.indexNames.contains('timestamp')) {
+            libraryStore.createIndex('timestamp', 'timestamp', { unique: false })
+            console.log('📦 IndexedDB: Added timestamp index to minifiedLibraries')
+          }
+
+          // Add uniqueKey index if it doesn't exist
+          if (!libraryStore.indexNames.contains('uniqueKey')) {
+            libraryStore.createIndex('uniqueKey', ['name', 'version', 'main_domain'], { unique: false })
+            console.log('📦 IndexedDB: Added uniqueKey index to minifiedLibraries')
+          }
         }
 
         // Add settings store
@@ -993,10 +1011,87 @@ export class IndexedDBStorage implements StorageOperations {
 
   // Minified Libraries
   async insertMinifiedLibrary(data: Omit<MinifiedLibrary, 'id'>): Promise<number> {
+    // Check for existing library with same name, version, and main_domain
+    try {
+      const version = data.version || 'unknown'
+      const existingLibrary = await this.findExistingLibrary(data.name, version, data.main_domain || '')
+
+      if (existingLibrary) {
+        // Update existing library with new timestamp and URL if different
+        const updatedData: MinifiedLibrary = {
+          ...existingLibrary,
+          timestamp: data.timestamp,
+          url: data.url, // Update URL in case it's different
+        }
+
+        await this.updateMinifiedLibrary(updatedData)
+        console.log(`🔄 IndexedDB: Updated existing library ${data.name}@${version} for ${data.main_domain}`)
+        return existingLibrary.id!
+      }
+    } catch (error) {
+      console.warn('⚠️ IndexedDB: Error checking for existing library, proceeding with insertion:', error)
+    }
+
+    // Insert new library
     const result = await this.performTransaction('minifiedLibraries', 'readwrite',
       (store) => store.add(data)
     )
+    console.log(`✅ IndexedDB: Inserted new library ${data.name}@${data.version || 'unknown'} for ${data.main_domain}`)
     return result as number
+  }
+
+  private async findExistingLibrary(name: string, version: string, main_domain: string): Promise<MinifiedLibrary | null> {
+    if (!this.db) throw new Error('Database not initialized')
+
+    return new Promise<MinifiedLibrary | null>((resolve, reject) => {
+      const transaction = this.db!.transaction(['minifiedLibraries'], 'readonly')
+      const store = transaction.objectStore('minifiedLibraries')
+
+      // Try to use uniqueKey index if it exists
+      if (store.indexNames.contains('uniqueKey')) {
+        const index = store.index('uniqueKey')
+        const request = index.get([name, version, main_domain])
+
+        request.onsuccess = () => {
+          resolve(request.result || null)
+        }
+
+        request.onerror = () => {
+          reject(request.error)
+        }
+      } else {
+        // Fallback: scan all libraries for match (for backward compatibility)
+        const request = store.openCursor()
+        let found: MinifiedLibrary | null = null
+
+        request.onsuccess = () => {
+          const cursor = request.result
+          if (cursor) {
+            const library = cursor.value as MinifiedLibrary
+            if (library.name === name &&
+                library.version === version &&
+                library.main_domain === main_domain) {
+              found = library
+              resolve(found)
+              return
+            }
+            cursor.continue()
+          } else {
+            resolve(found)
+          }
+        }
+
+        request.onerror = () => {
+          reject(request.error)
+        }
+      }
+    })
+  }
+
+  private async updateMinifiedLibrary(data: MinifiedLibrary): Promise<void> {
+    await this.performTransaction('minifiedLibraries', 'readwrite',
+      (store) => store.put(data)
+    )
   }
 
   async getMinifiedLibraries(limit = 100, offset = 0): Promise<MinifiedLibrary[]> {

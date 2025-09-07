@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Web App Monitor",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Monitor and analyze client-side web applications.",
   "background": {
     "service_worker": "src/background/background-controller.ts"
@@ -14,7 +14,8 @@
     {
       "matches": ["<all_urls>"],
       "js": ["src/content/content-modular.ts"],
-      "run_at": "document_start"
+      "run_at": "document_start",
+      "all_frames": true
     }
   ],
   "permissions": [

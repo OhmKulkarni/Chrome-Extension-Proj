@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iframe Domain Grouping Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        iframe {
+            width: 100%;
+            height: 300px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid #007cba;
+            background-color: #e7f3ff;
+        }
+        .code {
+            background-color: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin: 10px 0;
+        }
+        button {
+            background-color: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #005a87;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Iframe Domain Grouping Test</h1>
+    <p>This page tests the Chrome extension's ability to group iframe-based third-party requests under the correct main domain.</p>
+
+    <div class="test-section">
+        <h2>📊 Test Objective</h2>
+        <p><strong>Expected Behavior:</strong> Network requests from iframes should be grouped under the main page domain (localhost) in the extension dashboard, not as separate domains.</p>
+
+        <div class="status">
+            <strong>🎯 What to look for:</strong>
+            <ul>
+                <li>Open the extension dashboard after running tests</li>
+                <li>Check that iframe requests appear under "localhost" or the main domain</li>
+                <li>Verify that <code>tabUrl</code> in the logs shows the main page URL, not the iframe URL</li>
+                <li>Console should show debug logs with correct tabUrl values</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔬 Test 1: Direct Network Requests</h2>
+        <p>Make network requests from the main page context (should use main page URL):</p>
+        <button onclick="makeMainPageRequest()">📡 Make XMLHttpRequest from Main Page</button>
+        <button onclick="makeMainPageFetch()">🌐 Make Fetch Request from Main Page</button>
+
+        <div class="code" id="main-results">Results will appear here...</div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔬 Test 2: Iframe-based Requests</h2>
+        <p>This iframe will make network requests that should be grouped under the main domain:</p>
+        <iframe src="data:text/html,
+            <html>
+                <head><title>Test Iframe</title></head>
+                <body style='font-family: Arial; padding: 20px; background-color: #f9f9f9;'>
+                    <h3>🖼️ Test Iframe</h3>
+                    <p>This iframe simulates third-party content making network requests.</p>
+
+                    <div style='margin: 10px 0;'>
+                        <button onclick='makeIframeXHR()' style='padding: 8px 16px; margin: 5px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;'>
+                            📡 Make XHR from Iframe
+                        </button>
+                        <button onclick='makeIframeFetch()' style='padding: 8px 16px; margin: 5px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;'>
+                            🌐 Make Fetch from Iframe
+                        </button>
+                    </div>
+
+                    <div id='iframe-results' style='background: #fff; padding: 10px; border-radius: 4px; margin-top: 10px; font-size: 12px; border-left: 3px solid #007cba;'>
+                        Iframe results will appear here...
+                    </div>
+
+                    <script>
+                        function makeIframeXHR() {
+                            console.log(\\"🖼️ Iframe: Making XHR request\\");
+                            console.log(\\"🖼️ Iframe window.location.href:\\", window.location.href);
+                            console.log(\\"🖼️ Iframe window.top.location.href:\\", window.top?.location?.href || \\"cross-origin blocked\\");
+
+                            const xhr = new XMLHttpRequest();
+                            xhr.open(\\"GET\\", \\"https://httpbin.org/json?iframe_xhr=true\\");
+                            xhr.onload = function() {
+                                document.getElementById(\\"iframe-results\\").innerHTML =
+                                    \\"✅ XHR Complete: \\" + xhr.status + \\" - Check extension for grouping\\";
+                            };
+                            xhr.onerror = function() {
+                                document.getElementById(\\"iframe-results\\").innerHTML =
+                                    \\"❌ XHR Error - Check extension for grouping\\";
+                            };
+                            xhr.send();
+                        }
+
+                        function makeIframeFetch() {
+                            console.log(\\"🖼️ Iframe: Making Fetch request\\");
+                            console.log(\\"🖼️ Iframe window.location.href:\\", window.location.href);
+                            console.log(\\"🖼️ Iframe window.top.location.href:\\", window.top?.location?.href || \\"cross-origin blocked\\");
+
+                            fetch(\\"https://httpbin.org/json?iframe_fetch=true\\")
+                                .then(response => {
+                                    document.getElementById(\\"iframe-results\\").innerHTML =
+                                        \\"✅ Fetch Complete: \\" + response.status + \\" - Check extension for grouping\\";
+                                })
+                                .catch(error => {
+                                    document.getElementById(\\"iframe-results\\").innerHTML =
+                                        \\"❌ Fetch Error - Check extension for grouping\\";
+                                });
+                        }
+
+                        // Auto-run on load to show iframe URL context
+                        window.addEventListener(\\"load\\", function() {
+                            console.log(\\"🖼️ Iframe loaded:\\");
+                            console.log(\\"  - window.location.href:\\", window.location.href);
+                            console.log(\\"  - window.top?.location?.href:\\", window.top?.location?.href || \\"cross-origin blocked\\");
+                        });
+                    </script>
+                </body>
+            </html>
+        "></iframe>
+    </div>
+
+    <div class="test-section">
+        <h2>📝 Test Instructions</h2>
+        <ol>
+            <li><strong>Open Chrome DevTools</strong> (F12) and go to the Console tab to see debug logs</li>
+            <li><strong>Click the test buttons</strong> above to make network requests from both main page and iframe</li>
+            <li><strong>Check the console logs</strong> for debug messages showing tabUrl values</li>
+            <li><strong>Open the extension dashboard</strong> to verify domain grouping</li>
+            <li><strong>Verify that iframe requests</strong> are grouped under the main domain (localhost), not as separate domains</li>
+        </ol>
+
+        <div class="status">
+            <strong>🔍 Debug Information to Look For:</strong>
+            <br>• Console logs: "📡 NetworkInterceptor: Created XHR/fetch with tabUrl"
+            <br>• tabUrl should show main page URL for both main page and iframe requests
+            <br>• Extension dashboard should group all requests under main domain
+        </div>
+    </div>
+
+    <script>
+        function makeMainPageRequest() {
+            console.log("🏠 Main Page: Making XHR request");
+            console.log("🏠 Main Page window.location.href:", window.location.href);
+
+            const xhr = new XMLHttpRequest();
+            xhr.open("GET", "https://httpbin.org/json?main_page_xhr=true");
+            xhr.onload = function() {
+                document.getElementById("main-results").innerHTML =
+                    "✅ Main Page XHR Complete: " + xhr.status + " - Check extension for grouping<br>" +
+                    "Request URL: https://httpbin.org/json?main_page_xhr=true<br>" +
+                    "Tab URL: " + window.location.href;
+            };
+            xhr.onerror = function() {
+                document.getElementById("main-results").innerHTML =
+                    "❌ Main Page XHR Error - Check extension for grouping";
+            };
+            xhr.send();
+        }
+
+        function makeMainPageFetch() {
+            console.log("🏠 Main Page: Making Fetch request");
+            console.log("🏠 Main Page window.location.href:", window.location.href);
+
+            fetch("https://httpbin.org/json?main_page_fetch=true")
+                .then(response => {
+                    document.getElementById("main-results").innerHTML =
+                        "✅ Main Page Fetch Complete: " + response.status + " - Check extension for grouping<br>" +
+                        "Request URL: https://httpbin.org/json?main_page_fetch=true<br>" +
+                        "Tab URL: " + window.location.href;
+                })
+                .catch(error => {
+                    document.getElementById("main-results").innerHTML =
+                        "❌ Main Page Fetch Error - Check extension for grouping";
+                });
+        }
+
+        // Auto-run on load to show main page URL context
+        window.addEventListener("load", function() {
+            console.log("🏠 Main Page loaded:");
+            console.log("  - window.location.href:", window.location.href);
+            console.log("🎯 Ready to test iframe domain grouping!");
+        });
+    </script>
+</body>
+</html>

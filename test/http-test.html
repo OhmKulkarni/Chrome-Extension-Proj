@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧪 CNN Domain Grouping Test - HTTP Version</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+
+        .test-section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .debug-info {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+
+        .instructions {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 CNN Domain Grouping Test - HTTP Version</h1>
+
+    <div class="instructions">
+        <h3>🚀 Setup Instructions:</h3>
+        <p>1. <strong>Start local server:</strong> Run <code>python -m http.server 8000</code> in the project directory</p>
+        <p>2. <strong>Open in browser:</strong> Go to <code>http://localhost:8000/test/http-test.html</code></p>
+        <p>3. <strong>Check permissions:</strong> Extension should have access to localhost</p>
+        <p>4. <strong>Run tests:</strong> Click buttons below and check service worker console</p>
+    </div>
+
+    <div class="test-section">
+        <h2>� Quick Test - All Requests</h2>
+        <button onclick="testAllRequests()" style="background-color: #28a745; padding: 15px 30px; font-size: 16px; font-weight: bold;">🚀 Test All Requests</button>
+        <div class="debug-info" id="all-results">Click above to run all tests at once...</div>
+    </div>
+
+    <div class="test-section">
+        <h2>�🔍 Step 1: Test Main Page Requests</h2>
+        <button onclick="testMainPageRequests()">📡 Test Main Page Requests</button>
+        <div class="debug-info" id="main-results">Results will appear here...</div>
+    </div>
+
+    <div class="test-section">
+        <h2>🖼️ Step 2: Test Simulated CNN Iframe Requests</h2>
+        <button onclick="testCnnSimulation()">🎯 Test CNN.com Third-party Simulation</button>
+        <button onclick="testDianomiSimulation()">📊 Test Dianomi.com Ad Simulation</button>
+
+        <div id="iframe-container" style="margin: 20px 0; min-height: 200px; border: 2px dashed #ccc; padding: 20px;">
+            Simulated iframe requests will be made here...
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔍 Debug Instructions</h2>
+        <div class="debug-info">
+            1. Open Chrome DevTools (F12)
+            2. Go to chrome://extensions/
+            3. Find your extension and click "Service worker"
+            4. Click the test buttons above
+            5. Look for logs starting with "🔍 IFRAME DEBUG"
+            6. Check if domains are grouping properly in the extension dashboard
+        </div>
+    </div>
+
+    <script>
+        console.log('🚧 HTTP TEST: Starting to load...');
+
+        // Test all requests at once
+        function testAllRequests() {
+            console.log('🚀 TESTING ALL: Running complete CNN domain grouping test');
+
+            document.getElementById('all-results').textContent =
+                '🚀 Running all tests... Check service worker console for debug logs!';
+
+            // Run main page requests first
+            testMainPageRequests();
+
+            // Then run iframe simulations with delays
+            setTimeout(() => {
+                testCnnSimulation();
+            }, 500);
+
+            setTimeout(() => {
+                testDianomiSimulation();
+            }, 1000);
+
+            setTimeout(() => {
+                document.getElementById('all-results').innerHTML =
+                    '✅ All tests completed!<br>' +
+                    '🔍 Check service worker console for "🔍 RAW REQUEST DATA DEBUG" logs<br>' +
+                    '📊 Expected: All requests should group under "localhost" domain<br>' +
+                    '❌ Current Issue: Third-party requests appear as separate domains';
+            }, 1500);
+        }
+
+        // Simulate what happens on CNN.com with third-party requests
+        function testMainPageRequests() {
+            console.log('🏠 MAIN PAGE: Making test requests from cnn.com simulation');
+
+            // These simulate requests that would come from cnn.com main page
+            const mainPageRequests = [
+                'https://httpbin.org/json?source=cnn_main&type=api',
+                'https://httpbin.org/json?source=cnn_main&type=analytics'
+            ];
+
+            mainPageRequests.forEach((url, index) => {
+                fetch(url)
+                    .then(response => {
+                        console.log(`🏠 MAIN PAGE request ${index + 1} completed:`, response.status);
+                    })
+                    .catch(err => console.error('Main page request failed:', err));
+            });
+
+            document.getElementById('main-results').textContent =
+                '✅ Main page requests sent! These should group under localhost domain.';
+        }
+
+        // Simulate what happens with dianomi.com ads on CNN
+        function testDianomiSimulation() {
+            console.log('🎯 SIMULATING: dianomi.com ad requests that should group under CNN.com');
+
+            // These simulate requests that come from dianomi.com ads embedded in CNN.com
+            const dianomiRequests = [
+                'https://httpbin.org/json?source=dianomi&type=ad_request&embed=cnn',
+                'https://httpbin.org/json?source=dianomi&type=tracking&embed=cnn'
+            ];
+
+            // Add delay to simulate iframe loading
+            setTimeout(() => {
+                dianomiRequests.forEach((url, index) => {
+                    fetch(url)
+                        .then(response => {
+                            console.log(`🎯 DIANOMI simulated request ${index + 1} completed:`, response.status);
+                        })
+                        .catch(err => console.error('Dianomi simulation failed:', err));
+                });
+            }, 100);
+
+            document.getElementById('iframe-container').innerHTML +=
+                '<div style="border: 2px solid #fd7e14; padding: 10px; margin: 5px; border-radius: 4px;">' +
+                '🎯 Simulated dianomi.com ad requests sent<br>' +
+                '<strong>Expected:</strong> Should group under main domain (localhost)<br>' +
+                '<strong>Current Issue:</strong> Probably appearing as separate dianomi.com domain' +
+                '</div>';
+        }
+
+        // Simulate what happens with cnn.io widgets on CNN
+        function testCnnSimulation() {
+            console.log('📊 SIMULATING: cnn.io widget requests that should group under CNN.com');
+
+            // These simulate requests from cnn.io widgets embedded in CNN.com
+            const cnnoRequests = [
+                'https://httpbin.org/json?source=cnn_io&type=widget&embed=cnn',
+                'https://httpbin.org/json?source=cnn_io&type=data&embed=cnn'
+            ];
+
+            // Add delay to simulate iframe loading
+            setTimeout(() => {
+                cnnoRequests.forEach((url, index) => {
+                    fetch(url)
+                        .then(response => {
+                            console.log(`📊 CNN.IO simulated request ${index + 1} completed:`, response.status);
+                        })
+                        .catch(err => console.error('CNN.io simulation failed:', err));
+                });
+            }, 200);
+
+            document.getElementById('iframe-container').innerHTML +=
+                '<div style="border: 2px solid #28a745; padding: 10px; margin: 5px; border-radius: 4px;">' +
+                '📊 Simulated cnn.io widget requests sent<br>' +
+                '<strong>Expected:</strong> Should group under main domain (localhost)<br>' +
+                '<strong>Current Issue:</strong> Probably appearing as separate cnn.io domain' +
+                '</div>';
+        }
+
+        // Initialize
+        window.addEventListener('load', function() {
+            console.log('🚧 HTTP TEST: Page loaded successfully');
+            console.log('🎯 Ready to test CNN.com domain grouping simulation!');
+            console.log('📍 Current URL:', window.location.href);
+            console.log('📍 This simulates CNN.com with third-party iframe requests');
+        });
+
+        console.log('🚧 HTTP TEST: Script loaded');
+    </script>
+</body>
+</html>

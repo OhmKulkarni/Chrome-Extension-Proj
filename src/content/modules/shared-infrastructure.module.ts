@@ -383,7 +383,10 @@ export class SharedInfrastructureModule {
       for (const request of batch.networkRequests) {
         if (this.isDestroying) break
         console.log('🚀 SharedInfrastructure: Sending network request to background:', request.url)
-        await this.sendToBackground('storeNetworkRequest', request)
+        const response = await this.sendToBackground('storeNetworkRequest', request)
+        if (request.url.includes('httpbin.org')) {
+          console.log('🔍 CONTENT DEBUG: Network request response:', response)
+        }
       }
 
       // Send console events

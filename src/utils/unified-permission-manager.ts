@@ -154,6 +154,20 @@ export class UnifiedPermissionManager {
   }
 
   /**
+   * Check if the permission manager is ready for use
+   * Public method for external components to verify initialization
+   */
+  async isReady(): Promise<boolean> {
+    try {
+      await this.ensureState();
+      return this.state !== null;
+    } catch (error) {
+      console.warn('UnifiedPermissionManager: Readiness check failed:', error);
+      return false;
+    }
+  }
+
+  /**
    * Save state to chrome.storage.local
    */
   private async saveState(): Promise<void> {
@@ -310,7 +324,12 @@ export class UnifiedPermissionManager {
    */
   async isFeatureEnabled(tabId: number, feature: 'network' | 'console' | 'tokens'): Promise<boolean> {
     await this.ensureState();
-    if (!this.state) return true; // Safe fallback during initialization
+    if (!this.state) {
+      // SECURITY FIX: During initialization, default to FALSE to prevent unwanted data collection
+      // This prevents library detection and logging during Chrome startup until permissions are loaded
+      console.warn(`⚠️ UnifiedPermissionManager: State not initialized, defaulting ${feature} to FALSE for tab ${tabId}`);
+      return false;
+    }
 
     // FIXED: Simple tab-based check, no site-level overrides
     // Each tab has independent settings

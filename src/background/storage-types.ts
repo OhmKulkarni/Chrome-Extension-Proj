@@ -55,6 +55,12 @@ export interface MinifiedLibrary {
   source_map_available: boolean
   url: string
   timestamp: number
+  main_domain?: string // The main domain that loaded this library
+  source_domain?: string // The actual domain/subdomain the library was loaded from
+  third_party_info?: {
+    type: 'cdn' | 'analytics' | 'advertising' | 'social' | 'unknown'
+    classification: string
+  }
 }
 
 // Performance monitoring interfaces

@@ -19,6 +19,8 @@ export interface NetworkRequest {
   responseSize?: number // ADDED: Accurate response size in bytes
   tabId?: number
   frameId?: number
+  tabUrl?: string // ADDED: The URL of the page that made this request (for domain grouping)
+  type?: string // ADDED: Type of request (xhr, fetch) for background script routing
 }
 
 export interface NetworkInterceptorConfig {
@@ -57,6 +59,19 @@ export class NetworkInterceptorModule {
     }
 
     this.config = { ...defaults, ...config }
+  }
+
+  /**
+   * Get the top-level page URL (works in both main frame and iframe)
+   */
+  private getTopLevelUrl(): string {
+    try {
+      // Try to get the top frame URL (works if same-origin)
+      return window.top?.location.href || window.location.href;
+    } catch (error) {
+      // Cross-origin iframe - fallback to current frame URL
+      return window.location.href;
+    }
   }
 
   /**
@@ -283,7 +298,18 @@ export class NetworkInterceptorModule {
             requestBody: interceptor.requestBody,
             responseBody,
             requestSize: interceptor.requestSize || 0,
-            responseSize
+            responseSize,
+            tabUrl: moduleInstance.getTopLevelUrl(), // Use iframe-aware URL detection
+            type: 'xhr' // ADDED: Request type for background script routing
+          }
+
+          // DEBUG: Log network request creation with tabUrl
+          if (interceptor.url.includes('dianomi.com') || interceptor.url.includes('dataviz.cnn.io')) {
+            console.log('📡 NetworkInterceptor: Created XHR with tabUrl:', {
+              requestUrl: interceptor.url,
+              tabUrl: moduleInstance.getTopLevelUrl(),
+              method: interceptor.method
+            });
           }
 
           console.log('🌐 NetworkInterceptor: Created XHR request:', {
@@ -432,7 +458,18 @@ export class NetworkInterceptorModule {
           requestBody,
           responseBody,
           requestSize,
-          responseSize
+          responseSize,
+          tabUrl: module.getTopLevelUrl(), // Use iframe-aware URL detection
+          type: 'fetch' // ADDED: Request type for background script routing
+        }
+
+        // DEBUG: Log fetch request creation with tabUrl
+        if (url.includes('dianomi.com') || url.includes('dataviz.cnn.io')) {
+          console.log('📡 NetworkInterceptor: Created fetch with tabUrl:', {
+            requestUrl: url,
+            tabUrl: module.getTopLevelUrl(),
+            method
+          });
         }
 
         console.log('🌐 NetworkInterceptor: Created fetch request:', {
@@ -467,7 +504,9 @@ export class NetworkInterceptorModule {
           requestBody,
           responseBody: error instanceof Error ? error.message : 'Unknown error',
           requestSize,
-          responseSize: 0
+          responseSize: 0,
+          tabUrl: module.getTopLevelUrl(), // Use iframe-aware URL detection
+          type: 'fetch' // ADDED: Request type for background script routing
         }
 
         if (!module.shouldFilter(networkRequest)) {

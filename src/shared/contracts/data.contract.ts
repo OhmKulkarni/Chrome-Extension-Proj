@@ -1,9 +1,9 @@
 /**
  * PHASE 1: Data Contract Isolation
- * 
+ *
  * This file defines stable data interfaces that components depend on.
  * Adapters handle any internal storage changes without breaking components.
- * 
+ *
  * SAFETY: Never modify V1 interfaces - create V2 if needed
  */
 
@@ -24,6 +24,20 @@ export interface NetworkRequestV1 {
   readonly tabId?: number;
   readonly mainDomain: string;
   readonly tokenType?: string;
+  readonly detectedLibraries?: LibraryInfoV1[];
+}
+
+// Library Information Data Contract
+export interface LibraryInfoV1 {
+  readonly name: string;
+  readonly version?: string;
+  readonly type: 'framework' | 'utility' | 'ui' | 'analytics' | 'cdn' | 'polyfill' | 'unknown';
+  readonly confidence: 'high' | 'medium' | 'low';
+  readonly source: 'url' | 'content' | 'headers';
+  readonly cdnProvider?: string;
+  readonly minified: boolean;
+  readonly size?: number;
+  readonly url: string;
 }
 
 // Console Error Data Contract - What components expect
@@ -200,7 +214,7 @@ export class DataAdapters {
   // Settings Adapter - handles any storage format changes
   static settingsToV1: DataTransformer<any, SettingsV1> = (data: any): SettingsV1 => {
     const settings = data || {};
-    
+
     return {
       networkInterception: {
         enabled: settings.networkInterception?.enabled !== false,
@@ -289,7 +303,7 @@ export class SafeTransformers {
   // Transform array of raw data to V1 contracts with memory cleanup
   static transformNetworkRequests(rawData: any[]): NetworkRequestV1[] {
     if (!Array.isArray(rawData)) return [];
-    
+
     return rawData.map(item => {
       try {
         const transformed = DataAdapters.networkRequestToV1(item);
@@ -305,7 +319,7 @@ export class SafeTransformers {
 
   static transformConsoleErrors(rawData: any[]): ConsoleErrorV1[] {
     if (!Array.isArray(rawData)) return [];
-    
+
     return rawData.map(item => {
       try {
         const transformed = DataAdapters.consoleErrorToV1(item);
@@ -321,7 +335,7 @@ export class SafeTransformers {
 
   static transformTokenEvents(rawData: any[]): TokenEventV1[] {
     if (!Array.isArray(rawData)) return [];
-    
+
     return rawData.map(item => {
       try {
         const transformed = DataAdapters.tokenEventToV1(item);

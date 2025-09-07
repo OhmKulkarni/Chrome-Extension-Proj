@@ -1,4 +1,4 @@
-import { NetworkRequestV1, ConsoleErrorV1, TokenEventV1 } from '../../shared/contracts/data.contract';
+import { NetworkRequestV1, ConsoleErrorV1, TokenEventV1, DataAdapters } from '../../shared/contracts/data.contract';
 
 export interface DomainAnalysis {
   domain: string;
@@ -50,11 +50,52 @@ export const groupDataByDomain = (
   consoleErrors: ConsoleErrorV1[],
   tokenEvents: TokenEventV1[]
 ): DomainGroup[] => {
+  console.log('🔧 Starting domain grouping with data contract transformation...');
+
+  // Log raw data first
+  console.log('📥 Raw data sample (first 3 requests):', networkRequests.slice(0, 3).map(req => ({
+    url: req.url?.substring(0, 60),
+    rawMainDomain: req.mainDomain,
+    rawMain_domain: (req as any).main_domain,
+    hasMainDomainField: 'mainDomain' in req,
+    hasMain_domainField: 'main_domain' in req
+  })));
+
+  // Transform raw data to ensure proper field mapping (main_domain -> mainDomain)
+  const transformedRequests = networkRequests.map(req => DataAdapters.networkRequestToV1(req));
+  const transformedErrors = consoleErrors.map(err => DataAdapters.consoleErrorToV1(err));
+  const transformedTokens = tokenEvents.map(token => DataAdapters.tokenEventToV1(token));
+
+  // Log transformed data
+  console.log('📤 Transformed data sample (first 3 requests):', transformedRequests.slice(0, 3).map(req => ({
+    url: req.url?.substring(0, 60),
+    transformedMainDomain: req.mainDomain,
+    extractedFromUrl: extractMainDomain(req.url),
+    wasTransformed: req.mainDomain !== extractMainDomain(req.url)
+  })));
+
+  console.log('📊 Transformed data counts:', {
+    requests: transformedRequests.length,
+    errors: transformedErrors.length,
+    tokens: transformedTokens.length
+  });
+
   const domainMap = new Map<string, DomainGroup>();
 
   // Process network requests
-  networkRequests.forEach(request => {
+  transformedRequests.forEach(request => {
     const domain = request.mainDomain || extractMainDomain(request.url);
+
+    // DEBUG: Log domain grouping decisions
+    if (request.mainDomain !== extractMainDomain(request.url)) {
+      console.log('🎯 Dashboard Domain Grouping:', {
+        originalUrl: request.url?.substring(0, 60),
+        extractedFromUrl: extractMainDomain(request.url),
+        mainDomainField: request.mainDomain,
+        finalDomain: domain,
+        wasSmartGrouped: !!request.mainDomain
+      });
+    }
 
     if (!domainMap.has(domain)) {
       domainMap.set(domain, {
@@ -105,7 +146,7 @@ export const groupDataByDomain = (
   });
 
   // Process console errors
-  consoleErrors.forEach(error => {
+  transformedErrors.forEach(error => {
     const domain = extractMainDomain(error.url);
 
     if (!domainMap.has(domain)) {
@@ -142,7 +183,7 @@ export const groupDataByDomain = (
   });
 
   // Process token events
-  tokenEvents.forEach(event => {
+  transformedTokens.forEach(event => {
     const domain = extractMainDomain(event.url);
 
     if (!domainMap.has(domain)) {

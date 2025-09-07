@@ -6,6 +6,7 @@
 
 import { SharedInfrastructureModule } from './modules/shared-infrastructure.module'
 import { EdgeCaseActivationSystem } from './modules/edge-case-activation.module'
+import { ContentLibraryDetectionModule } from './modules/library-detection.module'
 
 console.log('🧩 MODULAR CONTENT SCRIPT LOADED:', new Date().toISOString())
 
@@ -146,6 +147,15 @@ async function initializeModularArchitecture(): Promise<void> {
     }
 
     console.log('✅ Modular architecture initialized successfully')
+
+    // Initialize library detection module
+    console.log('📚 Initializing library detection module...')
+    try {
+      ContentLibraryDetectionModule.initialize()
+      console.log('✅ Library detection module initialized successfully')
+    } catch (error) {
+      console.error('❌ Failed to initialize library detection module:', error)
+    }
 
     // Log initial statistics
     const stats = sharedInfrastructure.getStatistics()

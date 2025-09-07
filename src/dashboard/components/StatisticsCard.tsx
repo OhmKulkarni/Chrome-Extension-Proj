@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Button } from './ui/button';
-import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity } from 'lucide-react';
+import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen, Megaphone, BarChart, Shield, Library, Globe, HelpCircle, Package, Wrench, Target, Database, Settings, Film, Zap, Server, Lock, Box, Puzzle, CheckCircle, Loader2, RotateCcw, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { groupDataByDomain, DomainStats } from './domainUtils';
 // Import the new shared data processing system
@@ -12,7 +12,10 @@ import { useChartSettingsRead } from '../hooks/useChartSettings';
 import { isFeatureEnabled, withPerformanceMonitoring } from '../utils/featureFlags';
 // Import domain chart components
 import DomainChartsPanel from './DomainChartsPanel';
+import InlineResourcesSection from './InlineResourcesSection';
 import { useExpandedRows } from '../hooks/useExpandedRows';
+// Import LibraryDetector for smart name truncation
+import { LibraryDetector } from '../../background/utils/library-detector';
 import {
   HttpMethodDistributionChart,
   AvgResponseTimePerRouteChart,
@@ -28,6 +31,47 @@ import {
   LazyChartWrapper
 } from './LazyChartComponents';
 import { SimpleTestChart } from './SimpleTestChart';
+
+// Map detailed categories to primary categories for dashboard display
+const getPrimaryCategory = (type: string): 'libraries' | 'analytics' | 'privacy' | 'services' | 'assets' => {
+  switch (type) {
+    case 'framework':
+    case 'utility':
+    case 'polyfill':
+      return 'libraries';
+    case 'data-collector':
+    case 'tracking-tools':
+      return 'analytics';
+    case 'privacy-tools':
+      return 'privacy';
+    case 'service':
+      return 'services';
+    case 'site-tools':
+    case 'media-tools':
+    case 'performance-tools':
+    case 'build-artifact':
+      return 'assets';
+    default:
+      return 'assets';
+  }
+};
+
+const getPrimaryCategoryInfo = (primaryType: string) => {
+  switch (primaryType) {
+    case 'libraries':
+      return { icon: Library, bgColor: 'bg-blue-100', textColor: 'text-blue-800', label: 'Libraries' };
+    case 'analytics':
+      return { icon: BarChart, bgColor: 'bg-purple-100', textColor: 'text-purple-800', label: 'Analytics' };
+    case 'privacy':
+      return { icon: Shield, bgColor: 'bg-green-100', textColor: 'text-green-800', label: 'Privacy' };
+    case 'services':
+      return { icon: Megaphone, bgColor: 'bg-red-100', textColor: 'text-red-800', label: 'Services' };
+    case 'assets':
+      return { icon: Package, bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Assets' };
+    default:
+      return { icon: HelpCircle, bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Unknown' };
+  }
+};
 
 interface StatisticsCardProps {
   networkRequests: any[];
@@ -89,7 +133,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     };
   }, []);
   // Debug mode: Add mock data for testing charts
-  const DEBUG_MODE = true; // Set to true to enable debug data for testing
+  const DEBUG_MODE = false; // PRODUCTION: Set to false to disable mock data - prevents phantom statistics
 
   const generateMockData = () => {
     const now = Date.now();
@@ -167,10 +211,10 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     mockTokenEvents: []
   };
 
-  // Use mock data in debug mode, otherwise use real data
-  const debugNetworkRequests = DEBUG_MODE && (!networkRequests || networkRequests.length === 0) ? mockNetworkRequests : networkRequests;
-  const debugConsoleErrors = DEBUG_MODE && (!consoleErrors || consoleErrors.length === 0) ? mockConsoleErrors : consoleErrors;
-  const debugTokenEvents = DEBUG_MODE && (!tokenEvents || tokenEvents.length === 0) ? mockTokenEvents : tokenEvents;
+  // PRODUCTION: Always use real data or empty arrays - no mock data fallbacks
+  const debugNetworkRequests = networkRequests || [];
+  const debugConsoleErrors = consoleErrors || [];
+  const debugTokenEvents = tokenEvents || [];
 
   console.log('StatisticsCard Debug Data:');
   console.log('- Network Requests:', debugNetworkRequests?.length || 0, debugNetworkRequests);
@@ -198,11 +242,45 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     toggleRow: toggleDomainCharts
   } = useExpandedRows(3); // Allow up to 3 domain charts simultaneously
 
+  // Web resources section state
+  const [expandedLibrarySections, setExpandedLibrarySections] = useState<Set<string>>(new Set());
+
+  // Web resources source domain dropdown state
+  const [expandedLibraryDomains, setExpandedLibraryDomains] = useState<Set<string>>(new Set());
+
+  const toggleLibrarySection = (domain: string) => {
+    const newExpanded = new Set(expandedLibrarySections);
+    if (newExpanded.has(domain)) {
+      newExpanded.delete(domain);
+    } else {
+      newExpanded.add(domain);
+    }
+    setExpandedLibrarySections(newExpanded);
+  };
+
+  const isLibrarySectionExpanded = (domain: string) => expandedLibrarySections.has(domain);
+
+  const toggleLibrarySourceDomains = (domain: string) => {
+    const newExpanded = new Set(expandedLibraryDomains);
+    if (newExpanded.has(domain)) {
+      newExpanded.delete(domain);
+    } else {
+      newExpanded.add(domain);
+    }
+    setExpandedLibraryDomains(newExpanded);
+  };
+
   // Chart system state
   const [viewMode, setViewMode] = useState<'list' | 'charts'>('list');
   const [selectedChart, setSelectedChart] = useState<string | null>(null);
   const [showAllCharts, setShowAllCharts] = useState(false);
   const [chartSearch, setChartSearch] = useState('');
+
+  // Domain view mode state
+  const [domainViewMode, setDomainViewMode] = useState<'stats' | 'resources'>('stats');
+
+  // Help section visibility state
+  const [showHelp, setShowHelp] = useState(false);
 
   // Chart settings for performance control
   const { settings: chartSettings, isLoading: chartSettingsLoading } = useChartSettingsRead();
@@ -665,19 +743,20 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     }
 
     // CONSISTENCY FIX: Use the exact same logic as charts for data source selection
+    // FALLBACK SAFETY: Only use real data or empty arrays - no random mock data in production
     const useAnalysisData = analysisData.loaded && analysisData.networkRequests.length > 0;
 
     const effectiveNetworkRequests = useAnalysisData
       ? analysisData.networkRequests
-      : (DEBUG_MODE ? mockNetworkRequests : []);
+      : []; // PRODUCTION: Always use empty array when no data, never mock data
 
     const effectiveConsoleErrors = useAnalysisData
       ? analysisData.consoleErrors
-      : (DEBUG_MODE ? mockConsoleErrors : []);
+      : []; // PRODUCTION: Always use empty array when no data
 
     const effectiveTokenEvents = useAnalysisData
       ? analysisData.tokenEvents
-      : (DEBUG_MODE ? mockTokenEvents : []);
+      : []; // PRODUCTION: Always use empty array when no data
 
     console.log('GlobalStats calculation with data:', {
       useAnalysisData,
@@ -843,25 +922,61 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
 
   }, [analysisData]);
 
+  // Domain statistics state
+  const [domainStats, setDomainStats] = useState<DomainStats[]>([]);
+
   // Calculate domain-specific statistics with enhanced grouping
-  const domainStats: DomainStats[] = useMemo(() => {
-    // CONSISTENCY FIX: Use the exact same logic as charts for data source selection
-    const useAnalysisData = analysisData.loaded && analysisData.networkRequests.length > 0;
+  useEffect(() => {
+    const loadDomainStats = async () => {
+      try {
+        // CONSISTENCY FIX: Use the exact same logic as charts for data source selection
+        const useAnalysisData = analysisData.loaded && analysisData.networkRequests.length > 0;
 
-    const effectiveNetworkRequests = useAnalysisData
-      ? analysisData.networkRequests
-      : (DEBUG_MODE ? mockNetworkRequests : []);
+        const effectiveNetworkRequests = useAnalysisData
+          ? analysisData.networkRequests
+          : (DEBUG_MODE ? mockNetworkRequests : []);
 
-    const effectiveConsoleErrors = useAnalysisData
-      ? analysisData.consoleErrors
-      : (DEBUG_MODE ? mockConsoleErrors : []);
+        const effectiveConsoleErrors = useAnalysisData
+          ? analysisData.consoleErrors
+          : (DEBUG_MODE ? mockConsoleErrors : []);
 
-    const effectiveTokenEvents = useAnalysisData
-      ? analysisData.tokenEvents
-      : (DEBUG_MODE ? mockTokenEvents : []);
+        const effectiveTokenEvents = useAnalysisData
+          ? analysisData.tokenEvents
+          : (DEBUG_MODE ? mockTokenEvents : []);
 
-    const allData = [...effectiveNetworkRequests, ...effectiveConsoleErrors, ...effectiveTokenEvents];
-    return groupDataByDomain(allData);
+        const allData = [...effectiveNetworkRequests, ...effectiveConsoleErrors, ...effectiveTokenEvents];
+
+        // DEBUG: Very visible logging to check data structure
+        console.log('🚨🚨🚨 DASHBOARD DEBUG START 🚨🚨🚨');
+        console.log('📊 Analysis data loaded:', analysisData.loaded);
+        console.log('📊 Use analysis data:', useAnalysisData);
+        console.log('📊 Total items before domain grouping:', allData.length);
+        console.log('📊 Network requests count:', effectiveNetworkRequests.length);
+        console.log('📊 Analysis data network requests:', analysisData.networkRequests?.length);
+
+        // DEBUG: Log actual URLs to see if CNN.io requests are present
+        console.log('📊 Network request URLs:', effectiveNetworkRequests.map(req => req.url?.substring(0, 60)));
+
+        console.log('🔍 BEFORE DOMAIN GROUPING - First 3 items structure:', allData.slice(0, 3).map(item => ({
+          url: item.url?.substring(0, 60),
+          itemKeys: Object.keys(item),
+          hasMainDomain: 'mainDomain' in item,
+          hasMain_domain: 'main_domain' in item,
+          mainDomainValue: item.mainDomain,
+          main_domainValue: (item as any).main_domain,
+          type: item.type || 'unknown'
+        })));
+        console.log('🚨🚨🚨 DASHBOARD DEBUG END 🚨🚨🚨');
+
+        const stats = await groupDataByDomain(allData);
+        setDomainStats(stats);
+      } catch (error) {
+        console.error('Failed to load domain statistics:', error);
+        setDomainStats([]);
+      }
+    };
+
+    loadDomainStats();
   }, [analysisData]);
 
   // Sorting functions
@@ -985,10 +1100,25 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
         <div className="flex justify-between items-center mb-4">
           {/* Manual Refresh Button (when manual mode is enabled) */}
           <div className="flex items-center gap-3">
-            {/* Debug info - remove in production */}
-            <div className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded">
-              Mode: {chartSettings?.refreshMode || 'loading'} |
-              Loading: {chartSettingsLoading ? 'yes' : 'no'}
+            {/* System Status Indicators */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-xs font-medium">
+                <Settings className="h-3 w-3" />
+                <span>Mode: {chartSettings?.refreshMode || 'loading'}</span>
+              </div>
+              <div className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium">
+                {chartSettingsLoading ? (
+                  <div className="flex items-center gap-1 bg-amber-50 text-amber-700">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span>Loading</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 bg-green-50 text-green-700">
+                    <CheckCircle className="h-3 w-3" />
+                    <span>Ready</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             {chartSettings?.refreshMode === 'manual' && (
@@ -1023,22 +1153,25 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                   <RefreshCw className={`h-4 w-4 ${analysisData.loading ? 'animate-spin' : ''}`} />
                   {analysisData.loading ? 'Force Refreshing...' : 'Force Refresh'}
                 </Button>
-                <div className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded font-medium">
-                  🔄 Auto: {chartSettings.refreshInterval}s
+                <div className="flex items-center gap-1 bg-green-50 text-green-700 px-2 py-1 rounded-md text-xs font-medium">
+                  <RotateCcw className="h-3 w-3" />
+                  <span>Auto: {chartSettings.refreshInterval}s</span>
                 </div>
               </div>
             )}
 
             {/* Performance indicators */}
             {isFeatureEnabled('enableSharedChartData') && (
-              <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
-                ⚡ Shared Processing Active
+              <div className="flex items-center gap-1 bg-purple-50 text-purple-700 px-2 py-1 rounded-md text-xs font-medium">
+                <Zap className="h-3 w-3" />
+                <span>Shared Processing Active</span>
               </div>
             )}
 
             {sharedChartData.lastProcessed && isFeatureEnabled('enableStalenessTracking') && (
-              <div className="text-xs text-gray-500">
-                Last updated: {new Date(sharedChartData.lastProcessed).toLocaleTimeString()}
+              <div className="flex items-center gap-1 text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded-md">
+                <Clock className="h-3 w-3" />
+                <span>Last updated: {new Date(sharedChartData.lastProcessed).toLocaleTimeString()}</span>
               </div>
             )}
           </div>
@@ -1304,21 +1437,222 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
           </TabsContent>
 
           <TabsContent value="domain" className="space-y-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-              <div className="flex items-start gap-2">
-                <Layers className="h-4 w-4 text-blue-600 mt-0.5" />
-                <div>
-                  <h4 className="text-sm font-medium text-blue-800 mb-1">Smart Domain Grouping</h4>
-                  <p className="text-xs text-blue-700">
-                    Domains are intelligently grouped by tab context and subdomain patterns.
-                    <Layers className="h-3 w-3 inline mx-1" /> indicates grouped subdomains,
-                    <Monitor className="h-3 w-3 inline mx-1" /> shows main tab domains.
-                    <BarChart3 className="h-3 w-3 inline mx-1" /> opens domain-specific charts.
-                    Hover for details.
-                  </p>
+            {/* Collapsible Help Section with Smooth Animation */}
+            <div className="flex items-center justify-between mb-4">
+              <button
+                onClick={() => setShowHelp(!showHelp)}
+                className="flex items-center gap-2 px-3 py-2 text-sm text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors duration-200"
+                title="Click to show/hide explanation of dashboard icons and features"
+              >
+                <HelpCircle className="h-4 w-4" />
+                <span className="font-medium">Dashboard Guide</span>
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform duration-300 ease-in-out ${
+                    showHelp ? 'rotate-180' : 'rotate-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Animated Help Panel - Now Scrollable */}
+            <div
+              className={`overflow-hidden transition-all duration-500 ease-in-out mb-4 ${
+                showHelp
+                  ? 'max-h-80 opacity-100'
+                  : 'max-h-0 opacity-0'
+              }`}
+            >
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <Layers className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <div className="max-h-72 overflow-y-auto custom-scrollbar pr-2">
+                      <div className="space-y-4">
+                        <h4 className="text-sm font-semibold text-blue-800">Dashboard Icons & Features Guide</h4>
+
+                        <div className="space-y-4 text-xs text-blue-700">
+                          {/* Domain Status Icons */}
+                          <div className="space-y-2">
+                            <p className="font-medium text-blue-800">Domain Status Icons:</p>
+                            <div className="space-y-1 ml-2">
+                              <div className="flex items-start gap-2">
+                                <Layers className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Grouped subdomains - Automatically identifies and groups related subdomains under a single parent domain for cleaner organization. This helps reduce clutter when websites use multiple subdomains like api.example.com, cdn.example.com, and static.example.com.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Monitor className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Main tab domain - Highlights the primary domain of the currently active browser tab, making it easy to distinguish the main website from third-party resources and embedded content.</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Primary Resource Categories */}
+                          <div className="space-y-2">
+                            <p className="font-medium text-blue-800">Primary Resource Categories:</p>
+                            <div className="space-y-1 ml-2">
+                              <div className="flex items-start gap-2">
+                                <Library className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Libraries - Essential JavaScript frameworks, utility libraries, and polyfills that extend browser functionality. Includes popular frameworks like React, Vue, Angular, utility libraries like Lodash, and polyfills that enable modern JavaScript features in older browsers.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <BarChart className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Analytics - Comprehensive tracking scripts, data collection tools, and user behavior analysis services. Encompasses Google Analytics, Adobe Analytics, heat mapping tools, A/B testing platforms, and conversion tracking systems that help websites understand user interactions.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Shield className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Privacy - Consent management platforms, privacy protection tools, and compliance scripts essential for GDPR, CCPA, and other privacy regulations. Includes cookie consent banners, privacy policy managers, and data protection utilities.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Megaphone className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Services - Backend API endpoints, streaming services, web workers, and third-party integrations that provide core functionality. Includes payment processors, authentication services, content delivery systems, and real-time communication tools.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Package className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Assets - Static resources including images, fonts, stylesheets, configuration files, and media content that support the visual and functional aspects of websites. Also includes favicon files, web fonts, and CSS frameworks.</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Secondary Resource Categories (Detailed Types) */}
+                          <div className="space-y-2">
+                            <p className="font-medium text-blue-800">Secondary Categories (in modal detail):</p>
+                            <div className="space-y-1 ml-2">
+                              <div className="flex items-start gap-2">
+                                <Layers className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Framework - Core development frameworks like React, Angular, Vue, Svelte, and their associated ecosystems that provide structured approaches to building modern web applications with component-based architectures.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Wrench className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Utility - Helper libraries for common programming tasks including date manipulation (Moment.js), functional programming (Lodash), HTTP requests (Axios), and other utilities that simplify development workflows.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Puzzle className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Polyfill - Code that provides modern JavaScript functionality on older browsers, ensuring compatibility across different browser versions. Includes ES6+ feature support, Web API polyfills, and CSS feature compatibility layers.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Database className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Data Collector - Scripts that systematically gather user data including form submissions, click events, scroll behavior, and interaction patterns for analytics, personalization, and business intelligence purposes.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Target className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Tracking Tools - Specialized systems for user behavior tracking, conversion tracking, marketing attribution, and analytics integration that help businesses understand customer journeys and optimize their digital strategies.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Lock className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Privacy Tools - GDPR compliance tools, cookie consent management, data protection utilities, and privacy-first analytics solutions that help websites maintain regulatory compliance while respecting user privacy preferences.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Globe className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Web Service - External API calls, third-party integrations, microservices, and cloud-based services that extend website functionality through external platforms and service providers.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Settings className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Site Tools - Website functionality tools including live chat widgets, search functionality, form builders, customer support systems, and interactive components that enhance user experience and site functionality.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Film className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Media Tools - Video players (YouTube, Vimeo), image galleries, audio controls, media processing libraries, and content delivery systems that handle multimedia content presentation and manipulation.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Zap className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Performance - Speed optimization tools, lazy loading libraries, image compression, caching systems, and performance monitoring tools that improve website loading times and user experience.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Box className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>Build Artifact - Compiled code bundles, minified scripts, build output files, and processed assets generated by build tools like Webpack, Vite, or Rollup during the development and deployment process.</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Resource Source Icons */}
+                          <div className="space-y-2">
+                            <p className="font-medium text-blue-800">Resource Source Icons:</p>
+                            <div className="space-y-1 ml-2">
+                              <div className="flex items-start gap-2">
+                                <Globe className="h-3 w-3 mt-0.5 flex-shrink-0 text-blue-600" />
+                                <span>CDN Provider - Content delivery networks like Cloudflare, unpkg, jsDelivr, and Google Fonts that provide fast global access to libraries and assets through geographically distributed servers, improving loading times worldwide.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Server className="h-3 w-3 mt-0.5 flex-shrink-0 text-green-600" />
+                                <span>Self-hosted - Resources hosted on the same domain as the website, providing better control over content delivery, security, and privacy, while reducing dependencies on external services.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Package className="h-3 w-3 mt-0.5 flex-shrink-0 text-orange-600" />
+                                <span>External source - Third-party resources from different domains and providers, including social media widgets, advertising networks, and specialized service providers that extend website functionality.</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Detection Confidence Icons */}
+                          <div className="space-y-2">
+                            <p className="font-medium text-blue-800">Detection Confidence Icons:</p>
+                            <div className="space-y-1 ml-2">
+                              <div className="flex items-start gap-2">
+                                <CheckCircle className="h-3 w-3 mt-0.5 flex-shrink-0 text-green-600" />
+                                <span>High confidence - Library detection is 80%+ accurate based on strong signature matches, unique identifiers, and multiple verification points. These identifications are highly reliable and can be trusted for analysis.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <HelpCircle className="h-3 w-3 mt-0.5 flex-shrink-0 text-yellow-600" />
+                                <span>Medium confidence - Detection is 60-80% accurate with some uncertainty in identification due to partial matches or ambiguous signatures. These may require additional verification for critical decisions.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Search className="h-3 w-3 mt-0.5 flex-shrink-0 text-red-600" />
+                                <span>Low confidence - Possible match with limited evidence, requiring manual verification. These detections are based on weak signals and should be investigated further before making conclusions.</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Domain Labels */}
+                          <div className="space-y-2">
+                            <p className="font-medium text-blue-800">Domain Labels:</p>
+                            <div className="space-y-1 ml-2">
+                              <div className="flex items-start gap-2">
+                                <span className="inline-block px-2 py-1 text-xs font-medium rounded bg-teal-100 text-teal-800 mt-0.5 flex-shrink-0">3rd party domain</span>
+                                <span>Classification label for external domains that indicates resources loaded from outside the main website. Helps identify potential privacy implications, performance impacts, and third-party dependencies.</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
+
+            {/* Domain View Toggle */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={domainViewMode === 'stats' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setDomainViewMode('stats')}
+                  className="flex items-center gap-2"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  Domain Stats
+                </Button>
+                <Button
+                  variant={domainViewMode === 'resources' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setDomainViewMode('resources')}
+                  className="flex items-center gap-2"
+                >
+                  <BookOpen className="h-4 w-4" />
+                  Domain Web Resources
+                </Button>
+              </div>
+            </div>
+
+            <AnimatePresence mode="wait">
+              {domainViewMode === 'stats' ? (
+                <motion.div
+                  key="domain-stats-view"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
             <div className="rounded-md border overflow-hidden">
               <div className="overflow-x-auto">
                 <Table className="w-full">
@@ -1392,6 +1726,14 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                 </button>
                               )}
                               <span className="truncate font-semibold">{stat.domain}</span>
+                              {stat.isThirdParty && (
+                                <span
+                                  className="inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded-md bg-teal-100 text-teal-800"
+                                  title={`3rd party ${stat.thirdPartyType || 'service'}`}
+                                >
+                                  3rd party domain
+                                </span>
+                              )}
                               {/* Single total event count */}
                               <div className="flex items-center ml-2">
                                 <span className="inline-flex items-center px-2 py-1 rounded bg-gray-100 text-gray-700 font-mono text-xs" title="Total Events: Requests + Errors + Tokens">
@@ -1513,9 +1855,287 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
               </Table>
               </div>
             </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="domain-resources-view"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {/* Domain Web Resources Table */}
+                  <div className="rounded-md border overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <Table className="w-full">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="font-semibold w-[40%]">
+                              <div className="flex items-center gap-2">
+                                <BookOpen className="h-4 w-4" />
+                                Domain
+                                <SortButton column="domain" currentSort={domainSortConfig} onSort={handleDomainSort} />
+                              </div>
+                            </TableHead>
+                            <TableHead className="font-semibold text-center">
+                              <div className="flex items-center gap-2 justify-center">
+                                <Globe className="h-3 w-3" />
+                                Web Resources
+                                <SortButton column="libraryCount" currentSort={domainSortConfig} onSort={handleDomainSort} />
+                              </div>
+                            </TableHead>
+                            <TableHead className="font-semibold text-center w-[80px]">
+                              <div className="flex items-center gap-2 justify-center">
+                                <BookOpen className="h-4 w-4" />
+                                Details
+                              </div>
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {sortedDomainStats
+                            .filter(stat => stat.libraryCount > 0) // Only show domains with web resources
+                            .map((stat) => (
+                            <React.Fragment key={stat.domain}>
+                            <TableRow className="hover:bg-purple-50/50">
+                              <TableCell className="font-medium">
+                                <div className="flex flex-col gap-1">
+                                  <div className="flex items-center gap-2">
+                                    {stat.isGrouped && <Layers className="h-3 w-3 text-blue-500" />}
+                                    {stat.tabContext?.isMainDomain && <Monitor className="h-3 w-3 text-green-500" />}
+                                    <span className="text-sm font-medium">{stat.domain}</span>
+                                    {stat.isThirdParty && (
+                                      <span
+                                        className="inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded-md bg-teal-100 text-teal-800"
+                                        title={`3rd party ${stat.thirdPartyType || 'service'}`}
+                                      >
+                                        3rd party domain
+                                      </span>
+                                    )}
+                                  </div>
+                                  {stat.isGrouped && (
+                                    <div className="text-xs text-gray-500 pl-5">
+                                      {stat.groupedDomains.length} domains: {stat.groupedDomains.join(', ')}
+                                    </div>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="space-y-2">
+                                  {/* Main library count and expand button */}
+                                  <div className="flex items-center gap-2">
+                                    <span className="inline-flex items-center justify-center w-8 h-6 bg-purple-100 text-purple-800 text-xs font-medium rounded-full">
+                                      {stat.libraryCount}
+                                    </span>
+                                    {stat.librarySourceDomains.length > 1 && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => toggleLibrarySourceDomains(stat.domain)}
+                                        className="h-6 px-2 text-xs hover:bg-purple-50"
+                                        title={`Web resources from ${stat.librarySourceDomains.length} domains`}
+                                      >
+                                        <ChevronDown className={`h-3 w-3 transition-transform ${
+                                          expandedLibraryDomains.has(stat.domain) ? 'rotate-180' : ''
+                                        }`} />
+                                        {stat.librarySourceDomains.length} domains
+                                      </Button>
+                                    )}
+                                  </div>
+
+                                  {/* Collapsed view - show first few web resources */}
+                                  {!expandedLibraryDomains.has(stat.domain) && (
+                                    <div className="flex flex-wrap gap-1 max-w-md">
+                                      {stat.libraries.slice(0, 4).map((lib, libIndex) => {
+                                        // Apply smart truncation and categorization to main display
+                                        const displayName = LibraryDetector.getDisplayName(lib, 20); // Shorter for main view
+                                        const fullName = `${lib.name}${lib.version && lib.version !== 'unknown' ? `@${lib.version}` : ''}`;
+
+                                        // Get primary category info for dashboard display
+                                        const getPrimaryResourceTypeInfo = (libType: string) => {
+                                          const primaryCategory = getPrimaryCategory(libType);
+                                          const primaryInfo = getPrimaryCategoryInfo(primaryCategory);
+
+                                          // Get detailed label for tooltip
+                                          const detailedLabel = (() => {
+                                            switch (libType) {
+                                              case 'framework': return 'Framework';
+                                              case 'utility': return 'Utility';
+                                              case 'polyfill': return 'Polyfill';
+                                              case 'data-collector': return 'Data Collector';
+                                              case 'tracking-tools': return 'Tracking';
+                                              case 'privacy-tools': return 'Privacy';
+                                              case 'service': return 'Service';
+                                              case 'site-tools': return 'Site Tool';
+                                              case 'media-tools': return 'Media Tool';
+                                              case 'performance-tools': return 'Performance';
+                                              case 'build-artifact': return 'Build Artifact';
+                                              default: return 'Resource';
+                                            }
+                                          })();
+
+                                          return {
+                                            ...primaryInfo,
+                                            detailedLabel
+                                          };
+                                        };
+
+                                        const typeInfo = getPrimaryResourceTypeInfo(lib.type);
+                                        const IconComponent = typeInfo.icon;
+
+                                        return (
+                                          <span
+                                            key={libIndex}
+                                            className={`inline-flex items-center px-2 py-1 ${typeInfo.bgColor} ${typeInfo.textColor} text-xs font-medium rounded`}
+                                            title={`${fullName} (${typeInfo.detailedLabel})`}
+                                          >
+                                            <IconComponent className="h-3 w-3 mr-1" />
+                                            {displayName}
+                                            {lib.version && lib.version !== 'unknown' && !displayName.includes('@') && (
+                                              <span className="ml-1 opacity-75">@{lib.version}</span>
+                                            )}
+                                          </span>
+                                        );
+                                      })}
+                                      {stat.libraries.length > 4 && (
+                                        <span className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded">
+                                          +{stat.libraries.length - 4} more
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {/* Expanded view - scrollable container for web resource details */}
+                                  {expandedLibraryDomains.has(stat.domain) && (
+                                    <div className="mt-2 border rounded-md bg-gray-50/50 max-h-64 overflow-y-auto">
+                                      <div className="p-3 space-y-3">
+                                        {stat.librarySourceDomains.map((sourceDomain, sourceIndex) => (
+                                          <div key={sourceIndex} className="border rounded p-2 bg-white shadow-sm">
+                                            <div className="flex items-center gap-2 mb-2">
+                                              <span className="text-xs font-medium text-gray-700">
+                                                {sourceDomain.domain}
+                                              </span>
+                                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                                {sourceDomain.count}
+                                              </span>
+                                              {sourceDomain.isThirdParty && (
+                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-800" title="Third-party domain">
+                                                  3rd party domain
+                                                </span>
+                                              )}
+                                            </div>
+                                            <div className="flex flex-wrap gap-1">
+                                              {sourceDomain.libraries.map((lib, libIndex) => {
+                                                // Use smart truncation for better display
+                                                const displayName = LibraryDetector.getDisplayName(lib, 25);
+                                                const fullName = `${lib.name}${lib.version && lib.version !== 'unknown' ? `@${lib.version}` : ''}`;
+
+                                                // Get primary category info for domain library display
+                                                const getDomainPrimaryResourceTypeInfo = (libType: string) => {
+                                                  const primaryCategory = getPrimaryCategory(libType);
+                                                  const primaryInfo = getPrimaryCategoryInfo(primaryCategory);
+
+                                                  // Get detailed label for tooltip
+                                                  const detailedLabel = (() => {
+                                                    switch (libType) {
+                                                      case 'framework': return 'Framework';
+                                                      case 'utility': return 'Utility';
+                                                      case 'polyfill': return 'Polyfill';
+                                                      case 'data-collector': return 'Data Collector';
+                                                      case 'tracking-tools': return 'Tracking';
+                                                      case 'privacy-tools': return 'Privacy';
+                                                      case 'service': return 'Service';
+                                                      case 'site-tools': return 'Site Tool';
+                                                      case 'media-tools': return 'Media Tool';
+                                                      case 'performance-tools': return 'Performance';
+                                                      case 'build-artifact': return 'Build Artifact';
+                                                      default: return 'Resource';
+                                                    }
+                                                  })();
+
+                                                  return {
+                                                    ...primaryInfo,
+                                                    detailedLabel
+                                                  };
+                                                };
+
+                                                const typeInfo = getDomainPrimaryResourceTypeInfo(lib.type);
+                                                const IconComponent = typeInfo.icon;
+
+                                                return (
+                                                  <span
+                                                    key={libIndex}
+                                                    className={`inline-flex items-center px-2 py-1 ${typeInfo.bgColor} ${typeInfo.textColor} text-xs font-medium rounded`}
+                                                    title={`${fullName} (${typeInfo.detailedLabel}) from ${sourceDomain.domain}`}
+                                                  >
+                                                    <IconComponent className="h-3 w-3 mr-1" />
+                                                    {displayName}
+                                                    {lib.version && lib.version !== 'unknown' && !displayName.includes('@') && (
+                                                      <span className="ml-1 opacity-75">@{lib.version}</span>
+                                                    )}
+                                                  </span>
+                                                );
+                                              })}
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => toggleLibrarySection(stat.domain)}
+                                  className="h-6 w-6 p-0 hover:bg-purple-100"
+                                  title={isLibrarySectionExpanded(stat.domain) ? "Hide web resource details" : "Show web resource details"}
+                                >
+                                  {isLibrarySectionExpanded(stat.domain) ?
+                                    <EyeOff className="h-3 w-3 text-purple-600" /> :
+                                    <BookOpen className="h-3 w-3 text-gray-600" />
+                                  }
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+
+                            {/* Inline Web Resources Section - Similar to domain charts */}
+                            {isLibrarySectionExpanded(stat.domain) && (
+                              <TableRow key={`${stat.domain}-resources`}>
+                                <TableCell colSpan={3} className="p-0 bg-gray-50">
+                                  <InlineResourcesSection
+                                    domain={stat.domain}
+                                    resources={stat.libraries || []}
+                                    className="m-4"
+                                  />
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </React.Fragment>
+                          ))}
+                          {sortedDomainStats.filter(stat => stat.libraryCount > 0).length === 0 && (
+                            <TableRow>
+                              <TableCell colSpan={3} className="text-center text-gray-500 py-8">
+                                <div className="flex flex-col items-center gap-2">
+                                  <BookOpen className="h-8 w-8 text-gray-400" />
+                                  <div>No web resources detected yet</div>
+                                  <div className="text-xs text-gray-400">Web resources will appear here as they are detected on visited pages</div>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </TabsContent>
         </Tabs>
       </CardContent>
+
     </Card>
   );
 };

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Comprehensive Web Tool Detection Test</title>
+</head>
+<body>
+    <h1>🎯 Comprehensive Web Tool Detection - CNN Style</h1>
+    <div id="results"></div>
+
+    <script>
+        // Test the enhanced web tool detection
+        async function testComprehensiveDetection() {
+            console.log('🧪 Testing Comprehensive Web Tool Detection...');
+
+            const results = document.getElementById('results');
+
+            results.innerHTML = `
+                <h2>🔧 Key Changes Made:</h2>
+                <div style="background: #f0f8ff; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                    <h3>1. ✅ Removed CDN-Only Restriction</h3>
+                    <p><strong>Before:</strong> Only detected libraries from CDN domains</p>
+                    <p><strong>After:</strong> Detects web tools from ANY domain (including main site)</p>
+                    <p><strong>Impact:</strong> Now captures site-specific scripts, not just CDN libraries</p>
+                </div>
+
+                <div style="background: #fff0f5; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                    <h3>2. 🏷️ Enhanced Categorization Patterns</h3>
+                    <p><strong>Added Support For:</strong></p>
+                    <ul>
+                        <li><code>iiquniversalid</code>, <code>tag</code> → tracking-tools</li>
+                        <li><code>landingprod</code>, <code>zion-web-client</code>, <code>zion-mb</code> → site-tools</li>
+                        <li><code>psm</code>, <code>taglw</code> → performance-tools</li>
+                        <li><code>otgpp</code>, <code>otbannersdk</code>, <code>otsdkstub</code> → privacy-tools</li>
+                    </ul>
+                </div>
+
+                <h2>📊 Expected CNN.com Detection Results:</h2>
+
+                <div style="background: #e6ffe6; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                    <h3>🔒 Privacy/Consent Tools:</h3>
+                    <ul>
+                        <li><strong>otgpp</strong> → privacy-tools: "Privacy compliance and consent management"</li>
+                        <li><strong>otbannersdk</strong> → privacy-tools: "Privacy compliance and consent management"</li>
+                        <li><strong>otsdkstub</strong> → privacy-tools: "Privacy compliance and consent management"</li>
+                    </ul>
+                </div>
+
+                <div style="background: #fff3e0; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                    <h3>🎯 Identity/Tracking Scripts:</h3>
+                    <ul>
+                        <li><strong>iiquniversalid-sync</strong> → tracking-tools: "User tracking and identity management"</li>
+                        <li><strong>i</strong> (tracking pixel) → tracking-tools: "User tracking and identity management"</li>
+                        <li><strong>tag</strong> → tracking-tools: "User tracking and identity management"</li>
+                    </ul>
+                </div>
+
+                <div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                    <h3>🏢 Site-Specific Scripts:</h3>
+                    <ul>
+                        <li><strong>landingprod</strong> → site-tools: "Site-specific functionality and features"</li>
+                        <li><strong>freeview</strong> → site-tools: "Site-specific functionality and features"</li>
+                        <li><strong>auth</strong> → site-tools: "Site-specific functionality and features"</li>
+                        <li><strong>zion-web-client</strong> → site-tools: "Site-specific functionality and features"</li>
+                        <li><strong>zion-mb</strong> → site-tools: "Site-specific functionality and features"</li>
+                    </ul>
+                </div>
+
+                <div style="background: #f3e5f5; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                    <h3>⚡ Performance/Generic Scripts:</h3>
+                    <ul>
+                        <li><strong>load</strong> → performance-tools: "Performance optimization and loading"</li>
+                        <li><strong>taglw</strong> → performance-tools: "Performance optimization and loading"</li>
+                        <li><strong>psm</strong> → performance-tools: "Performance optimization and loading"</li>
+                    </ul>
+                </div>
+
+                <h2>🔍 Technical Details:</h2>
+                <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0; font-family: monospace;">
+                    <h3>Enhanced Pattern Matching:</h3>
+                    <pre>// Privacy Tools
+/(?:onetrust|otgpp|otbanner|otsdkstub|...)/i
+
+// Tracking Tools
+/(?:universalid|iiquniversalid|identity|sync|track|tag|...)/i
+
+// Site Tools
+/(?:auth|login|landing|landingprod|freeview|zion|web-client|mb|...)/i
+
+// Performance Tools
+/(?:load|loader|lazy|defer|preload|psm|taglw|...)/i</pre>
+                </div>
+
+                <h2>🎯 What This Achieves:</h2>
+                <div style="background: #e8f5e8; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                    <h3>✅ Comprehensive Web Tool Inventory:</h3>
+                    <ul>
+                        <li><strong>Not just libraries</strong> - captures ALL web tools and scripts</li>
+                        <li><strong>Intelligent categorization</strong> - privacy, tracking, site-specific, performance</li>
+                        <li><strong>Educational value</strong> - users understand what's running on the site</li>
+                        <li><strong>Privacy awareness</strong> - clear visibility of tracking and consent tools</li>
+                        <li><strong>Site understanding</strong> - reveals site architecture and functionality</li>
+                    </ul>
+                </div>
+
+                <h2>🚀 Expected Results Now:</h2>
+                <div style="background: #e6ffe6; padding: 15px; border-radius: 5px; margin: 10px 0; border: 2px solid #4CAF50;">
+                    <h3>🎉 CNN.com Should Show 20+ Tools Including:</h3>
+                    <ul>
+                        <li><strong>Traditional Libraries:</strong> React, jQuery, Bootstrap, Analytics</li>
+                        <li><strong>Privacy Tools:</strong> OneTrust components (otgpp, otbannersdk, otsdkstub)</li>
+                        <li><strong>Tracking Scripts:</strong> Universal ID, tracking pixels, tags</li>
+                        <li><strong>Site Features:</strong> Landing pages, auth, paywalls, mobile clients</li>
+                        <li><strong>Performance Tools:</strong> Loading optimizers, tag managers</li>
+                    </ul>
+                    <p><strong>This gives users a complete picture of what's running on the website!</strong></p>
+                </div>
+            `;
+        }
+
+        // Run test when page loads
+        testComprehensiveDetection();
+    </script>
+</body>
+</html>

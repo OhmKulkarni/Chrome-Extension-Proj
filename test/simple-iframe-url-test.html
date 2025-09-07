@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Iframe URL Test</title>
+</head>
+<body>
+    <h1>🧪 Simple Iframe URL Detection Test</h1>
+    <p>Main page URL: <span id="main-url"></span></p>
+
+    <h2>Test iframe with data URI (simulates cross-origin ads)</h2>
+    <iframe src="data:text/html,
+        <html>
+            <head><title>Test Ad Frame</title></head>
+            <body style='padding: 20px; font-family: Arial;'>
+                <h3>🖼️ Simulated Ad Iframe</h3>
+                <p>Current iframe URL: <span id='iframe-url'></span></p>
+                <p>Top frame URL: <span id='top-url'></span></p>
+
+                <button onclick='testUrlDetection()' style='padding: 10px; background: #007cba; color: white; border: none; border-radius: 4px;'>
+                    🔍 Test URL Detection
+                </button>
+
+                <div id='results' style='margin-top: 20px; padding: 10px; background: #f9f9f9; border-radius: 4px;'></div>
+
+                <script>
+                    // Test the iframe URL detection logic
+                    function getTopLevelUrl() {
+                        try {
+                            // Try to get the top frame URL (works if same-origin)
+                            return window.top?.location.href || window.location.href;
+                        } catch (error) {
+                            // Cross-origin iframe - fallback to current frame URL
+                            return window.location.href;
+                        }
+                    }
+
+                    function testUrlDetection() {
+                        const iframeUrl = window.location.href;
+                        const topUrl = getTopLevelUrl();
+
+                        console.log(\\"🖼️ Iframe URL Detection Test:\\");
+                        console.log(\\"  - Iframe URL:\\", iframeUrl);
+                        console.log(\\"  - Top URL (detected):\\", topUrl);
+                        console.log(\\"  - window.top?.location?.href:\\", window.top?.location?.href || \\"BLOCKED\\");
+
+                        document.getElementById(\\"iframe-url\\").textContent = iframeUrl;
+                        document.getElementById(\\"top-url\\").textContent = topUrl;
+                        document.getElementById(\\"results\\").innerHTML =
+                            \\"<strong>Detection Result:</strong><br/>\\" +
+                            \\"Iframe URL: \\" + iframeUrl + \\"<br/>\\" +
+                            \\"Top URL: \\" + topUrl + \\"<br/>\\" +
+                            \\"<strong>Expected:</strong> Top URL should be the main page URL, not the data: URI\\";
+                    }
+
+                    // Auto-run on load
+                    window.addEventListener(\\"load\\", testUrlDetection);
+                </script>
+            </body>
+        </html>
+    " style="width: 100%; height: 300px; border: 1px solid #ddd;"></iframe>
+
+    <script>
+        document.getElementById('main-url').textContent = window.location.href;
+
+        console.log("🏠 Main page loaded:");
+        console.log("  - Main page URL:", window.location.href);
+    </script>
+</body>
+</html>

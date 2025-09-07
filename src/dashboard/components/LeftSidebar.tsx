@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface TabLoggingStatus {
   tabId: number;
@@ -45,6 +46,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [storageUsage, setStorageUsage] = useState({ used: 0, quota: 0 });
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Load storage usage
   useEffect(() => {
@@ -57,7 +59,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
     try {
       // Get Chrome storage usage
       const chromeUsage = await chrome.storage.local.getBytesInUse();
-      
+
       // Get IndexedDB usage (estimate)
       if ('storage' in navigator && 'estimate' in navigator.storage) {
         const estimate = await navigator.storage.estimate();
@@ -274,7 +276,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                 <p className="text-xs text-gray-500 truncate" title={tab.domain}>
                   {tab.domain}
                 </p>
-                
+
                 {/* Logging Controls */}
                 <div className="mt-2 space-y-1">
                   <label className="flex items-center">
@@ -331,11 +333,30 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
   );
 
   return (
-    <div className="w-80 bg-gray-50 border-r border-gray-200 h-screen overflow-y-auto">
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-gray-900">Control Panel</h2>
-        </div>
+    <div className={`bg-gray-50 border-r border-gray-200 h-screen overflow-hidden transition-all duration-300 ease-in-out ${
+      isCollapsed ? 'w-12' : 'w-80'
+    }`}>
+      {/* Collapse/Expand Button */}
+      <div className="flex justify-end p-2">
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="p-2 hover:bg-gray-200 rounded-md transition-colors duration-200"
+          title={isCollapsed ? "Expand Control Panel" : "Collapse Control Panel"}
+        >
+          {isCollapsed ? (
+            <ChevronRight className="h-4 w-4 text-gray-600" />
+          ) : (
+            <ChevronLeft className="h-4 w-4 text-gray-600" />
+          )}
+        </button>
+      </div>
+
+      {/* Content - only show when not collapsed */}
+      {!isCollapsed && (
+        <div className="px-4 pb-4 overflow-y-auto" style={{ height: 'calc(100vh - 60px)' }}>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold text-gray-900">Control Panel</h2>
+          </div>
 
         {/* Mode Selector */}
         {renderModeSelector()}
@@ -369,7 +390,8 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      )}
     </div>
   );
 };

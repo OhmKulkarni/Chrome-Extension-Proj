@@ -97,6 +97,7 @@ export class BackgroundController {
     this.messageRouter = new MessageRouterSimpleModule(
       this.chromeApi,
       this.storageManager,
+      this.legacyStorageManager,
       this.networkProcessor,
       this.consoleHandler,
       this.tokenTracker,
