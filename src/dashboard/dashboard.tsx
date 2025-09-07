@@ -89,6 +89,7 @@ const DecomposedDashboard: React.FC = () => {
   // Sidebar state
   const [tabsLoggingStatus, setTabsLoggingStatus] = useState<TabLoggingStatus[]>([]);
   const [sidebarMode, setSidebarMode] = useState<'logging' | 'base'>('base');
+  const [sidebarLocked, setSidebarLocked] = useState(false);
 
   // Main view state - controls what's displayed in the main content area
   const [mainView, setMainView] = useState<'dataTables' | 'statisticsDashboard' | 'settings' | 'timeline'>('dataTables');
@@ -1354,6 +1355,10 @@ const DecomposedDashboard: React.FC = () => {
     setSidebarMode(mode);
   };
 
+  const handleSidebarLockChange = (isLocked: boolean) => {
+    setSidebarLocked(isLocked);
+  };
+
   // Render current table content
   const renderTableContent = () => {
     switch (activeTable) {
@@ -1540,10 +1545,13 @@ const DecomposedDashboard: React.FC = () => {
         stats={sidebarStats}
         onMainViewChange={handleMainViewChange}
         currentMainView={mainView}
+        onLockStateChange={handleSidebarLockChange}
       />
 
-      {/* Main Content - full width */}
-      <div className="flex flex-col min-h-screen">
+      {/* Main Content - adjusts based on sidebar lock state */}
+      <div className={`flex flex-col min-h-screen transition-all duration-300 ${
+        sidebarLocked ? 'ml-80' : 'ml-0'
+      }`}>
         {/* Header */}
         <DashboardHeader
           extensionEnabled={data.extensionEnabled}
