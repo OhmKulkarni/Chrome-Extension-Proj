@@ -12,6 +12,26 @@ import { RequestDetailContent, ErrorDetailContent, TokenDetailContent } from './
 import { StorageService } from '../utils/storage-service';
 import { ChromeSyncService } from '../services/chrome-sync-service';
 
+// Chrome data clearing function
+const clearChromeData = async (): Promise<void> => {
+  const sendChromeMessage = (message: any): Promise<any> => {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage(message, resolve);
+    });
+  };
+
+  const response = await sendChromeMessage({ action: 'clearAllData' })
+  if (chrome.runtime.lastError) {
+    console.error('Dashboard: Error clearing data:', chrome.runtime.lastError)
+    throw chrome.runtime.lastError
+  } else if (response?.success) {
+    console.log('Dashboard: Data cleared successfully')
+    return
+  } else {
+    throw new Error('Failed to clear data')
+  }
+};
+
 // MEMORY LEAK FIX: Centralized Chrome message handler to prevent response accumulation
 const sendChromeMessage = async (message: any): Promise<any> => {
   try {
@@ -541,6 +561,54 @@ const DecomposedDashboard: React.FC = () => {
       console.error('Error loading settings:', error);
     }
   }, []);
+
+  // Clear data function with proper error handling
+  const clearData = async () => {
+    const confirmed = window.confirm(
+      '⚠️ WARNING: This will permanently delete all recorded network requests, console errors, token events, and reset all tab counters.\n\n' +
+      'This action cannot be undone. Are you sure you want to continue?'
+    );
+
+    if (confirmed) {
+      try {
+        setLoading(true);
+
+        // Use the clearChromeData function
+        await clearChromeData()
+
+        // Reset local state
+        setData({
+          totalTabs: data.totalTabs,
+          extensionEnabled: data.extensionEnabled,
+          lastActivity: data.lastActivity,
+          networkRequests: [],
+          totalRequests: 0,
+          consoleErrors: [],
+          totalErrors: 0,
+          tokenEvents: [],
+          totalTokenEvents: 0
+        });
+
+        setCurrentPage(1);
+        setCurrentErrorPage(1);
+        setCurrentTokenPage(1);
+
+        // Reload data from database to confirm it's actually cleared
+        await loadDashboardData();
+
+        // Trigger refresh of all dashboard components
+        window.dispatchEvent(new CustomEvent('dataCleared'));
+
+        // Show success message
+        alert('✅ All network request, console error, and token event data have been cleared successfully.');
+      } catch (error) {
+        console.error('Error clearing data:', error);
+        alert('❌ Failed to clear data. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
 
   // Handle sorting - Enhanced to work across all records
   const handleNetworkSort = useCallback(async (key: string) => {
@@ -1482,7 +1550,10 @@ const DecomposedDashboard: React.FC = () => {
         sidebarLocked ? 'ml-80' : 'ml-0'
       }`}>
         {/* Header */}
-        <DashboardHeader />
+        <DashboardHeader
+          onClearData={clearData}
+          isLoading={loading}
+        />
 
         {/* Main Content Area */}
         <div className="flex-1 p-6 space-y-6 overflow-hidden">
@@ -1590,6 +1661,8 @@ const DecomposedDashboard: React.FC = () => {
     </div>
   );
 };
+
+export default DecomposedDashboard;
 
 // Mount the component
 const container = document.getElementById('root');
