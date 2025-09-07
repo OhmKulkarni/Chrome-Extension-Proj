@@ -90,7 +90,7 @@ const DecomposedDashboard: React.FC = () => {
 
   // Sidebar state
   const [tabsLoggingStatus, setTabsLoggingStatus] = useState<TabLoggingStatus[]>([]);
-  const [sidebarMode, setSidebarMode] = useState<'logging' | 'settings' | 'base'>('base');
+  const [sidebarMode, setSidebarMode] = useState<'logging' | 'base'>('base');
 
   // Main view state - controls what's displayed in the main content area
   const [mainView, setMainView] = useState<'dataTables' | 'statisticsDashboard' | 'settings' | 'timeline'>('dataTables');
@@ -1368,7 +1368,7 @@ const DecomposedDashboard: React.FC = () => {
   );
 
   // Sidebar handlers
-  const handleSidebarModeChange = (mode: 'logging' | 'settings' | 'base') => {
+  const handleSidebarModeChange = (mode: 'logging' | 'base') => {
     setSidebarMode(mode);
   };
 
@@ -1558,7 +1558,6 @@ const DecomposedDashboard: React.FC = () => {
         onTabNetworkLoggingToggle={toggleTabNetworkLogging}
         onTabErrorLoggingToggle={toggleTabErrorLogging}
         onTabTokenLoggingToggle={toggleTabTokenLogging}
-        onRefreshTabStatus={loadTabsLoggingStatus}
         stats={sidebarStats}
         onMainViewChange={handleMainViewChange}
         currentMainView={mainView}

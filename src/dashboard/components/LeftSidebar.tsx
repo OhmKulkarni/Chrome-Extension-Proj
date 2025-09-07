@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface TabLoggingStatus {
@@ -20,13 +20,12 @@ interface SidebarStats {
 }
 
 interface LeftSidebarProps {
-  sidebarMode: 'logging' | 'settings' | 'base';
-  onModeChange: (mode: 'logging' | 'settings' | 'base') => void;
+  sidebarMode: 'logging' | 'base';
+  onModeChange: (mode: 'logging' | 'base') => void;
   tabsLoggingStatus: TabLoggingStatus[];
   onTabNetworkLoggingToggle: (tabId: number) => void;
   onTabErrorLoggingToggle: (tabId: number) => void;
   onTabTokenLoggingToggle: (tabId: number) => void;
-  onRefreshTabStatus: () => void;
   stats: SidebarStats;
   onMainViewChange: (view: 'dataTables' | 'statisticsDashboard' | 'settings' | 'timeline') => void;
   currentMainView: 'dataTables' | 'statisticsDashboard' | 'settings' | 'timeline';
@@ -39,57 +38,12 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
   onTabNetworkLoggingToggle,
   onTabErrorLoggingToggle,
   onTabTokenLoggingToggle,
-  onRefreshTabStatus,
   stats,
   onMainViewChange,
   currentMainView
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [storageUsage, setStorageUsage] = useState({ used: 0, quota: 0 });
   const [isCollapsed, setIsCollapsed] = useState(false);
-
-  // Load storage usage
-  useEffect(() => {
-    loadStorageUsage();
-    const interval = setInterval(loadStorageUsage, 5000); // Update every 5 seconds
-    return () => clearInterval(interval);
-  }, []);
-
-  const loadStorageUsage = async () => {
-    try {
-      // Get Chrome storage usage
-      const chromeUsage = await chrome.storage.local.getBytesInUse();
-
-      // Get IndexedDB usage (estimate)
-      if ('storage' in navigator && 'estimate' in navigator.storage) {
-        const estimate = await navigator.storage.estimate();
-        setStorageUsage({
-          used: (estimate.usage || 0) + chromeUsage,
-          quota: estimate.quota || 0
-        });
-      } else {
-        setStorageUsage({
-          used: chromeUsage,
-          quota: 1024 * 1024 * 1024 // 1GB fallback
-        });
-      }
-    } catch (error) {
-      console.error('Failed to load storage usage:', error);
-    }
-  };
-
-  const formatBytes = (bytes: number): string => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  const getStoragePercentage = (): number => {
-    if (storageUsage.quota === 0) return 0;
-    return (storageUsage.used / storageUsage.quota) * 100;
-  };
 
   const filteredTabs = tabsLoggingStatus.filter(tab =>
     tab.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -117,16 +71,6 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
         }`}
       >
         Logging
-      </button>
-      <button
-        onClick={() => onModeChange('settings')}
-        className={`flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-          sidebarMode === 'settings'
-            ? 'bg-white text-blue-600 shadow-sm'
-            : 'text-gray-600 hover:text-gray-900'
-        }`}
-      >
-        Settings
       </button>
     </div>
   );
@@ -207,12 +151,6 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
           >
             🔧 Manage Tab Logging
           </button>
-          <button
-            onClick={onRefreshTabStatus}
-            className="w-full px-3 py-2 text-sm bg-green-50 text-green-700 rounded-md hover:bg-green-100 transition-colors"
-          >
-            🔄 Refresh Data
-          </button>
         </div>
       </div>
     </div>
@@ -220,6 +158,17 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
   const renderLoggingMode = () => (
     <div className="space-y-4">
+      {/* Back Button */}
+      <button
+        onClick={() => onModeChange('base')}
+        className="w-full px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors flex items-center gap-2"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
+        Back to Overview
+      </button>
+
       {/* Search */}
       <div className="relative">
         <input
@@ -235,14 +184,6 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
           </svg>
         </div>
       </div>
-
-      {/* Refresh Button */}
-      <button
-        onClick={onRefreshTabStatus}
-        className="w-full px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-      >
-        Refresh Tab Status
-      </button>
 
       {/* Tab List */}
       <div className="space-y-2 max-h-96 overflow-y-auto">
@@ -305,23 +246,6 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
     </div>
   );
 
-  const renderSettingsMode = () => (
-    <div className="space-y-4">
-      <div className="bg-white rounded-lg p-4 shadow-sm">
-        <h3 className="text-sm font-medium text-gray-900 mb-3">Settings Access</h3>
-        <p className="text-sm text-gray-600 mb-3">
-          Access extension settings including data management, performance monitoring, and advanced configuration.
-        </p>
-        <button
-          onClick={() => onMainViewChange('settings')}
-          className="w-full px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-        >
-          Open Settings Panel
-        </button>
-      </div>
-    </div>
-  );
-
   return (
     <div className={`bg-gray-50 border-r border-gray-200 h-screen overflow-hidden transition-all duration-300 ease-in-out ${
       isCollapsed ? 'w-12' : 'w-80'
@@ -354,32 +278,6 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
         {/* Mode Content */}
         {sidebarMode === 'base' && renderBaseMode()}
         {sidebarMode === 'logging' && renderLoggingMode()}
-        {sidebarMode === 'settings' && renderSettingsMode()}
-
-        {/* Storage Usage Bar - Always at bottom */}
-        <div className="mt-6 pt-4 border-t border-gray-200">
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <h3 className="text-sm font-medium text-gray-900 mb-3">Storage Usage</h3>
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs text-gray-600">
-                <span>Used: {formatBytes(storageUsage.used)}</span>
-                <span>Total: {formatBytes(storageUsage.quota)}</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    getStoragePercentage() > 80 ? 'bg-red-500' :
-                    getStoragePercentage() > 60 ? 'bg-yellow-500' : 'bg-blue-500'
-                  }`}
-                  style={{ width: `${Math.min(getStoragePercentage(), 100)}%` }}
-                ></div>
-              </div>
-              <div className="text-xs text-gray-500">
-                {getStoragePercentage().toFixed(1)}% used
-              </div>
-            </div>
-          </div>
-        </div>
         </div>
       )}
     </div>
