@@ -96,10 +96,6 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
     tab.domain.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const openSettings = () => {
-    chrome.tabs.create({ url: chrome.runtime.getURL('src/settings/settings.html') });
-  };
-
   const renderModeSelector = () => (
     <div className="flex bg-gray-200 rounded-lg p-1 mb-4">
       <button
@@ -212,12 +208,6 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
             🔧 Manage Tab Logging
           </button>
           <button
-            onClick={openSettings}
-            className="w-full px-3 py-2 text-sm bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
-          >
-            🔗 Open Settings Page
-          </button>
-          <button
             onClick={onRefreshTabStatus}
             className="w-full px-3 py-2 text-sm bg-green-50 text-green-700 rounded-md hover:bg-green-100 transition-colors"
           >
@@ -320,13 +310,13 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
       <div className="bg-white rounded-lg p-4 shadow-sm">
         <h3 className="text-sm font-medium text-gray-900 mb-3">Settings Access</h3>
         <p className="text-sm text-gray-600 mb-3">
-          Access full extension settings including data management, performance monitoring, and advanced configuration.
+          Access extension settings including data management, performance monitoring, and advanced configuration.
         </p>
         <button
-          onClick={openSettings}
+          onClick={() => onMainViewChange('settings')}
           className="w-full px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
         >
-          Open Settings Page
+          Open Settings Panel
         </button>
       </div>
     </div>

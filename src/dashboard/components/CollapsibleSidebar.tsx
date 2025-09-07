@@ -22,14 +22,14 @@ interface CollapsibleSidebarProps {
   onClose: () => void;
   sidebarMode: 'logging' | 'settings' | 'base';
   onModeChange: (mode: 'logging' | 'settings' | 'base') => void;
-  
+
   // Logging props
   tabsLoggingStatus: TabLoggingStatus[];
   onTabNetworkLoggingToggle: (tabId: number) => void;
   onTabErrorLoggingToggle: (tabId: number) => void;
   onTabTokenLoggingToggle: (tabId: number) => void;
   onRefreshTabStatus: () => void;
-  
+
   // Stats props
   stats: {
     totalRequests: number;
@@ -52,10 +52,10 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
   stats
 }) => {
   const [tabSearchTerm, setTabSearchTerm] = useState<string>('');
-  const [storageUsage, setStorageUsage] = useState<StorageUsage>({ 
-    bytes: 0, 
-    percentage: 0, 
-    isLoading: true 
+  const [storageUsage, setStorageUsage] = useState<StorageUsage>({
+    bytes: 0,
+    percentage: 0,
+    isLoading: true
   });
 
   // Load storage usage when sidebar opens
@@ -69,16 +69,16 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
   const loadStorageUsage = async () => {
     try {
       setStorageUsage(prev => ({ ...prev, isLoading: true }));
-      
+
       // Get table counts for storage estimation
       const response = await chrome.runtime.sendMessage({
         action: 'getTableCounts'
       });
-      
+
       if (response && response.success && response.data) {
         const tableCounts = response.data;
         let estimatedBytes = 0;
-        
+
         // Calculate estimated size based on table counts
         if (tableCounts.apiCalls) {
           estimatedBytes += tableCounts.apiCalls * 9500; // ~9.5KB average
@@ -92,10 +92,10 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
         if (tableCounts.minifiedLibraries) {
           estimatedBytes += tableCounts.minifiedLibraries * 15000; // ~15KB average
         }
-        
+
         const STORAGE_LIMIT = 100 * 1024 * 1024; // 100MB limit
         const percentage = (estimatedBytes / STORAGE_LIMIT) * 100;
-        
+
         setStorageUsage({
           bytes: estimatedBytes,
           percentage: Math.min(percentage, 100),
@@ -118,7 +118,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
   };
 
   // Filter tabs based on search term (only when in logging mode)
-  const filteredTabs = sidebarMode === 'logging' ? tabsLoggingStatus.filter(tab => 
+  const filteredTabs = sidebarMode === 'logging' ? tabsLoggingStatus.filter(tab =>
     tab.title.toLowerCase().includes(tabSearchTerm.toLowerCase()) ||
     tab.domain.toLowerCase().includes(tabSearchTerm.toLowerCase()) ||
     tab.url.toLowerCase().includes(tabSearchTerm.toLowerCase())
@@ -187,10 +187,10 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
               </span>
               <span className="font-medium">{storageUsage.percentage.toFixed(1)}%</span>
             </div>
-            
+
             {/* Progress Bar */}
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
+              <div
                 className={`h-2 rounded-full transition-all duration-300 ${
                   storageUsage.percentage < 50 ? 'bg-green-500' :
                   storageUsage.percentage < 80 ? 'bg-yellow-500' : 'bg-red-500'
@@ -198,7 +198,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
                 style={{ width: `${Math.min(storageUsage.percentage, 100)}%` }}
               ></div>
             </div>
-            
+
             {storageUsage.percentage > 80 && (
               <div className="text-xs text-yellow-700 bg-yellow-50 p-2 rounded border border-yellow-200">
                 ⚠️ High storage usage ({storageUsage.percentage.toFixed(1)}%)
@@ -339,13 +339,14 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
     <div className="flex-1 p-4 space-y-4">
       <h3 className="text-sm font-semibold text-gray-900">Settings</h3>
       <div className="text-sm text-gray-600">
-        Settings panel coming soon...
+        Use the main Settings panel for full configuration.
       </div>
       <button
-        onClick={() => window.open(chrome.runtime.getURL('src/settings/settings.html'), '_blank')}
+        onClick={() => {/* TODO: Navigate to inline settings if integrated */}}
         className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2 px-4 rounded-md transition-colors"
+        disabled
       >
-        Open Full Settings
+        Settings Panel (See ⚙️ Settings)
       </button>
     </div>
   );
@@ -366,7 +367,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">
-              {sidebarMode === 'logging' ? 'Tab Logging' : 
+              {sidebarMode === 'logging' ? 'Tab Logging' :
                sidebarMode === 'settings' ? 'Settings' : 'Dashboard Controls'}
             </h2>
             <div className="flex items-center gap-2">

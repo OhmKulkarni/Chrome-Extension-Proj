@@ -36,7 +36,7 @@ export default defineConfig({
             js: ["src/content/content-modular.ts"]
           }
         ],
-        options_page: "src/settings/settings.html",
+        options_page: undefined,
         web_accessible_resources: [
           {
             resources: [
@@ -71,7 +71,6 @@ export default defineConfig({
       input: {
         popup: resolve(__dirname, 'src/popup/popup.html'),
         dashboard: resolve(__dirname, 'src/dashboard/dashboard.html'),
-        settings: resolve(__dirname, 'src/settings/settings.html'),
       },
       output: {
         // Manual chunking for better code splitting
