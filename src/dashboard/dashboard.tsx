@@ -88,7 +88,8 @@ const DecomposedDashboard: React.FC = () => {
 
   // Sidebar state
   const [tabsLoggingStatus, setTabsLoggingStatus] = useState<TabLoggingStatus[]>([]);
-  const [sidebarMode, setSidebarMode] = useState<'logging' | 'settings' | 'base'>('base');
+  const [sidebarMode, setSidebarMode] = useState<'logging' | 'base'>('base');
+  const [sidebarLocked, setSidebarLocked] = useState(false);
 
   // Main view state - controls what's displayed in the main content area
   const [mainView, setMainView] = useState<'dataTables' | 'statisticsDashboard' | 'settings' | 'timeline'>('dataTables');
@@ -529,6 +530,43 @@ const DecomposedDashboard: React.FC = () => {
 
   // REMOVED: loadAnalysisData function to eliminate unused code and prevent confusion with StatisticsCard's internal loading
 
+  // Load settings - using StorageService for IndexedDB integration
+  const loadSettings = useCallback(async () => {
+    try {
+      const result = await storageService.get(['extensionSettings', 'settings']);
+
+      // Store the full settings for use in detail viewers
+      const fullSettings = result.settings || result.extensionSettings || {};
+      setSettings(fullSettings);
+
+      let tokenSettings = { showFullHash: false };
+
+      if (result.settings?.tokenLogging) {
+        tokenSettings = {
+          showFullHash: result.settings.tokenLogging.showFullHash || false
+        };
+      } else if (result.extensionSettings?.tokenLogging) {
+        tokenSettings = {
+          showFullHash: result.extensionSettings.tokenLogging.showFullHash || false
+        };
+      }
+
+      setShowFullTokenHash(tokenSettings.showFullHash);
+
+      // Load global power state
+      const response = await sendChromeMessage({ action: 'getSettings' });
+      if (response?.success) {
+        setData(prevData => ({ ...prevData, extensionEnabled: response.settings?.extensionEnabled ?? true }));
+        setData(prevData => ({
+          ...prevData,
+          extensionEnabled: response.settings?.extensionEnabled ?? true
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    }
+  }, []);
+
   // Clear data function with proper error handling
   const clearData = async () => {
     const confirmed = window.confirm(
@@ -576,62 +614,6 @@ const DecomposedDashboard: React.FC = () => {
       }
     }
   };
-
-  // Load settings - using StorageService for IndexedDB integration
-  const loadSettings = useCallback(async () => {
-    try {
-      const result = await storageService.get(['extensionSettings', 'settings']);
-
-      // Store the full settings for use in detail viewers
-      const fullSettings = result.settings || result.extensionSettings || {};
-      setSettings(fullSettings);
-
-      let tokenSettings = { showFullHash: false };
-
-      if (result.settings?.tokenLogging) {
-        tokenSettings = {
-          showFullHash: result.settings.tokenLogging.showFullHash || false
-        };
-      } else if (result.extensionSettings?.tokenLogging) {
-        tokenSettings = {
-          showFullHash: result.extensionSettings.tokenLogging.showFullHash || false
-        };
-      }
-
-      setShowFullTokenHash(tokenSettings.showFullHash);
-
-      // Load global power state
-      const response = await sendChromeMessage({ action: 'getSettings' });
-      if (response?.success) {
-        setData(prevData => ({ ...prevData, extensionEnabled: response.settings?.extensionEnabled ?? true }));
-        setData(prevData => ({
-          ...prevData,
-          extensionEnabled: response.settings?.extensionEnabled ?? true
-        }));
-      }
-    } catch (error) {
-      console.error('Error loading settings:', error);
-    }
-  }, []);
-
-  // Toggle extension - using same logic as original
-  const handleExtensionToggle = useCallback(async (enabled: boolean) => {
-    try {
-      setData(prevData => ({ ...prevData, extensionEnabled: enabled }));
-      const response = await sendChromeMessage({
-        action: 'toggleExtension',
-        enabled
-      });
-
-      if (!response?.success) {
-        setData(prevData => ({ ...prevData, extensionEnabled: !enabled })); // Revert on failure
-        console.error('Failed to toggle extension:', response?.error);
-      }
-    } catch (error) {
-      console.error('Error toggling extension:', error);
-      setData(prevData => ({ ...prevData, extensionEnabled: !enabled })); // Revert on error
-    }
-  }, []);
 
   // Handle sorting - Enhanced to work across all records
   const handleNetworkSort = useCallback(async (key: string) => {
@@ -1344,14 +1326,13 @@ const DecomposedDashboard: React.FC = () => {
     };
   }, [loading, loadDashboardData, activeTable, currentPage, requestsPerPage, loadNetworkRequestsPage, currentErrorPage, errorsPerPage, loadConsoleErrorsPage, currentTokenPage, tokenEventsPerPage, loadTokenEventsPage]);
 
-  // Calculate if there's any active logging
-  const hasActiveLogging = tabsLoggingStatus.some(tab =>
-    tab.networkLogging || tab.errorLogging || tab.tokenLogging
-  );
-
   // Sidebar handlers
-  const handleSidebarModeChange = (mode: 'logging' | 'settings' | 'base') => {
+  const handleSidebarModeChange = (mode: 'logging' | 'base') => {
     setSidebarMode(mode);
+  };
+
+  const handleSidebarLockChange = (isLocked: boolean) => {
+    setSidebarLocked(isLocked);
   };
 
   // Render current table content
@@ -1528,8 +1509,8 @@ const DecomposedDashboard: React.FC = () => {
   ]);
 
   return (
-    <div className="min-h-screen bg-gray-100 flex">
-      {/* Left Sidebar */}
+    <div className="min-h-screen bg-gray-100">
+      {/* Fixed Sidebar */}
       <LeftSidebar
         sidebarMode={sidebarMode}
         onModeChange={handleSidebarModeChange}
@@ -1537,61 +1518,21 @@ const DecomposedDashboard: React.FC = () => {
         onTabNetworkLoggingToggle={toggleTabNetworkLogging}
         onTabErrorLoggingToggle={toggleTabErrorLogging}
         onTabTokenLoggingToggle={toggleTabTokenLogging}
-        onRefreshTabStatus={loadTabsLoggingStatus}
         stats={sidebarStats}
         onMainViewChange={handleMainViewChange}
         currentMainView={mainView}
+        onLockStateChange={handleSidebarLockChange}
       />
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      {/* Main Content - adjusts based on sidebar lock state */}
+      <div className={`flex flex-col min-h-screen transition-all duration-300 ${
+        sidebarLocked ? 'ml-80' : 'ml-0'
+      }`}>
         {/* Header */}
         <DashboardHeader
-          extensionEnabled={data.extensionEnabled}
-          onExtensionToggle={handleExtensionToggle}
+          onClearData={clearData}
           isLoading={loading}
-          hasActiveLogging={hasActiveLogging}
         />
-
-        {/* Control Buttons */}
-        <div className="px-6 py-4 bg-white border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">
-              Last updated: {data.lastActivity}
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={loadDashboardData}
-                disabled={loading}
-                className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-              >
-                {loading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Loading...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Refresh Data
-                  </>
-                )}
-              </button>
-              <button
-                onClick={clearData}
-                disabled={loading}
-                className="bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                Clear Data
-              </button>
-            </div>
-          </div>
-        </div>
 
         {/* Main Content Area */}
         <div className="flex-1 p-6 space-y-6 overflow-hidden">

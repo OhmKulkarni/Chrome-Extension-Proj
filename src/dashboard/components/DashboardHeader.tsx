@@ -1,51 +1,53 @@
 import React from 'react';
+import { Trash2, BarChart3 } from 'lucide-react';
 
 interface DashboardHeaderProps {
-  extensionEnabled: boolean;
-  onExtensionToggle: (enabled: boolean) => void;
-  onSidebarToggle?: () => void;
+  onClearData?: () => void;
   isLoading?: boolean;
-  hasActiveLogging?: boolean;
 }
 
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
-  extensionEnabled,
-  onExtensionToggle,
+  onClearData,
   isLoading = false
 }) => {
   return (
-    <div className="bg-white border-b border-gray-200 px-6 py-4">
+    <div className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200 px-6 py-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Extension Dashboard</h1>
-          <p className="text-gray-600">Monitor network requests, console errors, and system performance</p>
-        </div>
-        
         <div className="flex items-center gap-4">
-          {/* Global Power Toggle */}
+          {/* Icon and Title Section */}
           <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-gray-700">
-              Extension {extensionEnabled ? 'Enabled' : 'Disabled'}
-            </span>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={extensionEnabled}
-                onChange={(e) => onExtensionToggle(e.target.checked)}
-                disabled={isLoading}
-                className="sr-only peer"
-              />
-              <div className={`w-14 h-8 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-7 after:w-7 after:transition-all peer-checked:bg-blue-600 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}></div>
-            </label>
+            <div className="bg-blue-500 p-2 rounded-lg shadow-sm">
+              <BarChart3 className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 leading-tight">Extension Dashboard</h1>
+              <p className="text-sm text-gray-600 mt-1">Monitor network requests, console errors, and system performance</p>
+            </div>
           </div>
+        </div>
 
-          {/* Status Indicator */}
-          <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${extensionEnabled ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
-            <span className={`text-sm font-medium ${extensionEnabled ? 'text-green-600' : 'text-gray-500'}`}>
-              {isLoading ? 'Loading...' : extensionEnabled ? 'Active' : 'Inactive'}
-            </span>
-          </div>
+        {/* Action Buttons */}
+        <div className="flex items-center gap-4">
+          {onClearData && (
+            <button
+              onClick={onClearData}
+              disabled={isLoading}
+              className="bg-red-500 hover:bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg transition-all duration-200 flex items-center gap-2 font-medium shadow-sm hover:shadow-md transform hover:-translate-y-0.5 active:translate-y-0"
+              title="Clear all stored data"
+            >
+              {isLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Clearing...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4" />
+                  Clear Data
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </div>

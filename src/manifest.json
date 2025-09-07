@@ -9,7 +9,6 @@
   "action": {
     "default_popup": "src/popup/popup.html"
   },
-  "options_page": "src/settings/settings.html",
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
