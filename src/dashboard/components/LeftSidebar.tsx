@@ -1,5 +1,15 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { 
+  ChevronLeft, 
+  ChevronRight, 
+  ArrowLeft,
+  Search,
+  BarChart3,
+  TrendingUp,
+  PieChart,
+  Settings,
+  MonitorSpeaker
+} from 'lucide-react';
 
 interface TabLoggingStatus {
   tabId: number;
@@ -106,50 +116,55 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
         <div className="space-y-2">
           <button
             onClick={() => onMainViewChange('dataTables')}
-            className={`w-full px-3 py-2 text-sm rounded-md transition-colors ${
+            className={`w-full px-3 py-2 text-sm rounded-md transition-colors flex items-center gap-2 ${
               currentMainView === 'dataTables'
                 ? 'bg-blue-100 text-blue-700 border border-blue-200'
                 : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
             }`}
           >
-            📊 Data Tables
+            <BarChart3 className="w-4 h-4" />
+            Data Tables
           </button>
           <button
             onClick={() => onMainViewChange('timeline')}
-            className={`w-full px-3 py-2 text-sm rounded-md transition-colors ${
+            className={`w-full px-3 py-2 text-sm rounded-md transition-colors flex items-center gap-2 ${
               currentMainView === 'timeline'
                 ? 'bg-green-100 text-green-700 border border-green-200'
                 : 'bg-green-50 text-green-700 hover:bg-green-100'
             }`}
           >
-            📈 Timeline View
+            <TrendingUp className="w-4 h-4" />
+            Timeline View
           </button>
           <button
             onClick={() => onMainViewChange('statisticsDashboard')}
-            className={`w-full px-3 py-2 text-sm rounded-md transition-colors ${
+            className={`w-full px-3 py-2 text-sm rounded-md transition-colors flex items-center gap-2 ${
               currentMainView === 'statisticsDashboard'
                 ? 'bg-purple-100 text-purple-700 border border-purple-200'
                 : 'bg-purple-50 text-purple-700 hover:bg-purple-100'
             }`}
           >
-            � Statistics Dashboard
+            <PieChart className="w-4 h-4" />
+            Statistics Dashboard
           </button>
           <button
             onClick={() => onMainViewChange('settings')}
-            className={`w-full px-3 py-2 text-sm rounded-md transition-colors ${
+            className={`w-full px-3 py-2 text-sm rounded-md transition-colors flex items-center gap-2 ${
               currentMainView === 'settings'
                 ? 'bg-gray-100 text-gray-700 border border-gray-200'
                 : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
             }`}
           >
-            ⚙️ Settings
+            <Settings className="w-4 h-4" />
+            Settings
           </button>
           <div className="border-t border-gray-200 my-3"></div>
           <button
             onClick={() => onModeChange('logging')}
-            className="w-full px-3 py-2 text-sm bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+            className="w-full px-3 py-2 text-sm bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 transition-colors flex items-center gap-2"
           >
-            🔧 Manage Tab Logging
+            <MonitorSpeaker className="w-4 h-4" />
+            Manage Tab Logging
           </button>
         </div>
       </div>
@@ -163,9 +178,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
         onClick={() => onModeChange('base')}
         className="w-full px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors flex items-center gap-2"
       >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
+        <ArrowLeft className="w-4 h-4" />
         Back to Overview
       </button>
 
@@ -179,9 +192,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
           className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+          <Search className="h-4 w-4 text-gray-400" />
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Settings } from 'lucide-react';
 
 interface TabLoggingStatus {
   tabId: number;
@@ -343,10 +344,11 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
       </div>
       <button
         onClick={() => {/* TODO: Navigate to inline settings if integrated */}}
-        className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2 px-4 rounded-md transition-colors"
+        className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2 px-4 rounded-md transition-colors flex items-center gap-2"
         disabled
       >
-        Settings Panel (See ⚙️ Settings)
+        <Settings size={16} />
+        Settings Panel
       </button>
     </div>
   );
