@@ -180,8 +180,8 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
   const filteredResources = Object.values(groupedResources).flat().length;
 
   return (
-    <div className={`bg-gray-50 border rounded-lg max-w-4xl ${className}`}>
-      <div className="p-4 space-y-4">
+    <div className={`bg-gray-50 border rounded-lg w-full ${className}`}>
+      <div className="p-4 space-y-4 w-full">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -194,25 +194,25 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
         </div>
 
         {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <div className="relative w-full px-2">
+          <Search className="absolute left-5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
             type="text"
             placeholder="Search libraries..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="w-full pl-12 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
           />
         </div>
 
         {searchTerm && filteredResources !== totalResources && (
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 px-2">
             Showing {filteredResources} of {totalResources} web resources
           </div>
         )}
 
         {/* Library Categories */}
-        <div className="space-y-3 max-h-96 overflow-y-auto w-full">
+        <div className="space-y-3 max-h-96 overflow-y-auto w-full px-2">
           {Object.entries(groupedResources).map(([primaryType, resourceList]) => (
             <div key={primaryType} className="border border-gray-200 rounded-lg bg-white w-full">
               <button
