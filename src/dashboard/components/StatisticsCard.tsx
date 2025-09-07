@@ -1436,52 +1436,32 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
               </button>
             </div>
 
-            {/* Animated Help Panel */}
+            {/* Animated Help Panel - Now Scrollable */}
             <div
               className={`overflow-hidden transition-all duration-500 ease-in-out mb-4 ${
                 showHelp
-                  ? 'max-h-96 opacity-100'
+                  ? 'max-h-80 opacity-100'
                   : 'max-h-0 opacity-0'
               }`}
             >
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-start gap-3">
                   <Layers className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <div className="space-y-4">
+                  <div className="space-y-4 max-h-72 overflow-y-auto custom-scrollbar">
                     <h4 className="text-sm font-semibold text-blue-800">Dashboard Icons & Features Guide</h4>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-blue-700">
+                    <div className="space-y-4 text-xs text-blue-700">
                       {/* Domain Status Icons */}
                       <div className="space-y-2">
                         <p className="font-medium text-blue-800">Domain Status Icons:</p>
                         <div className="space-y-1 ml-2">
                           <div className="flex items-center gap-2">
                             <Layers className="h-3 w-3" />
-                            <span>Grouped subdomains</span>
+                            <span>Grouped subdomains - Shows when multiple related subdomains are grouped together</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Monitor className="h-3 w-3" />
-                            <span>Main tab domain</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <BarChart3 className="h-3 w-3" />
-                            <span>Open domain charts</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Eye className="h-3 w-3" />
-                            <span>Show inline charts</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <EyeOff className="h-3 w-3" />
-                            <span>Hide inline charts</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <ChevronDown className="h-3 w-3" />
-                            <span>Expand section</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <ChevronRight className="h-3 w-3" />
-                            <span>Collapse section</span>
+                            <span>Main tab domain - Indicates the primary domain of the current tab</span>
                           </div>
                         </div>
                       </div>
@@ -1492,82 +1472,74 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                         <div className="space-y-1 ml-2">
                           <div className="flex items-center gap-2">
                             <Library className="h-3 w-3" />
-                            <span>Libraries (frameworks, utilities, polyfills)</span>
+                            <span>Libraries - JavaScript frameworks, utility libraries, and polyfills that extend browser functionality</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <BarChart className="h-3 w-3" />
-                            <span>Analytics (tracking, data collection)</span>
+                            <span>Analytics - Tracking scripts, data collection tools, and user behavior analysis services</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Shield className="h-3 w-3" />
-                            <span>Privacy (consent management, protection)</span>
+                            <span>Privacy - Consent management platforms, privacy protection tools, and compliance scripts</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Server className="h-3 w-3" />
-                            <span>Services (APIs, streaming, workers)</span>
+                            <span>Services - API endpoints, streaming services, web workers, and backend integrations</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Package className="h-3 w-3" />
-                            <span>Assets (tools, media, configs, fonts)</span>
+                            <span>Assets - Static resources including images, fonts, stylesheets, and configuration files</span>
                           </div>
                         </div>
-                        <p className="text-xs text-blue-600 mt-2">
-                          💡 <strong>Tip:</strong> Click any library to see detailed subcategories with specific technical classifications.<br/>
-                          🎨 <strong>New:</strong> Each category now displays with color-coded badges and matching icons for better visual identification.
-                        </p>
                       </div>
 
                       {/* Secondary Resource Categories (Detailed Types) */}
                       <div className="space-y-2">
                         <p className="font-medium text-blue-800">Secondary Categories (in modal detail):</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-blue-700 ml-2">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <Layers className="h-3 w-3" />
-                              <span>Framework</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Wrench className="h-3 w-3" />
-                              <span>Utility</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Puzzle className="h-3 w-3" />
-                              <span>Polyfill</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Database className="h-3 w-3" />
-                              <span>Data Collector</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Target className="h-3 w-3" />
-                              <span>Tracking Tools</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Lock className="h-3 w-3" />
-                              <span>Privacy Tools</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Globe className="h-3 w-3" />
-                              <span>Web Service</span>
-                            </div>
+                        <div className="space-y-1 ml-2">
+                          <div className="flex items-center gap-2">
+                            <Layers className="h-3 w-3" />
+                            <span>Framework - Core development frameworks like React, Angular, Vue</span>
                           </div>
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <Settings className="h-3 w-3" />
-                              <span>Site Tools</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Film className="h-3 w-3" />
-                              <span>Media Tools</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Zap className="h-3 w-3" />
-                              <span>Performance</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Box className="h-3 w-3" />
-                              <span>Build Artifact</span>
-                            </div>
+                          <div className="flex items-center gap-2">
+                            <Wrench className="h-3 w-3" />
+                            <span>Utility - Helper libraries for common programming tasks and operations</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Puzzle className="h-3 w-3" />
+                            <span>Polyfill - Code that provides modern functionality on older browsers</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Database className="h-3 w-3" />
+                            <span>Data Collector - Scripts that gather user data, form submissions, and interactions</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Target className="h-3 w-3" />
+                            <span>Tracking Tools - User behavior tracking, conversion tracking, and analytics integration</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Lock className="h-3 w-3" />
+                            <span>Privacy Tools - GDPR compliance, cookie consent, and data protection utilities</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Globe className="h-3 w-3" />
+                            <span>Web Service - External API calls, third-party integrations, and web services</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Settings className="h-3 w-3" />
+                            <span>Site Tools - Website functionality tools, widgets, and interactive components</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Film className="h-3 w-3" />
+                            <span>Media Tools - Video players, image galleries, audio controls, and media processing</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Zap className="h-3 w-3" />
+                            <span>Performance - Speed optimization tools, lazy loading, and performance monitoring</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Box className="h-3 w-3" />
+                            <span>Build Artifact - Compiled code bundles, minified scripts, and build output files</span>
                           </div>
                         </div>
                       </div>
@@ -1578,15 +1550,15 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                         <div className="space-y-1 ml-2">
                           <div className="flex items-center gap-2">
                             <Globe className="h-3 w-3 text-blue-600" />
-                            <span>CDN Provider (Cloudflare, unpkg, jsDelivr, etc.)</span>
+                            <span>CDN Provider - Content delivery networks like Cloudflare, unpkg, jsDelivr for fast global access</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Server className="h-3 w-3 text-green-600" />
-                            <span>Self-hosted (same domain)</span>
+                            <span>Self-hosted - Resources hosted on the same domain as the website for better control</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Package className="h-3 w-3 text-orange-600" />
-                            <span>External source</span>
+                            <span>External source - Third-party resources from different domains and providers</span>
                           </div>
                         </div>
                       </div>
@@ -1597,45 +1569,30 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                         <div className="space-y-1 ml-2">
                           <div className="flex items-center gap-2">
                             <CheckCircle className="h-3 w-3 text-green-600" />
-                            <span>High confidence (80%+ accurate)</span>
+                            <span>High confidence - Library detection is 80%+ accurate based on strong signature matches</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <HelpCircle className="h-3 w-3 text-yellow-600" />
-                            <span>Medium confidence (60-80% accurate)</span>
+                            <span>Medium confidence - Detection is 60-80% accurate with some uncertainty in identification</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Search className="h-3 w-3 text-red-600" />
-                            <span>Low confidence (possible match)</span>
+                            <span>Low confidence - Possible match with limited evidence, may need manual verification</span>
                           </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Third Party Domain Explanation - Separate Section */}
-                    <div className="pt-3 border-t border-blue-200">
+                      {/* Domain Labels */}
                       <div className="space-y-2">
                         <p className="font-medium text-blue-800">Domain Labels:</p>
-                        <div className="ml-2">
+                        <div className="space-y-1 ml-2">
                           <div className="flex items-center gap-2">
                             <span className="inline-block px-2 py-1 text-xs font-medium rounded bg-teal-100 text-teal-800">3rd party domain</span>
-                            <span>Indicates external/third-party domains (no icon by design - this is a classification label)</span>
+                            <span>Classification label for external domains - indicates resources loaded from outside the main website</span>
                           </div>
                         </div>
                       </div>
                     </div>
-
-                    <p className="mt-3 pt-2 border-t border-blue-200 text-xs">
-                      <strong>Smart Grouping:</strong> Domains are intelligently grouped by tab context and subdomain patterns.
-                      Hover over any icon or label for detailed tooltips with additional information.<br/>
-                      <strong>Enhanced Section:</strong> Web resource details now feature collapsible sections (collapsed by default),
-                      improved badge visibility with high-contrast colors, and streamlined information display focusing on essential categorization data.
-                      <br/>
-                      <strong>Inline Web Resource Details:</strong> Click the web resource detail button in the resources view to expand comprehensive resource information
-                      directly within the table. This displays truncated filenames for readability, while the copy button copies the full URL.
-                      Source icons show where resources come from (CDN, self-hosted, or external), and confidence icons indicate detection accuracy.
-                      <br/>
-                      <strong>Copy Function:</strong> The copy button 📋 copies the complete URL for technical use, while the display shows only the filename for readability.
-                    </p>
                   </div>
                 </div>
               </div>
