@@ -1419,7 +1419,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
           </TabsContent>
 
           <TabsContent value="domain" className="space-y-4">
-            {/* Collapsible Help Section */}
+            {/* Collapsible Help Section with Smooth Animation */}
             <div className="flex items-center justify-between mb-4">
               <button
                 onClick={() => setShowHelp(!showHelp)}
@@ -1428,16 +1428,23 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
               >
                 <HelpCircle className="h-4 w-4" />
                 <span className="font-medium">Dashboard Guide</span>
-                {showHelp ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform duration-300 ease-in-out ${
+                    showHelp ? 'rotate-180' : 'rotate-0'
+                  }`}
+                />
               </button>
             </div>
 
-            {showHelp && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 animate-in slide-in-from-top duration-200">
+            {/* Animated Help Panel */}
+            <div
+              className={`overflow-hidden transition-all duration-500 ease-in-out mb-4 ${
+                showHelp
+                  ? 'max-h-96 opacity-100'
+                  : 'max-h-0 opacity-0'
+              }`}
+            >
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-start gap-3">
                   <Layers className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
                   <div className="space-y-4">
@@ -1632,7 +1639,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                   </div>
                 </div>
               </div>
-            )}
+            </div>
 
             {/* Domain View Toggle */}
             <div className="flex items-center justify-between mb-4">
