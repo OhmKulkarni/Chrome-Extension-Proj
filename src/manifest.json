@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "🔧 TESTING DEBUG VERSION 🔧",
+  "name": "Web App Monitor",
   "version": "1.0.1",
   "description": "Monitor and analyze client-side web applications.",
   "background": {

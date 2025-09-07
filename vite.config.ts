@@ -9,7 +9,7 @@ export default defineConfig({
     crx({
       manifest: {
         manifest_version: 3,
-        name: "🔧 TESTING DEBUG VERSION 🔧",
+        name: "Web App Monitor",
         version: "1.0.1",
         description: "Chrome Extension with Manifest V3, TypeScript, and Vite",
         permissions: [
