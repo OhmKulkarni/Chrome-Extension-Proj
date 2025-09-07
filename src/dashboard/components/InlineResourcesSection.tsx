@@ -1,5 +1,5 @@
 import { Badge } from './ui/badge';
-import { Package, Layers, BarChart, Shield, Library, Target, Settings, Film, Zap, Wrench, Database, HelpCircle, Search, Copy, CheckCircle, Server, Lock, Box, ChevronDown, Globe, Puzzle, Home, ExternalLink } from 'lucide-react';
+import { Package, Layers, BarChart, Shield, Library, Target, Settings, Film, Zap, Wrench, Database, HelpCircle, Search, Copy, CheckCircle, Lock, Box, ChevronDown, Globe, Puzzle, Megaphone, Server, ExternalLink } from 'lucide-react';
 import { LibraryInfo } from '../../background/utils/library-detector';
 import { useState, useMemo } from 'react';
 import React from 'react';
@@ -43,7 +43,7 @@ const getPrimaryCategoryIcon = (primaryType: string) => {
     case 'privacy':
       return <Shield className="h-4 w-4" />;
     case 'services':
-      return <Server className="h-4 w-4" />;
+      return <Megaphone className="h-4 w-4" />;
     case 'assets':
       return <Package className="h-4 w-4" />;
     default:
@@ -293,14 +293,14 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
                                     } else if (lib.url.includes(lib.domain)) {
                                       return (
                                         <>
-                                          <Home className="h-3 w-3 text-green-600" />
+                                          <Server className="h-3 w-3 text-green-600" />
                                           <span className="text-xs text-green-600">Self-hosted</span>
                                         </>
                                       );
                                     } else {
                                       return (
                                         <>
-                                          <ExternalLink className="h-3 w-3 text-orange-600" />
+                                          <Package className="h-3 w-3 text-orange-600" />
                                           <span className="text-xs text-orange-600">External</span>
                                         </>
                                       );

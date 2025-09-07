@@ -1485,7 +1485,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                 <span>Privacy - Consent management platforms, privacy protection tools, and compliance scripts essential for GDPR, CCPA, and other privacy regulations. Includes cookie consent banners, privacy policy managers, and data protection utilities.</span>
                               </div>
                               <div className="flex items-start gap-2">
-                                <Server className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <Megaphone className="h-3 w-3 mt-0.5 flex-shrink-0" />
                                 <span>Services - Backend API endpoints, streaming services, web workers, and third-party integrations that provide core functionality. Includes payment processors, authentication services, content delivery systems, and real-time communication tools.</span>
                               </div>
                               <div className="flex items-start gap-2">
