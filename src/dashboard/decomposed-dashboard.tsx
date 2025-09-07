@@ -1549,8 +1549,8 @@ const DecomposedDashboard: React.FC = () => {
   ]);
 
   return (
-    <div className="min-h-screen bg-gray-100 flex">
-      {/* Left Sidebar */}
+    <div className="min-h-screen bg-gray-100">
+      {/* Fixed Sidebar */}
       <LeftSidebar
         sidebarMode={sidebarMode}
         onModeChange={handleSidebarModeChange}
@@ -1563,8 +1563,8 @@ const DecomposedDashboard: React.FC = () => {
         currentMainView={mainView}
       />
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      {/* Main Content - full width */}
+      <div className="flex flex-col min-h-screen">
         {/* Header */}
         <DashboardHeader
           extensionEnabled={data.extensionEnabled}

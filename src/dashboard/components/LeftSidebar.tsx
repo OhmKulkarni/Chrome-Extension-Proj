@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { 
-  ChevronLeft, 
-  ChevronRight, 
   ArrowLeft,
   Search,
   BarChart3,
@@ -53,7 +51,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
   currentMainView
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const filteredTabs = tabsLoggingStatus.filter(tab =>
     tab.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -258,39 +256,44 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
   );
 
   return (
-    <div className={`bg-gray-50 border-r border-gray-200 h-screen overflow-hidden transition-all duration-300 ease-in-out ${
-      isCollapsed ? 'w-12' : 'w-80'
-    }`}>
-      {/* Collapse/Expand Button */}
-      <div className="flex justify-end p-2">
-        <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-2 hover:bg-gray-200 rounded-md transition-colors duration-200"
-          title={isCollapsed ? "Expand Control Panel" : "Collapse Control Panel"}
-        >
-          {isCollapsed ? (
-            <ChevronRight className="h-4 w-4 text-gray-600" />
-          ) : (
-            <ChevronLeft className="h-4 w-4 text-gray-600" />
-          )}
-        </button>
+    <div 
+      className="relative"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* Hover Trigger Bar with Visual Indicator */}
+      <div className="fixed left-0 top-0 w-4 h-full z-30 cursor-pointer group">
+        <div className="w-1 h-full bg-blue-500 opacity-30 group-hover:opacity-70 transition-opacity duration-200" />
+        <div className="absolute top-1/2 left-0 transform -translate-y-1/2 w-3 h-12 bg-blue-500 opacity-50 group-hover:opacity-80 transition-opacity duration-200 rounded-r-md" />
       </div>
-
-      {/* Content - only show when not collapsed */}
-      {!isCollapsed && (
-        <div className="px-4 pb-4 overflow-y-auto" style={{ height: 'calc(100vh - 60px)' }}>
-          <div className="flex items-center justify-between mb-6">
+      
+      {/* Control Panel - slides out on hover */}
+      <div className={`fixed left-0 top-0 h-full bg-gray-50 border-r border-gray-200 z-40 transition-transform duration-300 ease-in-out ${
+        isHovered ? 'translate-x-0' : '-translate-x-full'
+      } w-80 shadow-lg`}>
+        
+        {/* Content */}
+        <div className="h-full overflow-hidden">
+          {/* Header with close indicator */}
+          <div className="flex items-center justify-between p-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">Control Panel</h2>
+            <div className="text-xs text-gray-500">Hover to keep open</div>
           </div>
 
-        {/* Mode Selector */}
-        {renderModeSelector()}
+          {/* Scrollable content */}
+          <div className="px-4 py-4 overflow-y-auto" style={{ height: 'calc(100vh - 80px)' }}>
+            {/* Mode Selector */}
+            {renderModeSelector()}
 
-        {/* Mode Content */}
-        {sidebarMode === 'base' && renderBaseMode()}
-        {sidebarMode === 'logging' && renderLoggingMode()}
+            {/* Mode Content */}
+            {sidebarMode === 'base' && renderBaseMode()}
+            {sidebarMode === 'logging' && renderLoggingMode()}
+          </div>
         </div>
-      )}
+      </div>
+      
+      {/* Spacer for main content when panel is closed */}
+      <div className="w-4" />
     </div>
   );
 };
