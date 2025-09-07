@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Button } from './ui/button';
-import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen, Megaphone, BarChart, Shield, Library, Globe, HelpCircle, Package, Wrench, Target, Database, Settings, Film, Zap, Server, Lock, Box, Puzzle, CheckCircle } from 'lucide-react';
+import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen, Megaphone, BarChart, Shield, Library, Globe, HelpCircle, Package, Wrench, Target, Database, Settings, Film, Zap, Server, Lock, Box, Puzzle, CheckCircle, Loader2, RotateCcw, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { groupDataByDomain, DomainStats } from './domainUtils';
 // Import the new shared data processing system
@@ -1100,10 +1100,25 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
         <div className="flex justify-between items-center mb-4">
           {/* Manual Refresh Button (when manual mode is enabled) */}
           <div className="flex items-center gap-3">
-            {/* Debug info - remove in production */}
-            <div className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded">
-              Mode: {chartSettings?.refreshMode || 'loading'} |
-              Loading: {chartSettingsLoading ? 'yes' : 'no'}
+            {/* System Status Indicators */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-xs font-medium">
+                <Settings className="h-3 w-3" />
+                <span>Mode: {chartSettings?.refreshMode || 'loading'}</span>
+              </div>
+              <div className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium">
+                {chartSettingsLoading ? (
+                  <div className="flex items-center gap-1 bg-amber-50 text-amber-700">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span>Loading</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 bg-green-50 text-green-700">
+                    <CheckCircle className="h-3 w-3" />
+                    <span>Ready</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             {chartSettings?.refreshMode === 'manual' && (
@@ -1138,22 +1153,25 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                   <RefreshCw className={`h-4 w-4 ${analysisData.loading ? 'animate-spin' : ''}`} />
                   {analysisData.loading ? 'Force Refreshing...' : 'Force Refresh'}
                 </Button>
-                <div className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded font-medium">
-                  🔄 Auto: {chartSettings.refreshInterval}s
+                <div className="flex items-center gap-1 bg-green-50 text-green-700 px-2 py-1 rounded-md text-xs font-medium">
+                  <RotateCcw className="h-3 w-3" />
+                  <span>Auto: {chartSettings.refreshInterval}s</span>
                 </div>
               </div>
             )}
 
             {/* Performance indicators */}
             {isFeatureEnabled('enableSharedChartData') && (
-              <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
-                ⚡ Shared Processing Active
+              <div className="flex items-center gap-1 bg-purple-50 text-purple-700 px-2 py-1 rounded-md text-xs font-medium">
+                <Zap className="h-3 w-3" />
+                <span>Shared Processing Active</span>
               </div>
             )}
 
             {sharedChartData.lastProcessed && isFeatureEnabled('enableStalenessTracking') && (
-              <div className="text-xs text-gray-500">
-                Last updated: {new Date(sharedChartData.lastProcessed).toLocaleTimeString()}
+              <div className="flex items-center gap-1 text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded-md">
+                <Clock className="h-3 w-3" />
+                <span>Last updated: {new Date(sharedChartData.lastProcessed).toLocaleTimeString()}</span>
               </div>
             )}
           </div>
