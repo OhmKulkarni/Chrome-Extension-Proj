@@ -12,6 +12,7 @@ import { TokenTrackerModule } from './token-tracker.module';
 import { EnvironmentStorageManager } from '../environment-storage-manager';
 import { UnifiedPermissionService } from '../services/unified-permission-service';
 import { LibraryDetector } from '../utils/library-detector';
+import { unifiedPermissionManager } from '../../utils/unified-permission-manager';
 import {
   NetworkRequestData,
   SafetyConfig
@@ -846,9 +847,7 @@ export class NetworkProcessorModule {
       const tabId = validatedRequestData.tabId;
 
       if (tabId) {
-        // Import the unified permission manager directly
-        const { unifiedPermissionManager } = await import('../../utils/unified-permission-manager');
-
+        // Use the already imported unified permission manager
         // SECURITY FIX: Ensure permission manager is properly initialized before checking
         // This prevents library detection during Chrome startup when permissions aren't loaded
         const isReady = await unifiedPermissionManager.isReady();

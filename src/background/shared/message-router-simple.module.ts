@@ -395,9 +395,7 @@ export class MessageRouterSimpleModule {
             }
 
             if (tabId !== undefined) {
-              // Import unified permission manager dynamically
-              const { unifiedPermissionManager } = await import('../../utils/unified-permission-manager');
-
+              // Use the already imported unified permission manager
               // Check if any of the three logging types are enabled for this tab
               const [networkEnabled, consoleEnabled, tokenEnabled] = await Promise.all([
                 unifiedPermissionManager.isFeatureEnabled(tabId, 'network'),
