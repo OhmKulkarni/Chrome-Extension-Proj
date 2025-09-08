@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import TimelineHeaderNew from './components/TimelineHeaderNew'
 import { SwimlanesContainer } from './components/SwimlanesContainer'
+import { BookmarkComparePanel } from './components/BookmarkComparePanel'
 import { useTimelineData } from './hooks/useTimelineData'
 import { useViewport } from './hooks/useViewport'
 import { useTimelineVisualization } from './hooks/useTimelineVisualization'
@@ -130,6 +131,18 @@ export const TimelineVisualization: React.FC = () => {
             )}
           </div>
         )}
+
+        {/* Bookmark & Compare Panel */}
+        <BookmarkComparePanel
+          bookmarkedEvents={timelineData.events.filter(event => event.isBookmarked)}
+          compareEvents={timelineData.events.filter(event => event.compareSlot !== undefined)}
+          onRemoveBookmark={(eventId) => timelineData.bookmarkEvent(eventId, false)}
+          onRemoveFromCompare={(eventId) => timelineData.setCompareSlot(eventId, undefined)}
+          onEventClick={(event) => {
+            // Jump to event in timeline
+            viewport.jumpToTime(event.timestamp)
+          }}
+        />
       </div>
     </div>
   )
