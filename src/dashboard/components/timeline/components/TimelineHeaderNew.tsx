@@ -32,6 +32,7 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
   onPanLeft,
   onPanRight,
   onJumpToPreset,
+  onJumpToTime,
   onRefresh,
   onAcknowledgeUpdates,
   onShowSwimlane
@@ -40,7 +41,7 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
   const [showLastDropdown, setShowLastDropdown] = useState(false)
   const [showFirstDropdown, setShowFirstDropdown] = useState(false)
   const [showTimeRangeSelector, setShowTimeRangeSelector] = useState(false)
-  
+
   // State for time selection mode
   const [timeSelectionMode, setTimeSelectionMode] = useState<'last' | 'first' | 'all-time' | 'custom'>('last')
 
@@ -117,9 +118,9 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
     setShowLastDropdown(false)
     setShowFirstDropdown(false)
     setShowTimeRangeSelector(false)
-    
+
     setTimeSelectionMode(mode)
-    
+
     // Open the appropriate dropdown/selector
     if (mode === 'last') {
       setShowLastDropdown(true)
@@ -138,41 +139,41 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
       <div className="flex items-center space-x-4">
         {/* Mutually exclusive time selection buttons */}
         <div className="flex bg-gray-100 rounded-lg p-1">
-          <button 
+          <button
             onClick={() => handleTimeSelectionModeChange('last')}
             className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-              timeSelectionMode === 'last' 
-                ? 'bg-white text-blue-600 shadow-sm ring-1 ring-blue-200' 
+              timeSelectionMode === 'last'
+                ? 'bg-white text-blue-600 shadow-sm ring-1 ring-blue-200'
                 : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
             }`}
           >
             Last
           </button>
-          <button 
+          <button
             onClick={() => handleTimeSelectionModeChange('first')}
             className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-              timeSelectionMode === 'first' 
-                ? 'bg-white text-blue-600 shadow-sm ring-1 ring-blue-200' 
+              timeSelectionMode === 'first'
+                ? 'bg-white text-blue-600 shadow-sm ring-1 ring-blue-200'
                 : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
             }`}
           >
             First
           </button>
-          <button 
+          <button
             onClick={() => handleTimeSelectionModeChange('all-time')}
             className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-              timeSelectionMode === 'all-time' 
-                ? 'bg-white text-blue-600 shadow-sm ring-1 ring-blue-200' 
+              timeSelectionMode === 'all-time'
+                ? 'bg-white text-blue-600 shadow-sm ring-1 ring-blue-200'
                 : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
             }`}
           >
             All Time
           </button>
-          <button 
+          <button
             onClick={() => handleTimeSelectionModeChange('custom')}
             className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-              timeSelectionMode === 'custom' 
-                ? 'bg-white text-blue-600 shadow-sm ring-1 ring-blue-200' 
+              timeSelectionMode === 'custom'
+                ? 'bg-white text-blue-600 shadow-sm ring-1 ring-blue-200'
                 : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
             }`}
           >
@@ -238,7 +239,7 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-medium text-gray-900">Custom Time Range</h3>
-                <button 
+                <button
                   onClick={() => {
                     setShowTimeRangeSelector(false)
                     setTimeSelectionMode('last')
@@ -250,11 +251,11 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
                   </svg>
                 </button>
               </div>
-              
+
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
-                  <input 
+                  <input
                     type="date"
                     value={customStartDate}
                     onChange={(e) => setCustomStartDate(e.target.value)}
@@ -263,7 +264,7 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Start Time</label>
-                  <input 
+                  <input
                     type="time"
                     value={customStartTime}
                     onChange={(e) => setCustomStartTime(e.target.value)}
@@ -272,7 +273,7 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Time Scope</label>
-                  <select 
+                  <select
                     value={customScope}
                     onChange={(e) => setCustomScope(e.target.value)}
                     className="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 max-h-32"
@@ -291,7 +292,7 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
                   Shows data from start time for the selected duration
                 </div>
                 <div className="flex space-x-2">
-                  <button 
+                  <button
                     onClick={() => {
                       setShowTimeRangeSelector(false)
                       setTimeSelectionMode('last')
@@ -300,27 +301,48 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
                   >
                     Cancel
                   </button>
-                  <button 
+                  <button
                     onClick={() => {
                       // Create a custom label from the settings
                       const scopeLabel = timeIntervals.find(t => t.value === customScope)?.label || customScope
                       let dateLabel = ''
-                      
+
                       if (customStartDate) {
                         const date = new Date(customStartDate)
-                        dateLabel = date.toLocaleDateString('en-US', { 
-                          month: 'short', 
+                        dateLabel = date.toLocaleDateString('en-US', {
+                          month: 'short',
                           day: 'numeric',
-                          year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined 
+                          year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
                         })
                       }
-                      
+
                       const timeLabel = customStartTime ? ` at ${customStartTime}` : ''
                       const label = `${scopeLabel}${dateLabel ? ` from ${dateLabel}` : ''}${timeLabel}`
                       setCustomLabel(label)
-                      
-                      // Apply the custom range (you can extend this with actual time logic)
-                      // For now, just close the selector
+
+                      // Calculate actual timestamp from custom inputs
+                      let targetTimestamp = Date.now() // Default to now
+
+                      if (customStartDate && customStartTime) {
+                        // Both date and time specified
+                        const dateTime = new Date(`${customStartDate}T${customStartTime}`)
+                        targetTimestamp = dateTime.getTime()
+                      } else if (customStartDate) {
+                        // Only date specified, use start of day
+                        const date = new Date(customStartDate)
+                        date.setHours(0, 0, 0, 0)
+                        targetTimestamp = date.getTime()
+                      } else if (customStartTime) {
+                        // Only time specified, use today's date
+                        const today = new Date()
+                        const [hours, minutes] = customStartTime.split(':').map(Number)
+                        today.setHours(hours, minutes, 0, 0)
+                        targetTimestamp = today.getTime()
+                      }
+
+                      // Jump to the calculated time with the selected scope
+                      onJumpToTime(targetTimestamp, customScope)
+
                       setShowTimeRangeSelector(false)
                     }}
                     className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
@@ -340,21 +362,21 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
           onClick={onPanLeft}
           disabled={isAnimating}
           className={`p-2 rounded-lg transition-colors ${
-            isAnimating 
-              ? 'bg-gray-100 cursor-not-allowed opacity-50' 
+            isAnimating
+              ? 'bg-gray-100 cursor-not-allowed opacity-50'
               : 'hover:bg-gray-100'
           }`}
           title="Pan Left"
         >
           <ChevronLeft className={`w-5 h-5 ${isAnimating ? 'text-gray-400' : 'text-gray-600'}`} />
         </button>
-        
+
         <button
           onClick={onPanRight}
           disabled={isAnimating}
           className={`p-2 rounded-lg transition-colors ${
-            isAnimating 
-              ? 'bg-gray-100 cursor-not-allowed opacity-50' 
+            isAnimating
+              ? 'bg-gray-100 cursor-not-allowed opacity-50'
               : 'hover:bg-gray-100'
           }`}
           title="Pan Right"
@@ -372,7 +394,7 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
         >
           <ZoomOut className="w-5 h-5 text-gray-600" />
         </button>
-        
+
         <button
           onClick={onZoomIn}
           disabled={!canZoomIn}

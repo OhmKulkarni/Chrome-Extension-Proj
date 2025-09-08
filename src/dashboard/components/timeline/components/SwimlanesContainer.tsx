@@ -19,6 +19,7 @@ interface SwimlanesContainerProps {
   onBookmarkEvent: (eventId: string, isBookmarked: boolean) => Promise<boolean>
   onSetCompareSlot: (eventId: string, slot: number | undefined) => Promise<boolean>
   onZoomIn: () => void
+  onJumpToTime?: (timestamp: number, scope?: string) => void
   zoomLevel: number
   swimlanes: SwimLaneConfig[]
   onUpdateSwimlanes: (swimlanes: SwimLaneConfig[]) => void
@@ -34,6 +35,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   onBookmarkEvent,
   onSetCompareSlot,
   onZoomIn,
+  onJumpToTime,
   zoomLevel,
   swimlanes,
   onUpdateSwimlanes
@@ -59,7 +61,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   }, [swimlanes, visibleSwimlanes.length])
 
   const handleToggleSwimlane = useCallback((laneId: string) => {
-    onUpdateSwimlanes(swimlanes.map(lane => 
+    onUpdateSwimlanes(swimlanes.map(lane =>
       lane.id === laneId ? { ...lane, isVisible: !lane.isVisible } : lane
     ))
   }, [swimlanes, onUpdateSwimlanes])
@@ -93,12 +95,17 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   }, [])
 
   const handleEventClick = useCallback((event: TimelineEvent) => {
+    // Get the viewport-filtered events for stack detection
+    const viewportEvents = visualizationData.shouldShowCards ?
+      visualizationData.individualEvents :
+      visualizationData.densityClusters.flatMap(cluster => cluster.events)
+
     // If it's a dense stack, show popup
-    const samePositionEvents = events.filter(e => 
-      Math.abs(e.timestamp - event.timestamp) < 1000 && 
+    const samePositionEvents = viewportEvents.filter(e =>
+      Math.abs(e.timestamp - event.timestamp) < 1000 &&
       e.swimlane === event.swimlane
     )
-    
+
     if (samePositionEvents.length > 1) {
       setSelectedCluster({
         id: `stack_${event.id}`,
@@ -114,12 +121,25 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
         visualType: 'card'
       })
     }
-  }, [events])
+  }, [visualizationData])
 
-  const handleDensityClusterZoom = useCallback((_cluster: DensityCluster) => {
-    // Zoom in on the cluster's time range
+  const handleDensityClusterZoom = useCallback((cluster: DensityCluster) => {
+    // Center viewport on the cluster's center time when zooming in
+    const clusterCenterTime = cluster.startTime + (cluster.endTime - cluster.startTime) / 2
+
+    // First zoom in to get more detailed view
     onZoomIn()
-  }, [onZoomIn])
+
+    // Then center on the cluster time if jumpToTime is available
+    if (onJumpToTime) {
+      // Use a small timeout to ensure zoom happens first
+      setTimeout(() => {
+        onJumpToTime(clusterCenterTime)
+      }, 100)
+    }
+
+    console.log('Zooming in on cluster at time:', new Date(clusterCenterTime))
+  }, [onZoomIn, onJumpToTime])
 
   const handleDensityClusterList = useCallback((cluster: DensityCluster) => {
     // Show event list popup for density cluster
@@ -131,7 +151,12 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   }, [])
 
   const handleAddToCompare = useCallback(async (event: TimelineEvent) => {
-    const currentCompareEvents = events.filter(e => 
+    // Get the viewport-filtered events for compare calculation
+    const viewportEvents = visualizationData.shouldShowCards ?
+      visualizationData.individualEvents :
+      visualizationData.densityClusters.flatMap(cluster => cluster.events)
+
+    const currentCompareEvents = viewportEvents.filter(e =>
       e.compareSlot !== undefined && e.compareSlot >= 0 && e.compareSlot <= 3
     ).sort((a, b) => (a.compareSlot || 0) - (b.compareSlot || 0))
 
@@ -144,10 +169,10 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
       const oldest = currentCompareEvents[0]
       await onSetCompareSlot(oldest.id, -1)
       await onSetCompareSlot(event.id, 0)
-      
+
       setCompareQueue([...compareQueue, oldest])
     }
-  }, [events, compareQueue, onSetCompareSlot])
+  }, [visualizationData, compareQueue, onSetCompareSlot])
 
   const handleMoveFromQueue = useCallback(async (event: TimelineEvent) => {
     await handleAddToCompare(event)
@@ -158,7 +183,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   const bookmarkedEvents = events.filter(e => e.isBookmarked)
 
   // Get compare events (both active and queued)
-  const activeCompareEvents = events.filter(e => 
+  const activeCompareEvents = events.filter(e =>
     e.compareSlot !== undefined && e.compareSlot >= 0 && e.compareSlot <= 3
   ).sort((a, b) => (a.compareSlot || 0) - (b.compareSlot || 0))
 
@@ -172,14 +197,14 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
         <div className="flex-1 relative">
           {/* Time Markers */}
           <TimeMarkers viewport={viewport} zoomLevel={zoomLevel} />
-          
+
           {adjustedSwimlanes().map((swimlane, index) => (
             <Swimlane
               key={swimlane.id}
               config={swimlane}
-              events={visualizationData.shouldShowCards ? 
-                events.filter(e => e.swimlane === swimlane.id) : []}
-              clusters={visualizationData.shouldShowCards ? 
+              events={visualizationData.shouldShowCards ?
+                visualizationData.individualEvents.filter(e => e.swimlane === swimlane.id) : []}
+              clusters={visualizationData.shouldShowCards ?
                 clusters.filter(c => c.swimlane === swimlane.id) : []}
               shouldCluster={shouldCluster}
               height={swimlane.height}
@@ -203,7 +228,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
               onShowEventList={handleDensityClusterList}
             />
           ))}
-          
+
           {/* All Time View Performance Demo */}
           <AllTimeViewDemo currentScope={currentScope} viewport={viewport} />
         </div>

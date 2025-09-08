@@ -7,22 +7,38 @@ interface UseTimelineVisualizationProps {
   zoomLevel: number
 }
 
-export const useTimelineVisualization = ({ 
-  events, 
-  viewport, 
-  zoomLevel 
+export const useTimelineVisualization = ({
+  events,
+  viewport,
+  zoomLevel
 }: UseTimelineVisualizationProps): ViewportEventData => {
-  
+
   return useMemo(() => {
     // Filter events within current viewport
-    const viewportEvents = events.filter(event => 
-      event.timestamp >= viewport.startTime && 
+    const viewportEvents = events.filter(event =>
+      event.timestamp >= viewport.startTime &&
       event.timestamp <= viewport.endTime
     )
-    
+
     const totalEventCount = viewportEvents.length
-    const shouldShowCards = totalEventCount < 10
-    
+
+    // Two conditions for showing mini cards:
+    // 1. If we're at the most detailed zoom level (1-minute scope, zoomLevel 10)
+    // 2. If there are 10 or fewer events in the current viewport
+    const isAtMostDetailedLevel = zoomLevel >= 10 // 1-minute scope
+    const hasFewEvents = totalEventCount <= 10
+
+    const shouldShowCards = isAtMostDetailedLevel || hasFewEvents
+
+    console.log('Timeline Visualization Decision:', {
+      zoomLevel,
+      totalEventCount,
+      isAtMostDetailedLevel,
+      hasFewEvents,
+      shouldShowCards,
+      scope: zoomLevel >= 10 ? '1-minute' : zoomLevel >= 9 ? '5-minutes' : 'other'
+    })
+
     if (shouldShowCards) {
       // Show individual event cards
       return {
@@ -32,10 +48,10 @@ export const useTimelineVisualization = ({
         shouldShowCards: true
       }
     }
-    
-    // Create density clusters for high event counts
+
+    // Create density clusters for high event counts at broader zoom levels
     const densityClusters = createDensityClusters(viewportEvents, viewport, zoomLevel)
-    
+
     return {
       individualEvents: [],
       densityClusters,
@@ -46,8 +62,8 @@ export const useTimelineVisualization = ({
 }
 
 function createDensityClusters(
-  events: TimelineEvent[], 
-  viewport: ViewportRange, 
+  events: TimelineEvent[],
+  viewport: ViewportRange,
   zoomLevel: number
 ): DensityCluster[] {
   // Group events by swimlane
@@ -56,27 +72,27 @@ function createDensityClusters(
     acc[event.swimlane].push(event)
     return acc
   }, {} as Record<string, TimelineEvent[]>)
-  
+
   const clusters: DensityCluster[] = []
-  
+
   // Calculate cluster granularity based on zoom level
   const clusterCount = Math.min(20, Math.max(5, Math.floor(viewport.duration / getClusterInterval(zoomLevel))))
   const timeSlotDuration = viewport.duration / clusterCount
-  
+
   Object.entries(eventsBySwimlane).forEach(([swimlane, swimlaneEvents]) => {
     // Create time slots
     for (let i = 0; i < clusterCount; i++) {
       const slotStartTime = viewport.startTime + (i * timeSlotDuration)
       const slotEndTime = slotStartTime + timeSlotDuration
-      
-      const slotEvents = swimlaneEvents.filter(event => 
+
+      const slotEvents = swimlaneEvents.filter(event =>
         event.timestamp >= slotStartTime && event.timestamp < slotEndTime
       )
-      
+
       if (slotEvents.length > 0) {
         const density = slotEvents.length
         const size = Math.min(5, Math.max(1, Math.ceil(density / 5))) // Size 1-5
-        
+
         clusters.push({
           id: `${swimlane}-${i}`,
           startTime: slotStartTime,
@@ -93,14 +109,14 @@ function createDensityClusters(
       }
     }
   })
-  
+
   return clusters
 }
 
 function getClusterInterval(zoomLevel: number): number {
   // Higher zoom levels need finer granularity
   if (zoomLevel >= 8) return 5000 // 5 seconds
-  if (zoomLevel >= 5) return 30000 // 30 seconds  
+  if (zoomLevel >= 5) return 30000 // 30 seconds
   if (zoomLevel >= 2) return 300000 // 5 minutes
   if (zoomLevel >= 0) return 3600000 // 1 hour
   return 86400000 // 1 day

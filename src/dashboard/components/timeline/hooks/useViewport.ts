@@ -6,15 +6,18 @@ interface UseViewportProps {
   initialCenterTime?: number
 }
 
-export const useViewport = ({ 
-  initialScope = '1-hour', 
-  initialCenterTime 
+export const useViewport = ({
+  initialScope = '1-hour',
+  initialCenterTime
 }: UseViewportProps = {}) => {
   const [currentScope, setCurrentScope] = useState<string>(initialScope)
   const [centerTime, setCenterTime] = useState<number>(
     initialCenterTime || Date.now()
   )
   const [isAnimating, setIsAnimating] = useState<boolean>(false)
+  const [earliestDataTimestamp, setEarliestDataTimestamp] = useState<number>(
+    Date.now() - (24 * 60 * 60 * 1000) // Default fallback
+  )
   const animationRef = useRef<number | null>(null)
 
   const scopeConfig = useMemo(() => {
@@ -43,10 +46,10 @@ export const useViewport = ({
     const animate = (currentTimestamp: number) => {
       const elapsed = currentTimestamp - startTimestamp
       const progress = Math.min(elapsed / duration, 1)
-      
+
       // Smooth easing function (ease-out)
       const easeOut = 1 - Math.pow(1 - progress, 3)
-      
+
       const currentTime = startTime + (targetTime - startTime) * easeOut
       setCenterTime(currentTime)
 
@@ -63,16 +66,16 @@ export const useViewport = ({
 
   const zoomIn = useCallback(() => {
     const currentIndex = TIME_SCOPES.findIndex(scope => scope.key === currentScope)
-    if (currentIndex < TIME_SCOPES.length - 1) {
-      const nextScope = TIME_SCOPES[currentIndex + 1]
+    if (currentIndex > 0) {
+      const nextScope = TIME_SCOPES[currentIndex - 1]  // Go to shorter duration (more detailed)
       setCurrentScope(nextScope.key)
     }
   }, [currentScope])
 
   const zoomOut = useCallback(() => {
     const currentIndex = TIME_SCOPES.findIndex(scope => scope.key === currentScope)
-    if (currentIndex > 0) {
-      const prevScope = TIME_SCOPES[currentIndex - 1]
+    if (currentIndex < TIME_SCOPES.length - 1) {
+      const prevScope = TIME_SCOPES[currentIndex + 1]  // Go to longer duration (less detailed)
       setCurrentScope(prevScope.key)
     }
   }, [currentScope])
@@ -97,24 +100,22 @@ export const useViewport = ({
     // Handle the new timeline header format (e.g., 'last-1-hour', 'first-30-minutes')
     let targetScope = presetScope
     let targetTime = Date.now()
-    
+
     if (presetScope.startsWith('last-') || presetScope.startsWith('first-')) {
       // Extract the actual scope from 'last-1-hour' or 'first-30-minutes'
       const scopePart = presetScope.replace(/^(last-|first-)/, '')
       targetScope = scopePart
-      
-      // For 'first-' scopes, we might want to jump to the earliest data time
-      // For now, we'll use current time for both
+
+      // For 'first-' scopes, jump to the earliest data time
       if (presetScope.startsWith('first-')) {
-        // TODO: Get earliest data timestamp from timeline data
-        targetTime = Date.now() - (24 * 60 * 60 * 1000) // Go back 24 hours as default
+        targetTime = earliestDataTimestamp
       }
     } else if (presetScope === 'all-time') {
       targetScope = 'all-time'
       // For all-time, center on a reasonable time point
       targetTime = Date.now() - (30 * 24 * 60 * 60 * 1000) // Go back 30 days
     }
-    
+
     setCurrentScope(targetScope)
     animateCenterTime(targetTime, 500) // Longer animation for bigger jumps
   }, [animateCenterTime])
@@ -128,12 +129,12 @@ export const useViewport = ({
 
   const canZoomIn = useMemo(() => {
     const currentIndex = TIME_SCOPES.findIndex(scope => scope.key === currentScope)
-    return currentIndex < TIME_SCOPES.length - 1
+    return currentIndex > 0  // Can zoom in if not at most detailed level (index 0)
   }, [currentScope])
 
   const canZoomOut = useMemo(() => {
     const currentIndex = TIME_SCOPES.findIndex(scope => scope.key === currentScope)
-    return currentIndex > 0
+    return currentIndex < TIME_SCOPES.length - 1  // Can zoom out if not at least detailed level (last index)
   }, [currentScope])
 
   return {
@@ -151,6 +152,7 @@ export const useViewport = ({
     panRight,
     jumpToPreset,
     jumpToTime,
-    setCenterTime
+    setCenterTime,
+    setEarliestDataTimestamp
   }
 }
