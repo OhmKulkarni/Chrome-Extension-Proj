@@ -52,8 +52,8 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
   // Enhanced overlap detection and layering with smart sizing
   const { eventLayers, heightAnalysis } = useMemo(() => {
     if (shouldCluster || events.length === 0) {
-      return { 
-        eventLayers: [], 
+      return {
+        eventLayers: [],
         heightAnalysis: { totalHeight: 0, recommendedHeight: height, needsScrolling: false, layerCount: 0 }
       }
     }
@@ -96,11 +96,11 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
     const totalContentHeight = layers.length * LAYER_HEIGHT + 40 // layers + header + padding
     const currentContainerHeight = (height / 100) * window.innerHeight
     const needsScrolling = totalContentHeight > currentContainerHeight - 50
-    
+
     // Calculate optimal height recommendation
     const optimalHeightPx = Math.min(totalContentHeight + 60, window.innerHeight * 0.6) // Max 60% of screen
     const recommendedHeightPercent = Math.max(20, Math.min(80, (optimalHeightPx / window.innerHeight) * 100))
-    
+
     const heightAnalysis = {
       totalHeight: totalContentHeight,
       recommendedHeight: recommendedHeightPercent,
@@ -117,12 +117,12 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
 
   const handleScroll = useCallback((direction: 'up' | 'down') => {
     if (!contentRef.current) return
-    
+
     const scrollAmount = 50
-    const newPosition = direction === 'down' 
-      ? scrollPosition + scrollAmount 
+    const newPosition = direction === 'down'
+      ? scrollPosition + scrollAmount
       : Math.max(0, scrollPosition - scrollAmount)
-    
+
     setScrollPosition(newPosition)
     contentRef.current.style.transform = `translateY(-${newPosition}px)`
   }, [scrollPosition])
@@ -130,7 +130,7 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
   // Quick resize functions
   const handleQuickResize = useCallback((action: 'optimal' | 'expand' | 'compact') => {
     let newHeight: number
-    
+
     switch (action) {
       case 'optimal':
         newHeight = heightAnalysis.recommendedHeight
@@ -144,7 +144,7 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
       default:
         return
     }
-    
+
     onResize(newHeight)
     setShowResizeHelper(false)
   }, [heightAnalysis.recommendedHeight, height, onResize])
@@ -167,7 +167,7 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (isLast) return // Can't resize the last visible swimlane
-    
+
     e.preventDefault()
     setIsDragging(true)
     startYRef.current = e.clientY
@@ -181,7 +181,7 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
     // Convert pixel delta to percentage (assuming parent is viewport height)
     const deltaPercent = (deltaY / window.innerHeight) * 100
     const newHeight = Math.max(15, Math.min(80, startHeightRef.current + deltaPercent))
-    
+
     onResize(newHeight)
   }, [isDragging, onResize])
 
@@ -232,7 +232,7 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
             ({shouldCluster ? clusters.length : events.length})
           </span>
         </div>
-        
+
         <button
           onClick={onToggle}
           className="p-1 hover:bg-gray-100 rounded transition-colors"
@@ -261,7 +261,7 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                 <span className="text-xs font-medium text-gray-700">Layer Analysis</span>
               </div>
-              
+
               <div className="space-y-1 text-xs text-gray-600 mb-3">
                 <div className="flex justify-between">
                   <span>Layers:</span>
@@ -270,7 +270,7 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
                 <div className="flex justify-between">
                   <span>Efficiency:</span>
                   <span className={`font-medium ${
-                    ('efficiency' in heightAnalysis && heightAnalysis.efficiency >= 0.8) ? 'text-green-600' : 
+                    ('efficiency' in heightAnalysis && heightAnalysis.efficiency >= 0.8) ? 'text-green-600' :
                     ('efficiency' in heightAnalysis && heightAnalysis.efficiency >= 0.6) ? 'text-yellow-600' : 'text-red-600'
                   }`}>
                     {'efficiency' in heightAnalysis ? Math.round(heightAnalysis.efficiency * 100) : 50}%
@@ -281,7 +281,7 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
                   <span className="font-medium">{heightAnalysis.recommendedHeight}px</span>
                 </div>
               </div>
-              
+
               <div className="flex gap-1">
                 <button
                   onClick={() => handleQuickResize('optimal')}
@@ -305,7 +305,7 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
                   Compact
                 </button>
               </div>
-              
+
               {heightAnalysis.needsScrolling && (
                 <div className="mt-2 text-xs text-amber-600 flex items-center gap-1">
                   <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -330,7 +330,7 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
 
           {/* Events/Clusters with Enhanced Overlap Handling */}
           <div className="absolute inset-0 overflow-hidden">
-            <div 
+            <div
               ref={contentRef}
               className="relative h-full transition-transform duration-200 ease-out"
               style={{
