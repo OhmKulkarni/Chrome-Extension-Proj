@@ -181,14 +181,28 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
           </button>
         </div>
 
-        {/* Current scope indicator */}
-        <div className="flex items-center space-x-2">
-          <div className="text-sm text-gray-500">Viewing:</div>
-          <div className={`bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium transition-all duration-200 ${
-            isAnimating ? 'animate-pulse' : ''
-          }`}>
-            {timeSelectionMode === 'custom' && customLabel ? customLabel : currentScope}
+        {/* Current scope and mode indicator */}
+        <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2">
+            <div className="text-sm text-gray-500">Viewing:</div>
+            <div className={`bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium transition-all duration-200 ${
+              isAnimating ? 'animate-pulse' : ''
+            }`}>
+              {timeSelectionMode === 'custom' && customLabel ? customLabel : currentScope}
+            </div>
           </div>
+          
+          {/* Visual mode indicator */}
+          <div className="flex items-center space-x-2 text-xs">
+            <div className="text-gray-500">Mode:</div>
+            <div className="flex items-center space-x-1 bg-gray-100 px-2 py-1 rounded-full">
+              <div className={`w-2 h-2 rounded-full ${canZoomIn ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+              <span className="font-medium text-gray-700">
+                {canZoomIn ? 'Cards' : 'Density'}
+              </span>
+            </div>
+          </div>
+          
           {isAnimating && (
             <div className="flex items-center text-xs text-gray-400">
               <div className="animate-spin w-3 h-3 border border-gray-300 border-t-blue-500 rounded-full mr-1"></div>
@@ -390,7 +404,7 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
           onClick={onZoomOut}
           disabled={!canZoomOut}
           className="p-2 hover:bg-gray-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          title="Zoom Out"
+          title={canZoomOut ? "Zoom Out (Show density view)" : "Already at maximum zoom out"}
         >
           <ZoomOut className="w-5 h-5 text-gray-600" />
         </button>
@@ -399,7 +413,7 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
           onClick={onZoomIn}
           disabled={!canZoomIn}
           className="p-2 hover:bg-gray-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          title="Zoom In"
+          title={canZoomIn ? "Zoom In (Show individual cards)" : "Already at maximum zoom in"}
         >
           <ZoomIn className="w-5 h-5 text-gray-600" />
         </button>
