@@ -1,8 +1,8 @@
-import React, { useRef, useState, useCallback } from 'react'
+import React, { useRef, useState, useCallback, useMemo } from 'react'
 import { TimelineEvent, TimelineCluster, SwimLaneConfig } from '../types/timeline.types'
 import { EventCluster } from './EventCluster'
 import { EventCard } from './EventCard'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface SwimlaneProps {
   config: SwimLaneConfig
@@ -18,6 +18,11 @@ interface SwimlaneProps {
   onAddToCompare: (event: TimelineEvent) => void
   zoomLevel: number
   isLast: boolean
+}
+
+interface EventLayer {
+  events: TimelineEvent[]
+  yOffset: number
 }
 
 export const Swimlane: React.FC<SwimlaneProps> = ({
@@ -36,9 +41,70 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
   isLast
 }) => {
   const [isDragging, setIsDragging] = useState(false)
+  const [scrollPosition, setScrollPosition] = useState(0)
+  const [showScrollControls, setShowScrollControls] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
   const startYRef = useRef<number>(0)
   const startHeightRef = useRef<number>(0)
+
+  // Enhanced overlap detection and layering
+  const eventLayers = useMemo(() => {
+    if (shouldCluster || events.length === 0) return []
+
+    const sortedEvents = [...events].sort((a, b) => a.timestamp - b.timestamp)
+    const layers: EventLayer[] = []
+    const CARD_WIDTH_PERCENT = 8 // Estimated card width as percentage
+    const LAYER_HEIGHT = 35 // Height of each layer in pixels
+
+    sortedEvents.forEach(event => {
+      const position = (event.timestamp % 100) // Simplified positioning
+      let layerIndex = 0
+
+      // Find the first layer where this event doesn't overlap
+      while (layerIndex < layers.length) {
+        const layer = layers[layerIndex]
+        const hasOverlap = layer.events.some(existingEvent => {
+          const existingPosition = (existingEvent.timestamp % 100)
+          return Math.abs(position - existingPosition) < CARD_WIDTH_PERCENT
+        })
+
+        if (!hasOverlap) {
+          break
+        }
+        layerIndex++
+      }
+
+      // Create new layer if needed
+      if (layerIndex >= layers.length) {
+        layers.push({
+          events: [],
+          yOffset: layerIndex * LAYER_HEIGHT
+        })
+      }
+
+      layers[layerIndex].events.push(event)
+    })
+
+    // Check if content exceeds container height and enable scrolling
+    const totalHeight = layers.length * 35 + 20 // 35px per layer + padding
+    const containerHeight = (height / 100) * window.innerHeight - 40 // Estimate container height
+    setShowScrollControls(totalHeight > containerHeight)
+
+    return layers
+  }, [events, shouldCluster, height])
+
+  const handleScroll = useCallback((direction: 'up' | 'down') => {
+    if (!contentRef.current) return
+    
+    const scrollAmount = 50
+    const newPosition = direction === 'down' 
+      ? scrollPosition + scrollAmount 
+      : Math.max(0, scrollPosition - scrollAmount)
+    
+    setScrollPosition(newPosition)
+    contentRef.current.style.transform = `translateY(-${newPosition}px)`
+  }, [scrollPosition])
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (isLast) return // Can't resize the last visible swimlane
@@ -119,29 +185,79 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
             ))}
           </div>
 
-          {/* Events/Clusters */}
-          <div className="absolute inset-0">
-            {shouldCluster ? (
-              // Render clusters
-              clusters.map(cluster => (
-                <EventCluster
-                  key={cluster.id}
-                  cluster={cluster}
-                  onClusterClick={onClusterClick}
-                />
-              ))
-            ) : (
-              // Render individual events as cards
-              events.map(event => (
-                <EventCard
-                  key={event.id}
-                  event={event}
-                  onClick={onEventClick}
-                  onBookmark={onBookmark}
-                  onAddToCompare={onAddToCompare}
-                  zoomLevel={zoomLevel}
-                />
-              ))
+          {/* Events/Clusters with Enhanced Overlap Handling */}
+          <div className="absolute inset-0 overflow-hidden">
+            <div 
+              ref={contentRef}
+              className="relative h-full transition-transform duration-200 ease-out"
+              style={{
+                minHeight: shouldCluster ? '100%' : `${Math.max(100, eventLayers.length * 35 + 20)}px`
+              }}
+            >
+              {shouldCluster ? (
+                // Render clusters (existing logic)
+                clusters.map(cluster => (
+                  <EventCluster
+                    key={cluster.id}
+                    cluster={cluster}
+                    onClusterClick={onClusterClick}
+                  />
+                ))
+              ) : (
+                // Render layered events to prevent overlap
+                eventLayers.map((layer, layerIndex) => (
+                  <div
+                    key={`layer-${layerIndex}`}
+                    className="absolute inset-x-0"
+                    style={{
+                      top: `${layer.yOffset}px`,
+                      height: '35px'
+                    }}
+                  >
+                    {layer.events.map(event => (
+                      <div
+                        key={event.id}
+                        className="absolute"
+                        style={{
+                          left: `${(event.timestamp % 100)}%`,
+                          transform: 'translateX(-50%)',
+                          zIndex: 10 + layerIndex
+                        }}
+                      >
+                        <EventCard
+                          event={event}
+                          onClick={onEventClick}
+                          onBookmark={onBookmark}
+                          onAddToCompare={onAddToCompare}
+                          zoomLevel={zoomLevel}
+                          layerIndex={layerIndex}
+                          isStacked={eventLayers.length > 1}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Scroll Controls */}
+            {showScrollControls && !shouldCluster && (
+              <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex flex-col space-y-1 z-20">
+                <button
+                  onClick={() => handleScroll('up')}
+                  className="p-1 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-50 transition-colors"
+                  title="Scroll up"
+                >
+                  <ChevronLeft className="w-3 h-3 transform rotate-90" />
+                </button>
+                <button
+                  onClick={() => handleScroll('down')}
+                  className="p-1 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-50 transition-colors"
+                  title="Scroll down"
+                >
+                  <ChevronRight className="w-3 h-3 transform rotate-90" />
+                </button>
+              </div>
             )}
           </div>
 

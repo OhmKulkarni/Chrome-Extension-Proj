@@ -8,6 +8,8 @@ interface EventCardProps {
   onBookmark: (eventId: string, isBookmarked: boolean) => Promise<boolean>
   onAddToCompare: (event: TimelineEvent) => void
   zoomLevel: number
+  layerIndex?: number
+  isStacked?: boolean
 }
 
 export const EventCard: React.FC<EventCardProps> = ({
@@ -15,14 +17,10 @@ export const EventCard: React.FC<EventCardProps> = ({
   onClick,
   onBookmark,
   onAddToCompare,
-  zoomLevel
+  zoomLevel,
+  layerIndex = 0,
+  isStacked = false
 }) => {
-  // Position calculation based on viewport
-  const position = useMemo(() => {
-    // Simplified positioning - in real implementation would use viewport calculations
-    return (event.timestamp % 100)
-  }, [event.timestamp])
-
   const getIcon = () => {
     switch (event.type) {
       case 'network':
@@ -38,7 +36,6 @@ export const EventCard: React.FC<EventCardProps> = ({
     switch (event.type) {
       case 'network':
         const url = event.data.url || 'Network Request'
-        // Extract just the endpoint path for better readability
         try {
           const urlObj = new URL(url)
           return urlObj.pathname + urlObj.search || url
@@ -47,7 +44,6 @@ export const EventCard: React.FC<EventCardProps> = ({
         }
       case 'console':
         const message = event.data.message || 'Console Error'
-        // Truncate long error messages for card display
         return message.length > 50 ? message.substring(0, 50) + '...' : message
       case 'token':
         const tokenType = event.data.token_type || event.data.type || 'Token Event'
@@ -87,8 +83,19 @@ export const EventCard: React.FC<EventCardProps> = ({
     onAddToCompare(event)
   }
 
-  // Determine card size based on zoom level
-  const isCompact = zoomLevel > 5 // Show compact cards for detailed views
+  // Enhanced card size calculation for stacking mode
+  const cardDimensions = useMemo(() => {
+    const baseWidth = zoomLevel > 8 ? 180 : (zoomLevel > 4 ? 160 : 140)
+    const baseHeight = zoomLevel > 8 ? 70 : (zoomLevel > 4 ? 60 : 50)
+    
+    // Slightly smaller cards when stacked to fit better
+    const width = isStacked ? Math.max(120, baseWidth - 20) : baseWidth
+    const height = isStacked ? Math.max(40, baseHeight - 10) : baseHeight
+    
+    return { width, height }
+  }, [zoomLevel, isStacked])
+
+  const isCompact = cardDimensions.height < 60 || zoomLevel > 5
 
   const cardColors = {
     network: 'bg-blue-50 border-blue-200 hover:bg-blue-100 hover:border-blue-300',
@@ -102,22 +109,28 @@ export const EventCard: React.FC<EventCardProps> = ({
     token: 'text-green-600'
   }
 
+  // Enhanced shadow for stacked cards
+  const cardShadow = isStacked 
+    ? `shadow-sm hover:shadow-md ${layerIndex > 0 ? 'shadow-lg' : ''}`
+    : 'shadow-sm hover:shadow-lg'
+
   return (
     <div
-      className={`absolute cursor-pointer transition-all duration-200 ${
+      className={`cursor-pointer transition-all duration-200 ${
         cardColors[event.type]
-      } border rounded-lg shadow-sm hover:shadow-lg hover:z-20 group`}
+      } border rounded-lg ${cardShadow} hover:z-20 group ${
+        isStacked ? 'hover:scale-105' : ''
+      }`}
       style={{
-        left: `${position}%`,
-        top: '50%',
-        transform: 'translate(-50%, -50%)',
-        width: isCompact ? '140px' : '180px',
-        minHeight: isCompact ? '45px' : '70px'
+        width: `${cardDimensions.width}px`,
+        height: `${cardDimensions.height}px`,
+        // Enhanced z-index for proper stacking
+        zIndex: 10 + layerIndex + (event.isBookmarked ? 5 : 0) + (event.compareSlot !== undefined ? 3 : 0)
       }}
       onClick={() => onClick(event)}
     >
-      <div className="p-3">
-        <div className="flex items-start justify-between">
+      <div className="p-3 h-full flex flex-col relative">
+        <div className="flex items-start justify-between flex-1">
           <div className="flex-1 min-w-0">
             <div className="flex items-center space-x-2 mb-1">
               <div className={iconColors[event.type]}>
@@ -144,42 +157,49 @@ export const EventCard: React.FC<EventCardProps> = ({
               onClick={handleBookmarkClick}
               className={`p-1 rounded transition-colors ${
                 event.isBookmarked
-                  ? 'text-yellow-600 hover:text-yellow-700 bg-yellow-100'
-                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                  ? 'text-yellow-600 hover:text-yellow-700'
+                  : 'text-gray-400 hover:text-yellow-600'
               }`}
               title={event.isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
             >
-              <Bookmark className="w-3 h-3" fill={event.isBookmarked ? 'currentColor' : 'none'} />
+              <Bookmark className={`w-3 h-3 ${event.isBookmarked ? 'fill-current' : ''}`} />
             </button>
 
             <button
               onClick={handleCompareClick}
               className={`p-1 rounded transition-colors ${
                 event.compareSlot !== undefined
-                  ? 'text-purple-600 hover:text-purple-700 bg-purple-100'
-                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                  ? 'text-purple-600 hover:text-purple-700'
+                  : 'text-gray-400 hover:text-purple-600'
               }`}
-              title="Compare"
+              title="Add to compare"
             >
               <GitCompare className="w-3 h-3" />
             </button>
           </div>
         </div>
+
+        {/* Layer indicator for stacked cards */}
+        {isStacked && layerIndex > 0 && (
+          <div className="text-xs text-gray-400 mt-1 text-center">
+            Layer {layerIndex + 1}
+          </div>
+        )}
+
+        {/* Compare slot indicator */}
+        {event.compareSlot !== undefined && event.compareSlot >= 0 && (
+          <div className="absolute -top-1 -right-1 w-5 h-5 bg-purple-500 text-white text-xs rounded-full flex items-center justify-center">
+            {event.compareSlot + 1}
+          </div>
+        )}
+
+        {/* Bookmark indicator */}
+        {event.isBookmarked && (
+          <div className="absolute -top-1 -left-1 w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center">
+            <div className="w-2 h-2 bg-yellow-600 rounded-full" />
+          </div>
+        )}
       </div>
-
-      {/* Compare slot indicator */}
-      {event.compareSlot !== undefined && event.compareSlot >= 0 && (
-        <div className="absolute -top-2 -right-2 w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-md">
-          {event.compareSlot + 1}
-        </div>
-      )}
-
-      {/* Bookmark indicator */}
-      {event.isBookmarked && (
-        <div className="absolute -top-1 -left-1 w-4 h-4 bg-yellow-500 text-white rounded-full flex items-center justify-center">
-          <Bookmark className="w-2 h-2" fill="currentColor" />
-        </div>
-      )}
     </div>
   )
 }
