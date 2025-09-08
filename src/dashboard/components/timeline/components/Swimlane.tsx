@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback, useMemo } from 'react'
+import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react'
 import { TimelineEvent, TimelineCluster, SwimLaneConfig } from '../types/timeline.types'
 import { EventCluster } from './EventCluster'
 import { EventCard } from './EventCard'
@@ -107,7 +107,7 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
       needsScrolling,
       layerCount: layers.length,
       isOptimal: Math.abs(height - recommendedHeightPercent) < 5,
-      efficiency: Math.min(100, (currentContainerHeight / totalContentHeight) * 100)
+      efficiency: currentContainerHeight > 0 ? Math.min(100, Math.max(0, (totalContentHeight / currentContainerHeight) * 100)) : 50
     }
 
     setShowScrollControls(needsScrolling)
@@ -161,6 +161,10 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
     }
   }, [isDragging])
 
+  const handleHelperClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+  }, [])
+
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (isLast) return // Can't resize the last visible swimlane
     
@@ -168,27 +172,43 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
     setIsDragging(true)
     startYRef.current = e.clientY
     startHeightRef.current = height
-    
-    document.addEventListener('mousemove', handleMouseMove)
-    document.addEventListener('mouseup', handleMouseUp)
   }, [height, isLast])
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isDragging || !containerRef.current) return
+    if (!isDragging) return
 
-    const containerHeight = containerRef.current.parentElement?.offsetHeight || 100
     const deltaY = e.clientY - startYRef.current
-    const deltaPercent = (deltaY / containerHeight) * 100
-    const newHeight = Math.max(10, Math.min(90, startHeightRef.current + deltaPercent))
+    // Convert pixel delta to percentage (assuming parent is viewport height)
+    const deltaPercent = (deltaY / window.innerHeight) * 100
+    const newHeight = Math.max(15, Math.min(80, startHeightRef.current + deltaPercent))
     
     onResize(newHeight)
   }, [isDragging, onResize])
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false)
-    document.removeEventListener('mousemove', handleMouseMove)
-    document.removeEventListener('mouseup', handleMouseUp)
-  }, [handleMouseMove])
+    setShowResizeHelper(false)
+  }, [])
+
+  // Set up mouse event listeners when dragging starts
+  useEffect(() => {
+    if (isDragging) {
+      const handleMove = (e: MouseEvent) => handleMouseMove(e)
+      const handleUp = () => {
+        handleMouseUp()
+        document.removeEventListener('mousemove', handleMove)
+        document.removeEventListener('mouseup', handleUp)
+      }
+
+      document.addEventListener('mousemove', handleMove)
+      document.addEventListener('mouseup', handleUp)
+
+      return () => {
+        document.removeEventListener('mousemove', handleMove)
+        document.removeEventListener('mouseup', handleUp)
+      }
+    }
+  }, [isDragging, handleMouseMove, handleMouseUp])
 
   if (!config.isVisible) {
     return null
@@ -233,7 +253,10 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
              onMouseLeave={handleMouseLeave}>
           {/* Resize Helper Overlay */}
           {showResizeHelper && heightAnalysis.layerCount > 1 && (
-            <div className="absolute top-2 right-2 z-50 bg-white/95 backdrop-blur-sm border border-gray-300 rounded-lg shadow-lg p-3 min-w-48">
+            <div className={`absolute z-50 bg-white/95 backdrop-blur-sm border border-gray-300 rounded-lg shadow-lg p-3 min-w-48 ${
+              showScrollControls ? 'top-2 right-20' : 'top-2 right-2'
+            }`}
+            onClick={handleHelperClick}>
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                 <span className="text-xs font-medium text-gray-700">Layer Analysis</span>
