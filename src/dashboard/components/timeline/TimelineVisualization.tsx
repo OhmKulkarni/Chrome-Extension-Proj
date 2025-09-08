@@ -1,11 +1,75 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import TimelineHeaderNew from './components/TimelineHeaderNew'
 import { SwimlanesContainer } from './components/SwimlanesContainer'
-import { BookmarkComparePanel } from './components/BookmarkComparePanel'
 import { useTimelineData } from './hooks/useTimelineData'
 import { useViewport } from './hooks/useViewport'
 import { useTimelineVisualization } from './hooks/useTimelineVisualization'
-import { SwimLaneConfig, DEFAULT_SWIMLANES } from './types/timeline.types'
+import { SwimLaneConfig, DEFAULT_SWIMLANES, TimelineEvent } from './types/timeline.types'
+import { Bookmark, GitCompare, Lock, Unlock } from 'lucide-react'
+
+// Inline Bookmark Compare Panel Component
+const BookmarkComparePanelInline: React.FC<{
+  bookmarkedEvents: TimelineEvent[]
+  compareEvents: TimelineEvent[]
+}> = ({ bookmarkedEvents, compareEvents }) => {
+  const [isLocked, setIsLocked] = useState(false)
+  const [isHovered, setIsHovered] = useState(false)
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => !isLocked && setIsHovered(true)}
+      onMouseLeave={() => !isLocked && setIsHovered(false)}
+    >
+      {/* Hover Trigger Bar */}
+      {!isLocked && (
+        <div className="fixed right-0 bottom-0 h-4 w-full z-30 cursor-pointer group">
+          <div className="h-1 w-full bg-purple-500 opacity-30 group-hover:opacity-70 transition-opacity duration-200" />
+          <div className="absolute bottom-0 right-1/2 transform translate-x-1/2 h-3 w-12 bg-purple-500 opacity-50 group-hover:opacity-80 transition-opacity duration-200 rounded-t-md" />
+          <div className="absolute bottom-1 right-4 flex items-center gap-2 text-xs text-gray-600 bg-white/90 rounded px-2 py-1">
+            <Bookmark className="w-3 h-3" />
+            <span>{bookmarkedEvents.length}</span>
+            <GitCompare className="w-3 h-3" />
+            <span>{compareEvents.length}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Control Panel */}
+      <div className={`fixed right-0 bottom-0 w-80 bg-gray-50 border-l border-t border-gray-200 z-40 transition-transform duration-300 ease-in-out shadow-lg max-h-96 ${
+        isLocked || isHovered ? 'translate-y-0' : 'translate-y-full'
+      }`}>
+        <div className="h-full overflow-hidden">
+          <div className="flex items-center justify-between p-4 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">Timeline Bookmarks</h2>
+            <div className="flex items-center gap-3">
+              <div className="text-xs text-gray-500">
+                {isLocked ? 'Panel locked' : 'Hover to keep open'}
+              </div>
+              <button
+                onClick={() => setIsLocked(!isLocked)}
+                className={`p-2 rounded-md transition-colors duration-200 ${
+                  isLocked
+                    ? 'bg-purple-100 text-purple-600 hover:bg-purple-200'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+                title={isLocked ? 'Unlock panel' : 'Lock panel open'}
+              >
+                {isLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+          <div className="p-4">
+            <div className="text-center text-gray-500 text-sm">
+              <p>Bookmarks: {bookmarkedEvents.length} | Compare: {compareEvents.length}</p>
+              <p className="text-xs mt-2 text-gray-400">Panel follows control panel UX pattern</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export const TimelineVisualization: React.FC = () => {
   const [swimlanes, setSwimlanes] = useState<SwimLaneConfig[]>(DEFAULT_SWIMLANES)
@@ -132,16 +196,10 @@ export const TimelineVisualization: React.FC = () => {
           </div>
         )}
 
-        {/* Bookmark & Compare Panel */}
-        <BookmarkComparePanel
+        {/* Bookmark & Compare Panel - Inline implementation */}
+        <BookmarkComparePanelInline 
           bookmarkedEvents={timelineData.events.filter(event => event.isBookmarked)}
           compareEvents={timelineData.events.filter(event => event.compareSlot !== undefined)}
-          onRemoveBookmark={(eventId) => timelineData.bookmarkEvent(eventId, false)}
-          onRemoveFromCompare={(eventId) => timelineData.setCompareSlot(eventId, undefined)}
-          onEventClick={(event) => {
-            // Jump to event in timeline
-            viewport.jumpToTime(event.timestamp)
-          }}
         />
       </div>
     </div>

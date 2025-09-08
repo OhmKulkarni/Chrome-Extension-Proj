@@ -2,7 +2,7 @@ import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react'
 import { TimelineEvent, TimelineCluster, SwimLaneConfig } from '../types/timeline.types'
 import { EventCluster } from './EventCluster'
 import { EventCard } from './EventCard'
-import { Eye, EyeOff, ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { Eye, EyeOff, ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface SwimlaneProps {
   config: SwimLaneConfig
@@ -233,27 +233,17 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
           </span>
         </div>
         
-        <div className="flex items-center space-x-1">
-          <button
-            onClick={onToggle}
-            className="p-1 hover:bg-gray-100 rounded transition-colors"
-            title={config.isVisible ? 'Hide lane' : 'Show lane'}
-          >
-            {config.isVisible ? (
-              <EyeOff className="w-4 h-4 text-gray-500" />
-            ) : (
-              <Eye className="w-4 h-4 text-gray-500" />
-            )}
-          </button>
-          
-          <button
-            onClick={() => onResize(0)}
-            className="p-1 hover:bg-red-100 rounded transition-colors group"
-            title="Close this swimlane completely"
-          >
-            <X className="w-4 h-4 text-gray-400 group-hover:text-red-500" />
-          </button>
-        </div>
+        <button
+          onClick={onToggle}
+          className="p-1 hover:bg-gray-100 rounded transition-colors"
+          title={config.isVisible ? 'Hide lane' : 'Show lane'}
+        >
+          {config.isVisible ? (
+            <EyeOff className="w-4 h-4 text-gray-500" />
+          ) : (
+            <Eye className="w-4 h-4 text-gray-500" />
+          )}
+        </button>
       </div>
 
       {/* Timeline Content */}
