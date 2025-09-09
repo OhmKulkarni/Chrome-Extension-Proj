@@ -192,7 +192,6 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
             <div className="text-center">
               <Bookmark className="w-5 h-5 text-yellow-600 mx-auto mb-1" />
               <div className="text-xs font-medium text-gray-600">{bookmarkedEvents.length}</div>
-              <div className="text-xs text-gray-400 mt-1">Bookmarks</div>
             </div>
           </div>
 
@@ -201,7 +200,6 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
             <div className="text-center">
               <GitCompare className="w-5 h-5 text-purple-600 mx-auto mb-1" />
               <div className="text-xs font-medium text-gray-600">{compareEvents.length}</div>
-              <div className="text-xs text-gray-400 mt-1">Compare</div>
             </div>
           </div>
         </div>
