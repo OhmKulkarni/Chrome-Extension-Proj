@@ -34,7 +34,7 @@ export const useViewport = ({
   }, [centerTime, scopeConfig.duration])
 
   // Smooth animation function
-  const animateCenterTime = useCallback((targetTime: number, duration = 600) => {
+  const animateCenterTime = useCallback((targetTime: number, duration = 800) => {
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current)
     }
@@ -82,16 +82,16 @@ export const useViewport = ({
 
   const panLeft = useCallback(() => {
     if (isAnimating) return
-    // Move left by 50% of current viewport
-    const panAmount = scopeConfig.duration * 0.5
+    // Move left by 30% of current viewport
+    const panAmount = scopeConfig.duration * 0.3
     const targetTime = centerTime - panAmount
     animateCenterTime(targetTime)
   }, [centerTime, scopeConfig.duration, animateCenterTime, isAnimating])
 
   const panRight = useCallback(() => {
     if (isAnimating) return
-    // Move right by 50% of current viewport
-    const panAmount = scopeConfig.duration * 0.5
+    // Move right by 30% of current viewport
+    const panAmount = scopeConfig.duration * 0.3
     const targetTime = centerTime + panAmount
     animateCenterTime(targetTime)
   }, [centerTime, scopeConfig.duration, animateCenterTime, isAnimating])
@@ -129,14 +129,14 @@ export const useViewport = ({
     }
 
     setCurrentScope(targetScope)
-    animateCenterTime(targetTime, 800) // Longer animation for bigger jumps
+    animateCenterTime(targetTime, 1000) // Longer animation for bigger jumps
   }, [animateCenterTime])
 
   const jumpToTime = useCallback((timestamp: number, scope?: string) => {
     if (scope && scope !== currentScope) {
       setCurrentScope(scope)
     }
-    animateCenterTime(timestamp, 650)
+    animateCenterTime(timestamp, 850)
   }, [currentScope, animateCenterTime])
 
   const canZoomIn = useMemo(() => {
