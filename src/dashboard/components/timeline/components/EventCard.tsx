@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import { TimelineEvent } from '../types/timeline.types'
 import { Bookmark, GitCompare, Network, AlertTriangle, Key } from 'lucide-react'
 
@@ -21,6 +21,7 @@ export const EventCard: React.FC<EventCardProps> = ({
   layerIndex = 0,
   isStacked = false
 }) => {
+  const [isHovered, setIsHovered] = useState(false)
   const getIcon = () => {
     switch (event.type) {
       case 'network':
@@ -118,15 +119,19 @@ export const EventCard: React.FC<EventCardProps> = ({
     <div
       className={`cursor-pointer transition-all duration-200 ${
         cardColors[event.type]
-      } border rounded-lg ${cardShadow} hover:z-20 group ${
+      } border rounded-lg ${cardShadow} group ${
         isStacked ? 'hover:scale-105' : ''
       }`}
       style={{
         width: `${cardDimensions.width}px`,
         height: `${cardDimensions.height}px`,
-        // Enhanced z-index for proper stacking
-        zIndex: 10 + layerIndex + (event.isBookmarked ? 5 : 0) + (event.compareSlot !== undefined ? 3 : 0)
+        // Dynamic z-index: bring hovered cards to absolute front
+        zIndex: isHovered 
+          ? 1000 // Absolute front when hovered
+          : 10 + layerIndex + (event.isBookmarked ? 5 : 0) + (event.compareSlot !== undefined ? 3 : 0)
       }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       onClick={() => onClick(event)}
     >
       <div className="p-3 h-full flex flex-col relative">
