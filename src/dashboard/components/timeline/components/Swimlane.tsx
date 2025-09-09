@@ -16,6 +16,7 @@ interface SwimlaneProps {
   onBookmark: (eventId: string, isBookmarked: boolean) => Promise<boolean>
   onAddToCompare: (event: TimelineEvent) => void
   zoomLevel: number
+  viewport: any
 }
 
 interface EventLayer {
@@ -34,7 +35,8 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
   onEventClick,
   onBookmark,
   onAddToCompare,
-  zoomLevel
+  zoomLevel,
+  viewport
 }) => {
   const [scrollPosition, setScrollPosition] = useState(0)
   const [showScrollControls, setShowScrollControls] = useState(false)
@@ -107,6 +109,69 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
     return { eventLayers: layers, heightAnalysis }
   }, [events, shouldCluster, height])
 
+  // Time markers for this swimlane
+  const timeMarkers = useMemo(() => {
+    if (!viewport) return []
+    
+    const getMarkerCount = (zoomLevel: number): number => {
+      if (zoomLevel >= 8) return 8
+      if (zoomLevel >= 5) return 6
+      if (zoomLevel >= 2) return 5
+      if (zoomLevel >= 0) return 4
+      return 3
+    }
+
+    const formatTimeLabel = (timestamp: number, zoomLevel: number): string => {
+      const date = new Date(timestamp)
+      
+      if (zoomLevel >= 8) {
+        return date.toLocaleTimeString('en-US', { 
+          hour12: false, 
+          hour: '2-digit', 
+          minute: '2-digit',
+          second: '2-digit'
+        })
+      } else if (zoomLevel >= 5) {
+        return date.toLocaleTimeString('en-US', { 
+          hour12: false, 
+          hour: '2-digit', 
+          minute: '2-digit'
+        })
+      } else if (zoomLevel >= 2) {
+        return date.toLocaleTimeString('en-US', { 
+          hour12: false, 
+          hour: '2-digit', 
+          minute: '2-digit'
+        })
+      } else {
+        return date.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      }
+    }
+    
+    const markerCount = getMarkerCount(zoomLevel)
+    const timeInterval = viewport.duration / markerCount
+    
+    const markerData = []
+    for (let i = 0; i <= markerCount; i++) {
+      const timestamp = viewport.startTime + (i * timeInterval)
+      const position = (i / markerCount) * 100
+      
+      markerData.push({
+        id: i,
+        timestamp,
+        position,
+        label: formatTimeLabel(timestamp, zoomLevel)
+      })
+    }
+    
+    return markerData
+  }, [viewport, zoomLevel])
+
   const handleScroll = useCallback((direction: 'up' | 'down') => {
     if (!contentRef.current) return
 
@@ -169,6 +234,21 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
                 className="absolute top-0 bottom-0 w-px bg-gray-200"
                 style={{ left: `${percent}%` }}
               />
+            ))}
+          </div>
+
+          {/* Time Markers for this swimlane */}
+          <div className="absolute inset-0 pointer-events-none">
+            {timeMarkers.map((marker) => (
+              <div
+                key={`time-${marker.id}`}
+                className="absolute bottom-2"
+                style={{ left: `${marker.position}%` }}
+              >
+                <div className="transform -translate-x-1/2 bg-white px-1 py-0.5 text-xs text-gray-600 border rounded shadow-sm opacity-80">
+                  {marker.label}
+                </div>
+              </div>
             ))}
           </div>
 

@@ -192,6 +192,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
               onBookmark={onBookmarkEvent}
               onAddToCompare={handleAddToCompare}
               zoomLevel={zoomLevel}
+              viewport={viewport}
             />
           ))}
 

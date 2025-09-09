@@ -40,11 +40,6 @@ export const TimeMarkers: React.FC<TimeMarkersProps> = ({ viewport, zoomLevel })
             className="h-full border-l border-dashed border-gray-300 opacity-60"
             style={{ borderWidth: '1px' }}
           />
-          
-          {/* Time label at bottom */}
-          <div className="absolute bottom-0 transform -translate-x-1/2 bg-white px-2 py-1 text-xs text-gray-600 border rounded shadow-sm">
-            {marker.label}
-          </div>
         </div>
       ))}
     </div>
