@@ -108,7 +108,19 @@ export const useViewport = ({
 
       // For 'first-' scopes, jump to the earliest data time
       if (presetScope.startsWith('first-')) {
-        targetTime = earliestDataTimestamp
+        // Check if earliestDataTimestamp seems to be still the default fallback
+        // Allow for some timing variations by checking if it's within the last 25 hours
+        const now = Date.now()
+        const timeDiff = now - earliestDataTimestamp
+        const isLikelyDefaultFallback = timeDiff < (25 * 60 * 60 * 1000) && timeDiff > (23 * 60 * 60 * 1000)
+        
+        if (isLikelyDefaultFallback) {
+          // If we don't have the actual earliest timestamp yet, use a more reasonable fallback
+          // Go back far enough to likely capture early data
+          targetTime = now - (7 * 24 * 60 * 60 * 1000) // Go back 7 days
+        } else {
+          targetTime = earliestDataTimestamp
+        }
       }
     } else if (presetScope === 'all-time') {
       targetScope = 'all-time'
