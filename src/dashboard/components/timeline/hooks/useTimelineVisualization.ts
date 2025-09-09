@@ -93,6 +93,11 @@ function createDensityClusters(
         const density = slotEvents.length
         const size = Math.min(5, Math.max(1, Math.ceil(density / 5))) // Size 1-5
 
+        // Calculate viewport-relative position for smooth panning
+        const clusterCenterTime = slotStartTime + (timeSlotDuration / 2)
+        const relativeTime = clusterCenterTime - viewport.startTime
+        const xPosition = (relativeTime / viewport.duration) * 100
+
         clusters.push({
           id: `${swimlane}-${i}`,
           startTime: slotStartTime,
@@ -102,7 +107,7 @@ function createDensityClusters(
           density,
           size,
           position: {
-            x: (i / clusterCount) * 100, // Percentage position
+            x: xPosition, // Viewport-relative position for smooth animation
             y: getSwimlaneYPosition(swimlane as 'network' | 'console' | 'token')
           }
         })
