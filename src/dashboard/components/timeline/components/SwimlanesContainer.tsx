@@ -184,7 +184,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
         <div className="relative">
           <StickyDateIndicator viewport={viewport} zoomLevel={zoomLevel} />
         </div>
-        
+
         {/* Swimlanes */}
         <div className="flex-1 relative">
           {/* Time Markers */}
