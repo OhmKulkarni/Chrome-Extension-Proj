@@ -23,6 +23,7 @@ interface SwimlanesContainerProps {
   zoomLevel: number
   swimlanes: SwimLaneConfig[]
   onUpdateSwimlanes: (swimlanes: SwimLaneConfig[]) => void
+  debugMode?: boolean
 }
 
 export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
@@ -38,7 +39,8 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   onJumpToTime,
   zoomLevel,
   swimlanes,
-  onUpdateSwimlanes
+  onUpdateSwimlanes,
+  debugMode = false
 }) => {
   const [selectedCluster, setSelectedCluster] = useState<TimelineCluster | null>(null)
   const [selectedDensityCluster, setSelectedDensityCluster] = useState<DensityCluster | null>(null)
@@ -193,6 +195,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
               onAddToCompare={handleAddToCompare}
               zoomLevel={zoomLevel}
               viewport={viewport}
+              debugMode={debugMode}
             />
           ))}
 

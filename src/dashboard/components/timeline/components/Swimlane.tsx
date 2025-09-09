@@ -2,6 +2,7 @@ import React, { useRef, useState, useCallback, useMemo } from 'react'
 import { TimelineEvent, TimelineCluster, SwimLaneConfig } from '../types/timeline.types'
 import { EventCluster } from './EventCluster'
 import { EventCard } from './EventCard'
+import { TimelineDebugOverlay } from './TimelineDebugOverlay'
 import { Eye, EyeOff } from 'lucide-react'
 
 interface SwimlaneProps {
@@ -17,12 +18,16 @@ interface SwimlaneProps {
   onAddToCompare: (event: TimelineEvent) => void
   zoomLevel: number
   viewport: any
+  debugMode?: boolean
 }
 
-interface EventLayer {
-  events: TimelineEvent[]
-  yOffset: number
+export interface EventLayerItem {
+  event: TimelineEvent
+  position: number
+  opacity: number
 }
+
+
 
 export const Swimlane: React.FC<SwimlaneProps> = ({
   config,
@@ -36,55 +41,148 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
   onBookmark,
   onAddToCompare,
   zoomLevel,
-  viewport
+  viewport,
+  debugMode = false
 }) => {
   const [scrollPosition, setScrollPosition] = useState(0)
   const [showScrollControls, setShowScrollControls] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
 
+  // Positioning helper functions for proper viewport-based calculations
+  const calculateEventPositionWithFade = useCallback((timestamp: number): {
+    position: number,
+    opacity: number,
+    isVisible: boolean
+  } => {
+    if (!viewport) return { position: 0, opacity: 0, isVisible: false }
+
+    const relativeTime = timestamp - viewport.startTime
+    const percentage = (relativeTime / viewport.duration) * 100
+
+    // Calculate fade based on proximity to viewport edges (5% fade zone)
+    let opacity = 1
+    const fadeZone = 5
+
+    if (percentage < 0) {
+      opacity = 0
+    } else if (percentage < fadeZone) {
+      opacity = percentage / fadeZone
+    } else if (percentage > 100) {
+      opacity = 0
+    } else if (percentage > (100 - fadeZone)) {
+      opacity = (100 - percentage) / fadeZone
+    }
+
+    // Render buffer zone for smooth transitions
+    const isVisible = percentage >= -10 && percentage <= 110
+
+    return { position: percentage, opacity, isVisible }
+  }, [viewport])
+
+  const calculateEventPosition = useCallback((timestamp: number): number => {
+    if (!viewport) return 0
+    const relativeTime = timestamp - viewport.startTime
+    return (relativeTime / viewport.duration) * 100
+  }, [viewport])
+
   // Enhanced overlap detection and layering with smart sizing
-  const { eventLayers } = useMemo(() => {
+  const { eventLayers, debugInfo } = useMemo(() => {
     if (shouldCluster || events.length === 0) {
       return {
         eventLayers: [],
+        debugInfo: null,
         heightAnalysis: { totalHeight: 0, recommendedHeight: height, needsScrolling: false, layerCount: 0 }
       }
     }
 
-    const sortedEvents = [...events].sort((a, b) => a.timestamp - b.timestamp)
-    const layers: EventLayer[] = []
-    const CARD_WIDTH_PERCENT = 8 // Estimated card width as percentage
-    const LAYER_HEIGHT = 35 // Height of each layer in pixels
+    // Sort by timestamp, then by ID for consistent ordering
+    const sortedEvents = [...events].sort((a, b) => {
+      const timeDiff = a.timestamp - b.timestamp
+      if (timeDiff === 0) {
+        // Same timestamp - use ID for consistent ordering
+        return a.id.localeCompare(b.id)
+      }
+      return timeDiff
+    })
+
+    const layers: Array<{
+      events: Array<{
+        event: TimelineEvent
+        position: number
+        opacity: number
+      }>
+      yOffset: number
+    }> = []
+    const CARD_WIDTH_PERCENT = 8
+    const LAYER_HEIGHT = 35
+    const MIN_SPACING = 0.5 // Minimum spacing between cards
+
+    // Debug information
+    const debugData = {
+      totalEvents: sortedEvents.length,
+      sameTimestampGroups: new Map<number, number>(),
+      layerDistribution: [] as number[],
+      visibleEvents: 0,
+      fadedEvents: 0
+    }
 
     sortedEvents.forEach(event => {
-      const position = (event.timestamp % 100) // Simplified positioning
-      let layerIndex = 0
+      const { position, opacity, isVisible } = calculateEventPositionWithFade(event.timestamp)
+
+      if (!isVisible) return // Skip events outside buffer
+
+      debugData.visibleEvents++
+      if (opacity < 1) debugData.fadedEvents++
+
+      // Track same-timestamp events
+      const timestampKey = event.timestamp
+      debugData.sameTimestampGroups.set(
+        timestampKey,
+        (debugData.sameTimestampGroups.get(timestampKey) || 0) + 1
+      )
 
       // Find the first layer where this event doesn't overlap
-      while (layerIndex < layers.length) {
+      let layerIndex = 0
+      let placed = false
+
+      while (layerIndex < layers.length && !placed) {
         const layer = layers[layerIndex]
-        const hasOverlap = layer.events.some(existingEvent => {
-          const existingPosition = (existingEvent.timestamp % 100)
-          return Math.abs(position - existingPosition) < CARD_WIDTH_PERCENT
-        })
+        let hasOverlap = false
+
+        for (const existingEvent of layer.events) {
+          // Same timestamp always needs new layer (vertical stacking)
+          if (event.timestamp === existingEvent.event.timestamp) {
+            hasOverlap = true
+            break
+          }
+
+          // Check spatial overlap
+          const distance = Math.abs(position - existingEvent.position)
+          if (distance < CARD_WIDTH_PERCENT + MIN_SPACING) {
+            hasOverlap = true
+            break
+          }
+        }
 
         if (!hasOverlap) {
-          break
+          layer.events.push({ event, position, opacity })
+          placed = true
+        } else {
+          layerIndex++
         }
-        layerIndex++
       }
 
       // Create new layer if needed
-      if (layerIndex >= layers.length) {
+      if (!placed) {
         layers.push({
-          events: [],
+          events: [{ event, position, opacity }],
           yOffset: layerIndex * LAYER_HEIGHT
         })
       }
-
-      layers[layerIndex].events.push(event)
     })
+
+    debugData.layerDistribution = layers.map(l => l.events.length)
 
     // Enhanced height analysis for smart resizing
     const totalContentHeight = layers.length * LAYER_HEIGHT + 40 // layers + header + padding
@@ -106,13 +204,13 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
 
     setShowScrollControls(needsScrolling)
 
-    return { eventLayers: layers, heightAnalysis }
-  }, [events, shouldCluster, height])
+    return { eventLayers: layers, debugInfo: debugData, heightAnalysis }
+  }, [events, shouldCluster, height, viewport, calculateEventPositionWithFade])
 
   // Time markers for this swimlane
   const timeMarkers = useMemo(() => {
     if (!viewport) return []
-    
+
     const getMarkerCount = (zoomLevel: number): number => {
       if (zoomLevel >= 8) return 8
       if (zoomLevel >= 5) return 6
@@ -123,44 +221,44 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
 
     const formatTimeLabel = (timestamp: number, zoomLevel: number): string => {
       const date = new Date(timestamp)
-      
+
       if (zoomLevel >= 8) {
-        return date.toLocaleTimeString('en-US', { 
-          hour12: false, 
-          hour: '2-digit', 
+        return date.toLocaleTimeString('en-US', {
+          hour12: false,
+          hour: '2-digit',
           minute: '2-digit',
           second: '2-digit'
         })
       } else if (zoomLevel >= 5) {
-        return date.toLocaleTimeString('en-US', { 
-          hour12: false, 
-          hour: '2-digit', 
+        return date.toLocaleTimeString('en-US', {
+          hour12: false,
+          hour: '2-digit',
           minute: '2-digit'
         })
       } else if (zoomLevel >= 2) {
-        return date.toLocaleTimeString('en-US', { 
-          hour12: false, 
-          hour: '2-digit', 
+        return date.toLocaleTimeString('en-US', {
+          hour12: false,
+          hour: '2-digit',
           minute: '2-digit'
         })
       } else {
-        return date.toLocaleDateString('en-US', { 
-          month: 'short', 
+        return date.toLocaleDateString('en-US', {
+          month: 'short',
           day: 'numeric',
           hour: '2-digit',
           minute: '2-digit'
         })
       }
     }
-    
+
     const markerCount = getMarkerCount(zoomLevel)
     const timeInterval = viewport.duration / markerCount
-    
+
     const markerData = []
     for (let i = 0; i <= markerCount; i++) {
       const timestamp = viewport.startTime + (i * timeInterval)
       const position = (i / markerCount) * 100
-      
+
       markerData.push({
         id: i,
         timestamp,
@@ -168,7 +266,7 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
         label: formatTimeLabel(timestamp, zoomLevel)
       })
     }
-    
+
     return markerData
   }, [viewport, zoomLevel])
 
@@ -275,20 +373,24 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
                 eventLayers.map((layer, layerIndex) => (
                   <div
                     key={`layer-${layerIndex}`}
-                    className="absolute inset-x-0"
+                    className="absolute w-full"
                     style={{
                       top: `${layer.yOffset}px`,
-                      height: '35px'
+                      height: `${35}px` // Consistent layer height
                     }}
                   >
-                    {layer.events.map(event => (
+                    {layer.events.map(({ event, position, opacity }) => (
                       <div
                         key={event.id}
-                        className="absolute"
+                        className="absolute transition-opacity duration-300"
                         style={{
-                          left: `${(event.timestamp % 100)}%`,
+                          left: `${position}%`,
                           transform: 'translateX(-50%)',
-                          zIndex: 10 + layerIndex
+                          opacity,
+                          zIndex: 10 + layerIndex,
+                          // Prevent events from overflowing their layer
+                          top: '50%',
+                          marginTop: '-17.5px' // Half of card height
                         }}
                       >
                         <EventCard
@@ -333,6 +435,7 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
             .filter(e => e.isBookmarked || e.compareSlot !== undefined)
             .map(event => {
               const isCompare = event.compareSlot !== undefined
+              const position = calculateEventPosition(event.timestamp)
               return (
                 <div
                   key={`ghost_${event.id}`}
@@ -340,13 +443,24 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
                     isCompare ? 'bg-purple-400' : 'bg-yellow-400'
                   }`}
                   style={{
-                    left: `${(event.timestamp % 100)}%` // Simplified positioning
+                    left: `${position}%`
                   }}
                 />
               )
             })}
         </div>
       </div>
+
+      {/* Debug Overlay */}
+      {debugMode && (
+        <TimelineDebugOverlay
+          enabled={debugMode}
+          debugInfo={debugInfo}
+          viewport={viewport}
+          eventLayers={eventLayers}
+          swimlaneName={config.id}
+        />
+      )}
 
     </div>
   )

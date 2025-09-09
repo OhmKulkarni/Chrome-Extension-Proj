@@ -7,6 +7,7 @@ import { useTimelineVisualization } from './hooks/useTimelineVisualization'
 import { SwimLaneConfig, DEFAULT_SWIMLANES } from './types/timeline.types'
 export const TimelineVisualization: React.FC = () => {
   const [swimlanes, setSwimlanes] = useState<SwimLaneConfig[]>(DEFAULT_SWIMLANES)
+  const [debugMode, setDebugMode] = useState(false)
 
   // Initialize viewport with default settings first
   const viewport = useViewport({ initialScope: '1-hour' })
@@ -52,6 +53,21 @@ export const TimelineVisualization: React.FC = () => {
 
     // return () => clearInterval(interval)
   }, [])
+
+  // Add keyboard shortcut for debug mode
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Ctrl+Shift+D to toggle debug mode
+      if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+        e.preventDefault()
+        setDebugMode(prev => !prev)
+        console.log(`🐛 Timeline Debug Mode: ${!debugMode ? 'ON' : 'OFF'}`)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyPress)
+    return () => window.removeEventListener('keydown', handleKeyPress)
+  }, [debugMode])
 
   return (
     <div className="h-full flex flex-col bg-gray-50">
@@ -110,6 +126,7 @@ export const TimelineVisualization: React.FC = () => {
               zoomLevel={viewport.zoomLevel}
               swimlanes={swimlanes}
               onUpdateSwimlanes={setSwimlanes}
+              debugMode={debugMode}
             />
 
             {/* Subtle overlay message when no events are visible */}
