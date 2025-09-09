@@ -34,7 +34,7 @@ export const useViewport = ({
   }, [centerTime, scopeConfig.duration])
 
   // Smooth animation function
-  const animateCenterTime = useCallback((targetTime: number, duration = 300) => {
+  const animateCenterTime = useCallback((targetTime: number, duration = 600) => {
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current)
     }
@@ -113,7 +113,7 @@ export const useViewport = ({
         const now = Date.now()
         const timeDiff = now - earliestDataTimestamp
         const isLikelyDefaultFallback = timeDiff < (25 * 60 * 60 * 1000) && timeDiff > (23 * 60 * 60 * 1000)
-        
+
         if (isLikelyDefaultFallback) {
           // If we don't have the actual earliest timestamp yet, use a more reasonable fallback
           // Go back far enough to likely capture early data
@@ -129,14 +129,14 @@ export const useViewport = ({
     }
 
     setCurrentScope(targetScope)
-    animateCenterTime(targetTime, 500) // Longer animation for bigger jumps
+    animateCenterTime(targetTime, 800) // Longer animation for bigger jumps
   }, [animateCenterTime])
 
   const jumpToTime = useCallback((timestamp: number, scope?: string) => {
     if (scope && scope !== currentScope) {
       setCurrentScope(scope)
     }
-    animateCenterTime(timestamp, 400)
+    animateCenterTime(timestamp, 650)
   }, [currentScope, animateCenterTime])
 
   const canZoomIn = useMemo(() => {
