@@ -66,29 +66,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
     ))
   }, [swimlanes, onUpdateSwimlanes])
 
-  const handleResizeSwimlane = useCallback((laneId: string, newHeight: number) => {
-    const lanes = [...swimlanes]
-    const laneIndex = lanes.findIndex(l => l.id === laneId)
-    if (laneIndex === -1) return
 
-    // Adjust this lane and redistribute remaining height
-    const oldHeight = lanes[laneIndex].height
-    const heightDiff = newHeight - oldHeight
-    lanes[laneIndex].height = newHeight
-
-    // Redistribute the difference among other visible lanes
-    const otherVisibleLanes = lanes.filter((l, i) => i !== laneIndex && l.isVisible)
-    if (otherVisibleLanes.length > 0) {
-      const adjustmentPerLane = -heightDiff / otherVisibleLanes.length
-      lanes.forEach((lane, i) => {
-        if (i !== laneIndex && lane.isVisible) {
-          lane.height = Math.max(10, lane.height + adjustmentPerLane) // Min 10% height
-        }
-      })
-    }
-
-    onUpdateSwimlanes(lanes)
-  }, [swimlanes, onUpdateSwimlanes])
 
   const handleClusterClick = useCallback((cluster: TimelineCluster) => {
     setSelectedCluster(cluster)
@@ -198,7 +176,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
           {/* Time Markers */}
           <TimeMarkers viewport={viewport} zoomLevel={zoomLevel} />
 
-          {adjustedSwimlanes().map((swimlane, index) => (
+          {adjustedSwimlanes().map((swimlane) => (
             <Swimlane
               key={swimlane.id}
               config={swimlane}
@@ -209,13 +187,11 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
               shouldCluster={shouldCluster}
               height={swimlane.height}
               onToggle={() => handleToggleSwimlane(swimlane.id)}
-              onResize={(newHeight: number) => handleResizeSwimlane(swimlane.id, newHeight)}
               onClusterClick={handleClusterClick}
               onEventClick={handleEventClick}
               onBookmark={onBookmarkEvent}
               onAddToCompare={handleAddToCompare}
               zoomLevel={zoomLevel}
-              isLast={index === visibleSwimlanes.length - 1}
             />
           ))}
 
