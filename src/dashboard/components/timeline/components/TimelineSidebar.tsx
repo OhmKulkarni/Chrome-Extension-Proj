@@ -10,6 +10,8 @@ interface TimelineSidebarProps {
   onCompareRemove: (eventId: string) => void
   onMoveFromQueue: (event: TimelineEvent) => void
   onShowCompareView: () => void
+  isCollapsed?: boolean
+  onToggleCollapsed?: () => void
 }
 
 export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
@@ -19,9 +21,14 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
   onBookmarkRemove,
   onCompareRemove,
   onMoveFromQueue,
-  onShowCompareView
+  onShowCompareView,
+  isCollapsed = false,
+  onToggleCollapsed
 }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  // Fallback to local state if parent doesn't manage collapsed state
+  const [localCollapsed, setLocalCollapsed] = useState(false)
+  const collapsed = onToggleCollapsed ? isCollapsed : localCollapsed
+  const toggleCollapsed = onToggleCollapsed || (() => setLocalCollapsed(!localCollapsed))
   const renderEventCard = (event: TimelineEvent, type: 'bookmark' | 'compare' | 'queue') => {
     const typeConfig = {
       network: { color: 'bg-blue-50 border-blue-200', icon: '🌐' },
@@ -93,15 +100,15 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
   }
 
   return (
-    <div className={`${isCollapsed ? 'w-12' : 'w-80'} bg-white border-l border-gray-200 flex flex-col h-full transition-all duration-300 ease-in-out`}>
+    <div className={`${collapsed ? 'w-12' : 'w-80'} bg-white border-l border-gray-200 flex flex-col h-full transition-all duration-300 ease-in-out`}>
       {/* Toggle Button */}
       <div className="p-2 border-b border-gray-200 flex justify-center">
         <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
+          onClick={toggleCollapsed}
           className="p-2 hover:bg-gray-100 rounded transition-colors"
-          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
-          {isCollapsed ? (
+          {collapsed ? (
             <ChevronLeft className="w-4 h-4 text-gray-600" />
           ) : (
             <ChevronRight className="w-4 h-4 text-gray-600" />
@@ -109,7 +116,7 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
         </button>
       </div>
 
-      {!isCollapsed && (
+      {!collapsed && (
         <>
           {/* Bookmarks Section - Fixed height */}
           <div className="border-b border-gray-200 overflow-hidden flex flex-col" style={{ height: '350px' }}>
@@ -185,7 +192,7 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
       )}
 
       {/* Collapsed State - Show counts only */}
-      {isCollapsed && (
+      {collapsed && (
         <div className="flex flex-col" style={{ height: '700px' }}>
           {/* Bookmarks section placeholder - 350px */}
           <div className="flex items-center justify-center border-b border-gray-200" style={{ height: '350px' }}>

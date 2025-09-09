@@ -8,6 +8,7 @@ import { SwimLaneConfig, DEFAULT_SWIMLANES } from './types/timeline.types'
 export const TimelineVisualization: React.FC = () => {
   const [swimlanes, setSwimlanes] = useState<SwimLaneConfig[]>(DEFAULT_SWIMLANES)
   const [debugMode, setDebugMode] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   // Initialize viewport with default settings first
   const viewport = useViewport({ initialScope: '1-hour' })
@@ -128,6 +129,8 @@ export const TimelineVisualization: React.FC = () => {
               onUpdateSwimlanes={setSwimlanes}
               debugMode={debugMode}
               isAnimating={viewport.isAnimating}
+              sidebarCollapsed={sidebarCollapsed}
+              onToggleSidebarCollapsed={() => setSidebarCollapsed(!sidebarCollapsed)}
             />
 
             {/* Subtle overlay message when no events are visible */}

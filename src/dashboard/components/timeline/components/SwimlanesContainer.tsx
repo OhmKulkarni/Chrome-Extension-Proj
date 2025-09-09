@@ -25,6 +25,8 @@ interface SwimlanesContainerProps {
   onUpdateSwimlanes: (swimlanes: SwimLaneConfig[]) => void
   debugMode?: boolean
   isAnimating?: boolean
+  sidebarCollapsed?: boolean
+  onToggleSidebarCollapsed?: () => void
 }
 
 export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
@@ -42,7 +44,9 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   swimlanes,
   onUpdateSwimlanes,
   debugMode = false,
-  isAnimating = false
+  isAnimating = false,
+  sidebarCollapsed = false,
+  onToggleSidebarCollapsed
 }) => {
   const [selectedCluster, setSelectedCluster] = useState<TimelineCluster | null>(null)
   const [selectedDensityCluster, setSelectedDensityCluster] = useState<DensityCluster | null>(null)
@@ -235,6 +239,8 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
         onCompareRemove={(eventId: string) => onSetCompareSlot(eventId, undefined)}
         onMoveFromQueue={handleMoveFromQueue}
         onShowCompareView={() => setShowCompareView(true)}
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapsed={onToggleSidebarCollapsed}
       />
 
       {/* Event Popup */}
