@@ -1,6 +1,6 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { TimelineEvent } from '../types/timeline.types'
-import { Bookmark, GitCompare, ChevronRight, Grid2X2 } from 'lucide-react'
+import { Bookmark, GitCompare, ChevronRight, ChevronLeft, Grid2X2 } from 'lucide-react'
 
 interface TimelineSidebarProps {
   bookmarkedEvents: TimelineEvent[]
@@ -21,6 +21,7 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
   onMoveFromQueue,
   onShowCompareView
 }) => {
+  const [isCollapsed, setIsCollapsed] = useState(false)
   const renderEventCard = (event: TimelineEvent, type: 'bookmark' | 'compare' | 'queue') => {
     const typeConfig = {
       network: { color: 'bg-blue-50 border-blue-200', icon: '🌐' },
@@ -92,15 +93,32 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
   }
 
   return (
-    <div className="w-80 bg-white border-l border-gray-200 flex flex-col h-full">
-      {/* Bookmarks Section - Fixed height */}
-      <div className="border-b border-gray-200 overflow-hidden flex flex-col" style={{ height: '350px' }}>
-        <div className="p-4 border-b border-gray-200 flex-shrink-0">
-          <div className="flex items-center space-x-2">
-            <Bookmark className="w-4 h-4 text-yellow-600" />
-            <h3 className="font-medium">Bookmarks ({bookmarkedEvents.length})</h3>
-          </div>
-        </div>
+    <div className={`${isCollapsed ? 'w-12' : 'w-80'} bg-white border-l border-gray-200 flex flex-col h-full transition-all duration-300 ease-in-out`}>
+      {/* Toggle Button */}
+      <div className="p-2 border-b border-gray-200 flex justify-center">
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="p-2 hover:bg-gray-100 rounded transition-colors"
+          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {isCollapsed ? (
+            <ChevronLeft className="w-4 h-4 text-gray-600" />
+          ) : (
+            <ChevronRight className="w-4 h-4 text-gray-600" />
+          )}
+        </button>
+      </div>
+
+      {!isCollapsed && (
+        <>
+          {/* Bookmarks Section - Fixed height */}
+          <div className="border-b border-gray-200 overflow-hidden flex flex-col" style={{ height: '350px' }}>
+            <div className="p-4 border-b border-gray-200 flex-shrink-0">
+              <div className="flex items-center space-x-2">
+                <Bookmark className="w-4 h-4 text-yellow-600" />
+                <h3 className="font-medium">Bookmarks ({bookmarkedEvents.length})</h3>
+              </div>
+            </div>
         <div className="flex-1 overflow-y-auto p-4">
           {bookmarkedEvents.length > 0 ? (
             <div className="space-y-2">
@@ -163,6 +181,22 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
           )}
         </div>
       </div>
+        </>
+      )}
+
+      {/* Collapsed State - Show counts only */}
+      {isCollapsed && (
+        <div className="flex-1 flex flex-col items-center justify-center space-y-4">
+          <div className="text-center">
+            <Bookmark className="w-5 h-5 text-yellow-600 mx-auto mb-1" />
+            <div className="text-xs font-medium text-gray-600">{bookmarkedEvents.length}</div>
+          </div>
+          <div className="text-center">
+            <GitCompare className="w-5 h-5 text-purple-600 mx-auto mb-1" />
+            <div className="text-xs font-medium text-gray-600">{compareEvents.length}</div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
