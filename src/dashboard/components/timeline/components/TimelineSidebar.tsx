@@ -151,7 +151,7 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
             )}
           </div>
         </div>
-        
+
         <div className="flex-1 overflow-y-auto p-4">
           {compareEvents.length > 0 || compareQueue.length > 0 ? (
             <div className="space-y-4">
@@ -186,14 +186,23 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
 
       {/* Collapsed State - Show counts only */}
       {isCollapsed && (
-        <div className="flex-1 flex flex-col items-center justify-center space-y-4">
-          <div className="text-center">
-            <Bookmark className="w-5 h-5 text-yellow-600 mx-auto mb-1" />
-            <div className="text-xs font-medium text-gray-600">{bookmarkedEvents.length}</div>
+        <div className="flex flex-col" style={{ height: '700px' }}>
+          {/* Bookmarks section placeholder - 350px */}
+          <div className="flex items-center justify-center border-b border-gray-200" style={{ height: '350px' }}>
+            <div className="text-center">
+              <Bookmark className="w-5 h-5 text-yellow-600 mx-auto mb-1" />
+              <div className="text-xs font-medium text-gray-600">{bookmarkedEvents.length}</div>
+              <div className="text-xs text-gray-400 mt-1">Bookmarks</div>
+            </div>
           </div>
-          <div className="text-center">
-            <GitCompare className="w-5 h-5 text-purple-600 mx-auto mb-1" />
-            <div className="text-xs font-medium text-gray-600">{compareEvents.length}</div>
+
+          {/* Compare section placeholder - 350px */}
+          <div className="flex items-center justify-center" style={{ height: '350px' }}>
+            <div className="text-center">
+              <GitCompare className="w-5 h-5 text-purple-600 mx-auto mb-1" />
+              <div className="text-xs font-medium text-gray-600">{compareEvents.length}</div>
+              <div className="text-xs text-gray-400 mt-1">Compare</div>
+            </div>
           </div>
         </div>
       )}
