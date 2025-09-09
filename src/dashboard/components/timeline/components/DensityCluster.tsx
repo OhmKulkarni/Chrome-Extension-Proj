@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { DensityCluster } from '../types/timeline.types'
 
 interface DensityClusterProps {
@@ -32,7 +32,57 @@ export const DensityClusterComponent: React.FC<DensityClusterProps> = ({
     cluster: null
   })
   const [isHovered, setIsHovered] = useState(false)
+  const [smoothPosition, setSmoothPosition] = useState({ x: cluster.position.x, y: cluster.position.y })
   const clusterRef = useRef<HTMLDivElement>(null)
+  const animationFrameRef = useRef<number | null>(null)
+
+  // Smooth position interpolation during viewport animations
+  useEffect(() => {
+    if (isAnimating) {
+      // Cancel any existing animation
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+
+      // Smoothly interpolate to target position
+      const targetX = cluster.position.x
+      const targetY = cluster.position.y
+      const startX = smoothPosition.x
+      const startY = smoothPosition.y
+
+      let startTime: number | null = null
+      const duration = 100 // Short interpolation duration
+
+      const animate = (currentTime: number) => {
+        if (!startTime) startTime = currentTime
+        const elapsed = currentTime - startTime
+        const progress = Math.min(elapsed / duration, 1)
+
+        // Smooth easing function
+        const easeOut = 1 - Math.pow(1 - progress, 3)
+
+        const currentX = startX + (targetX - startX) * easeOut
+        const currentY = startY + (targetY - startY) * easeOut
+
+        setSmoothPosition({ x: currentX, y: currentY })
+
+        if (progress < 1) {
+          animationFrameRef.current = requestAnimationFrame(animate)
+        }
+      }
+
+      animationFrameRef.current = requestAnimationFrame(animate)
+    } else {
+      // When not animating, snap to exact position
+      setSmoothPosition({ x: cluster.position.x, y: cluster.position.y })
+    }
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+    }
+  }, [cluster.position.x, cluster.position.y, isAnimating, smoothPosition.x, smoothPosition.y])
 
   const handleDoubleClick = useCallback(() => {
     onZoomIn(cluster)
@@ -115,8 +165,8 @@ export const DensityClusterComponent: React.FC<DensityClusterProps> = ({
           isHovered ? 'scale-125 z-10' : 'hover:scale-110'
         } ${shouldPulse ? 'animate-pulse' : ''}`}
         style={{
-          left: `${cluster.position.x}%`,
-          top: `${cluster.position.y}%`,
+          left: `${smoothPosition.x}%`,
+          top: `${smoothPosition.y}%`,
           width: `${clusterSize}px`,
           height: `${clusterSize}px`,
           animationDelay: `${animationDelay}ms`,
