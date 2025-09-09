@@ -92,10 +92,10 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
   }
 
   return (
-    <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
-      {/* Bookmarks Section */}
-      <div className="flex-1 border-b border-gray-200 overflow-hidden flex flex-col">
-        <div className="p-4 border-b border-gray-200">
+    <div className="w-80 bg-white border-l border-gray-200 flex flex-col h-full">
+      {/* Bookmarks Section - Fixed height */}
+      <div className="border-b border-gray-200 overflow-hidden flex flex-col" style={{ height: '350px' }}>
+        <div className="p-4 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center space-x-2">
             <Bookmark className="w-4 h-4 text-yellow-600" />
             <h3 className="font-medium">Bookmarks ({bookmarkedEvents.length})</h3>
@@ -114,9 +114,9 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
         </div>
       </div>
 
-      {/* Compare Section */}
-      <div className="flex-1 overflow-hidden flex flex-col">
-        <div className="p-4 border-b border-gray-200">
+      {/* Compare Section - Fixed height */}
+      <div className="overflow-hidden flex flex-col" style={{ height: '350px' }}>
+        <div className="p-4 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <GitCompare className="w-4 h-4 text-purple-600" />
