@@ -10,6 +10,7 @@ interface EventCardProps {
   zoomLevel: number
   layerIndex?: number
   isStacked?: boolean
+  onHoverChange?: (eventId: string, isHovered: boolean) => void
 }
 
 export const EventCard: React.FC<EventCardProps> = ({
@@ -19,9 +20,20 @@ export const EventCard: React.FC<EventCardProps> = ({
   onAddToCompare,
   zoomLevel,
   layerIndex = 0,
-  isStacked = false
+  isStacked = false,
+  onHoverChange
 }) => {
   const [isHovered, setIsHovered] = useState(false)
+
+  const handleMouseEnter = () => {
+    setIsHovered(true)
+    onHoverChange?.(event.id, true)
+  }
+
+  const handleMouseLeave = () => {
+    setIsHovered(false)
+    onHoverChange?.(event.id, false)
+  }
   const getIcon = () => {
     switch (event.type) {
       case 'network':
@@ -88,11 +100,11 @@ export const EventCard: React.FC<EventCardProps> = ({
   const cardDimensions = useMemo(() => {
     const baseWidth = zoomLevel > 8 ? 180 : (zoomLevel > 4 ? 160 : 140)
     const baseHeight = zoomLevel > 8 ? 70 : (zoomLevel > 4 ? 60 : 50)
-    
+
     // Slightly smaller cards when stacked to fit better
     const width = isStacked ? Math.max(120, baseWidth - 20) : baseWidth
     const height = isStacked ? Math.max(40, baseHeight - 10) : baseHeight
-    
+
     return { width, height }
   }, [zoomLevel, isStacked])
 
@@ -111,7 +123,7 @@ export const EventCard: React.FC<EventCardProps> = ({
   }
 
   // Enhanced shadow for stacked cards
-  const cardShadow = isStacked 
+  const cardShadow = isStacked
     ? `shadow-sm hover:shadow-md ${layerIndex > 0 ? 'shadow-lg' : ''}`
     : 'shadow-sm hover:shadow-lg'
 
@@ -126,12 +138,12 @@ export const EventCard: React.FC<EventCardProps> = ({
         width: `${cardDimensions.width}px`,
         height: `${cardDimensions.height}px`,
         // Dynamic z-index: bring hovered cards to absolute front
-        zIndex: isHovered 
+        zIndex: isHovered
           ? 1000 // Absolute front when hovered
           : 10 + layerIndex + (event.isBookmarked ? 5 : 0) + (event.compareSlot !== undefined ? 3 : 0)
       }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       onClick={() => onClick(event)}
     >
       <div className="p-3 h-full flex flex-col relative">

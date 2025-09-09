@@ -46,6 +46,7 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
 }) => {
   const [scrollPosition, setScrollPosition] = useState(0)
   const [showScrollControls, setShowScrollControls] = useState(false)
+  const [hoveredEventId, setHoveredEventId] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
 
@@ -85,6 +86,11 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
     const relativeTime = timestamp - viewport.startTime
     return (relativeTime / viewport.duration) * 100
   }, [viewport])
+
+  // Handle event hover state for z-index management
+  const handleEventHover = useCallback((eventId: string, isHovered: boolean) => {
+    setHoveredEventId(isHovered ? eventId : null)
+  }, [])
 
   // Enhanced overlap detection and layering with smart sizing
   const { eventLayers, debugInfo } = useMemo(() => {
@@ -387,7 +393,10 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
                           left: `${position}%`,
                           transform: 'translateX(-50%)',
                           opacity,
-                          zIndex: 10 + layerIndex,
+                          // Dynamic z-index based on hover state
+                          zIndex: hoveredEventId === event.id
+                            ? 1000 // Bring hovered event to absolute front
+                            : 10 + layerIndex,
                           // Prevent events from overflowing their layer
                           top: '50%',
                           marginTop: '-17.5px' // Half of card height
@@ -401,6 +410,7 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
                           zoomLevel={zoomLevel}
                           layerIndex={layerIndex}
                           isStacked={eventLayers.length > 1}
+                          onHoverChange={handleEventHover}
                         />
                       </div>
                     ))}
