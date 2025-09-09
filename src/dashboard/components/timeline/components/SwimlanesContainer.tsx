@@ -180,13 +180,15 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
     <div className="flex h-full bg-gray-50">
       {/* Main Timeline Area */}
       <div className="flex-1 flex flex-col" ref={containerRef}>
+        {/* Sticky Date Indicators - positioned at the top */}
+        <div className="relative">
+          <StickyDateIndicator viewport={viewport} zoomLevel={zoomLevel} />
+        </div>
+        
         {/* Swimlanes */}
         <div className="flex-1 relative">
           {/* Time Markers */}
           <TimeMarkers viewport={viewport} zoomLevel={zoomLevel} />
-          
-          {/* Sticky Date Indicators */}
-          <StickyDateIndicator viewport={viewport} zoomLevel={zoomLevel} />
 
           {adjustedSwimlanes().map((swimlane) => (
             <Swimlane

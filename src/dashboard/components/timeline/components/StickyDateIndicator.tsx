@@ -11,7 +11,8 @@ interface DateMarker {
   date: string
   isVisible: boolean
   position: number
-  shouldStick: 'left' | 'right' | 'none'
+  shouldStick: 'left' | 'none'
+  isCurrentTimeMarker: boolean
 }
 
 export const StickyDateIndicator: React.FC<StickyDateIndicatorProps> = ({ 
@@ -46,20 +47,21 @@ export const StickyDateIndicator: React.FC<StickyDateIndicatorProps> = ({
       
       // Determine if this date should be visible and where
       let isVisible = false
-      let shouldStick: 'left' | 'right' | 'none' = 'none'
+      let shouldStick: 'left' | 'none' = 'none'
+      let isCurrentTimeMarker = false
       
       if (position >= 0 && position <= 100) {
         // Date is within viewport - show normally
         isVisible = true
+        // Check if this is the leftmost date marker (represents current time)
+        isCurrentTimeMarker = position <= 15 // Within first 15% of viewport
       } else if (position < 0 && position > -20) {
-        // Date is just to the left - stick to left edge
+        // Date is to the left of viewport - this should stick to left as it represents current time
         isVisible = true
         shouldStick = 'left'
-      } else if (position > 100 && position < 120) {
-        // Date is just to the right - stick to right edge
-        isVisible = true
-        shouldStick = 'right'
+        isCurrentTimeMarker = true
       }
+      // Note: Right-side dates don't stick to right; they become left-sticky when they move past
       
       if (isVisible) {
         markers.push({
@@ -67,7 +69,8 @@ export const StickyDateIndicator: React.FC<StickyDateIndicatorProps> = ({
           date: formatDateLabel(timestamp),
           isVisible,
           position: Math.max(0, Math.min(100, position)),
-          shouldStick
+          shouldStick,
+          isCurrentTimeMarker
         })
       }
       
@@ -81,58 +84,37 @@ export const StickyDateIndicator: React.FC<StickyDateIndicatorProps> = ({
   if (dateMarkers.length === 0) return null
 
   return (
-    <div className="absolute inset-0 pointer-events-none z-20">
+    <div className="absolute top-0 left-0 right-0 h-8 pointer-events-none z-30 bg-gradient-to-b from-gray-50 to-transparent">
       {dateMarkers.map((marker) => (
         <div
           key={marker.timestamp}
-          className={`absolute top-0 h-full flex items-start pt-2 ${
-            marker.shouldStick !== 'none' ? 'z-30' : 'z-20'
+          className={`absolute top-1 flex items-center ${
+            marker.shouldStick !== 'none' ? 'z-40' : 'z-30'
           }`}
           style={{
-            left: marker.shouldStick === 'left' ? '8px' : 
-                  marker.shouldStick === 'right' ? 'calc(100% - 120px)' :
-                  `${marker.position}%`,
+            left: marker.shouldStick === 'left' ? '8px' : `${marker.position}%`,
             transform: marker.shouldStick === 'none' ? 'translateX(-50%)' : 'none'
           }}
         >
           {/* Date badge */}
           <div 
-            className={`px-3 py-1 rounded-full text-sm font-medium shadow-md transition-all duration-300 ${
-              marker.shouldStick !== 'none' 
+            className={`px-3 py-1 rounded-full text-xs font-medium shadow-md transition-all duration-300 ${
+              marker.isCurrentTimeMarker 
                 ? 'bg-blue-600 text-white border-2 border-white' 
-                : 'bg-white text-gray-800 border border-gray-300'
+                : 'bg-white text-gray-700 border border-gray-300'
             }`}
             style={{
-              minWidth: '100px',
+              minWidth: '80px',
               textAlign: 'center'
             }}
           >
             {marker.date}
           </div>
           
-          {/* Vertical line indicator */}
-          {marker.shouldStick === 'none' && (
-            <div 
-              className="absolute top-8 w-px bg-blue-400"
-              style={{
-                height: 'calc(100% - 2rem)',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                opacity: 0.6
-              }}
-            />
-          )}
-          
-          {/* Sticky indicator arrow */}
+          {/* Sticky indicator arrow for current time marker */}
           {marker.shouldStick === 'left' && (
             <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1">
-              <div className="w-0 h-0 border-t-4 border-b-4 border-r-4 border-transparent border-r-blue-600"></div>
-            </div>
-          )}
-          
-          {marker.shouldStick === 'right' && (
-            <div className="absolute right-0 top-1/2 transform -translate-y-1/2 translate-x-1">
-              <div className="w-0 h-0 border-t-4 border-b-4 border-l-4 border-transparent border-l-blue-600"></div>
+              <div className="w-0 h-0 border-t-2 border-b-2 border-r-2 border-transparent border-r-blue-600"></div>
             </div>
           )}
         </div>
@@ -144,24 +126,10 @@ export const StickyDateIndicator: React.FC<StickyDateIndicatorProps> = ({
 function formatDateLabel(timestamp: number): string {
   const date = new Date(timestamp)
   const today = new Date()
-  const yesterday = new Date(today)
-  yesterday.setDate(yesterday.getDate() - 1)
-  const tomorrow = new Date(today)
-  tomorrow.setDate(tomorrow.getDate() + 1)
   
-  // Check if it's today, yesterday, or tomorrow
-  if (date.toDateString() === today.toDateString()) {
-    return 'Today'
-  } else if (date.toDateString() === yesterday.toDateString()) {
-    return 'Yesterday'
-  } else if (date.toDateString() === tomorrow.toDateString()) {
-    return 'Tomorrow'
-  }
-  
-  // For other dates, show formatted date with day of week
+  // Always show the actual date, not relative terms
   const isCurrentYear = date.getFullYear() === today.getFullYear()
   return date.toLocaleDateString('en-US', {
-    weekday: 'short',
     month: 'short',
     day: 'numeric',
     year: isCurrentYear ? undefined : 'numeric'
