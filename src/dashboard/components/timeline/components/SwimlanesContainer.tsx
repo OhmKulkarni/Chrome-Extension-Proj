@@ -8,6 +8,7 @@ import { DensityClusterComponent } from './DensityCluster'
 import { EventListPopup } from './EventListPopup'
 import { TimeMarkers } from './TimeMarkers'
 import { AllTimeViewDemo } from './AllTimeViewDemo'
+import { StickyDateIndicator } from './StickyDateIndicator'
 
 interface SwimlanesContainerProps {
   events: TimelineEvent[]
@@ -183,6 +184,9 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
         <div className="flex-1 relative">
           {/* Time Markers */}
           <TimeMarkers viewport={viewport} zoomLevel={zoomLevel} />
+          
+          {/* Sticky Date Indicators */}
+          <StickyDateIndicator viewport={viewport} zoomLevel={zoomLevel} />
 
           {adjustedSwimlanes().map((swimlane) => (
             <Swimlane
