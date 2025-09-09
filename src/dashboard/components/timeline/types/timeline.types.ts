@@ -99,14 +99,14 @@ export const TIME_SCOPES: TimeScope[] = [
   { key: '10-minutes', label: '10 Minutes', duration: 10 * 60 * 1000, zoomLevel: 8 },
   { key: '15-minutes', label: '15 Minutes', duration: 15 * 60 * 1000, zoomLevel: 7 },
   { key: '30-minutes', label: '30 Minutes', duration: 30 * 60 * 1000, zoomLevel: 6 },
-  
+
   // Hours - Medium zoom levels (some clustering)
   { key: '1-hour', label: '1 Hour', duration: 60 * 60 * 1000, zoomLevel: 5 },
   { key: '2-hours', label: '2 Hours', duration: 2 * 60 * 60 * 1000, zoomLevel: 4 },
   { key: '6-hours', label: '6 Hours', duration: 6 * 60 * 60 * 1000, zoomLevel: 3 },
   { key: '12-hours', label: '12 Hours', duration: 12 * 60 * 60 * 1000, zoomLevel: 2 },
   { key: '24-hours', label: '24 Hours', duration: 24 * 60 * 60 * 1000, zoomLevel: 1 },
-  
+
   // Days - Low zoom levels (heavy clustering)
   { key: '2-days', label: '2 Days', duration: 2 * 24 * 60 * 60 * 1000, zoomLevel: 0 },
   { key: '3-days', label: '3 Days', duration: 3 * 24 * 60 * 60 * 1000, zoomLevel: -1 },
@@ -114,7 +114,7 @@ export const TIME_SCOPES: TimeScope[] = [
   { key: '5-days', label: '5 Days', duration: 5 * 24 * 60 * 60 * 1000, zoomLevel: -3 },
   { key: '6-days', label: '6 Days', duration: 6 * 24 * 60 * 60 * 1000, zoomLevel: -4 },
   { key: '1-week', label: '1 Week', duration: 7 * 24 * 60 * 60 * 1000, zoomLevel: -5 },
-  
+
   // Weeks and Months - Very low zoom levels (maximum clustering)
   { key: '2-weeks', label: '2 Weeks', duration: 14 * 24 * 60 * 60 * 1000, zoomLevel: -6 },
   { key: '1-month', label: '1 Month', duration: 30 * 24 * 60 * 60 * 1000, zoomLevel: -7 },
@@ -123,7 +123,7 @@ export const TIME_SCOPES: TimeScope[] = [
   { key: '6-months', label: '6 Months', duration: 180 * 24 * 60 * 60 * 1000, zoomLevel: -10 },
   { key: '1-year', label: '1 Year', duration: 365 * 24 * 60 * 60 * 1000, zoomLevel: -11 },
   { key: '2-years', label: '2 Years', duration: 730 * 24 * 60 * 60 * 1000, zoomLevel: -12 },
-  
+
   // Special all-time scope - dynamic duration based on actual data range
   { key: 'all-time', label: 'All Time', duration: 0, zoomLevel: -15 } // Duration calculated dynamically
 ]

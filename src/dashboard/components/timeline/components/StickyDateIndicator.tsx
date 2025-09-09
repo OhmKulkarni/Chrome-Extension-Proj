@@ -78,7 +78,7 @@ export const StickyDateIndicator: React.FC<StickyDateIndicatorProps> = ({
       currentDate.setDate(currentDate.getDate() + 1)
     }
 
-    // If no markers found (happens when zoomed into short periods), 
+    // If no markers found (happens when zoomed into short periods),
     // create a synthetic marker for the viewport start time
     if (markers.length === 0) {
       markers.push({
@@ -143,7 +143,7 @@ export const StickyDateIndicator: React.FC<StickyDateIndicatorProps> = ({
             <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-0.5">
               <div className="w-0 h-0 border-t-1 border-b-1 border-r-1 border-transparent border-r-blue-600" style={{
                 borderTopWidth: '3px',
-                borderBottomWidth: '3px', 
+                borderBottomWidth: '3px',
                 borderRightWidth: '4px'
               }}></div>
             </div>

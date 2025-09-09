@@ -108,17 +108,19 @@ export const useViewport = ({
 
       // For 'first-' scopes, jump to the earliest data time
       if (presetScope.startsWith('first-')) {
-        // Check if earliestDataTimestamp seems to be still the default fallback
-        // Allow for some timing variations by checking if it's within the last 25 hours
+        // Use the earliest data timestamp, but with a better fallback strategy
         const now = Date.now()
         const timeDiff = now - earliestDataTimestamp
-        const isLikelyDefaultFallback = timeDiff < (25 * 60 * 60 * 1000) && timeDiff > (23 * 60 * 60 * 1000)
-
-        if (isLikelyDefaultFallback) {
-          // If we don't have the actual earliest timestamp yet, use a more reasonable fallback
-          // Go back far enough to likely capture early data
-          targetTime = now - (7 * 24 * 60 * 60 * 1000) // Go back 7 days
+        
+        // Check if this looks like the default fallback (exactly 24 hours ago)
+        const isExactlyOneDayFallback = Math.abs(timeDiff - (24 * 60 * 60 * 1000)) < (60 * 1000) // Within 1 minute of exactly 24 hours
+        
+        if (isExactlyOneDayFallback) {
+          // This is likely the default fallback - use a more reasonable estimate
+          // Based on typical usage patterns, go back 5 days to capture recent browsing history
+          targetTime = now - (5 * 24 * 60 * 60 * 1000)
         } else {
+          // We have actual data - use the real earliest timestamp
           targetTime = earliestDataTimestamp
         }
       }
@@ -130,7 +132,7 @@ export const useViewport = ({
 
     setCurrentScope(targetScope)
     animateCenterTime(targetTime, 1000) // Longer animation for bigger jumps
-  }, [animateCenterTime])
+  }, [earliestDataTimestamp, animateCenterTime])
 
   const jumpToTime = useCallback((timestamp: number, scope?: string) => {
     if (scope && scope !== currentScope) {
