@@ -7,6 +7,7 @@ interface DensityClusterProps {
   onShowEventList: (cluster: DensityCluster) => void
   isHighlighted?: boolean
   animationDelay?: number
+  isAnimating?: boolean
 }
 
 interface ContextMenuState {
@@ -21,7 +22,8 @@ export const DensityClusterComponent: React.FC<DensityClusterProps> = ({
   onZoomIn,
   onShowEventList,
   isHighlighted = false,
-  animationDelay = 0
+  animationDelay = 0,
+  isAnimating = false
 }) => {
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
     visible: false,
@@ -107,7 +109,9 @@ export const DensityClusterComponent: React.FC<DensityClusterProps> = ({
     <>
       <div
         ref={clusterRef}
-        className={`absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-300 ${
+        className={`absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer ${
+          isAnimating ? '' : 'transition-all duration-300'
+        } ${
           isHovered ? 'scale-125 z-10' : 'hover:scale-110'
         } ${shouldPulse ? 'animate-pulse' : ''}`}
         style={{

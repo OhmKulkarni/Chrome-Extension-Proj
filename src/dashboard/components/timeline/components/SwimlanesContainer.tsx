@@ -24,6 +24,7 @@ interface SwimlanesContainerProps {
   swimlanes: SwimLaneConfig[]
   onUpdateSwimlanes: (swimlanes: SwimLaneConfig[]) => void
   debugMode?: boolean
+  isAnimating?: boolean
 }
 
 export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
@@ -40,7 +41,8 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   zoomLevel,
   swimlanes,
   onUpdateSwimlanes,
-  debugMode = false
+  debugMode = false,
+  isAnimating = false
 }) => {
   const [selectedCluster, setSelectedCluster] = useState<TimelineCluster | null>(null)
   const [selectedDensityCluster, setSelectedDensityCluster] = useState<DensityCluster | null>(null)
@@ -206,6 +208,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
               cluster={cluster}
               onZoomIn={handleDensityClusterZoom}
               onShowEventList={handleDensityClusterList}
+              isAnimating={isAnimating}
             />
           ))}
 

@@ -127,6 +127,7 @@ export const TimelineVisualization: React.FC = () => {
               swimlanes={swimlanes}
               onUpdateSwimlanes={setSwimlanes}
               debugMode={debugMode}
+              isAnimating={viewport.isAnimating}
             />
 
             {/* Subtle overlay message when no events are visible */}
