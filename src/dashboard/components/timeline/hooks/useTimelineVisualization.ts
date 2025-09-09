@@ -74,45 +74,52 @@ function createDensityClusters(
   }, {} as Record<string, TimelineEvent[]>)
 
   const clusters: DensityCluster[] = []
-
-  // Calculate cluster granularity based on zoom level
-  const clusterCount = Math.min(20, Math.max(5, Math.floor(viewport.duration / getClusterInterval(zoomLevel))))
-  const timeSlotDuration = viewport.duration / clusterCount
+  const clusterInterval = getClusterInterval(zoomLevel)
 
   Object.entries(eventsBySwimlane).forEach(([swimlane, swimlaneEvents]) => {
-    // Create time slots
-    for (let i = 0; i < clusterCount; i++) {
-      const slotStartTime = viewport.startTime + (i * timeSlotDuration)
-      const slotEndTime = slotStartTime + timeSlotDuration
+    // Create absolute time-based clusters (not viewport-relative)
+    const clusterMap = new Map<number, TimelineEvent[]>()
+    
+    // Group events by absolute time slots
+    swimlaneEvents.forEach(event => {
+      // Round timestamp to cluster interval to create stable time slots
+      const clusterStartTime = Math.floor(event.timestamp / clusterInterval) * clusterInterval
+      
+      if (!clusterMap.has(clusterStartTime)) {
+        clusterMap.set(clusterStartTime, [])
+      }
+      clusterMap.get(clusterStartTime)!.push(event)
+    })
 
-      const slotEvents = swimlaneEvents.filter(event =>
-        event.timestamp >= slotStartTime && event.timestamp < slotEndTime
-      )
+    // Convert clustered events to density clusters
+    Array.from(clusterMap.entries()).forEach(([clusterStartTime, clusterEvents]) => {
+      const clusterEndTime = clusterStartTime + clusterInterval
+      const clusterCenterTime = clusterStartTime + (clusterInterval / 2)
+      
+      // Only include clusters that are visible in the current viewport
+      if (clusterCenterTime >= viewport.startTime && clusterCenterTime <= viewport.endTime) {
+        const density = clusterEvents.length
+        const size = Math.min(5, Math.max(1, Math.ceil(density / 5)))
 
-      if (slotEvents.length > 0) {
-        const density = slotEvents.length
-        const size = Math.min(5, Math.max(1, Math.ceil(density / 5))) // Size 1-5
-
-        // Calculate viewport-relative position for smooth panning
-        const clusterCenterTime = slotStartTime + (timeSlotDuration / 2)
+        // Calculate viewport-relative position for rendering
         const relativeTime = clusterCenterTime - viewport.startTime
         const xPosition = (relativeTime / viewport.duration) * 100
 
         clusters.push({
-          id: `${swimlane}-${i}`,
-          startTime: slotStartTime,
-          endTime: slotEndTime,
-          events: slotEvents,
+          id: `${swimlane}-${clusterStartTime}`, // Stable ID based on absolute time
+          startTime: clusterStartTime,
+          endTime: clusterEndTime,
+          events: clusterEvents,
           swimlane: swimlane as 'network' | 'console' | 'token',
           density,
           size,
           position: {
-            x: xPosition, // Viewport-relative position for smooth animation
+            x: xPosition,
             y: getSwimlaneYPosition(swimlane as 'network' | 'console' | 'token')
           }
         })
       }
-    }
+    })
   })
 
   return clusters
