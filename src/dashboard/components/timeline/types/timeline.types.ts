@@ -115,8 +115,17 @@ export const TIME_SCOPES: TimeScope[] = [
   { key: '6-days', label: '6 Days', duration: 6 * 24 * 60 * 60 * 1000, zoomLevel: -4 },
   { key: '1-week', label: '1 Week', duration: 7 * 24 * 60 * 60 * 1000, zoomLevel: -5 },
   
+  // Weeks and Months - Very low zoom levels (maximum clustering)
+  { key: '2-weeks', label: '2 Weeks', duration: 14 * 24 * 60 * 60 * 1000, zoomLevel: -6 },
+  { key: '1-month', label: '1 Month', duration: 30 * 24 * 60 * 60 * 1000, zoomLevel: -7 },
+  { key: '2-months', label: '2 Months', duration: 60 * 24 * 60 * 60 * 1000, zoomLevel: -8 },
+  { key: '3-months', label: '3 Months', duration: 90 * 24 * 60 * 60 * 1000, zoomLevel: -9 },
+  { key: '6-months', label: '6 Months', duration: 180 * 24 * 60 * 60 * 1000, zoomLevel: -10 },
+  { key: '1-year', label: '1 Year', duration: 365 * 24 * 60 * 60 * 1000, zoomLevel: -11 },
+  { key: '2-years', label: '2 Years', duration: 730 * 24 * 60 * 60 * 1000, zoomLevel: -12 },
+  
   // Special all-time scope - dynamic duration based on actual data range
-  { key: 'all-time', label: 'All Time', duration: 0, zoomLevel: -10 } // Duration calculated dynamically
+  { key: 'all-time', label: 'All Time', duration: 0, zoomLevel: -15 } // Duration calculated dynamically
 ]
 
 export const DEFAULT_SWIMLANES: SwimLaneConfig[] = [

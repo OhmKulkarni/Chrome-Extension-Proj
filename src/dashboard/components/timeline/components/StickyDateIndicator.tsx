@@ -20,8 +20,8 @@ export const StickyDateIndicator: React.FC<StickyDateIndicatorProps> = ({
   zoomLevel
 }) => {
   const dateMarkers = useMemo(() => {
-    // Only show date indicators for zoom levels where dates are meaningful
-    if (zoomLevel >= 5) return [] // Too detailed for date indicators
+    // Show date indicators for all zoom levels - dates provide important context even for short periods
+    // No filtering by zoom level - dates are always useful for temporal context
 
     const markers: DateMarker[] = []
 
@@ -111,11 +111,11 @@ export const StickyDateIndicator: React.FC<StickyDateIndicatorProps> = ({
   if (dateMarkers.length === 0) return null
 
   return (
-    <div className="absolute top-0 left-0 right-0 h-8 pointer-events-none z-30 bg-gradient-to-b from-gray-50 to-transparent">
+    <div className="absolute top-0 left-0 right-0 h-6 pointer-events-none z-30 bg-gradient-to-b from-gray-50 to-transparent border-b border-gray-100">
       {dateMarkers.map((marker) => (
         <div
           key={marker.timestamp}
-          className={`absolute top-1 flex items-center ${
+          className={`absolute top-0 flex items-center ${
             marker.shouldStick !== 'none' ? 'z-40' : 'z-30'
           }`}
           style={{
@@ -125,13 +125,13 @@ export const StickyDateIndicator: React.FC<StickyDateIndicatorProps> = ({
         >
           {/* Date badge */}
           <div
-            className={`px-3 py-1 rounded-full text-xs font-medium shadow-md transition-all duration-300 ${
+            className={`px-2 py-0.5 rounded-full text-xs font-medium shadow-sm transition-all duration-300 ${
               marker.isCurrentTimeMarker
-                ? 'bg-blue-600 text-white border-2 border-white'
+                ? 'bg-blue-600 text-white border border-white'
                 : 'bg-white text-gray-700 border border-gray-300'
             }`}
             style={{
-              minWidth: '80px',
+              minWidth: '70px',
               textAlign: 'center'
             }}
           >
@@ -140,8 +140,12 @@ export const StickyDateIndicator: React.FC<StickyDateIndicatorProps> = ({
 
           {/* Sticky indicator arrow for current time marker */}
           {marker.shouldStick === 'left' && (
-            <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1">
-              <div className="w-0 h-0 border-t-2 border-b-2 border-r-2 border-transparent border-r-blue-600"></div>
+            <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-0.5">
+              <div className="w-0 h-0 border-t-1 border-b-1 border-r-1 border-transparent border-r-blue-600" style={{
+                borderTopWidth: '3px',
+                borderBottomWidth: '3px', 
+                borderRightWidth: '4px'
+              }}></div>
             </div>
           )}
         </div>

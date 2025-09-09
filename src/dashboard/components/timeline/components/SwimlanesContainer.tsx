@@ -180,8 +180,8 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
     <div className="flex h-full bg-gray-50">
       {/* Main Timeline Area */}
       <div className="flex-1 flex flex-col" ref={containerRef}>
-        {/* Sticky Date Indicators - positioned at the top */}
-        <div className="relative">
+        {/* Sticky Date Indicators - positioned at the top with spacing */}
+        <div className="relative h-6 mb-1">
           <StickyDateIndicator viewport={viewport} zoomLevel={zoomLevel} />
         </div>
 
