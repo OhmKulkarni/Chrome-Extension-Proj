@@ -12,6 +12,7 @@ import { TimeMarkers } from './TimeMarkers'
 import { AllTimeViewDemo } from './AllTimeViewDemo'
 import { StickyDateIndicator } from './StickyDateIndicator'
 import { ViewedStateSettings } from './ViewedStateSettings'
+import { SlotSelectionModal } from './SlotSelectionModal'
 
 interface SwimlanesContainerProps {
   events: TimelineEvent[]
@@ -56,8 +57,9 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   const [selectedDensityCluster, setSelectedDensityCluster] = useState<DensityCluster | null>(null)
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null)
   const [showCompareView, setShowCompareView] = useState(false)
-  const [compareQueue, setCompareQueue] = useState<TimelineEvent[]>([])
   const [showViewedSettings, setShowViewedSettings] = useState(false)
+  const [showSlotSelection, setShowSlotSelection] = useState(false)
+  const [queuedEventForSlotSelection, setQueuedEventForSlotSelection] = useState<TimelineEvent | null>(null)
 
   // Viewed state tracking
   const [viewedTrackingSettings, setViewedTrackingSettings] = useState<ViewedTrackingSettings>(() =>
@@ -167,6 +169,78 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
     viewedStateService.saveSettings(newSettings)
   }, [])
 
+  const handleSidebarEventClick = useCallback((event: TimelineEvent) => {
+    // Open the event detail modal, same as clicking a minicard
+    handleEventClick(event)
+  }, [handleEventClick])
+
+  const handleNavigateToEvent = useCallback((event: TimelineEvent) => {
+    // Navigate to the event's position on the timeline
+    if (onJumpToTime) {
+      onJumpToTime(event.timestamp)
+    }
+  }, [onJumpToTime])
+
+  const handleSlotSelection = useCallback(async (targetSlot: number) => {
+    if (!queuedEventForSlotSelection) return
+
+    // Get current events to find what needs to be replaced
+    const viewportEvents = visualizationData.shouldShowCards ?
+      visualizationData.individualEvents :
+      visualizationData.densityClusters.flatMap(cluster => cluster.events)
+
+    const currentCompareEvents = viewportEvents.filter(e =>
+      e.compareSlot !== undefined && e.compareSlot >= 0 && e.compareSlot <= 3
+    )
+
+    const eventToReplace = currentCompareEvents.find(e => e.compareSlot === targetSlot)
+
+    if (eventToReplace) {
+      // Move the replaced event to the queue (it will get compareSlot = -1)
+      await onSetCompareSlot(eventToReplace.id, -1)
+    }
+
+    // Move the queued event to the selected slot
+    await onSetCompareSlot(queuedEventForSlotSelection.id, targetSlot)
+
+    // Close modal
+    setShowSlotSelection(false)
+    setQueuedEventForSlotSelection(null)
+  }, [queuedEventForSlotSelection, visualizationData, onSetCompareSlot])
+
+  const handleMoveToQueue = useCallback(async (event: TimelineEvent) => {
+    // Move an active compare event to the queue
+    if (event.compareSlot !== undefined && event.compareSlot >= 0) {
+      await onSetCompareSlot(event.id, -1)
+
+      // Compact remaining slots to remove gaps
+      const viewportEvents = visualizationData.shouldShowCards ?
+        visualizationData.individualEvents :
+        visualizationData.densityClusters.flatMap(cluster => cluster.events)
+
+      const remainingCompareEvents = viewportEvents.filter(e =>
+        e.compareSlot !== undefined && e.compareSlot >= 0 && e.compareSlot <= 3 && e.id !== event.id
+      ).sort((a, b) => (a.compareSlot || 0) - (b.compareSlot || 0))
+
+      // Reassign consecutive slot numbers
+      for (let i = 0; i < remainingCompareEvents.length; i++) {
+        if (remainingCompareEvents[i].compareSlot !== i) {
+          await onSetCompareSlot(remainingCompareEvents[i].id, i)
+        }
+      }
+
+      // If there are queued events, promote the first one to fill the gap
+      const queuedEvents = events.filter(e => e.compareSlot === -1)
+      if (queuedEvents.length > 0) {
+        const nextInQueue = queuedEvents[0] // Get first in queue
+        const newSlot = remainingCompareEvents.length
+        if (newSlot < 4) {
+          await onSetCompareSlot(nextInQueue.id, newSlot)
+        }
+      }
+    }
+  }, [visualizationData, onSetCompareSlot, events])
+
   const handleDensityClusterZoom = useCallback((cluster: DensityCluster) => {
     // Center viewport on the cluster's center time when zooming in
     const clusterCenterTime = cluster.startTime + (cluster.endTime - cluster.startTime) / 2
@@ -201,9 +275,8 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
       const removedSlot = event.compareSlot
       await onSetCompareSlot(event.id, undefined)
 
-      // If it was queued, also remove from queue state
+      // If it was queued, just return since compareSlot will be set to undefined
       if (event.compareSlot === -1) {
-        setCompareQueue(prev => prev.filter(e => e.id !== event.id))
         return
       }
 
@@ -236,24 +309,30 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
       e.compareSlot !== undefined && e.compareSlot >= 0 && e.compareSlot <= 3
     ).sort((a, b) => (a.compareSlot || 0) - (b.compareSlot || 0))
 
-    if (currentCompareEvents.length < 4) {
-      // Add to next available slot
-      const nextSlot = currentCompareEvents.length
-      await onSetCompareSlot(event.id, nextSlot)
-    } else {
-      // Queue overflow - move oldest to queue
-      const oldest = currentCompareEvents[0]
-      await onSetCompareSlot(oldest.id, -1)
-      await onSetCompareSlot(event.id, 0)
+    // New event always goes to slot 0 (first position), everything else shifts right
+    // Add the new event to slot 0
+    await onSetCompareSlot(event.id, 0)
 
-      setCompareQueue([...compareQueue, oldest])
+    // Shift existing events to the right
+    for (let i = 0; i < currentCompareEvents.length; i++) {
+      const existingEvent = currentCompareEvents[i]
+      const newSlot = i + 1
+      
+      if (newSlot <= 3) {
+        // Event fits in compare slots, shift it
+        await onSetCompareSlot(existingEvent.id, newSlot)
+      } else {
+        // Event overflows to queue (this happens when we had 4 events and are adding a 5th)
+        await onSetCompareSlot(existingEvent.id, -1)
+      }
     }
-  }, [visualizationData, compareQueue, onSetCompareSlot])
+  }, [visualizationData, onSetCompareSlot])
 
-  const handleMoveFromQueue = useCallback(async (event: TimelineEvent) => {
-    await handleAddToCompare(event)
-    setCompareQueue(prev => prev.filter(e => e.id !== event.id))
-  }, [handleAddToCompare])
+  const handleMoveFromQueue = useCallback((event: TimelineEvent) => {
+    // Show slot selection modal instead of auto-adding
+    setQueuedEventForSlotSelection(event)
+    setShowSlotSelection(true)
+  }, [])
 
   // Get bookmarked events for sidebar
   const bookmarkedEvents = events.filter(e => e.isBookmarked)
@@ -346,7 +425,10 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
         onBookmarkRemove={(eventId: string) => onBookmarkEvent(eventId, false)}
         onCompareRemove={(eventId: string) => onSetCompareSlot(eventId, undefined)}
         onMoveFromQueue={handleMoveFromQueue}
+        onMoveToQueue={handleMoveToQueue}
         onShowCompareView={() => setShowCompareView(true)}
+        onEventClick={handleSidebarEventClick}
+        onNavigateToEvent={handleNavigateToEvent}
         isCollapsed={sidebarCollapsed}
         onToggleCollapsed={onToggleSidebarCollapsed}
       />
@@ -387,6 +469,18 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
         onSettingsChange={handleViewedSettingsChange}
         isOpen={showViewedSettings}
         onClose={() => setShowViewedSettings(false)}
+      />
+
+      {/* Slot Selection Modal */}
+      <SlotSelectionModal
+        isOpen={showSlotSelection}
+        onClose={() => {
+          setShowSlotSelection(false)
+          setQueuedEventForSlotSelection(null)
+        }}
+        onSelectSlot={handleSlotSelection}
+        queuedEvent={queuedEventForSlotSelection}
+        activeCompareEvents={activeCompareEvents}
       />
     </div>
   )

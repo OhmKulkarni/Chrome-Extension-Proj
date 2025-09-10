@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { TimelineEvent } from '../types/timeline.types'
-import { Bookmark, GitCompare, ChevronRight, ChevronLeft, Grid2X2 } from 'lucide-react'
+import { Bookmark, GitCompare, ChevronRight, ChevronLeft, Grid2X2, Navigation, Eye, ArrowDown } from 'lucide-react'
 
 interface TimelineSidebarProps {
   bookmarkedEvents: TimelineEvent[]
@@ -9,7 +9,10 @@ interface TimelineSidebarProps {
   onBookmarkRemove: (eventId: string) => void
   onCompareRemove: (eventId: string) => void
   onMoveFromQueue: (event: TimelineEvent) => void
+  onMoveToQueue?: (event: TimelineEvent) => void
   onShowCompareView: () => void
+  onEventClick?: (event: TimelineEvent) => void
+  onNavigateToEvent?: (event: TimelineEvent) => void
   isCollapsed?: boolean
   onToggleCollapsed?: () => void
 }
@@ -21,7 +24,10 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
   onBookmarkRemove,
   onCompareRemove,
   onMoveFromQueue,
+  onMoveToQueue,
   onShowCompareView,
+  onEventClick,
+  onNavigateToEvent,
   isCollapsed = false,
   onToggleCollapsed
 }) => {
@@ -29,6 +35,28 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
   const [localCollapsed, setLocalCollapsed] = useState(false)
   const collapsed = onToggleCollapsed ? isCollapsed : localCollapsed
   const toggleCollapsed = onToggleCollapsed || (() => setLocalCollapsed(!localCollapsed))
+
+  // Helper function to extract domain from URL
+  const getDomainFromEvent = (event: TimelineEvent): string | null => {
+    try {
+      if (event.type === 'network' && event.data.url) {
+        const url = new URL(event.data.url)
+        return url.hostname
+      }
+      if (event.type === 'console' && event.data.source) {
+        const url = new URL(event.data.source)
+        return url.hostname
+      }
+      if (event.type === 'token' && event.data.origin) {
+        const url = new URL(event.data.origin)
+        return url.hostname
+      }
+    } catch (error) {
+      // Invalid URL, return null
+    }
+    return null
+  }
+
   const renderEventCard = (event: TimelineEvent, type: 'bookmark' | 'compare' | 'queue') => {
     const typeConfig = {
       network: { color: 'bg-blue-50 border-blue-200', icon: '🌐' },
@@ -41,46 +69,106 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
     return (
       <div
         key={event.id}
-        className={`p-2 border rounded-md ${config.color} text-xs`}
+        className={`p-3 border rounded-lg ${config.color} text-xs hover:shadow-md transition-shadow cursor-pointer`}
+        onClick={() => onEventClick?.(event)}
+        title="Click to view details"
       >
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center space-x-1">
-              <span>{config.icon}</span>
+            <div className="flex items-center space-x-2">
+              <span className="text-base">{config.icon}</span>
               <span className="font-medium truncate">
                 {event.type === 'network' && (event.data.url?.split('/').pop() || 'Request')}
-                {event.type === 'console' && (event.data.message?.substring(0, 50) || 'Error')}
+                {event.type === 'console' && (event.data.message?.substring(0, 40) || 'Error')}
                 {event.type === 'token' && (event.data.token_type || 'Token')}
               </span>
             </div>
-            <div className="text-gray-500 mt-1">
-              {new Date(event.timestamp).toLocaleTimeString()}
+
+            {/* Domain information */}
+            {getDomainFromEvent(event) && (
+              <div className="text-gray-400 mt-1 text-xs truncate">
+                🌐 {getDomainFromEvent(event)}
+              </div>
+            )}
+
+            <div className="text-gray-500 mt-1 flex items-center justify-between">
+              <span>{new Date(event.timestamp).toLocaleTimeString()}</span>
             </div>
           </div>
 
-          <div className="ml-2">
+          {/* Action buttons */}
+          <div className="ml-2 flex items-center space-x-1">
+            {/* Navigate to timeline button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onNavigateToEvent?.(event)
+              }}
+              className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+              title="Navigate to timeline position"
+            >
+              <Navigation className="w-3 h-3" />
+            </button>
+
+            {/* View details button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onEventClick?.(event)
+              }}
+              className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+              title="View details"
+            >
+              <Eye className="w-3 h-3" />
+            </button>
+
+            {/* Remove/action buttons */}
             {type === 'bookmark' && (
               <button
-                onClick={() => onBookmarkRemove(event.id)}
-                className="text-gray-400 hover:text-gray-600"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onBookmarkRemove(event.id)
+                }}
+                className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                 title="Remove bookmark"
               >
                 ×
               </button>
             )}
             {type === 'compare' && (
-              <button
-                onClick={() => onCompareRemove(event.id)}
-                className="text-gray-400 hover:text-gray-600"
-                title="Remove from compare"
-              >
-                ×
-              </button>
+              <>
+                {/* Move to Queue button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onMoveToQueue?.(event)
+                  }}
+                  className="p-1 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
+                  title="Move to queue"
+                >
+                  <ArrowDown className="w-3 h-3" />
+                </button>
+
+                {/* Remove button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onCompareRemove(event.id)
+                  }}
+                  className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                  title="Remove from compare"
+                >
+                  ×
+                </button>
+              </>
             )}
             {type === 'queue' && (
               <button
-                onClick={() => onMoveFromQueue(event)}
-                className="text-blue-500 hover:text-blue-700"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onMoveFromQueue(event)
+                }}
+                className="p-1 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
                 title="Move to compare"
               >
                 <ChevronRight className="w-3 h-3" />
@@ -91,7 +179,7 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
 
         {/* Compare slot indicator */}
         {event.compareSlot !== undefined && event.compareSlot >= 0 && (
-          <div className="mt-1 text-xs text-purple-600 font-medium">
+          <div className="mt-2 text-xs text-purple-600 font-medium">
             Compare Slot {event.compareSlot + 1}
           </div>
         )}
