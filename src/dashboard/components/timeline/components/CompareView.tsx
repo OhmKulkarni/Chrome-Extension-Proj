@@ -76,33 +76,41 @@ export const CompareView: React.FC<CompareViewProps> = ({
   }
 
   const getAvailableFields = (event: TimelineEvent) => {
-    const baseFields = ['details']
-
     switch (event.type) {
       case 'network':
-        return [...baseFields, 'headers', 'request', 'response', 'timing']
+        return ['details', 'headers', 'body', 'response', 'timing', 'performance', 'rawjson']
       case 'console':
-        return [...baseFields, 'stack', 'context']
+        return ['details', 'stack', 'message']
       case 'token':
-        return [...baseFields, 'security', 'metadata']
+        return ['details', 'rawjson']
       default:
-        return baseFields
+        return ['details']
     }
   }
 
   const getFieldDisplayName = (field: string) => {
-    const fieldNames: { [key: string]: string } = {
-      details: 'Overview',
-      headers: 'Headers',
-      request: 'Request',
-      response: 'Response',
-      timing: 'Timing',
-      stack: 'Stack Trace',
-      context: 'Context',
-      security: 'Security',
-      metadata: 'Metadata'
+    switch (field) {
+      case 'rawjson':
+        return 'Raw JSON'
+      case 'body':
+        return 'Body'
+      case 'headers':
+        return 'Headers'
+      case 'response':
+        return 'Response'
+      case 'timing':
+        return 'Timing'
+      case 'stack':
+        return 'Stack'
+      case 'message':
+        return 'Message'
+      case 'performance':
+        return 'Performance'
+      case 'details':
+        return 'Details'
+      default:
+        return field.charAt(0).toUpperCase() + field.slice(1)
     }
-    return fieldNames[field] || field
   }
 
   const renderDetailedContent = (event: TimelineEvent, selectedField: string) => {
@@ -196,35 +204,43 @@ export const CompareView: React.FC<CompareViewProps> = ({
             </div>
           </div>
 
-          {/* Field Selection Tabs */}
-          <div className="flex flex-wrap gap-1">
-            {availableFields.map((field) => (
-              <button
-                key={field}
-                onClick={() => {
-                  const newSelectedFields = { ...selectedFields }
-                  newSelectedFields[selectedEventType][index] = field
-                  setSelectedFields(newSelectedFields)
-                }}
-                className={`px-2 py-1 text-xs rounded transition-colors ${
-                  selectedField === field
-                    ? 'bg-blue-100 text-blue-700 font-medium'
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                {getFieldDisplayName(field)}
-              </button>
-            ))}
-          </div>
         </div>
 
-        {/* Event Content */}
-        <div
-          ref={el => scrollRefs.current[selectedEventType][index] = el}
-          className="flex-1 overflow-y-auto min-h-0 p-2"
-          onScroll={() => handleScroll(index, selectedEventType)}
-        >
-          {renderDetailedContent(event, selectedField)}
+        {/* Event Content - Similar to EventDetailModal */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Left Sidebar - Field Selection */}
+          <div className="w-24 bg-gray-50 border-r border-gray-200 p-2">
+            <h5 className="text-xs font-medium text-gray-900 mb-2">Sections</h5>
+            <nav className="space-y-1">
+              {availableFields.map((field) => (
+                <button
+                  key={field}
+                  onClick={() => {
+                    const newSelectedFields = { ...selectedFields }
+                    newSelectedFields[selectedEventType][index] = field
+                    setSelectedFields(newSelectedFields)
+                  }}
+                  className={`w-full text-left px-2 py-1.5 text-xs rounded transition-colors ${
+                    selectedField === field
+                      ? 'bg-blue-100 text-blue-700 font-medium'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                  title={getFieldDisplayName(field)}
+                >
+                  {getFieldDisplayName(field)}
+                </button>
+              ))}
+            </nav>
+          </div>
+
+          {/* Main Content */}
+          <div
+            ref={el => scrollRefs.current[selectedEventType][index] = el}
+            className="flex-1 overflow-y-auto p-2"
+            onScroll={() => handleScroll(index, selectedEventType)}
+          >
+            {renderDetailedContent(event, selectedField)}
+          </div>
         </div>
       </div>
     )

@@ -240,9 +240,9 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
         visualizationData.densityClusters.flatMap(cluster => cluster.events)
 
       const remainingCompareEvents = viewportEvents.filter(e =>
-        e.compareSlot !== undefined && 
-        e.compareSlot >= slotRange.start && 
-        e.compareSlot <= slotRange.end && 
+        e.compareSlot !== undefined &&
+        e.compareSlot >= slotRange.start &&
+        e.compareSlot <= slotRange.end &&
         e.id !== event.id
       ).sort((a, b) => (a.compareSlot || 0) - (b.compareSlot || 0))
 
@@ -440,9 +440,9 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
       visualizationData.densityClusters.flatMap(cluster => cluster.events)
 
     const remainingCompareEvents = viewportEvents.filter(e =>
-      e.compareSlot !== undefined && 
-      e.compareSlot >= slotRange.start && 
-      e.compareSlot <= slotRange.end && 
+      e.compareSlot !== undefined &&
+      e.compareSlot >= slotRange.start &&
+      e.compareSlot <= slotRange.end &&
       e.id !== event.id
     ).sort((a, b) => (a.compareSlot || 0) - (b.compareSlot || 0))
 

@@ -1053,6 +1053,190 @@ export const RequestDetailContent: React.FC<{
     );
   }
 
+  // Response field - focused on response data
+  if (selectedField === 'response') {
+    const responseBody = request.response_body || request.responseBody || request.response_data;
+    let responseHeaders = {};
+
+    try {
+      // Parse response headers
+      if (request.headers) {
+        const headerData = typeof request.headers === 'string' ? JSON.parse(request.headers) : request.headers;
+        responseHeaders = headerData.response || {};
+      } else if (request.response_headers) {
+        responseHeaders = typeof request.response_headers === 'string' ? JSON.parse(request.response_headers) : request.response_headers;
+      }
+    } catch (e) {
+      console.error('Error parsing response headers:', e);
+      responseHeaders = {};
+    }
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-gray-900">Response Data</h3>
+          <button
+            onClick={() => copyToClipboard(responseBody || 'No response body')}
+            className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+          >
+            Copy Response
+          </button>
+        </div>
+
+        {/* Response Status */}
+        <div className="bg-gray-50 rounded-lg p-4">
+          <div className="mb-3">
+            <span className="text-sm font-medium text-gray-700">Status:</span>
+            <span className={`inline-block px-2 py-1 text-xs rounded-full ml-2 ${
+              request.status >= 200 && request.status < 300 ? 'bg-green-100 text-green-800' :
+              request.status >= 300 && request.status < 400 ? 'bg-yellow-100 text-yellow-800' :
+              request.status >= 400 ? 'bg-red-100 text-red-800' :
+              'bg-gray-100 text-gray-800'
+            }`}>
+              {request.status || 'N/A'}
+            </span>
+          </div>
+
+          {/* Response Size */}
+          {(request.responseSize || request.response_size) && (
+            <div className="mb-3">
+              <span className="text-sm font-medium text-gray-700">Response Size:</span>
+              <p className="text-sm text-gray-900 mt-1">
+                {(() => {
+                  const size = request.responseSize || request.response_size;
+                  return typeof size === 'number' ? `${(size / 1024).toFixed(2)}KB (${size} bytes)` : size;
+                })()}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Response Headers */}
+        {Object.keys(responseHeaders).length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium text-gray-900 mb-2">Response Headers</h4>
+            <div className="bg-gray-50 rounded-lg p-3 max-h-48 overflow-y-auto">
+              {Object.entries(responseHeaders).map(([key, value]) => (
+                <div key={key} className="mb-2 last:mb-0">
+                  <div className="text-xs font-medium text-blue-700">{key}:</div>
+                  <div className="text-xs text-gray-600 break-all ml-2">{String(value)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Response Body */}
+        {responseBody && (
+          <div>
+            <h4 className="text-sm font-medium text-gray-900 mb-2">Response Body</h4>
+            <div className="bg-gray-900 rounded-lg p-3">
+              <pre className="text-xs text-green-400 whitespace-pre-wrap overflow-auto max-h-64">
+                {(() => {
+                  try {
+                    // Try to pretty-print JSON
+                    const parsed = JSON.parse(responseBody);
+                    return JSON.stringify(parsed, null, 2);
+                  } catch {
+                    // Return as-is if not JSON
+                    return responseBody;
+                  }
+                })()}
+              </pre>
+            </div>
+          </div>
+        )}
+
+        {!responseBody && (
+          <div className="text-center py-4 text-gray-500 text-sm">
+            No response body data available
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Timing field - simplified timing information
+  if (selectedField === 'timing') {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-gray-900">Timing Information</h3>
+          <button
+            onClick={() => copyToClipboard(JSON.stringify({
+              response_time: request.response_time,
+              duration: request.duration,
+              time_taken: request.time_taken,
+              timestamp: request.timestamp
+            }, null, 2))}
+            className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+          >
+            Copy Timing
+          </button>
+        </div>
+
+        <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+          {/* Response Time */}
+          {request.response_time && (
+            <div>
+              <span className="text-sm font-medium text-gray-700">Response Time:</span>
+              <p className="text-sm text-gray-900 mt-1">{request.response_time}ms</p>
+            </div>
+          )}
+
+          {/* Duration */}
+          {request.duration && request.duration !== request.response_time && (
+            <div>
+              <span className="text-sm font-medium text-gray-700">Duration:</span>
+              <p className="text-sm text-gray-900 mt-1">{request.duration}ms</p>
+            </div>
+          )}
+
+          {/* Time Taken */}
+          {request.time_taken && request.time_taken !== request.response_time && request.time_taken !== request.duration && (
+            <div>
+              <span className="text-sm font-medium text-gray-700">Time Taken:</span>
+              <p className="text-sm text-gray-900 mt-1">{request.time_taken}ms</p>
+            </div>
+          )}
+
+          {/* Timestamp */}
+          <div>
+            <span className="text-sm font-medium text-gray-700">Request Time:</span>
+            <p className="text-sm text-gray-900 mt-1">{new Date(request.timestamp).toLocaleString()}</p>
+          </div>
+
+          {/* Performance Metrics Summary (if available) */}
+          {request.performanceMetrics && (
+            <div className="border-t border-gray-200 pt-3">
+              <span className="text-sm font-medium text-gray-700">Performance Summary:</span>
+              <div className="mt-2 text-xs text-gray-600 space-y-1">
+                {request.performanceMetrics.totalTime && (
+                  <div>Total: {request.performanceMetrics.totalTime}ms</div>
+                )}
+                {request.performanceMetrics.timeToFirstByte && (
+                  <div>TTFB: {request.performanceMetrics.timeToFirstByte}ms</div>
+                )}
+                {request.performanceMetrics.contentDownload && (
+                  <div>Download: {request.performanceMetrics.contentDownload}ms</div>
+                )}
+                <div className="text-xs text-blue-600 mt-1">
+                  <em>See "Performance" tab for detailed breakdown</em>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!request.response_time && !request.duration && !request.time_taken && (
+            <div className="text-sm text-gray-500 italic">
+              No timing data available for this request
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // Raw JSON field
   if (selectedField === 'rawjson') {
     return (
