@@ -1243,7 +1243,7 @@ const DecomposedDashboard: React.FC = () => {
 
       // Severity filter
       if (errorFilterSeverity && errorFilterSeverity !== 'all') {
-        if (error.level?.toLowerCase() !== errorFilterSeverity.toLowerCase()) {
+        if (error.severity?.toLowerCase() !== errorFilterSeverity.toLowerCase()) {
           return false;
         }
       }
@@ -1428,7 +1428,7 @@ const DecomposedDashboard: React.FC = () => {
 
       // Severity filter
       if (errorFilterSeverity && errorFilterSeverity !== 'all') {
-        if (error.level?.toLowerCase() !== errorFilterSeverity.toLowerCase()) {
+        if (error.severity?.toLowerCase() !== errorFilterSeverity.toLowerCase()) {
           return false;
         }
       }
