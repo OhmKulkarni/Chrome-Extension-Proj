@@ -61,17 +61,70 @@ export const RequestDetailContent: React.FC<{
     const requestSize = parseSize(request.requestSize || request.request_size);
     const responseSize = parseSize(request.responseSize || request.response_size);
 
+    // Calculate stored sizes (same logic as UI)
+    const calculateStoredSize = () => {
+      let storedRequestSize = 0;
+      let storedResponseSize = 0;
+      let storedHeaderSize = 0;
+
+      const requestBody = request.requestBody || request.request_body;
+      const responseBody = request.responseBody || request.response_body;
+
+      if (requestBody && typeof requestBody === 'string') {
+        storedRequestSize = new Blob([requestBody]).size;
+      }
+
+      if (responseBody && typeof responseBody === 'string') {
+        storedResponseSize = new Blob([responseBody]).size;
+      }
+
+      // Add header size (same calculation as stored size column)
+      if (request.headers) {
+        try {
+          const headerStr = typeof request.headers === 'string' ? request.headers : JSON.stringify(request.headers);
+          storedHeaderSize = new Blob([headerStr]).size;
+        } catch (e) {
+          // Ignore header size calculation errors
+        }
+      }
+
+      return {
+        storedRequestSize,
+        storedResponseSize,
+        storedHeaderSize,
+        totalStored: storedRequestSize + storedResponseSize + storedHeaderSize
+      };
+    };
+
+    const { storedRequestSize, storedResponseSize, storedHeaderSize, totalStored } = calculateStoredSize();
+
     const details = {
       method: request.method || 'N/A',
       url: request.url || 'N/A',
       status: request.status || 'N/A',
       
-      // Size breakdown (only if available)
+      // Size breakdown (only if available) - matching the exact display logic
       ...(payloadSize > 0 || requestSize > 0 || responseSize > 0) && {
         sizeBreakdown: {
-          ...(payloadSize > 0) && { total: formatSize(payloadSize) },
-          ...(requestSize > 0) && { request: formatSize(requestSize) },
-          ...(responseSize > 0) && { response: formatSize(responseSize) }
+          // Original size section
+          originalSize: {
+            ...(payloadSize > 0) && { total: formatSize(payloadSize) },
+            ...(requestSize > 0) && { request: formatSize(requestSize) },
+            ...(responseSize > 0) && { response: formatSize(responseSize) }
+          },
+          // Stored size section (only if there's stored data)
+          ...(totalStored > 0) && {
+            storedSize: {
+              totalStored: formatSize(totalStored),
+              ...(storedRequestSize > 0) && { requestStored: formatSize(storedRequestSize) },
+              ...(storedResponseSize > 0) && { responseStored: formatSize(storedResponseSize) },
+              ...(storedHeaderSize > 0) && { headersStored: formatSize(storedHeaderSize) }
+            }
+          },
+          // Include the tip message that appears in the UI
+          ...(totalStored > 0) && {
+            tip: "Bodies are truncated to prevent memory issues. Default limit is 50KB per request/response."
+          }
         }
       },
       
@@ -86,9 +139,7 @@ export const RequestDetailContent: React.FC<{
     };
     
     return JSON.stringify(details, null, 2);
-  };
-
-  if (selectedField === 'details') {
+  };  if (selectedField === 'details') {
     return (
       <div className="space-y-4">
         <div>
