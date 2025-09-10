@@ -260,17 +260,6 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
             </div>
           </div>
 
-          {/* Visual mode indicator */}
-          <div className="flex items-center space-x-2 text-xs">
-            <div className="text-gray-500">Mode:</div>
-            <div className="flex items-center space-x-1 bg-gray-100 px-2 py-1 rounded-full">
-              <div className={`w-2 h-2 rounded-full ${canZoomIn ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-              <span className="font-medium text-gray-700">
-                {canZoomIn ? 'Cards' : 'Density'}
-              </span>
-            </div>
-          </div>
-
           {isAnimating && (
             <div className="flex items-center text-xs text-gray-400">
               <div className="animate-spin w-3 h-3 border border-gray-300 border-t-blue-500 rounded-full mr-1"></div>
