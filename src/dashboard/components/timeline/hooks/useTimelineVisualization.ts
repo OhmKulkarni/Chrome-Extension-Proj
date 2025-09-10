@@ -30,15 +30,6 @@ export const useTimelineVisualization = ({
 
     const shouldShowCards = isAtMostDetailedLevel || hasFewEvents
 
-    console.log('Timeline Visualization Decision:', {
-      zoomLevel,
-      totalEventCount,
-      isAtMostDetailedLevel,
-      hasFewEvents,
-      shouldShowCards,
-      scope: zoomLevel >= 10 ? '1-minute' : zoomLevel >= 9 ? '5-minutes' : 'other'
-    })
-
     if (shouldShowCards) {
       // Show individual event cards
       return {
