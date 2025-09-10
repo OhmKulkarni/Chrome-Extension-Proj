@@ -14,11 +14,13 @@ interface TimelineVisualizationProps {
 export const TimelineVisualization: React.FC<TimelineVisualizationProps> = ({ focusedEventId }) => {
   // State to track highlighted event (glowing until clicked)
   const [highlightedEventId, setHighlightedEventId] = useState<string | null>(null);
-  const [isFocusing, setIsFocusing] = useState(false); // Prevent multiple focus operations
   const [swimlanes, setSwimlanes] = useState<SwimLaneConfig[]>(DEFAULT_SWIMLANES)
   const [debugMode, setDebugMode] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [showAllTimeModal, setShowAllTimeModal] = useState(false)
+
+  // Track the last processed focusedEventId to prevent infinite loops
+  const lastProcessedEventIdRef = React.useRef<string | null>(null)
 
   // Initialize viewport with default settings first
   const viewport = useViewport({ initialScope: '1-hour' })
@@ -66,8 +68,15 @@ export const TimelineVisualization: React.FC<TimelineVisualizationProps> = ({ fo
 
   // Handle focusing on a specific event when navigated from data tables
   useEffect(() => {
-    if (focusedEventId && !timelineData.loading && timelineData.events && timelineData.events.length > 0 && !isFocusing) {
-      setIsFocusing(true)
+    // Only proceed if we have a new focusedEventId that we haven't processed yet
+    if (focusedEventId && 
+        focusedEventId !== lastProcessedEventIdRef.current && 
+        !timelineData.loading && 
+        timelineData.events && 
+        timelineData.events.length > 0) {
+      
+      // Mark this event ID as being processed
+      lastProcessedEventIdRef.current = focusedEventId
 
       // First try exact ID match
       let targetEvent = timelineData.events.find(event => event.id === focusedEventId)
@@ -99,19 +108,17 @@ export const TimelineVisualization: React.FC<TimelineVisualizationProps> = ({ fo
         // Set the event to be highlighted after a short delay to ensure viewport has settled
         setTimeout(() => {
           setHighlightedEventId(focusedEventId)
-          setIsFocusing(false) // Reset focusing flag
         }, 150)
 
         console.log(`Timeline focused on event: ${focusedEventId} at ${new Date(targetTime).toLocaleString()}`)
       } else {
         console.warn(`Timeline could not find event with ID: ${focusedEventId}`)
         console.log('Available events:', timelineData.events.map(e => ({ id: e.id, type: e.type, timestamp: e.timestamp })))
-        setIsFocusing(false) // Reset focusing flag even if event not found
       }
     } else if (focusedEventId && timelineData.loading) {
       console.log('Timeline waiting for data to load before focusing...')
     }
-  }, [focusedEventId, timelineData.events, timelineData.loading, viewport, isFocusing])  // Check for updates periodically - TEMPORARILY DISABLED
+  }, [focusedEventId, timelineData.events, timelineData.loading])  // Check for updates periodically - TEMPORARILY DISABLED
   useEffect(() => {
     // const interval = setInterval(() => {
     //   timelineData.checkForUpdates()
