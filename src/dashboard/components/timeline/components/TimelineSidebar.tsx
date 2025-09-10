@@ -119,7 +119,7 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
       {!collapsed && (
         <>
           {/* Bookmarks Section - Fixed height */}
-          <div className="border-b border-gray-200 overflow-hidden flex flex-col" style={{ height: '350px' }}>
+          <div className="border-b border-gray-200 overflow-hidden flex flex-col" style={{ height: '280px' }}>
             <div className="p-4 border-b border-gray-200 flex-shrink-0">
               <div className="flex items-center space-x-2">
                 <Bookmark className="w-4 h-4 text-yellow-600" />
@@ -140,7 +140,7 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
       </div>
 
       {/* Compare Section - Fixed height */}
-      <div className="overflow-hidden flex flex-col" style={{ height: '350px' }}>
+      <div className="overflow-hidden flex flex-col" style={{ height: '280px' }}>
         <div className="p-4 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
@@ -193,17 +193,17 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
 
       {/* Collapsed State - Show counts only */}
       {collapsed && (
-        <div className="flex flex-col" style={{ height: '700px' }}>
-          {/* Bookmarks section placeholder - 350px */}
-          <div className="flex items-center justify-center border-b border-gray-200" style={{ height: '350px' }}>
+        <div className="flex flex-col" style={{ height: '560px' }}>
+          {/* Bookmarks section placeholder - 280px */}
+          <div className="flex items-center justify-center border-b border-gray-200" style={{ height: '280px' }}>
             <div className="text-center">
               <Bookmark className="w-5 h-5 text-yellow-600 mx-auto mb-1" />
               <div className="text-xs font-medium text-gray-600">{bookmarkedEvents.length}</div>
             </div>
           </div>
 
-          {/* Compare section placeholder - 350px */}
-          <div className="flex items-center justify-center" style={{ height: '350px' }}>
+          {/* Compare section placeholder - 280px */}
+          <div className="flex items-center justify-center" style={{ height: '280px' }}>
             <div className="text-center">
               <GitCompare className="w-5 h-5 text-purple-600 mx-auto mb-1" />
               <div className="text-xs font-medium text-gray-600">{compareEvents.length}</div>

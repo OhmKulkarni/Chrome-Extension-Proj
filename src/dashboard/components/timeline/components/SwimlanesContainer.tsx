@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react'
-import { TimelineEvent, TimelineCluster, SwimLaneConfig, DensityCluster, ViewportEventData, TimeScope, ViewedTrackingSettings, DEFAULT_VIEWED_TRACKING } from '../types/timeline.types'
+import { TimelineEvent, TimelineCluster, SwimLaneConfig, DensityCluster, ViewportEventData, TimeScope, ViewedTrackingSettings } from '../types/timeline.types'
+import { viewedStateService } from '../services/ViewedStateService'
 import { Swimlane } from './Swimlane'
 import { EventPopup } from './EventPopup'
 import { EventDetailModal } from './EventDetailModal'
@@ -10,6 +11,7 @@ import { EventListPopup } from './EventListPopup'
 import { TimeMarkers } from './TimeMarkers'
 import { AllTimeViewDemo } from './AllTimeViewDemo'
 import { StickyDateIndicator } from './StickyDateIndicator'
+import { ViewedStateSettings } from './ViewedStateSettings'
 
 interface SwimlanesContainerProps {
   events: TimelineEvent[]
@@ -55,68 +57,65 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null)
   const [showCompareView, setShowCompareView] = useState(false)
   const [compareQueue, setCompareQueue] = useState<TimelineEvent[]>([])
+  const [showViewedSettings, setShowViewedSettings] = useState(false)
 
   // Viewed state tracking
-  const [viewedTrackingSettings] = useState<ViewedTrackingSettings>(DEFAULT_VIEWED_TRACKING)
-  const [viewedEvents, setViewedEvents] = useState<Map<string, number>>(new Map()) // eventId -> timestamp
+  const [viewedTrackingSettings, setViewedTrackingSettings] = useState<ViewedTrackingSettings>(() =>
+    viewedStateService.loadSettings()
+  )
+  const [viewedEvents, setViewedEvents] = useState<Map<string, number>>(new Map()) // Session-only events
+  const [sessionViewedEvents, setSessionViewedEvents] = useState<Set<string>>(new Set()) // Session tracking
 
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Utility function to check if event should be considered viewed
-  const isEventViewed = useCallback((eventId: string): boolean => {
-    if (!viewedTrackingSettings.enabled) return false
-
-    const viewedTime = viewedEvents.get(eventId)
-    if (!viewedTime) return false
-
-    const now = Date.now()
-    switch (viewedTrackingSettings.persistenceMode) {
-      case 'session':
-        return true // Always viewed during session
-      case 'minutes':
-        return now - viewedTime < (viewedTrackingSettings.persistenceDuration || 30) * 60 * 1000
-      case 'hours':
-        return now - viewedTime < (viewedTrackingSettings.persistenceDuration || 2) * 60 * 60 * 1000
-      case 'days':
-        return now - viewedTime < (viewedTrackingSettings.persistenceDuration || 1) * 24 * 60 * 60 * 1000
-      case 'permanent':
-        return true
-      default:
-        return true
-    }
-  }, [viewedTrackingSettings, viewedEvents])
-
-  // Clean up expired viewed events
+  // Load viewed events on component mount
   useEffect(() => {
-    if (!viewedTrackingSettings.enabled || viewedTrackingSettings.persistenceMode === 'session' || viewedTrackingSettings.persistenceMode === 'permanent') {
+    const loadViewedState = async () => {
+      const persistentViewed = viewedStateService.loadViewedEvents()
+      setViewedEvents(persistentViewed)
+    }
+    loadViewedState()
+  }, [])
+
+  // Save settings when they change
+  useEffect(() => {
+    viewedStateService.saveSettings(viewedTrackingSettings)
+  }, [viewedTrackingSettings])
+
+
+
+  // Cleanup expired events periodically
+  useEffect(() => {
+    if (!viewedTrackingSettings.enabled || viewedTrackingSettings.persistenceLevel === 'session') {
       return
     }
 
     const interval = setInterval(() => {
-      setViewedEvents(prev => {
-        const updated = new Map(prev)
-        for (const [eventId] of prev.entries()) {
-          if (!isEventViewed(eventId)) {
-            updated.delete(eventId)
-          }
-        }
-        return updated
-      })
+      viewedStateService.cleanupExpiredEvents(viewedTrackingSettings)
+      // Refresh local state
+      const updatedViewed = viewedStateService.loadViewedEvents()
+      setViewedEvents(updatedViewed)
     }, 60000) // Check every minute
 
     return () => clearInterval(interval)
-  }, [viewedTrackingSettings, isEventViewed])
+  }, [viewedTrackingSettings])
 
   // Enrich events with viewed state
   const enrichEventsWithViewedState = useCallback((events: TimelineEvent[]): TimelineEvent[] => {
     if (!viewedTrackingSettings.enabled) return events
 
-    return events.map(event => ({
-      ...event,
-      isViewed: isEventViewed(event.id),
-      viewedAt: viewedEvents.get(event.id)
-    }))
-  }, [viewedTrackingSettings.enabled, isEventViewed, viewedEvents])
+    return events.map(event => {
+      const isViewed = viewedTrackingSettings.persistenceLevel === 'session'
+        ? sessionViewedEvents.has(event.id)
+        : viewedStateService.isEventViewed(event.id, viewedTrackingSettings)
+
+      return {
+        ...event,
+        isViewed,
+        viewedAt: isViewed ? (viewedEvents.get(event.id) || Date.now()) : undefined
+      }
+    })
+  }, [viewedTrackingSettings, sessionViewedEvents, viewedEvents])
 
   // Calculate visible swimlane heights
   const visibleSwimlanes = swimlanes.filter(lane => lane.isVisible)
@@ -147,12 +146,26 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   const handleEventClick = useCallback((event: TimelineEvent) => {
     // Mark event as viewed if tracking is enabled
     if (viewedTrackingSettings.enabled) {
-      setViewedEvents(prev => new Map(prev).set(event.id, Date.now()))
+      if (viewedTrackingSettings.persistenceLevel === 'session') {
+        // Session-only: store in memory
+        setSessionViewedEvents(prev => new Set([...prev, event.id]))
+      } else {
+        // Persistent: use service
+        viewedStateService.markEventAsViewed(event.id, viewedTrackingSettings)
+        // Refresh local state for immediate UI update
+        const updatedViewed = viewedStateService.loadViewedEvents()
+        setViewedEvents(updatedViewed)
+      }
     }
 
     // Always show the detailed modal for any clicked event
     setSelectedEvent(event)
-  }, [viewedTrackingSettings.enabled])
+  }, [viewedTrackingSettings])
+
+  const handleViewedSettingsChange = useCallback((newSettings: ViewedTrackingSettings) => {
+    setViewedTrackingSettings(newSettings)
+    viewedStateService.saveSettings(newSettings)
+  }, [])
 
   const handleDensityClusterZoom = useCallback((cluster: DensityCluster) => {
     // Center viewport on the cluster's center time when zooming in
@@ -256,9 +269,21 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
     <div className="flex h-full bg-gray-50">
       {/* Main Timeline Area */}
       <div className="flex-1 flex flex-col" ref={containerRef}>
-        {/* Sticky Date Indicators - positioned at the top with spacing */}
+        {/* Timeline Header with Sticky Date Indicators and Settings */}
         <div className="relative h-6 mb-1">
           <StickyDateIndicator viewport={viewport} zoomLevel={zoomLevel} />
+
+          {/* Settings Button - High z-index to ensure visibility */}
+          <button
+            onClick={() => setShowViewedSettings(true)}
+            className="absolute top-0 right-2 z-50 p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md shadow-md border border-blue-200 bg-white transition-all"
+            title="Viewed State Settings"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
         </div>
 
         {/* Swimlanes */}
@@ -355,6 +380,14 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
           onAddToCompare={handleAddToCompare}
         />
       )}
+
+      {/* Viewed State Settings Modal */}
+      <ViewedStateSettings
+        settings={viewedTrackingSettings}
+        onSettingsChange={handleViewedSettingsChange}
+        isOpen={showViewedSettings}
+        onClose={() => setShowViewedSettings(false)}
+      />
     </div>
   )
 }

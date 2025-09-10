@@ -148,8 +148,7 @@ export interface TimelineViewport {
 // Viewed state tracking settings
 export interface ViewedTrackingSettings {
   enabled: boolean
-  persistenceMode: 'session' | 'minutes' | 'hours' | 'days' | 'permanent'
-  persistenceDuration?: number // Used when persistenceMode is 'minutes', 'hours', or 'days'
+  persistenceLevel: 'session' | 'medium' | 'permanent' // Simple 3-level choice
   showIndicators: boolean
   viewedOpacity: number // 0.0 to 1.0, opacity for viewed cards
 }
@@ -157,8 +156,7 @@ export interface ViewedTrackingSettings {
 // Default viewed tracking settings
 export const DEFAULT_VIEWED_TRACKING: ViewedTrackingSettings = {
   enabled: true,
-  persistenceMode: 'session',
-  persistenceDuration: undefined,
+  persistenceLevel: 'session',
   showIndicators: true,
   viewedOpacity: 0.75
 }
