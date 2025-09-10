@@ -17,6 +17,7 @@ export const CompareView: React.FC<CompareViewProps> = ({
   onRemoveFromCompare
 }) => {
   const [syncScroll, setSyncScroll] = useState(true)
+  const [syncSelect, setSyncSelect] = useState(true)
   const [selectedEventType, setSelectedEventType] = useState<EventType>('network')
   const [selectedFields, setSelectedFields] = useState<Record<EventType, string[]>>({
     network: ['details', 'details', 'details', 'details'],
@@ -38,6 +39,20 @@ export const CompareView: React.FC<CompareViewProps> = ({
         ref.scrollTop = scrollTop
       }
     })
+  }
+
+  const handleFieldSelection = (eventType: EventType, index: number, field: string) => {
+    const newSelectedFields = { ...selectedFields }
+
+    if (syncSelect) {
+      // Update all slots for this event type to the same field
+      newSelectedFields[eventType] = newSelectedFields[eventType].map(() => field)
+    } else {
+      // Update only the specific slot
+      newSelectedFields[eventType][index] = field
+    }
+
+    setSelectedFields(newSelectedFields)
   }
 
   // Group events by type
@@ -209,23 +224,18 @@ export const CompareView: React.FC<CompareViewProps> = ({
         {/* Event Content - Similar to EventDetailModal */}
         <div className="flex flex-1 overflow-hidden">
           {/* Left Sidebar - Field Selection */}
-          <div className="w-24 bg-gray-50 border-r border-gray-200 p-2">
-            <h5 className="text-xs font-medium text-gray-900 mb-2">Sections</h5>
-            <nav className="space-y-1">
+          <div className="w-32 bg-gray-50 border-r border-gray-200 p-2 flex flex-col flex-shrink-0">
+            <h5 className="text-xs font-medium text-gray-900 mb-2 flex-shrink-0">Sections</h5>
+            <nav className="flex-1 overflow-y-auto space-y-1 min-h-0">
               {availableFields.map((field) => (
                 <button
                   key={field}
-                  onClick={() => {
-                    const newSelectedFields = { ...selectedFields }
-                    newSelectedFields[selectedEventType][index] = field
-                    setSelectedFields(newSelectedFields)
-                  }}
+                  onClick={() => handleFieldSelection(selectedEventType, index, field)}
                   className={`w-full text-left px-2 py-1.5 text-xs rounded transition-colors ${
                     selectedField === field
                       ? 'bg-blue-100 text-blue-700 font-medium'
                       : 'text-gray-700 hover:bg-gray-100'
                   }`}
-                  title={getFieldDisplayName(field)}
                 >
                   {getFieldDisplayName(field)}
                 </button>
@@ -236,7 +246,7 @@ export const CompareView: React.FC<CompareViewProps> = ({
           {/* Main Content */}
           <div
             ref={el => scrollRefs.current[selectedEventType][index] = el}
-            className="flex-1 overflow-y-auto p-2"
+            className="flex-1 overflow-auto p-2 min-w-0"
             onScroll={() => handleScroll(index, selectedEventType)}
           >
             {renderDetailedContent(event, selectedField)}
@@ -293,6 +303,19 @@ export const CompareView: React.FC<CompareViewProps> = ({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                   </svg>
                   <span>Sync Scroll</span>
+                </button>
+                <button
+                  onClick={() => setSyncSelect(!syncSelect)}
+                  className={`flex items-center space-x-2 px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${
+                    syncSelect
+                      ? 'bg-green-100 text-green-700 shadow-sm'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>Sync Select</span>
                 </button>
                 <div className="text-sm text-gray-500">
                   {currentEvents.length} of 4 slots filled

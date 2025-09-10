@@ -329,35 +329,39 @@ export const RequestDetailContent: React.FC<{
                 Copy All
               </button>
             </div>
-            <div className="bg-gray-50 rounded-lg overflow-hidden">
-              <table className="min-w-full detail-table">
+            <div className="bg-gray-50 rounded-lg overflow-x-auto">
+              <table className="w-full detail-table table-fixed">
                 <thead className="bg-gray-100">
                   <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Header</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Value</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    <th className="w-1/4 px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Header</th>
+                    <th className="w-1/2 px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Value</th>
+                    <th className="w-1/4 px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {Object.entries(requestHeaders).map(([key, value]) => (
                     <tr key={key} className="table-row-hover">
-                      <td className="px-4 py-2 text-sm font-medium text-gray-900">{key}</td>
-                      <td className="px-4 py-2">
-                        <ExpandableHeaderValue value={String(value)} />
+                      <td className="px-4 py-2 text-sm font-medium text-gray-900 truncate">{key}</td>
+                      <td className="px-4 py-2 max-w-0">
+                        <div className="break-all">
+                          <ExpandableHeaderValue value={String(value)} />
+                        </div>
                       </td>
                       <td className="px-4 py-2">
-                        <button
-                          onClick={() => copyToClipboard(`${key}: ${value}`)}
-                          className="text-xs text-blue-600 hover:text-blue-800 mr-2"
-                        >
-                          Copy
-                        </button>
-                        <button
-                          onClick={() => copyToClipboard(String(value))}
-                          className="text-xs text-gray-600 hover:text-gray-800"
-                        >
-                          Copy Value
-                        </button>
+                        <div className="flex flex-col space-y-1">
+                          <button
+                            onClick={() => copyToClipboard(`${key}: ${value}`)}
+                            className="text-xs text-blue-600 hover:text-blue-800 text-left"
+                          >
+                            Copy
+                          </button>
+                          <button
+                            onClick={() => copyToClipboard(String(value))}
+                            className="text-xs text-gray-600 hover:text-gray-800 text-left"
+                          >
+                            Copy Value
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -379,35 +383,39 @@ export const RequestDetailContent: React.FC<{
                 Copy All
               </button>
             </div>
-            <div className="bg-gray-50 rounded-lg overflow-hidden">
-              <table className="min-w-full detail-table">
+            <div className="bg-gray-50 rounded-lg overflow-x-auto">
+              <table className="w-full detail-table table-fixed">
                 <thead className="bg-gray-100">
                   <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Header</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Value</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    <th className="w-1/4 px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Header</th>
+                    <th className="w-1/2 px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Value</th>
+                    <th className="w-1/4 px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {Object.entries(responseHeaders).map(([key, value]) => (
                     <tr key={key} className="table-row-hover">
-                      <td className="px-4 py-2 text-sm font-medium text-gray-900">{key}</td>
-                      <td className="px-4 py-2">
-                        <ExpandableHeaderValue value={String(value)} />
+                      <td className="px-4 py-2 text-sm font-medium text-gray-900 truncate">{key}</td>
+                      <td className="px-4 py-2 max-w-0">
+                        <div className="break-all">
+                          <ExpandableHeaderValue value={String(value)} />
+                        </div>
                       </td>
                       <td className="px-4 py-2">
-                        <button
-                          onClick={() => copyToClipboard(`${key}: ${value}`)}
-                          className="text-xs text-blue-600 hover:text-blue-800 mr-2"
-                        >
-                          Copy
-                        </button>
-                        <button
-                          onClick={() => copyToClipboard(String(value))}
-                          className="text-xs text-gray-600 hover:text-gray-800"
-                        >
-                          Copy Value
-                        </button>
+                        <div className="flex flex-col space-y-1">
+                          <button
+                            onClick={() => copyToClipboard(`${key}: ${value}`)}
+                            className="text-xs text-blue-600 hover:text-blue-800 text-left"
+                          >
+                            Copy
+                          </button>
+                          <button
+                            onClick={() => copyToClipboard(String(value))}
+                            className="text-xs text-gray-600 hover:text-gray-800 text-left"
+                          >
+                            Copy Value
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
