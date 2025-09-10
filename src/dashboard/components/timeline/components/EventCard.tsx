@@ -12,6 +12,8 @@ interface EventCardProps {
   isStacked?: boolean
   onHoverChange?: (eventId: string, isHovered: boolean) => void
   viewedTrackingSettings?: ViewedTrackingSettings
+  isHighlighted?: boolean
+  onHighlightClick?: (eventId: string) => void
 }
 
 export const EventCard: React.FC<EventCardProps> = ({
@@ -23,7 +25,9 @@ export const EventCard: React.FC<EventCardProps> = ({
   layerIndex = 0,
   isStacked = false,
   onHoverChange,
-  viewedTrackingSettings
+  viewedTrackingSettings,
+  isHighlighted = false,
+  onHighlightClick
 }) => {
   const [isHovered, setIsHovered] = useState(false)
 
@@ -135,6 +139,8 @@ export const EventCard: React.FC<EventCardProps> = ({
         cardColors[event.type]
       } border rounded-lg ${cardShadow} group ${
         isStacked ? 'hover:scale-105' : ''
+      } ${
+        isHighlighted ? 'ring-4 ring-blue-400 ring-opacity-75 animate-pulse shadow-xl' : ''
       }`}
       style={{
         width: `${cardDimensions.width}px`,
@@ -150,7 +156,13 @@ export const EventCard: React.FC<EventCardProps> = ({
       }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      onClick={() => onClick(event)}
+      onClick={() => {
+        // If this event is highlighted, clear the highlight when clicked
+        if (isHighlighted && onHighlightClick) {
+          onHighlightClick(event.id)
+        }
+        onClick(event)
+      }}
     >
       <div className="p-3 h-full flex flex-col relative">
         <div className="flex items-start justify-between flex-1">

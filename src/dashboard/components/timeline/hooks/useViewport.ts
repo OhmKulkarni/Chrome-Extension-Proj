@@ -154,10 +154,27 @@ export const useViewport = ({
   }, [earliestDataTimestamp, latestDataTimestamp, animateCenterTime])
 
   const jumpToTime = useCallback((timestamp: number, scope?: string) => {
+    // Cancel any ongoing animations first to prevent conflicts
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current)
+      animationRef.current = null
+      setIsAnimating(false)
+    }
+
+    // Change scope first if needed
     if (scope && scope !== currentScope) {
       setCurrentScope(scope)
     }
-    animateCenterTime(timestamp, 850)
+
+    // Then animate to the target time with a slight delay to ensure scope change takes effect
+    if (scope && scope !== currentScope) {
+      // Small delay to ensure scope change is processed
+      setTimeout(() => {
+        animateCenterTime(timestamp, 600) // Shorter animation for better UX
+      }, 50)
+    } else {
+      animateCenterTime(timestamp, 600)
+    }
   }, [currentScope, animateCenterTime])
 
   const canZoomIn = useMemo(() => {

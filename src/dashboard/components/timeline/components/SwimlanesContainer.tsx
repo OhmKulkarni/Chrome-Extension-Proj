@@ -32,6 +32,8 @@ interface SwimlanesContainerProps {
   isAnimating?: boolean
   sidebarCollapsed?: boolean
   onToggleSidebarCollapsed?: () => void
+  highlightedEventId?: string | null
+  onEventClick?: (eventId: string) => void
 }
 
 export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
@@ -51,7 +53,9 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   debugMode = false,
   isAnimating = false,
   sidebarCollapsed = false,
-  onToggleSidebarCollapsed
+  onToggleSidebarCollapsed,
+  highlightedEventId = null,
+  onEventClick
 }) => {
   const [selectedCluster, setSelectedCluster] = useState<TimelineCluster | null>(null)
   const [selectedDensityCluster, setSelectedDensityCluster] = useState<DensityCluster | null>(null)
@@ -524,6 +528,8 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
               viewport={viewport}
               debugMode={debugMode}
               viewedTrackingSettings={viewedTrackingSettings}
+              highlightedEventId={highlightedEventId}
+              onHighlightedEventClick={onEventClick}
             />
           ))}
 
