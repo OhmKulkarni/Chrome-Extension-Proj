@@ -6,6 +6,9 @@ export interface TimelineEvent {
   isBookmarked?: boolean
   compareSlot?: number // 0-3 for compare grid, -1 for queue
   swimlane: 'network' | 'console' | 'token'
+  // Viewed state tracking
+  isViewed?: boolean
+  viewedAt?: number // Unix timestamp when viewed
 }
 
 // Lightweight version for overview/clustering - only timestamp and metadata
@@ -140,4 +143,22 @@ export interface TimelineViewport {
   endTime: number
   centerTime: number
   duration: number
+}
+
+// Viewed state tracking settings
+export interface ViewedTrackingSettings {
+  enabled: boolean
+  persistenceMode: 'session' | 'minutes' | 'hours' | 'days' | 'permanent'
+  persistenceDuration?: number // Used when persistenceMode is 'minutes', 'hours', or 'days'
+  showIndicators: boolean
+  viewedOpacity: number // 0.0 to 1.0, opacity for viewed cards
+}
+
+// Default viewed tracking settings
+export const DEFAULT_VIEWED_TRACKING: ViewedTrackingSettings = {
+  enabled: true,
+  persistenceMode: 'session',
+  persistenceDuration: undefined,
+  showIndicators: true,
+  viewedOpacity: 0.75
 }

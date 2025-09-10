@@ -1,5 +1,5 @@
 import React, { useRef, useState, useCallback, useMemo } from 'react'
-import { TimelineEvent, TimelineCluster, SwimLaneConfig } from '../types/timeline.types'
+import { TimelineEvent, TimelineCluster, SwimLaneConfig, ViewedTrackingSettings } from '../types/timeline.types'
 import { EventCluster } from './EventCluster'
 import { EventCard } from './EventCard'
 import { TimelineDebugOverlay } from './TimelineDebugOverlay'
@@ -19,6 +19,7 @@ interface SwimlaneProps {
   zoomLevel: number
   viewport: any
   debugMode?: boolean
+  viewedTrackingSettings?: ViewedTrackingSettings
 }
 
 export interface EventLayerItem {
@@ -42,7 +43,8 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
   onAddToCompare,
   zoomLevel,
   viewport,
-  debugMode = false
+  debugMode = false,
+  viewedTrackingSettings
 }) => {
   const [scrollPosition, setScrollPosition] = useState(0)
   const [showScrollControls, setShowScrollControls] = useState(false)
@@ -411,6 +413,7 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
                           layerIndex={layerIndex}
                           isStacked={eventLayers.length > 1}
                           onHoverChange={handleEventHover}
+                          viewedTrackingSettings={viewedTrackingSettings}
                         />
                       </div>
                     ))}

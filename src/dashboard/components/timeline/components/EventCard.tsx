@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { TimelineEvent } from '../types/timeline.types'
+import { TimelineEvent, ViewedTrackingSettings } from '../types/timeline.types'
 import { Bookmark, GitCompare, Network, AlertTriangle, Key } from 'lucide-react'
 
 interface EventCardProps {
@@ -11,6 +11,7 @@ interface EventCardProps {
   layerIndex?: number
   isStacked?: boolean
   onHoverChange?: (eventId: string, isHovered: boolean) => void
+  viewedTrackingSettings?: ViewedTrackingSettings
 }
 
 export const EventCard: React.FC<EventCardProps> = ({
@@ -21,7 +22,8 @@ export const EventCard: React.FC<EventCardProps> = ({
   zoomLevel,
   layerIndex = 0,
   isStacked = false,
-  onHoverChange
+  onHoverChange,
+  viewedTrackingSettings
 }) => {
   const [isHovered, setIsHovered] = useState(false)
 
@@ -140,7 +142,11 @@ export const EventCard: React.FC<EventCardProps> = ({
         // Dynamic z-index: bring hovered cards to absolute front
         zIndex: isHovered
           ? 1000 // Absolute front when hovered
-          : 10 + layerIndex + (event.isBookmarked ? 5 : 0) + (event.compareSlot !== undefined ? 3 : 0)
+          : 10 + layerIndex + (event.isBookmarked ? 5 : 0) + (event.compareSlot !== undefined ? 3 : 0),
+        // Apply viewed state opacity if tracking is enabled
+        opacity: (viewedTrackingSettings?.enabled && viewedTrackingSettings?.showIndicators && event.isViewed)
+          ? viewedTrackingSettings.viewedOpacity
+          : 1.0
       }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -215,6 +221,12 @@ export const EventCard: React.FC<EventCardProps> = ({
           <div className="absolute -top-1 -left-1 w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center">
             <div className="w-2 h-2 bg-yellow-600 rounded-full" />
           </div>
+        )}
+
+        {/* Viewed indicator - only show for unviewed events when tracking is enabled */}
+        {viewedTrackingSettings?.enabled && viewedTrackingSettings?.showIndicators && !event.isViewed && (
+          <div className="absolute top-1 right-1 w-2 h-2 bg-blue-500 rounded-full" 
+               title="New - not yet viewed" />
         )}
       </div>
     </div>

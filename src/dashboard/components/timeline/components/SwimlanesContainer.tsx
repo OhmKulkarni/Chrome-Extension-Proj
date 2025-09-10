@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useRef } from 'react'
-import { TimelineEvent, TimelineCluster, SwimLaneConfig, DensityCluster, ViewportEventData, TimeScope } from '../types/timeline.types'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
+import { TimelineEvent, TimelineCluster, SwimLaneConfig, DensityCluster, ViewportEventData, TimeScope, ViewedTrackingSettings, DEFAULT_VIEWED_TRACKING } from '../types/timeline.types'
 import { Swimlane } from './Swimlane'
 import { EventPopup } from './EventPopup'
 import { EventDetailModal } from './EventDetailModal'
@@ -55,7 +55,68 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null)
   const [showCompareView, setShowCompareView] = useState(false)
   const [compareQueue, setCompareQueue] = useState<TimelineEvent[]>([])
+  
+  // Viewed state tracking
+  const [viewedTrackingSettings] = useState<ViewedTrackingSettings>(DEFAULT_VIEWED_TRACKING)
+  const [viewedEvents, setViewedEvents] = useState<Map<string, number>>(new Map()) // eventId -> timestamp
+  
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Utility function to check if event should be considered viewed
+  const isEventViewed = useCallback((eventId: string): boolean => {
+    if (!viewedTrackingSettings.enabled) return false
+    
+    const viewedTime = viewedEvents.get(eventId)
+    if (!viewedTime) return false
+    
+    const now = Date.now()
+    switch (viewedTrackingSettings.persistenceMode) {
+      case 'session':
+        return true // Always viewed during session
+      case 'minutes':
+        return now - viewedTime < (viewedTrackingSettings.persistenceDuration || 30) * 60 * 1000
+      case 'hours':
+        return now - viewedTime < (viewedTrackingSettings.persistenceDuration || 2) * 60 * 60 * 1000
+      case 'days':
+        return now - viewedTime < (viewedTrackingSettings.persistenceDuration || 1) * 24 * 60 * 60 * 1000
+      case 'permanent':
+        return true
+      default:
+        return true
+    }
+  }, [viewedTrackingSettings, viewedEvents])
+
+  // Clean up expired viewed events
+  useEffect(() => {
+    if (!viewedTrackingSettings.enabled || viewedTrackingSettings.persistenceMode === 'session' || viewedTrackingSettings.persistenceMode === 'permanent') {
+      return
+    }
+
+    const interval = setInterval(() => {
+      setViewedEvents(prev => {
+        const updated = new Map(prev)
+        for (const [eventId] of prev.entries()) {
+          if (!isEventViewed(eventId)) {
+            updated.delete(eventId)
+          }
+        }
+        return updated
+      })
+    }, 60000) // Check every minute
+
+    return () => clearInterval(interval)
+  }, [viewedTrackingSettings, isEventViewed])
+
+  // Enrich events with viewed state
+  const enrichEventsWithViewedState = useCallback((events: TimelineEvent[]): TimelineEvent[] => {
+    if (!viewedTrackingSettings.enabled) return events
+    
+    return events.map(event => ({
+      ...event,
+      isViewed: isEventViewed(event.id),
+      viewedAt: viewedEvents.get(event.id)
+    }))
+  }, [viewedTrackingSettings.enabled, isEventViewed, viewedEvents])
 
   // Calculate visible swimlane heights
   const visibleSwimlanes = swimlanes.filter(lane => lane.isVisible)
@@ -84,9 +145,14 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   }, [])
 
   const handleEventClick = useCallback((event: TimelineEvent) => {
+    // Mark event as viewed if tracking is enabled
+    if (viewedTrackingSettings.enabled) {
+      setViewedEvents(prev => new Map(prev).set(event.id, Date.now()))
+    }
+    
     // Always show the detailed modal for any clicked event
     setSelectedEvent(event)
-  }, [])
+  }, [viewedTrackingSettings.enabled])
 
   const handleDensityClusterZoom = useCallback((cluster: DensityCluster) => {
     // Center viewport on the cluster's center time when zooming in
@@ -205,7 +271,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
               key={swimlane.id}
               config={swimlane}
               events={visualizationData.shouldShowCards ?
-                visualizationData.individualEvents.filter(e => e.swimlane === swimlane.id) : []}
+                enrichEventsWithViewedState(visualizationData.individualEvents.filter(e => e.swimlane === swimlane.id)) : []}
               clusters={visualizationData.shouldShowCards ?
                 clusters.filter(c => c.swimlane === swimlane.id) : []}
               shouldCluster={shouldCluster}
@@ -218,6 +284,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
               zoomLevel={zoomLevel}
               viewport={viewport}
               debugMode={debugMode}
+              viewedTrackingSettings={viewedTrackingSettings}
             />
           ))}
 
