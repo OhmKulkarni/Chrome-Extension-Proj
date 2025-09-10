@@ -151,9 +151,21 @@ const DecomposedDashboard: React.FC = () => {
   const loadAllNetworkRequests = useCallback(async () => {
     try {
       console.log('🔄 Loading ALL network requests for sorting')
+
+      // First, get the total count by making a regular request
+      const totalResponse = await sendChromeMessage({
+        action: 'getNetworkRequests',
+        limit: 1,
+        offset: 0
+      })
+
+      const totalCount = totalResponse?.total || 1000; // Fallback to large number
+      console.log('📊 Total available records:', totalCount);
+
+      // Now request all data using the actual total count
       const response = await sendChromeMessage({
         action: 'getNetworkRequests',
-        limit: -1, // Request all data
+        limit: totalCount, // Use actual total count instead of -1
         offset: 0
       })
 
@@ -178,9 +190,21 @@ const DecomposedDashboard: React.FC = () => {
   const loadAllConsoleErrors = useCallback(async () => {
     try {
       console.log('🔄 Loading ALL console errors for sorting')
+
+      // First, get the total count
+      const totalResponse = await sendChromeMessage({
+        action: 'getConsoleErrors',
+        limit: 1,
+        offset: 0
+      })
+
+      const totalCount = totalResponse?.total || 1000; // Fallback to large number
+      console.log('📊 Total available error records:', totalCount);
+
+      // Now request all data using the actual total count
       const response = await sendChromeMessage({
         action: 'getConsoleErrors',
-        limit: -1, // Request all data
+        limit: totalCount, // Use actual total count instead of -1
         offset: 0
       })
 
@@ -205,9 +229,21 @@ const DecomposedDashboard: React.FC = () => {
   const loadAllTokenEvents = useCallback(async () => {
     try {
       console.log('🔄 Loading ALL token events for sorting')
+
+      // First, get the total count
+      const totalResponse = await sendChromeMessage({
+        action: 'getTokenEvents',
+        limit: 1,
+        offset: 0
+      })
+
+      const totalCount = totalResponse?.total || 1000; // Fallback to large number
+      console.log('📊 Total available token records:', totalCount);
+
+      // Now request all data using the actual total count
       const response = await sendChromeMessage({
         action: 'getTokenEvents',
-        limit: -1, // Request all data
+        limit: totalCount, // Use actual total count instead of -1
         offset: 0
       })
 
@@ -664,32 +700,65 @@ const DecomposedDashboard: React.FC = () => {
 
   // Enhanced filter handlers with automatic full data loading
   const handleNetworkSearchChange = useCallback(async (searchTerm: string) => {
+    console.log('🔍 DECOMPOSED DASHBOARD - Network search changed to:', searchTerm);
     setNetworkSearchTerm(searchTerm);
-    if (searchTerm.trim()) {
-      await loadAllNetworkRequests();
+
+    // CRITICAL: Always load full data for ANY search operation (including clearing search)
+    // This ensures we have the complete dataset available for cross-page operations
+    console.log('🔄 Loading full data for search operation:', searchTerm);
+
+    // Enable network sort mode FIRST to ensure subsequent logic uses full data
+    if (!networkSortMode) {
+      console.log('🔧 Enabling network sort mode for search');
+      setNetworkSortMode(true);
     }
+
+    const fullData = await loadAllNetworkRequests();
+    console.log('📊 Loaded full data for search, count:', fullData?.length || 0);
+
+    // Force a small delay to ensure state updates have propagated
+    setTimeout(() => {
+      console.log('🔄 Search operation complete, full data should be available');
+    }, 100);
+
     setCurrentPage(1); // Reset to first page when filtering
-  }, [loadAllNetworkRequests]);
+  }, [loadAllNetworkRequests, networkSortMode]);
 
   const handleNetworkFilterMethodChange = useCallback(async (method: string) => {
     console.log('🔍 Filter method changed to:', method);
     setNetworkFilterMethod(method);
 
-    // Always load full data when applying a filter (not just when method !== 'all')
-    // This ensures we have the complete dataset to filter from
-    await loadAllNetworkRequests();
-    console.log('📊 Full network data loaded for filtering, count:', fullNetworkData.length);
+    // CRITICAL: Always load full data for proper cross-page filtering
+    console.log('🔄 Loading full data for method filter:', method);
+    const fullData = await loadAllNetworkRequests();
+    console.log('📊 Full network data loaded for filtering, count:', fullData?.length || 0);
+
+    // Enable network sort mode to ensure we use full data
+    if (!networkSortMode) {
+      console.log('🔧 Enabling network sort mode for filtering');
+      setNetworkSortMode(true);
+    }
 
     setCurrentPage(1); // Reset to first page when filtering
-  }, [loadAllNetworkRequests, fullNetworkData.length]);
+  }, [loadAllNetworkRequests, networkSortMode]);
 
   const handleErrorSearchChange = useCallback(async (searchTerm: string) => {
+    console.log('🔍 Error search changed to:', searchTerm);
     setErrorSearchTerm(searchTerm);
-    if (searchTerm.trim()) {
-      await loadAllConsoleErrors();
+
+    // CRITICAL: Always load full data for proper cross-page search
+    console.log('🔄 Loading full error data for search term:', searchTerm);
+    const fullData = await loadAllConsoleErrors();
+    console.log('📊 Loaded full error data for search, count:', fullData?.length || 0);
+
+    // Enable error sort mode to ensure we use full data
+    if (!errorSortMode) {
+      console.log('🔧 Enabling error sort mode for search');
+      setErrorSortMode(true);
     }
+
     setCurrentErrorPage(1); // Reset to first page when filtering
-  }, [loadAllConsoleErrors]);
+  }, [loadAllConsoleErrors, errorSortMode]);
 
   const handleErrorFilterSeverityChange = useCallback(async (severity: string) => {
     setErrorFilterSeverity(severity);
@@ -700,12 +769,22 @@ const DecomposedDashboard: React.FC = () => {
   }, [loadAllConsoleErrors]);
 
   const handleTokenSearchChange = useCallback(async (searchTerm: string) => {
+    console.log('🔍 Token search changed to:', searchTerm);
     setTokenSearchTerm(searchTerm);
-    if (searchTerm.trim()) {
-      await loadAllTokenEvents();
+
+    // CRITICAL: Always load full data for proper cross-page search
+    console.log('🔄 Loading full token data for search term:', searchTerm);
+    const fullData = await loadAllTokenEvents();
+    console.log('📊 Loaded full token data for search, count:', fullData?.length || 0);
+
+    // Enable token sort mode to ensure we use full data
+    if (!tokenSortMode) {
+      console.log('🔧 Enabling token sort mode for search');
+      setTokenSortMode(true);
     }
+
     setCurrentTokenPage(1); // Reset to first page when filtering
-  }, [loadAllTokenEvents]);
+  }, [loadAllTokenEvents, tokenSortMode]);
 
   const handleTokenFilterTypeChange = useCallback(async (type: string) => {
     setTokenFilterType(type);
@@ -911,12 +990,31 @@ const DecomposedDashboard: React.FC = () => {
       networkFilterMethod,
       hasFilters,
       needsFullData,
+      networkSortMode,
       fullNetworkDataLength: fullNetworkData.length,
-      currentDataLength: data.networkRequests.length
+      currentDataLength: data.networkRequests.length,
+      currentPage,
+      requestsPerPage
     });
 
-    // Use full dataset if we need it and have it loaded, otherwise use current page data
-    const dataToSort = (needsFullData && fullNetworkData.length > 0) ? fullNetworkData : data.networkRequests;
+    // CRITICAL FIX: When we have active filters, we MUST use full data for proper cross-page search
+    let dataToSort;
+    if (hasFilters || needsFullData) {
+      // For filtering or sorting: ALWAYS prefer full dataset when available
+      if (fullNetworkData.length > 0) {
+        dataToSort = fullNetworkData;
+        console.log('🎯 Using full dataset for filtering/sorting:', fullNetworkData.length, 'records');
+      } else {
+        // Fallback to current page data while full data is loading
+        dataToSort = data.networkRequests;
+        console.log('⏳ Full data not available, using current page as fallback:', data.networkRequests.length, 'records');
+        console.warn('🚨 CRITICAL: Search/filter active but full data not loaded! This will cause incorrect results.');
+      }
+    } else {
+      // Normal pagination mode: use current page data
+      dataToSort = data.networkRequests;
+      console.log('📄 Using paginated data:', data.networkRequests.length, 'records');
+    }
 
     if (!dataToSort || dataToSort.length === 0) {
       console.log('❌ No data to sort/filter');
@@ -927,13 +1025,16 @@ const DecomposedDashboard: React.FC = () => {
 
     // Apply filtering first, before sorting
     let filteredData = dataToSort.filter((request: any) => {
-      // Search term filter
+      // Search term filter - searches across multiple fields
       if (networkSearchTerm && networkSearchTerm.trim()) {
         const searchLower = networkSearchTerm.toLowerCase();
         const matchesSearch =
           request.url?.toLowerCase().includes(searchLower) ||
           request.method?.toLowerCase().includes(searchLower) ||
-          request.status?.toString().includes(searchLower);
+          request.status?.toString().includes(searchLower) ||
+          request.domain?.toLowerCase().includes(searchLower) ||
+          (request.request_headers && JSON.stringify(request.request_headers).toLowerCase().includes(searchLower)) ||
+          (request.response_headers && JSON.stringify(request.response_headers).toLowerCase().includes(searchLower));
         if (!matchesSearch) return false;
       }
 
@@ -941,7 +1042,6 @@ const DecomposedDashboard: React.FC = () => {
       if (networkFilterMethod && networkFilterMethod !== 'all') {
         const requestMethod = request.method?.toLowerCase();
         const filterMethod = networkFilterMethod.toLowerCase();
-        console.log('🔍 Method filter check:', { requestMethod, filterMethod, matches: requestMethod === filterMethod });
         if (requestMethod !== filterMethod) {
           return false;
         }
@@ -975,14 +1075,23 @@ const DecomposedDashboard: React.FC = () => {
       return sortConfig.direction === 'asc' ? comparison : -comparison;
     });
 
-    // Apply pagination based on current mode
-    if (needsFullData && fullNetworkData.length > 0) {
-      // Full data mode: apply pagination to sorted full dataset
+    // Apply pagination based on data source
+    if (hasFilters || (needsFullData && fullNetworkData.length > 0)) {
+      // Filtering or sorting mode: apply pagination to the filtered/sorted results
       const startIndex = (currentPage - 1) * requestsPerPage;
       const endIndex = startIndex + requestsPerPage;
+      console.log('🔄 Applying pagination to filtered results:', {
+        totalFiltered: sorted.length,
+        currentPage,
+        requestsPerPage,
+        startIndex,
+        endIndex,
+        showing: sorted.slice(startIndex, endIndex).length
+      });
       return sorted.slice(startIndex, endIndex);
     } else {
       // Normal mode: data is already paginated from backend, just return sorted current page
+      console.log('📄 Using pre-paginated data:', sorted.length, 'records');
       return sorted;
     }
   }, [data.networkRequests, fullNetworkData, networkSortMode, sortConfig, currentPage, requestsPerPage, networkSearchTerm, networkFilterMethod]);
@@ -992,20 +1101,37 @@ const DecomposedDashboard: React.FC = () => {
     const hasFilters = (errorSearchTerm && errorSearchTerm.trim()) || (errorFilterSeverity && errorFilterSeverity !== 'all');
     const needsFullData = errorSortMode || hasFilters;
 
-    // Use full dataset if we need it and have it loaded, otherwise use current page data
-    const dataToSort = (needsFullData && fullErrorData.length > 0) ? fullErrorData : data.consoleErrors;
+    // CRITICAL FIX: When we have active filters, we MUST use full data for proper cross-page search
+    let dataToSort;
+    if (hasFilters) {
+      // For filtering: Use full dataset if available, otherwise use current page data as fallback
+      if (fullErrorData.length > 0) {
+        dataToSort = fullErrorData;
+      } else {
+        // Fallback to current page data while full data is loading
+        dataToSort = data.consoleErrors;
+      }
+    } else if (needsFullData && fullErrorData.length > 0) {
+      // For sorting without filters: use full data if available
+      dataToSort = fullErrorData;
+    } else {
+      // Normal pagination mode: use current page data
+      dataToSort = data.consoleErrors;
+    }
 
     if (!dataToSort || dataToSort.length === 0) return [];
 
     // Apply filtering first, before sorting
     let filteredData = dataToSort.filter((error: any) => {
-      // Search term filter
+      // Search term filter - searches across multiple fields including URL
       if (errorSearchTerm && errorSearchTerm.trim()) {
         const searchLower = errorSearchTerm.toLowerCase();
         const matchesSearch =
           error.message?.toLowerCase().includes(searchLower) ||
           error.source?.toLowerCase().includes(searchLower) ||
-          error.type?.toLowerCase().includes(searchLower);
+          error.type?.toLowerCase().includes(searchLower) ||
+          error.url?.toLowerCase().includes(searchLower) ||
+          error.stack_trace?.toLowerCase().includes(searchLower);
         if (!matchesSearch) return false;
       }
 
@@ -1040,9 +1166,9 @@ const DecomposedDashboard: React.FC = () => {
       return errorSortConfig.direction === 'asc' ? comparison : -comparison;
     });
 
-    // Apply pagination based on current mode
-    if (needsFullData && fullErrorData.length > 0) {
-      // Full data mode: apply pagination to sorted full dataset
+    // Apply pagination based on data source
+    if (hasFilters || (needsFullData && fullErrorData.length > 0)) {
+      // Filtering or sorting mode: apply pagination to the filtered/sorted results
       const startIndex = (currentErrorPage - 1) * errorsPerPage;
       const endIndex = startIndex + errorsPerPage;
       return sorted.slice(startIndex, endIndex);
@@ -1057,20 +1183,40 @@ const DecomposedDashboard: React.FC = () => {
     const hasFilters = (tokenSearchTerm && tokenSearchTerm.trim()) || (tokenFilterType && tokenFilterType !== 'all');
     const needsFullData = tokenSortMode || hasFilters;
 
-    // Use full dataset if we need it and have it loaded, otherwise use current page data
-    const dataToSort = (needsFullData && fullTokenData.length > 0) ? fullTokenData : data.tokenEvents;
+    // CRITICAL FIX: When we have active filters, we MUST use full data for proper cross-page search
+    let dataToSort;
+    if (hasFilters) {
+      // For filtering: Use full dataset if available, otherwise use current page data as fallback
+      if (fullTokenData.length > 0) {
+        dataToSort = fullTokenData;
+      } else {
+        // Fallback to current page data while full data is loading
+        dataToSort = data.tokenEvents;
+      }
+    } else if (needsFullData && fullTokenData.length > 0) {
+      // For sorting without filters: use full data if available
+      dataToSort = fullTokenData;
+    } else {
+      // Normal pagination mode: use current page data
+      dataToSort = data.tokenEvents;
+    }
 
     if (!dataToSort || dataToSort.length === 0) return [];
 
     // Apply filtering first, before sorting
     let filteredData = dataToSort.filter((event: any) => {
-      // Search term filter
+      // Search term filter - searches across multiple fields including URL
       if (tokenSearchTerm && tokenSearchTerm.trim()) {
         const searchLower = tokenSearchTerm.toLowerCase();
         const matchesSearch =
           event.token_hash?.toLowerCase().includes(searchLower) ||
+          event.valueHash?.toLowerCase().includes(searchLower) ||
+          event.value_hash?.toLowerCase().includes(searchLower) ||
           event.domain?.toLowerCase().includes(searchLower) ||
-          event.action?.toLowerCase().includes(searchLower);
+          event.action?.toLowerCase().includes(searchLower) ||
+          event.url?.toLowerCase().includes(searchLower) ||
+          event.source_url?.toLowerCase().includes(searchLower) ||
+          event.type?.toLowerCase().includes(searchLower);
         if (!matchesSearch) return false;
       }
 
@@ -1105,9 +1251,9 @@ const DecomposedDashboard: React.FC = () => {
       return tokenSortConfig.direction === 'asc' ? comparison : -comparison;
     });
 
-    // Apply pagination based on current mode
-    if (needsFullData && fullTokenData.length > 0) {
-      // Full data mode: apply pagination to sorted full dataset
+    // Apply pagination based on data source
+    if (hasFilters || (needsFullData && fullTokenData.length > 0)) {
+      // Filtering or sorting mode: apply pagination to the filtered/sorted results
       const startIndex = (currentTokenPage - 1) * tokenEventsPerPage;
       const endIndex = startIndex + tokenEventsPerPage;
       return sorted.slice(startIndex, endIndex);
@@ -1128,13 +1274,16 @@ const DecomposedDashboard: React.FC = () => {
     if (!dataToFilter || dataToFilter.length === 0) return 0;
 
     return dataToFilter.filter((request: any) => {
-      // Search term filter
+      // Search term filter - searches across multiple fields
       if (networkSearchTerm && networkSearchTerm.trim()) {
         const searchLower = networkSearchTerm.toLowerCase();
         const matchesSearch =
           request.url?.toLowerCase().includes(searchLower) ||
           request.method?.toLowerCase().includes(searchLower) ||
-          request.status?.toString().includes(searchLower);
+          request.status?.toString().includes(searchLower) ||
+          request.domain?.toLowerCase().includes(searchLower) ||
+          (request.request_headers && JSON.stringify(request.request_headers).toLowerCase().includes(searchLower)) ||
+          (request.response_headers && JSON.stringify(request.response_headers).toLowerCase().includes(searchLower));
         if (!matchesSearch) return false;
       }
 
@@ -1159,13 +1308,15 @@ const DecomposedDashboard: React.FC = () => {
     if (!dataToFilter || dataToFilter.length === 0) return 0;
 
     return dataToFilter.filter((error: any) => {
-      // Search term filter
+      // Search term filter - searches across multiple fields including URL
       if (errorSearchTerm && errorSearchTerm.trim()) {
         const searchLower = errorSearchTerm.toLowerCase();
         const matchesSearch =
           error.message?.toLowerCase().includes(searchLower) ||
           error.source?.toLowerCase().includes(searchLower) ||
-          error.type?.toLowerCase().includes(searchLower);
+          error.type?.toLowerCase().includes(searchLower) ||
+          error.url?.toLowerCase().includes(searchLower) ||
+          error.stack_trace?.toLowerCase().includes(searchLower);
         if (!matchesSearch) return false;
       }
 
@@ -1190,13 +1341,18 @@ const DecomposedDashboard: React.FC = () => {
     if (!dataToFilter || dataToFilter.length === 0) return 0;
 
     return dataToFilter.filter((event: any) => {
-      // Search term filter
+      // Search term filter - searches across multiple fields including URL
       if (tokenSearchTerm && tokenSearchTerm.trim()) {
         const searchLower = tokenSearchTerm.toLowerCase();
         const matchesSearch =
           event.token_hash?.toLowerCase().includes(searchLower) ||
+          event.valueHash?.toLowerCase().includes(searchLower) ||
+          event.value_hash?.toLowerCase().includes(searchLower) ||
           event.domain?.toLowerCase().includes(searchLower) ||
-          event.action?.toLowerCase().includes(searchLower);
+          event.action?.toLowerCase().includes(searchLower) ||
+          event.url?.toLowerCase().includes(searchLower) ||
+          event.source_url?.toLowerCase().includes(searchLower) ||
+          event.type?.toLowerCase().includes(searchLower);
         if (!matchesSearch) return false;
       }
 
@@ -1237,16 +1393,49 @@ const DecomposedDashboard: React.FC = () => {
 
   // Add real-time updates when pages change
   useEffect(() => {
-    loadNetworkRequestsPage(currentPage, requestsPerPage);
-  }, [currentPage, requestsPerPage, loadNetworkRequestsPage]);
+    // CRITICAL FIX: Check if we have active filters and need full data
+    const hasFilters = (networkSearchTerm && networkSearchTerm.trim()) || (networkFilterMethod && networkFilterMethod !== 'all');
+
+    if (hasFilters && !networkSortMode) {
+      console.log('🔧 Active filters detected, enabling sort mode and loading full data');
+      setNetworkSortMode(true);
+      loadAllNetworkRequests();
+    } else if (!hasFilters && !networkSortMode) {
+      // Normal pagination mode
+      loadNetworkRequestsPage(currentPage, requestsPerPage);
+    }
+    // If networkSortMode is already true, the full data should already be loaded
+  }, [currentPage, requestsPerPage, loadNetworkRequestsPage, networkSearchTerm, networkFilterMethod, networkSortMode, loadAllNetworkRequests]);
 
   useEffect(() => {
-    loadConsoleErrorsPage(currentErrorPage, errorsPerPage);
-  }, [currentErrorPage, errorsPerPage, loadConsoleErrorsPage]);
+    // CRITICAL FIX: Check if we have active filters and need full data
+    const hasFilters = (errorSearchTerm && errorSearchTerm.trim()) || (errorFilterSeverity && errorFilterSeverity !== 'all');
+
+    if (hasFilters && !errorSortMode) {
+      console.log('🔧 Active error filters detected, enabling sort mode and loading full data');
+      setErrorSortMode(true);
+      loadAllConsoleErrors();
+    } else if (!hasFilters && !errorSortMode) {
+      // Normal pagination mode
+      loadConsoleErrorsPage(currentErrorPage, errorsPerPage);
+    }
+    // If errorSortMode is already true, the full data should already be loaded
+  }, [currentErrorPage, errorsPerPage, loadConsoleErrorsPage, errorSearchTerm, errorFilterSeverity, errorSortMode, loadAllConsoleErrors]);
 
   useEffect(() => {
-    loadTokenEventsPage(currentTokenPage, tokenEventsPerPage);
-  }, [currentTokenPage, tokenEventsPerPage, loadTokenEventsPage]);
+    // CRITICAL FIX: Check if we have active filters and need full data
+    const hasFilters = (tokenSearchTerm && tokenSearchTerm.trim()) || (tokenFilterType && tokenFilterType !== 'all');
+
+    if (hasFilters && !tokenSortMode) {
+      console.log('🔧 Active token filters detected, enabling sort mode and loading full data');
+      setTokenSortMode(true);
+      loadAllTokenEvents();
+    } else if (!hasFilters && !tokenSortMode) {
+      // Normal pagination mode
+      loadTokenEventsPage(currentTokenPage, tokenEventsPerPage);
+    }
+    // If tokenSortMode is already true, the full data should already be loaded
+  }, [currentTokenPage, tokenEventsPerPage, loadTokenEventsPage, tokenSearchTerm, tokenFilterType, tokenSortMode, loadAllTokenEvents]);
 
   // Listen for storage changes - using same logic as original
   useEffect(() => {
@@ -1712,6 +1901,7 @@ export default DecomposedDashboard;
 // Mount the component
 const container = document.getElementById('root');
 if (container) {
+  console.log('🚀 DECOMPOSED DASHBOARD IS LOADING - This confirms we are using the right file!');
   const root = createRoot(container);
   root.render(<DecomposedDashboard />);
 }
