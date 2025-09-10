@@ -46,33 +46,46 @@ export const RequestDetailContent: React.FC<{
     }
   };
 
-  const formatNetworkRequestSummary = (request: any) => {
-    const summary = {
-      // Basic request info
+  const formatRequestDetailsOnly = (request: any) => {
+    const parseSize = (value: any): number => {
+      if (value === null || value === undefined) return 0;
+      const parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
+      return isNaN(parsed) || parsed < 0 ? 0 : parsed;
+    };
+
+    const formatSize = (bytes: number): string =>
+      bytes > 0 ? `${(bytes / 1024).toFixed(2)}KB (${bytes} bytes)` : '0KB (0 bytes)';
+
+    // Calculate sizes the same way as displayed
+    const payloadSize = parseSize(request.payload_size);
+    const requestSize = parseSize(request.requestSize || request.request_size);
+    const responseSize = parseSize(request.responseSize || request.response_size);
+
+    const details = {
       method: request.method || 'N/A',
       url: request.url || 'N/A',
       status: request.status || 'N/A',
       
-      // Timing and size info
-      timestamp: request.timestamp || 'N/A',
-      duration: request.duration ? `${request.duration}ms` : 'N/A',
-      requestSize: request.requestSize ? `${request.requestSize} bytes` : '0 bytes',
-      responseSize: request.responseSize ? `${request.responseSize} bytes` : '0 bytes',
+      // Size breakdown (only if available)
+      ...(payloadSize > 0 || requestSize > 0 || responseSize > 0) && {
+        sizeBreakdown: {
+          ...(payloadSize > 0) && { total: formatSize(payloadSize) },
+          ...(requestSize > 0) && { request: formatSize(requestSize) },
+          ...(responseSize > 0) && { response: formatSize(responseSize) }
+        }
+      },
       
-      // Source info
-      sourceUrl: request.source_url || 'N/A',
-      mainDomain: request.main_domain || 'N/A',
+      // Response time (only if available)
+      ...(request.response_time) && { responseTime: `${request.response_time}ms` },
       
-      // Headers (cleaned up)
-      requestHeaders: request.headers?.request || {},
-      responseHeaders: request.headers?.response || {},
+      // Timestamp (formatted as displayed)
+      timestamp: new Date(request.timestamp).toLocaleString(),
       
-      // Bodies (use consistent naming)
-      requestBody: request.requestBody || request.request_body || request.body || '',
-      responseBody: request.responseBody || request.response_body || ''
+      // Tab ID (only if available)
+      ...(request.tab_id) && { tabId: request.tab_id }
     };
     
-    return JSON.stringify(summary, null, 2);
+    return JSON.stringify(details, null, 2);
   };
 
   if (selectedField === 'details') {
@@ -82,7 +95,7 @@ export const RequestDetailContent: React.FC<{
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-gray-900">Request Details</h3>
             <button
-              onClick={() => copyToClipboard(formatNetworkRequestSummary(request))}
+              onClick={() => copyToClipboard(formatRequestDetailsOnly(request))}
               className="copy-button text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
             >
               Copy All
