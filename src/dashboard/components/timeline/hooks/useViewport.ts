@@ -18,6 +18,9 @@ export const useViewport = ({
   const [earliestDataTimestamp, setEarliestDataTimestamp] = useState<number>(
     Date.now() - (24 * 60 * 60 * 1000) // Default fallback
   )
+  const [latestDataTimestamp, setLatestDataTimestamp] = useState<number>(
+    Date.now() // Default fallback to current time
+  )
   const animationRef = useRef<number | null>(null)
 
   const scopeConfig = useMemo(() => {
@@ -106,9 +109,25 @@ export const useViewport = ({
       const scopePart = presetScope.replace(/^(last-|first-)/, '')
       targetScope = scopePart
 
-      // For 'first-' scopes, jump to the earliest data time
-      if (presetScope.startsWith('first-')) {
-        // Use the earliest data timestamp, but with a better fallback strategy
+      if (presetScope.startsWith('last-')) {
+        // For 'last-' scopes, jump to the latest data time (most recent record)
+        const now = Date.now()
+        const timeDiff = now - latestDataTimestamp
+        
+        // Check if latestDataTimestamp looks like default fallback (current time)
+        const isCurrentTimeFallback = Math.abs(timeDiff) < (5 * 60 * 1000) // Within 5 minutes of current time
+        
+        if (isCurrentTimeFallback) {
+          // This might be the default fallback - use current time but log for debugging
+          console.log('🕐 Using current time for last- scope (no data loaded yet)')
+          targetTime = now
+        } else {
+          // We have actual data - use the real latest timestamp
+          console.log(`🕐 Using latest record time: ${new Date(latestDataTimestamp).toISOString()}`)
+          targetTime = latestDataTimestamp
+        }
+      } else if (presetScope.startsWith('first-')) {
+        // For 'first-' scopes, jump to the earliest data time
         const now = Date.now()
         const timeDiff = now - earliestDataTimestamp
         
@@ -132,7 +151,7 @@ export const useViewport = ({
 
     setCurrentScope(targetScope)
     animateCenterTime(targetTime, 1000) // Longer animation for bigger jumps
-  }, [earliestDataTimestamp, animateCenterTime])
+  }, [earliestDataTimestamp, latestDataTimestamp, animateCenterTime])
 
   const jumpToTime = useCallback((timestamp: number, scope?: string) => {
     if (scope && scope !== currentScope) {
@@ -167,6 +186,7 @@ export const useViewport = ({
     jumpToPreset,
     jumpToTime,
     setCenterTime,
-    setEarliestDataTimestamp
+    setEarliestDataTimestamp,
+    setLatestDataTimestamp
   }
 }

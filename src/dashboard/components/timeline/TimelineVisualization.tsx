@@ -18,7 +18,7 @@ export const TimelineVisualization: React.FC = () => {
     zoomLevel: viewport.zoomLevel
   })
 
-  // Calculate earliest timestamp from timeline data for "first-" scopes
+  // Calculate earliest and latest timestamps from timeline data for "first-" and "last-" scopes
   const earliestTimestamp = useMemo(() => {
     if (!timelineData.events || timelineData.events.length === 0) {
       return Date.now() - (24 * 60 * 60 * 1000) // Default fallback
@@ -26,10 +26,18 @@ export const TimelineVisualization: React.FC = () => {
     return Math.min(...timelineData.events.map(event => event.timestamp))
   }, [timelineData.events])
 
-  // Update viewport hook with earliest timestamp when data changes
+  const latestTimestamp = useMemo(() => {
+    if (!timelineData.events || timelineData.events.length === 0) {
+      return Date.now() // Default fallback to current time
+    }
+    return Math.max(...timelineData.events.map(event => event.timestamp))
+  }, [timelineData.events])
+
+  // Update viewport hook with timestamp boundaries when data changes
   React.useEffect(() => {
     viewport.setEarliestDataTimestamp(earliestTimestamp)
-  }, [earliestTimestamp, viewport])
+    viewport.setLatestDataTimestamp(latestTimestamp)
+  }, [earliestTimestamp, latestTimestamp, viewport])
 
   // Use the new density-based visualization
   const visualizationData = useTimelineVisualization({
