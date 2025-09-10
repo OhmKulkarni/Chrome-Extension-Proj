@@ -102,7 +102,7 @@ export const RequestDetailContent: React.FC<{
       method: request.method || 'N/A',
       url: request.url || 'N/A',
       status: request.status || 'N/A',
-      
+
       // Size breakdown (only if available) - matching the exact display logic
       ...(payloadSize > 0 || requestSize > 0 || responseSize > 0) && {
         sizeBreakdown: {
@@ -127,19 +127,21 @@ export const RequestDetailContent: React.FC<{
           }
         }
       },
-      
+
       // Response time (only if available)
       ...(request.response_time) && { responseTime: `${request.response_time}ms` },
-      
+
       // Timestamp (formatted as displayed)
       timestamp: new Date(request.timestamp).toLocaleString(),
-      
+
       // Tab ID (only if available)
       ...(request.tab_id) && { tabId: request.tab_id }
     };
-    
+
     return JSON.stringify(details, null, 2);
-  };  if (selectedField === 'details') {
+  };
+
+  if (selectedField === 'details') {
     return (
       <div className="space-y-4">
         <div>
@@ -1359,6 +1361,19 @@ export const ErrorDetailContent: React.FC<{
     });
   };
 
+  const formatConsoleErrorDetailsOnly = (error: any) => {
+    const details = {
+      message: error.message || 'N/A',
+      ...(error.url) && { url: error.url },
+      ...(error.line) && { line: error.line },
+      ...(error.column) && { column: error.column },
+      ...(error.severity) && { severity: error.severity },
+      timestamp: new Date(error.timestamp).toLocaleString()
+    };
+    
+    return JSON.stringify(details, null, 2);
+  };
+
   if (selectedField === 'details') {
     return (
       <div className="space-y-4">
@@ -1366,7 +1381,7 @@ export const ErrorDetailContent: React.FC<{
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-gray-900">Error Details</h3>
             <button
-              onClick={() => copyToClipboard(JSON.stringify(error, null, 2))}
+              onClick={() => copyToClipboard(formatConsoleErrorDetailsOnly(error))}
               className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
             >
               Copy All
@@ -1849,6 +1864,26 @@ export const TokenDetailContent: React.FC<{
     return hash.substring(0, 8); // Show first 8 characters like git
   };
 
+  const formatTokenEventDetailsOnly = (tokenEvent: any) => {
+    const details = {
+      ...(tokenEvent.url) && { url: tokenEvent.url },
+      ...(tokenEvent.method || tokenEvent.request_method) && { 
+        method: tokenEvent.method || tokenEvent.request_method 
+      },
+      ...(tokenEvent.status || tokenEvent.response_status) && { 
+        status: tokenEvent.status || tokenEvent.response_status 
+      },
+      ...(tokenEvent.valueHash || tokenEvent.value_hash) && { 
+        valueHash: tokenEvent.valueHash || tokenEvent.value_hash 
+      },
+      ...(tokenEvent.timestamp) && { 
+        timestamp: new Date(tokenEvent.timestamp).toLocaleString() 
+      }
+    };
+    
+    return JSON.stringify(details, null, 2);
+  };
+
   if (selectedField === 'details') {
     return (
       <div className="space-y-4">
@@ -1856,7 +1891,7 @@ export const TokenDetailContent: React.FC<{
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-gray-900">Token Event Details</h3>
             <button
-              onClick={() => copyToClipboard(JSON.stringify(tokenEvent, null, 2))}
+              onClick={() => copyToClipboard(formatTokenEventDetailsOnly(tokenEvent))}
               className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
             >
               Copy All
