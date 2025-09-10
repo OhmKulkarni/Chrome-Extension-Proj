@@ -231,8 +231,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
 
         {/* Footer */}
         <div className="p-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-          <div className="flex items-center space-x-4 text-sm text-gray-500">
-            <span>Event ID: {event.id}</span>
+          <div className="text-sm text-gray-500">
             <span>Press ESC to close</span>
           </div>
           <div className="flex items-center space-x-2">
