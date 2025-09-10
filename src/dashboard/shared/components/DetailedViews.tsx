@@ -658,20 +658,7 @@ export const RequestDetailContent: React.FC<{
                 >
                   Copy
                 </button>
-                {requestBody && (typeof requestBody === 'string' ? requestBody.length : JSON.stringify(requestBody).length) > 1000 && (
-                  <button
-                    onClick={() => {
-                      const content = typeof requestBody === 'string' ? prettyPrintIfJson(requestBody) : formatJSON(requestBody);
-                      const newWindow = window.open('', '_blank');
-                      if (newWindow) {
-                        newWindow.document.write(`<pre style="white-space: pre-wrap; word-wrap: break-word; font-family: monospace; padding: 20px;">${content}</pre>`);
-                      }
-                    }}
-                    className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
-                  >
-                    View Full
-                  </button>
-                )}
+
               </div>
             </div>
             <div className="bg-gray-900 rounded-lg p-4">
@@ -708,20 +695,7 @@ export const RequestDetailContent: React.FC<{
                 >
                   Copy
                 </button>
-                {responseBody && (typeof responseBody === 'string' ? responseBody.length : JSON.stringify(responseBody).length) > 1000 && (
-                  <button
-                    onClick={() => {
-                      const content = typeof responseBody === 'string' ? prettyPrintIfJson(responseBody) : formatJSON(responseBody);
-                      const newWindow = window.open('', '_blank');
-                      if (newWindow) {
-                        newWindow.document.write(`<pre style="white-space: pre-wrap; word-wrap: break-word; font-family: monospace; padding: 20px;">${content}</pre>`);
-                      }
-                    }}
-                    className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
-                  >
-                    View Full
-                  </button>
-                )}
+
               </div>
             </div>
 
