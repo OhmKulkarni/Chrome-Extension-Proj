@@ -225,7 +225,11 @@ export const EventCard: React.FC<EventCardProps> = ({
 
         {/* Viewed indicator - only show for unviewed events when tracking is enabled */}
         {viewedTrackingSettings?.enabled && viewedTrackingSettings?.showIndicators && !event.isViewed && (
-          <div className="absolute top-1 right-1 w-2 h-2 bg-blue-500 rounded-full" 
+          <div className={`absolute w-2 h-2 bg-blue-500 rounded-full ${
+            event.compareSlot !== undefined && event.compareSlot >= 0 
+              ? 'top-1 right-7' // Offset when compare indicator is present
+              : 'top-1 right-1'  // Normal position
+          }`}
                title="New - not yet viewed" />
         )}
       </div>

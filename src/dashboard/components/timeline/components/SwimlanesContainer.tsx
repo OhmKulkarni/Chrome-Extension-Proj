@@ -55,20 +55,20 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null)
   const [showCompareView, setShowCompareView] = useState(false)
   const [compareQueue, setCompareQueue] = useState<TimelineEvent[]>([])
-  
+
   // Viewed state tracking
   const [viewedTrackingSettings] = useState<ViewedTrackingSettings>(DEFAULT_VIEWED_TRACKING)
   const [viewedEvents, setViewedEvents] = useState<Map<string, number>>(new Map()) // eventId -> timestamp
-  
+
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Utility function to check if event should be considered viewed
   const isEventViewed = useCallback((eventId: string): boolean => {
     if (!viewedTrackingSettings.enabled) return false
-    
+
     const viewedTime = viewedEvents.get(eventId)
     if (!viewedTime) return false
-    
+
     const now = Date.now()
     switch (viewedTrackingSettings.persistenceMode) {
       case 'session':
@@ -110,7 +110,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   // Enrich events with viewed state
   const enrichEventsWithViewedState = useCallback((events: TimelineEvent[]): TimelineEvent[] => {
     if (!viewedTrackingSettings.enabled) return events
-    
+
     return events.map(event => ({
       ...event,
       isViewed: isEventViewed(event.id),
@@ -149,7 +149,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
     if (viewedTrackingSettings.enabled) {
       setViewedEvents(prev => new Map(prev).set(event.id, Date.now()))
     }
-    
+
     // Always show the detailed modal for any clicked event
     setSelectedEvent(event)
   }, [viewedTrackingSettings.enabled])
