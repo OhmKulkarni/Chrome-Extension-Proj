@@ -158,7 +158,15 @@ export const CompareView: React.FC<CompareViewProps> = ({
             <div className="flex items-center space-x-2">
               {getIcon(event)}
               <span className="text-xs font-medium text-gray-900">
-                Slot {index + 1}
+                Slot {(() => {
+                  // Convert actual slot number to display slot number (1-4 for each type)
+                  if (event.compareSlot !== undefined) {
+                    if (event.compareSlot >= 0 && event.compareSlot <= 3) return event.compareSlot + 1 // Network: 0-3 → 1-4
+                    if (event.compareSlot >= 10 && event.compareSlot <= 13) return event.compareSlot - 9 // Console: 10-13 → 1-4
+                    if (event.compareSlot >= 20 && event.compareSlot <= 23) return event.compareSlot - 19 // Token: 20-23 → 1-4
+                  }
+                  return index + 1 // Fallback to array index
+                })()}
               </span>
             </div>
             <div className="flex items-center space-x-1">

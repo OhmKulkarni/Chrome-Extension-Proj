@@ -212,7 +212,13 @@ export const EventCard: React.FC<EventCardProps> = ({
         {/* Compare slot indicator */}
         {event.compareSlot !== undefined && event.compareSlot >= 0 && (
           <div className="absolute -top-1 -right-1 w-5 h-5 bg-purple-500 text-white text-xs rounded-full flex items-center justify-center">
-            {event.compareSlot + 1}
+            {(() => {
+              // Convert actual slot number to display slot number (1-4 for each type)
+              if (event.compareSlot >= 0 && event.compareSlot <= 3) return event.compareSlot + 1 // Network: 0-3 → 1-4
+              if (event.compareSlot >= 10 && event.compareSlot <= 13) return event.compareSlot - 9 // Console: 10-13 → 1-4
+              if (event.compareSlot >= 20 && event.compareSlot <= 23) return event.compareSlot - 19 // Token: 20-23 → 1-4
+              return event.compareSlot + 1 // Fallback
+            })()}
           </div>
         )}
 

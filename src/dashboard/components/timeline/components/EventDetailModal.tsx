@@ -237,7 +237,13 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
           <div className="flex items-center space-x-2">
             {event.compareSlot !== undefined && event.compareSlot >= 0 && (
               <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
-                Compare Slot {event.compareSlot + 1}
+                Compare Slot {(() => {
+                  // Convert actual slot number to display slot number (1-4 for each type)
+                  if (event.compareSlot >= 0 && event.compareSlot <= 3) return event.compareSlot + 1 // Network: 0-3 → 1-4
+                  if (event.compareSlot >= 10 && event.compareSlot <= 13) return event.compareSlot - 9 // Console: 10-13 → 1-4
+                  if (event.compareSlot >= 20 && event.compareSlot <= 23) return event.compareSlot - 19 // Token: 20-23 → 1-4
+                  return event.compareSlot + 1 // Fallback
+                })()}
               </span>
             )}
             {event.isBookmarked && (

@@ -222,28 +222,44 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
     if (event.compareSlot !== undefined && event.compareSlot >= 0) {
       await onSetCompareSlot(event.id, -1)
 
-      // Compact remaining slots to remove gaps
+      // Get slot range for this event type
+      const getSlotRange = (eventType: string) => {
+        switch (eventType) {
+          case 'network': return { start: 0, end: 3 }
+          case 'console': return { start: 10, end: 13 }
+          case 'token': return { start: 20, end: 23 }
+          default: return { start: 0, end: 3 }
+        }
+      }
+
+      const slotRange = getSlotRange(event.type)
+
+      // Compact remaining slots to remove gaps within the type's range
       const viewportEvents = visualizationData.shouldShowCards ?
         visualizationData.individualEvents :
         visualizationData.densityClusters.flatMap(cluster => cluster.events)
 
       const remainingCompareEvents = viewportEvents.filter(e =>
-        e.compareSlot !== undefined && e.compareSlot >= 0 && e.compareSlot <= 3 && e.id !== event.id
+        e.compareSlot !== undefined && 
+        e.compareSlot >= slotRange.start && 
+        e.compareSlot <= slotRange.end && 
+        e.id !== event.id
       ).sort((a, b) => (a.compareSlot || 0) - (b.compareSlot || 0))
 
-      // Reassign consecutive slot numbers
+      // Reassign consecutive slot numbers within the type's range
       for (let i = 0; i < remainingCompareEvents.length; i++) {
-        if (remainingCompareEvents[i].compareSlot !== i) {
-          await onSetCompareSlot(remainingCompareEvents[i].id, i)
+        const expectedSlot = slotRange.start + i
+        if (remainingCompareEvents[i].compareSlot !== expectedSlot) {
+          await onSetCompareSlot(remainingCompareEvents[i].id, expectedSlot)
         }
       }
 
-      // If there are queued events, promote the first one to fill the gap
-      const queuedEvents = events.filter(e => e.compareSlot === -1)
-      if (queuedEvents.length > 0) {
-        const nextInQueue = queuedEvents[0] // Get first in queue
-        const newSlot = remainingCompareEvents.length
-        if (newSlot < 4) {
+      // If there are queued events of the same type, promote the first one to fill the gap
+      const queuedEventsOfType = events.filter(e => e.compareSlot === -1 && e.type === event.type)
+      if (queuedEventsOfType.length > 0) {
+        const nextInQueue = queuedEventsOfType[0] // Get first in queue of same type
+        const newSlot = slotRange.start + remainingCompareEvents.length
+        if (newSlot <= slotRange.end) {
           await onSetCompareSlot(nextInQueue.id, newSlot)
         }
       }
@@ -398,6 +414,57 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
     }
   }, [events, onSetCompareSlot])
 
+  const handleRemoveFromCompare = useCallback(async (eventId: string) => {
+    // Find the event to get its type
+    const event = events.find(e => e.id === eventId)
+    if (!event || !event.compareSlot || event.compareSlot < 0) return
+
+    // Use the same logic as handleMoveToQueue but without moving to queue
+    await onSetCompareSlot(event.id, undefined)
+
+    // Get slot range for this event type
+    const getSlotRange = (eventType: string) => {
+      switch (eventType) {
+        case 'network': return { start: 0, end: 3 }
+        case 'console': return { start: 10, end: 13 }
+        case 'token': return { start: 20, end: 23 }
+        default: return { start: 0, end: 3 }
+      }
+    }
+
+    const slotRange = getSlotRange(event.type)
+
+    // Compact remaining slots to remove gaps within the type's range
+    const viewportEvents = visualizationData.shouldShowCards ?
+      visualizationData.individualEvents :
+      visualizationData.densityClusters.flatMap(cluster => cluster.events)
+
+    const remainingCompareEvents = viewportEvents.filter(e =>
+      e.compareSlot !== undefined && 
+      e.compareSlot >= slotRange.start && 
+      e.compareSlot <= slotRange.end && 
+      e.id !== event.id
+    ).sort((a, b) => (a.compareSlot || 0) - (b.compareSlot || 0))
+
+    // Reassign consecutive slot numbers within the type's range
+    for (let i = 0; i < remainingCompareEvents.length; i++) {
+      const expectedSlot = slotRange.start + i
+      if (remainingCompareEvents[i].compareSlot !== expectedSlot) {
+        await onSetCompareSlot(remainingCompareEvents[i].id, expectedSlot)
+      }
+    }
+
+    // If there are queued events of the same type, promote the first one to fill the gap
+    const queuedEventsOfType = events.filter(e => e.compareSlot === -1 && e.type === event.type)
+    if (queuedEventsOfType.length > 0) {
+      const nextInQueue = queuedEventsOfType[0] // Get first in queue of same type
+      const newSlot = slotRange.start + remainingCompareEvents.length
+      if (newSlot <= slotRange.end) {
+        await onSetCompareSlot(nextInQueue.id, newSlot)
+      }
+    }
+  }, [events, visualizationData, onSetCompareSlot])
+
   // Get bookmarked events for sidebar
   const bookmarkedEvents = events.filter(e => e.isBookmarked)
 
@@ -480,7 +547,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
           <CompareView
             events={activeCompareEvents}
             onClose={() => setShowCompareView(false)}
-            onRemoveFromCompare={(eventId: string) => onSetCompareSlot(eventId, undefined)}
+            onRemoveFromCompare={handleRemoveFromCompare}
           />
         )}
       </div>
@@ -491,7 +558,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
         compareEvents={activeCompareEvents}
         compareQueue={queuedCompareEvents}
         onBookmarkRemove={(eventId: string) => onBookmarkEvent(eventId, false)}
-        onCompareRemove={(eventId: string) => onSetCompareSlot(eventId, undefined)}
+        onCompareRemove={handleRemoveFromCompare}
         onMoveFromQueue={handleMoveFromQueue}
         onMoveToQueue={handleMoveToQueue}
         onShowCompareView={() => setShowCompareView(true)}
