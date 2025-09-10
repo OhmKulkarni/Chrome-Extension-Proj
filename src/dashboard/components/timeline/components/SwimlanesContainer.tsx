@@ -138,6 +138,38 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   }, [])
 
   const handleAddToCompare = useCallback(async (event: TimelineEvent) => {
+    // Check if event is already in compare (either in active slots or queued)
+    if (event.compareSlot !== undefined && event.compareSlot >= -1) {
+      // Event is already in compare, remove it
+      const removedSlot = event.compareSlot
+      await onSetCompareSlot(event.id, undefined)
+      
+      // If it was queued, also remove from queue state
+      if (event.compareSlot === -1) {
+        setCompareQueue(prev => prev.filter(e => e.id !== event.id))
+        return
+      }
+
+      // Compact slots to remove gaps (e.g., if slot 1 is removed, move slot 2->1, slot 3->2)
+      if (removedSlot >= 0) {
+        const viewportEvents = visualizationData.shouldShowCards ?
+          visualizationData.individualEvents :
+          visualizationData.densityClusters.flatMap(cluster => cluster.events)
+
+        const remainingCompareEvents = viewportEvents.filter(e =>
+          e.compareSlot !== undefined && e.compareSlot >= 0 && e.compareSlot <= 3 && e.id !== event.id
+        ).sort((a, b) => (a.compareSlot || 0) - (b.compareSlot || 0))
+
+        // Reassign consecutive slot numbers
+        for (let i = 0; i < remainingCompareEvents.length; i++) {
+          if (remainingCompareEvents[i].compareSlot !== i) {
+            await onSetCompareSlot(remainingCompareEvents[i].id, i)
+          }
+        }
+      }
+      return
+    }
+
     // Get the viewport-filtered events for compare calculation
     const viewportEvents = visualizationData.shouldShowCards ?
       visualizationData.individualEvents :
