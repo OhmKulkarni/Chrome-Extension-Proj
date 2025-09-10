@@ -1017,6 +1017,51 @@ export class MessageRouterSimpleModule {
           }
           break;
 
+        case 'deleteConsoleError':
+          try {
+            if (!message.id) {
+              sendResponse({ success: false, error: 'Console error ID is required' });
+              break;
+            }
+            await this.consoleHandler.deleteConsoleError(message.id);
+            console.log('🗑️ MessageRouter: Deleted console error:', message.id);
+            sendResponse({ success: true });
+          } catch (error) {
+            console.error('MessageRouter: Failed to delete console error:', error);
+            sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to delete console error' });
+          }
+          break;
+
+        case 'deleteNetworkRequest':
+          try {
+            if (!message.id) {
+              sendResponse({ success: false, error: 'Network request ID is required' });
+              break;
+            }
+            await this.networkProcessor.deleteNetworkRequest(message.id);
+            console.log('🗑️ MessageRouter: Deleted network request:', message.id);
+            sendResponse({ success: true });
+          } catch (error) {
+            console.error('MessageRouter: Failed to delete network request:', error);
+            sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to delete network request' });
+          }
+          break;
+
+        case 'deleteTokenEvent':
+          try {
+            if (!message.id) {
+              sendResponse({ success: false, error: 'Token event ID is required' });
+              break;
+            }
+            await this.tokenTracker.deleteTokenEvent(message.id);
+            console.log('🗑️ MessageRouter: Deleted token event:', message.id);
+            sendResponse({ success: true });
+          } catch (error) {
+            console.error('MessageRouter: Failed to delete token event:', error);
+            sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to delete token event' });
+          }
+          break;
+
         default:
           console.warn(`📬 MessageRouterModule: Unknown action: ${action}`);
           sendResponse({ success: false, error: `Unknown action: ${action}` });

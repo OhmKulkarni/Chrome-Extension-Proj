@@ -46,6 +46,101 @@ export const RequestDetailContent: React.FC<{
     }
   };
 
+  const formatRequestDetailsOnly = (request: any) => {
+    const parseSize = (value: any): number => {
+      if (value === null || value === undefined) return 0;
+      const parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
+      return isNaN(parsed) || parsed < 0 ? 0 : parsed;
+    };
+
+    const formatSize = (bytes: number): string =>
+      bytes > 0 ? `${(bytes / 1024).toFixed(2)}KB (${bytes} bytes)` : '0KB (0 bytes)';
+
+    // Calculate sizes the same way as displayed
+    const payloadSize = parseSize(request.payload_size);
+    const requestSize = parseSize(request.requestSize || request.request_size);
+    const responseSize = parseSize(request.responseSize || request.response_size);
+
+    // Calculate stored sizes (same logic as UI)
+    const calculateStoredSize = () => {
+      let storedRequestSize = 0;
+      let storedResponseSize = 0;
+      let storedHeaderSize = 0;
+
+      const requestBody = request.requestBody || request.request_body;
+      const responseBody = request.responseBody || request.response_body;
+
+      if (requestBody && typeof requestBody === 'string') {
+        storedRequestSize = new Blob([requestBody]).size;
+      }
+
+      if (responseBody && typeof responseBody === 'string') {
+        storedResponseSize = new Blob([responseBody]).size;
+      }
+
+      // Add header size (same calculation as stored size column)
+      if (request.headers) {
+        try {
+          const headerStr = typeof request.headers === 'string' ? request.headers : JSON.stringify(request.headers);
+          storedHeaderSize = new Blob([headerStr]).size;
+        } catch (e) {
+          // Ignore header size calculation errors
+        }
+      }
+
+      return {
+        storedRequestSize,
+        storedResponseSize,
+        storedHeaderSize,
+        totalStored: storedRequestSize + storedResponseSize + storedHeaderSize
+      };
+    };
+
+    const { storedRequestSize, storedResponseSize, storedHeaderSize, totalStored } = calculateStoredSize();
+
+    const details = {
+      method: request.method || 'N/A',
+      url: request.url || 'N/A',
+      status: request.status || 'N/A',
+
+      // Size breakdown (only if available) - matching the exact display logic
+      ...(payloadSize > 0 || requestSize > 0 || responseSize > 0) && {
+        sizeBreakdown: {
+          // Original size section
+          originalSize: {
+            ...(payloadSize > 0) && { total: formatSize(payloadSize) },
+            ...(requestSize > 0) && { request: formatSize(requestSize) },
+            ...(responseSize > 0) && { response: formatSize(responseSize) }
+          },
+          // Stored size section (only if there's stored data)
+          ...(totalStored > 0) && {
+            storedSize: {
+              totalStored: formatSize(totalStored),
+              ...(storedRequestSize > 0) && { requestStored: formatSize(storedRequestSize) },
+              ...(storedResponseSize > 0) && { responseStored: formatSize(storedResponseSize) },
+              ...(storedHeaderSize > 0) && { headersStored: formatSize(storedHeaderSize) }
+            }
+          },
+          // Include the tip message that appears in the UI
+          ...(totalStored > 0) && {
+            tip: "Bodies are truncated to prevent memory issues. Default limit is 50KB per request/response."
+          }
+        }
+      },
+
+      // Response time (only if available)
+      ...(request.response_time) && { responseTime: `${request.response_time}ms` },
+
+      // Timestamp (formatted as displayed)
+      timestamp: new Date(request.timestamp).toLocaleString(),
+
+      // Tab ID (only if available)
+      ...(request.tab_id) && { tabId: request.tab_id }
+    };
+
+    return JSON.stringify(details, null, 2);
+  };
+
   if (selectedField === 'details') {
     return (
       <div className="space-y-4">
@@ -53,7 +148,7 @@ export const RequestDetailContent: React.FC<{
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-gray-900">Request Details</h3>
             <button
-              onClick={() => copyToClipboard(JSON.stringify(request, null, 2))}
+              onClick={() => copyToClipboard(formatRequestDetailsOnly(request))}
               className="copy-button text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
             >
               Copy All
@@ -658,20 +753,7 @@ export const RequestDetailContent: React.FC<{
                 >
                   Copy
                 </button>
-                {requestBody && (typeof requestBody === 'string' ? requestBody.length : JSON.stringify(requestBody).length) > 1000 && (
-                  <button
-                    onClick={() => {
-                      const content = typeof requestBody === 'string' ? prettyPrintIfJson(requestBody) : formatJSON(requestBody);
-                      const newWindow = window.open('', '_blank');
-                      if (newWindow) {
-                        newWindow.document.write(`<pre style="white-space: pre-wrap; word-wrap: break-word; font-family: monospace; padding: 20px;">${content}</pre>`);
-                      }
-                    }}
-                    className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
-                  >
-                    View Full
-                  </button>
-                )}
+
               </div>
             </div>
             <div className="bg-gray-900 rounded-lg p-4">
@@ -708,20 +790,7 @@ export const RequestDetailContent: React.FC<{
                 >
                   Copy
                 </button>
-                {responseBody && (typeof responseBody === 'string' ? responseBody.length : JSON.stringify(responseBody).length) > 1000 && (
-                  <button
-                    onClick={() => {
-                      const content = typeof responseBody === 'string' ? prettyPrintIfJson(responseBody) : formatJSON(responseBody);
-                      const newWindow = window.open('', '_blank');
-                      if (newWindow) {
-                        newWindow.document.write(`<pre style="white-space: pre-wrap; word-wrap: break-word; font-family: monospace; padding: 20px;">${content}</pre>`);
-                      }
-                    }}
-                    className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
-                  >
-                    View Full
-                  </button>
-                )}
+
               </div>
             </div>
 
@@ -1292,6 +1361,19 @@ export const ErrorDetailContent: React.FC<{
     });
   };
 
+  const formatConsoleErrorDetailsOnly = (error: any) => {
+    const details = {
+      message: error.message || 'N/A',
+      ...(error.url) && { url: error.url },
+      ...(error.line) && { line: error.line },
+      ...(error.column) && { column: error.column },
+      ...(error.severity) && { severity: error.severity },
+      timestamp: new Date(error.timestamp).toLocaleString()
+    };
+    
+    return JSON.stringify(details, null, 2);
+  };
+
   if (selectedField === 'details') {
     return (
       <div className="space-y-4">
@@ -1299,7 +1381,7 @@ export const ErrorDetailContent: React.FC<{
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-gray-900">Error Details</h3>
             <button
-              onClick={() => copyToClipboard(JSON.stringify(error, null, 2))}
+              onClick={() => copyToClipboard(formatConsoleErrorDetailsOnly(error))}
               className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
             >
               Copy All
@@ -1782,6 +1864,26 @@ export const TokenDetailContent: React.FC<{
     return hash.substring(0, 8); // Show first 8 characters like git
   };
 
+  const formatTokenEventDetailsOnly = (tokenEvent: any) => {
+    const details = {
+      ...(tokenEvent.url) && { url: tokenEvent.url },
+      ...(tokenEvent.method || tokenEvent.request_method) && { 
+        method: tokenEvent.method || tokenEvent.request_method 
+      },
+      ...(tokenEvent.status || tokenEvent.response_status) && { 
+        status: tokenEvent.status || tokenEvent.response_status 
+      },
+      ...(tokenEvent.valueHash || tokenEvent.value_hash) && { 
+        valueHash: tokenEvent.valueHash || tokenEvent.value_hash 
+      },
+      ...(tokenEvent.timestamp) && { 
+        timestamp: new Date(tokenEvent.timestamp).toLocaleString() 
+      }
+    };
+    
+    return JSON.stringify(details, null, 2);
+  };
+
   if (selectedField === 'details') {
     return (
       <div className="space-y-4">
@@ -1789,7 +1891,7 @@ export const TokenDetailContent: React.FC<{
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-gray-900">Token Event Details</h3>
             <button
-              onClick={() => copyToClipboard(JSON.stringify(tokenEvent, null, 2))}
+              onClick={() => copyToClipboard(formatTokenEventDetailsOnly(tokenEvent))}
               className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
             >
               Copy All

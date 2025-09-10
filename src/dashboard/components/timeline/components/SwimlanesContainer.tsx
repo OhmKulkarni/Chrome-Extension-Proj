@@ -32,6 +32,8 @@ interface SwimlanesContainerProps {
   isAnimating?: boolean
   sidebarCollapsed?: boolean
   onToggleSidebarCollapsed?: () => void
+  highlightedEventId?: string | null
+  onEventClick?: (eventId: string) => void
 }
 
 export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
@@ -51,7 +53,9 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   debugMode = false,
   isAnimating = false,
   sidebarCollapsed = false,
-  onToggleSidebarCollapsed
+  onToggleSidebarCollapsed,
+  highlightedEventId = null,
+  onEventClick
 }) => {
   const [selectedCluster, setSelectedCluster] = useState<TimelineCluster | null>(null)
   const [selectedDensityCluster, setSelectedDensityCluster] = useState<DensityCluster | null>(null)
@@ -417,7 +421,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   const handleRemoveFromCompare = useCallback(async (eventId: string) => {
     // Find the event to get its type
     const event = events.find(e => e.id === eventId)
-    if (!event || !event.compareSlot || event.compareSlot < 0) return
+    if (!event || event.compareSlot === undefined || event.compareSlot < 0) return
 
     // Use the same logic as handleMoveToQueue but without moving to queue
     await onSetCompareSlot(event.id, undefined)
@@ -524,6 +528,8 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
               viewport={viewport}
               debugMode={debugMode}
               viewedTrackingSettings={viewedTrackingSettings}
+              highlightedEventId={highlightedEventId}
+              onHighlightedEventClick={onEventClick}
             />
           ))}
 

@@ -96,6 +96,9 @@ const DecomposedDashboard: React.FC = () => {
   // Main view state - controls what's displayed in the main content area
   const [mainView, setMainView] = useState<'dataTables' | 'statisticsDashboard' | 'settings' | 'timeline'>('dataTables');
 
+  // Timeline navigation state - stores event to focus on when switching to timeline
+  const [focusedTimelineEvent, setFocusedTimelineEvent] = useState<{id: string, type: 'network' | 'console' | 'token', data: any} | null>(null);
+
   // Table carousel state
   const [activeTable, setActiveTable] = useState<'network' | 'errors' | 'tokens'>('network');
 
@@ -719,6 +722,45 @@ const DecomposedDashboard: React.FC = () => {
       setMainView(newView);
     }
   }, [mainView]);
+
+  // Navigate to timeline view and focus on specific event
+  const handleViewInTimeline = useCallback((item: any, type: 'network' | 'console' | 'token') => {
+    // Convert timestamp to number to match TimelineService logic
+    let timestamp: number;
+    if (typeof item.timestamp === 'number') {
+      timestamp = item.timestamp;
+    } else if (typeof item.timestamp === 'string') {
+      timestamp = new Date(item.timestamp).getTime();
+    } else if (item.timestamp instanceof Date) {
+      timestamp = item.timestamp.getTime();
+    } else {
+      timestamp = Date.now();
+    }
+
+    // Generate timeline event ID using the same logic as TimelineService
+    let timelineId: string;
+    switch (type) {
+      case 'network':
+        timelineId = `network_${item.id || item.url || Date.now()}_${timestamp}`;
+        break;
+      case 'console':
+        timelineId = `console_${item.id || item.message || Date.now()}_${timestamp}`;
+        break;
+      case 'token':
+        timelineId = `token_${item.id || item.type || Date.now()}_${timestamp}`;
+        break;
+      default:
+        timelineId = `${type}_${Date.now()}_${timestamp}`;
+    }
+
+    // Store the event to focus on
+    setFocusedTimelineEvent({ id: timelineId, type, data: item });
+
+    // Navigate to timeline view
+    setMainView('timeline');
+
+    console.log('Navigating to timeline with focus on:', { timelineId, type, item });
+  }, []);
 
   // Enhanced detail viewer functions for drag-up modal
   const openDetailViewer = useCallback((item: any, type: 'request' | 'error' | 'token') => {
@@ -1374,6 +1416,7 @@ const DecomposedDashboard: React.FC = () => {
             onMethodFilterChange={handleNetworkFilterMethodChange}
             onDetailClick={(request) => openDetailViewer(request, 'request')}
             selectedRequest={expandedItemType === 'request' ? expandedItem : null}
+            onViewInTimeline={(request) => handleViewInTimeline(request, 'network')}
           />
         );
 
@@ -1395,6 +1438,7 @@ const DecomposedDashboard: React.FC = () => {
             onSeverityFilterChange={handleErrorFilterSeverityChange}
             onDetailClick={(error) => openDetailViewer(error, 'error')}
             selectedError={expandedItemType === 'error' ? expandedItem : null}
+            onViewInTimeline={(error) => handleViewInTimeline(error, 'console')}
           />
         );
 
@@ -1418,6 +1462,7 @@ const DecomposedDashboard: React.FC = () => {
             showFullTokenHash={showFullTokenHash}
             onToggleTokenHash={() => setShowFullTokenHash(!showFullTokenHash)}
             selectedToken={expandedItemType === 'token' ? expandedItem : null}
+            onViewInTimeline={(event) => handleViewInTimeline(event, 'token')}
           />
         );
 
@@ -1505,7 +1550,7 @@ const DecomposedDashboard: React.FC = () => {
         return (
           <div className="w-full transform transition-all duration-500 ease-in-out opacity-100 translate-y-0">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 h-full">
-              <TimelineVisualization />
+              <TimelineVisualization focusedEventId={focusedTimelineEvent?.id} />
             </div>
           </div>
         );

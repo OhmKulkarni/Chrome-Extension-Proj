@@ -1,4 +1,5 @@
 import React from 'react';
+import { storageService } from '../../utils/storage-service';
 
 interface ConsoleError {
   id: string;
@@ -27,6 +28,8 @@ interface ConsoleErrorsTableProps {
   onSeverityFilterChange: (severity: string) => void;
   onDetailClick: (error: ConsoleError) => void;
   selectedError?: ConsoleError | null;
+  onViewInTimeline?: (error: ConsoleError) => void;
+  onDelete?: (id: string) => void;
 }
 
 export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
@@ -44,7 +47,9 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
   filterSeverity,
   onSeverityFilterChange,
   onDetailClick,
-  selectedError
+  selectedError,
+  onViewInTimeline,
+  onDelete
 }) => {
   const indexOfLastError = currentPage * errorsPerPage;
   const indexOfFirstError = indexOfLastError - errorsPerPage;
@@ -52,6 +57,26 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
   const clearFilters = () => {
     onSearchChange('');
     onSeverityFilterChange('all');
+  };
+
+  const handleDelete = async (error: ConsoleError) => {
+    try {
+      // Delete from IndexedDB
+      const numericId = parseInt(error.id);
+      if (isNaN(numericId)) {
+        console.error('Invalid ID format - cannot parse to number:', error.id);
+        return;
+      }
+
+      await storageService.deleteConsoleError(numericId);
+
+      // Notify parent component
+      if (onDelete) {
+        onDelete(error.id);
+      }
+    } catch (error) {
+      console.error('Failed to delete console error:', error);
+    }
   };
 
   // Helper function to check if an error is selected
@@ -247,6 +272,9 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                       )}
                     </div>
                   </th>
+                  <th className="w-24 px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -283,6 +311,36 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                     </td>
                     <td className="w-24 px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(error.timestamp).toLocaleTimeString()}
+                    </td>
+                    <td className="w-24 px-6 py-4 whitespace-nowrap text-center">
+                      <div className="flex items-center justify-center space-x-1">
+                        {onViewInTimeline && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onViewInTimeline(error);
+                            }}
+                            className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors duration-200"
+                            title="View this error in the timeline"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(error);
+                          }}
+                          className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors duration-200"
+                          title="Delete this error"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                   );

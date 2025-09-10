@@ -6,11 +6,21 @@ import { useTimelineData } from './hooks/useTimelineData'
 import { useViewport } from './hooks/useViewport'
 import { useTimelineVisualization } from './hooks/useTimelineVisualization'
 import { SwimLaneConfig, DEFAULT_SWIMLANES } from './types/timeline.types'
-export const TimelineVisualization: React.FC = () => {
+
+interface TimelineVisualizationProps {
+  focusedEventId?: string;
+}
+
+export const TimelineVisualization: React.FC<TimelineVisualizationProps> = ({ focusedEventId }) => {
+  // State to track highlighted event (glowing until clicked)
+  const [highlightedEventId, setHighlightedEventId] = useState<string | null>(null);
   const [swimlanes, setSwimlanes] = useState<SwimLaneConfig[]>(DEFAULT_SWIMLANES)
   const [debugMode, setDebugMode] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [showAllTimeModal, setShowAllTimeModal] = useState(false)
+
+  // Track the last processed focusedEventId to prevent infinite loops
+  const lastProcessedEventIdRef = React.useRef<string | null>(null)
 
   // Initialize viewport with default settings first
   const viewport = useViewport({ initialScope: '1-hour' })
@@ -56,7 +66,59 @@ export const TimelineVisualization: React.FC = () => {
     ))
   }
 
-  // Check for updates periodically - TEMPORARILY DISABLED
+  // Handle focusing on a specific event when navigated from data tables
+  useEffect(() => {
+    // Only proceed if we have a new focusedEventId that we haven't processed yet
+    if (focusedEventId &&
+        focusedEventId !== lastProcessedEventIdRef.current &&
+        !timelineData.loading &&
+        timelineData.events &&
+        timelineData.events.length > 0) {
+
+      // Mark this event ID as being processed
+      lastProcessedEventIdRef.current = focusedEventId
+
+      // First try exact ID match
+      let targetEvent = timelineData.events.find(event => event.id === focusedEventId)
+
+      if (!targetEvent) {
+        // If no exact match, try to find by timestamp and type
+        const idParts = focusedEventId.split('_')
+        if (idParts.length >= 3) {
+          const eventType = idParts[0]
+          const timestamp = parseInt(idParts[idParts.length - 1])
+
+          if (!isNaN(timestamp)) {
+            // Find event by type and timestamp (within 100ms tolerance)
+            targetEvent = timelineData.events.find(event =>
+              event.type === eventType &&
+              Math.abs(event.timestamp - timestamp) <= 100
+            )
+          }
+        }
+      }
+
+      if (targetEvent) {
+        const targetTime = targetEvent.timestamp
+
+        // Set timeline to 1-minute scope and center on the event in one smooth operation
+        // Use jumpToTime which handles both scope and timing properly
+        viewport.jumpToTime(targetTime, '1-minute')
+
+        // Set the event to be highlighted after a short delay to ensure viewport has settled
+        setTimeout(() => {
+          setHighlightedEventId(focusedEventId)
+        }, 150)
+
+        console.log(`Timeline focused on event: ${focusedEventId} at ${new Date(targetTime).toLocaleString()}`)
+      } else {
+        console.warn(`Timeline could not find event with ID: ${focusedEventId}`)
+        console.log('Available events:', timelineData.events.map(e => ({ id: e.id, type: e.type, timestamp: e.timestamp })))
+      }
+    } else if (focusedEventId && timelineData.loading) {
+      console.log('Timeline waiting for data to load before focusing...')
+    }
+  }, [focusedEventId, timelineData.events, timelineData.loading])  // Check for updates periodically - TEMPORARILY DISABLED
   useEffect(() => {
     // const interval = setInterval(() => {
     //   timelineData.checkForUpdates()
@@ -81,7 +143,7 @@ export const TimelineVisualization: React.FC = () => {
   }, [debugMode])
 
   return (
-    <div className="h-full flex flex-col bg-gray-50">
+    <div className="h-full flex flex-col bg-gray-50 rounded-lg overflow-hidden border border-gray-200 shadow-sm">
       <TimelineHeaderNew
         currentScope={viewport.currentScope}
         centerTime={viewport.centerTime}
@@ -143,6 +205,8 @@ export const TimelineVisualization: React.FC = () => {
               isAnimating={viewport.isAnimating}
               sidebarCollapsed={sidebarCollapsed}
               onToggleSidebarCollapsed={() => setSidebarCollapsed(!sidebarCollapsed)}
+              highlightedEventId={highlightedEventId}
+              onEventClick={(_eventId: string) => setHighlightedEventId(null)}
             />
 
             {/* Subtle overlay message when no events are visible */}

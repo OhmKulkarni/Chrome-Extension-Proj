@@ -20,6 +20,8 @@ interface SwimlaneProps {
   viewport: any
   debugMode?: boolean
   viewedTrackingSettings?: ViewedTrackingSettings
+  highlightedEventId?: string | null
+  onHighlightedEventClick?: (eventId: string) => void
 }
 
 export interface EventLayerItem {
@@ -44,7 +46,9 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
   zoomLevel,
   viewport,
   debugMode = false,
-  viewedTrackingSettings
+  viewedTrackingSettings,
+  highlightedEventId = null,
+  onHighlightedEventClick
 }) => {
   const [scrollPosition, setScrollPosition] = useState(0)
   const [showScrollControls, setShowScrollControls] = useState(false)
@@ -414,6 +418,8 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
                           isStacked={eventLayers.length > 1}
                           onHoverChange={handleEventHover}
                           viewedTrackingSettings={viewedTrackingSettings}
+                          isHighlighted={highlightedEventId === event.id}
+                          onHighlightClick={onHighlightedEventClick}
                         />
                       </div>
                     ))}

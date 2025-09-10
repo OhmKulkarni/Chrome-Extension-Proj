@@ -70,6 +70,36 @@ export class StorageService {
   }
 
   /**
+   * Delete a console error by ID
+   */
+  async deleteConsoleError(id: number): Promise<void> {
+    await this.sendMessage({
+      action: 'deleteConsoleError',
+      id
+    });
+  }
+
+  /**
+   * Delete a network request by ID
+   */
+  async deleteNetworkRequest(id: number): Promise<void> {
+    await this.sendMessage({
+      action: 'deleteNetworkRequest',
+      id
+    });
+  }
+
+  /**
+   * Delete a token event by ID
+   */
+  async deleteTokenEvent(id: number): Promise<void> {
+    await this.sendMessage({
+      action: 'deleteTokenEvent',
+      id
+    });
+  }
+
+  /**
    * Send message to background script with retry logic
    */
   private async sendMessage(message: any): Promise<any> {
