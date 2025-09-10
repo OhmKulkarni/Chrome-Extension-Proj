@@ -90,6 +90,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
           <TokenDetailContent
             tokenEvent={event.data}
             selectedField={selectedField}
+            showFullTokenHash={true}
             settings={{}}
           />
         )
@@ -103,17 +104,32 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   }
 
   const getAvailableFields = () => {
-    const commonFields = ['details']
-
     switch (event.type) {
       case 'network':
-        return [...commonFields, 'headers', 'request', 'response', 'timing']
+        return ['details', 'headers', 'body', 'rawjson']
       case 'console':
-        return [...commonFields, 'stack', 'context']
+        return ['details', 'stack']
       case 'token':
-        return [...commonFields, 'payload', 'context']
+        return ['details', 'rawjson']
       default:
-        return commonFields
+        return ['details']
+    }
+  }
+
+  const getFieldDisplayName = (field: string) => {
+    switch (field) {
+      case 'rawjson':
+        return 'Raw JSON'
+      case 'body':
+        return 'Body'
+      case 'headers':
+        return 'Headers'
+      case 'stack':
+        return 'Stack'
+      case 'details':
+        return 'Details'
+      default:
+        return field.charAt(0).toUpperCase() + field.slice(1)
     }
   }
 
@@ -197,7 +213,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
                       : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
-                  {field.charAt(0).toUpperCase() + field.slice(1)}
+                  {getFieldDisplayName(field)}
                 </button>
               ))}
             </nav>
