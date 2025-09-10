@@ -121,14 +121,13 @@ export const TIME_SCOPES: TimeScope[] = [
   // Weeks and Months - Very low zoom levels (maximum clustering)
   { key: '2-weeks', label: '2 Weeks', duration: 14 * 24 * 60 * 60 * 1000, zoomLevel: -6 },
   { key: '3-weeks', label: '3 Weeks', duration: 21 * 24 * 60 * 60 * 1000, zoomLevel: -7 },
-  { key: '4-weeks', label: '4 Weeks', duration: 28 * 24 * 60 * 60 * 1000, zoomLevel: -8 },
-  { key: '1-month', label: '1 Month', duration: 30 * 24 * 60 * 60 * 1000, zoomLevel: -9 },
-  { key: '3-months', label: '3 Months', duration: 90 * 24 * 60 * 60 * 1000, zoomLevel: -10 },
-  { key: '6-months', label: '6 Months', duration: 180 * 24 * 60 * 60 * 1000, zoomLevel: -11 },
-  { key: '12-months', label: '12 Months', duration: 365 * 24 * 60 * 60 * 1000, zoomLevel: -12 },
+  { key: '1-month', label: '1 Month', duration: 30 * 24 * 60 * 60 * 1000, zoomLevel: -8 },
+  { key: '3-months', label: '3 Months', duration: 90 * 24 * 60 * 60 * 1000, zoomLevel: -9 },
+  { key: '6-months', label: '6 Months', duration: 180 * 24 * 60 * 60 * 1000, zoomLevel: -10 },
+  { key: '12-months', label: '12 Months', duration: 365 * 24 * 60 * 60 * 1000, zoomLevel: -11 },
 
   // Special all-time scope - opens modal overview instead of viewport
-  { key: 'all-time', label: 'All Time', duration: 0, zoomLevel: -15 } // Opens modal, not viewport
+  { key: 'all-time', label: 'All Time', duration: 0, zoomLevel: -12 } // Opens modal, not viewport
 ]
 
 export const DEFAULT_SWIMLANES: SwimLaneConfig[] = [

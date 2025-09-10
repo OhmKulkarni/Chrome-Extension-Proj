@@ -108,7 +108,6 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
     { value: '1-week', label: '1 Week' },
     { value: '2-weeks', label: '2 Weeks' },
     { value: '3-weeks', label: '3 Weeks' },
-    { value: '4-weeks', label: '4 Weeks' },
     { value: '1-month', label: '1 Month' },
     { value: '3-months', label: '3 Months' },
     { value: '6-months', label: '6 Months' },
