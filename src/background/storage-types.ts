@@ -105,6 +105,9 @@ export interface StorageOperations {
   getApiCallsFast?(limit?: number): Promise<ApiCall[]> // Optimized for performance testing
   deleteApiCall(id: number): Promise<void>
 
+  // Network Requests (alias for API calls)
+  deleteNetworkRequest(id: number): Promise<void>
+
   // Console Errors
   insertConsoleError(data: Omit<ConsoleError, 'id'>): Promise<number>
   getConsoleErrors(limit?: number, offset?: number): Promise<ConsoleError[]>

@@ -31,6 +31,7 @@ export interface TokenEndpoints {
 // ===== NETWORK SYSTEM TYPES =====
 
 export interface NetworkRequestData {
+  id?: number; // Database auto-increment ID for deletion
   url: string;
   method: string;
   status: number;

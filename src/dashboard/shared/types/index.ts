@@ -12,7 +12,7 @@ export interface DashboardData {
 }
 
 export interface NetworkRequest {
-  id?: string;
+  id?: number; // Database auto-increment ID for deletion
   method: string;
   url: string;
   status: number;

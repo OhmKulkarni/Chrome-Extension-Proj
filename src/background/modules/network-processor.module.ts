@@ -506,6 +506,7 @@ export class NetworkProcessorModule {
 
       // Transform IndexedDB ApiCall format to NetworkRequestData format for compatibility
       return apiCalls.map(apiCall => ({
+        id: apiCall.id, // CRITICAL: Include the database ID for deletion
         url: apiCall.url,
         method: apiCall.method,
         status: apiCall.status,
@@ -1030,5 +1031,17 @@ export class NetworkProcessorModule {
       console.warn('NetworkProcessorModule: Error in shouldGroupUnderParentDomain:', error);
       return false;
     }
+  }
+
+  /**
+   * Delete a network request by ID
+   */
+  async deleteNetworkRequest(id: number): Promise<void> {
+    return this.executeWithSafety('deleteNetworkRequest', async () => {
+      await this.indexedDbStorage.deleteNetworkRequest(id);
+
+      // Send notification to dashboard that data was updated
+      this.sendDataUpdatedNotification('network');
+    });
   }
 }

@@ -171,6 +171,10 @@ export class EnvironmentStorageManager implements StorageOperations {
     return this.ensureInitialized().deleteConsoleError(id)
   }
 
+  async deleteNetworkRequest(id: number): Promise<void> {
+    return this.ensureInitialized().deleteNetworkRequest(id)
+  }
+
   async getTokenEvents(limit: number = 100, offset?: number): Promise<TokenEvent[]> {
     return this.ensureInitialized().getTokenEvents(limit, offset)
   }

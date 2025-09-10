@@ -833,6 +833,11 @@ export class IndexedDBStorage implements StorageOperations {
     )
   }
 
+  async deleteNetworkRequest(id: number): Promise<void> {
+    // Network requests are stored as apiCalls
+    return this.deleteApiCall(id)
+  }
+
   // Fast query method optimized for performance testing
   async getApiCallsFast(limit = 10): Promise<ApiCall[]> {
     if (!this.db) throw new Error('Database not initialized')

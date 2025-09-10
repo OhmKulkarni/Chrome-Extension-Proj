@@ -502,7 +502,7 @@ export class TokenTrackerModule {
       const tokenPrefixes = ['hf_', 'sk-', 'ghp_', 'gho_', 'ghu_', 'ghs_'];
       const slackPrefixes = ['xoxb' + '-', 'xoxp' + '-']; // Slack bot/user tokens (split to avoid detection)
       const allPrefixes = [...tokenPrefixes, ...slackPrefixes];
-      
+
       const hasKnownTokenPrefix = allPrefixes.some(prefix =>
         authValue.includes(`Bearer ${prefix}`) || authValue.includes(prefix)
       );
@@ -865,6 +865,34 @@ export class TokenTrackerModule {
     }
 
     throw lastError || new Error(`TokenTrackerModule: Unknown error in ${operation}`);
+  }
+
+  /**
+   * Delete a token event by ID
+   */
+  async deleteTokenEvent(id: number): Promise<void> {
+    return this.executeWithSafety('deleteTokenEvent', async () => {
+      await this.indexedDbStorage.deleteTokenEvent(id);
+
+      // Send notification to dashboard that data was updated
+      this.sendDataUpdatedNotification('tokens');
+    });
+  }
+
+  /**
+   * Send DATA_UPDATED notification to dashboard
+   */
+  private sendDataUpdatedNotification(dataType: string): void {
+    try {
+      // Use chrome.runtime.sendMessage to notify dashboard
+      (globalThis as any).chrome?.runtime?.sendMessage({
+        type: 'DATA_UPDATED',
+        dataType: dataType
+      });
+    } catch (error) {
+      // Dashboard might not be open, ignore error
+      console.log('📡 TokenTrackerModule: Could not notify dashboard (dashboard closed?):', error);
+    }
   }
 
   /**

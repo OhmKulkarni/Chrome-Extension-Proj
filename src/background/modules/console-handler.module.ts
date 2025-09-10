@@ -448,6 +448,18 @@ export class ConsoleHandlerModule {
   }
 
   /**
+   * Delete a console error by ID
+   */
+  async deleteConsoleError(id: number): Promise<void> {
+    return this.executeWithSafety('deleteConsoleError', async () => {
+      await this.indexedDbStorage.deleteConsoleError(id);
+
+      // Send notification to dashboard that data was updated
+      this.sendDataUpdatedNotification('console');
+    });
+  }
+
+  /**
    * Get module status for debugging
    */
   getStatus(): {
