@@ -422,20 +422,22 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
               )}
             </div>
 
-            {/* Scroll Controls */}
+            {/* Scroll Controls - Maximum z-index to stay above all minicards */}
             {showScrollControls && !shouldCluster && (
-              <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex flex-col space-y-1 z-20">
+              <div className="absolute right-1 top-1/2 transform -translate-y-1/2 flex flex-col space-y-1" style={{ zIndex: 1001 }}>
                 <button
                   onClick={() => handleScroll('up')}
-                  className="p-1 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-50 transition-colors text-xs"
+                  className="p-1.5 bg-white border-2 border-gray-400 rounded shadow-lg hover:bg-gray-50 hover:shadow-xl transition-all text-xs font-semibold text-gray-700"
                   title="Scroll up"
+                  style={{ backdropFilter: 'blur(2px)' }}
                 >
                   ↑
                 </button>
                 <button
                   onClick={() => handleScroll('down')}
-                  className="p-1 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-50 transition-colors text-xs"
+                  className="p-1.5 bg-white border-2 border-gray-400 rounded shadow-lg hover:bg-gray-50 hover:shadow-xl transition-all text-xs font-semibold text-gray-700"
                   title="Scroll down"
+                  style={{ backdropFilter: 'blur(2px)' }}
                 >
                   ↓
                 </button>
