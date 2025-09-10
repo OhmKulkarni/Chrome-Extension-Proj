@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { TimelineEvent } from '../types/timeline.types'
 import { X, Bookmark, GitCompare, Copy, Network, AlertTriangle, Key } from 'lucide-react'
 import { RequestDetailContent, ErrorDetailContent, TokenDetailContent } from '../../../shared/components/DetailedViews'
@@ -17,6 +17,18 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   onAddToCompare
 }) => {
   const [selectedField, setSelectedField] = useState('details')
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
 
   if (!event) return null
 
@@ -116,9 +128,14 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
               <h3 className="text-lg font-semibold text-gray-900 truncate">
                 {getTitle()}
               </h3>
-              <p className="text-sm text-gray-500">
-                {new Date(event.timestamp).toLocaleString()}
-              </p>
+              <div className="flex items-center space-x-4 text-sm text-gray-500">
+                <span>{new Date(event.timestamp).toLocaleString()}</span>
+                {event.swimlane && (
+                  <span className="px-2 py-1 bg-gray-100 rounded-full text-xs">
+                    {event.swimlane.replace(/([A-Z])/g, ' $1').trim()}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -194,8 +211,9 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
 
         {/* Footer */}
         <div className="p-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-          <div className="text-sm text-gray-500">
-            Event ID: {event.id}
+          <div className="flex items-center space-x-4 text-sm text-gray-500">
+            <span>Event ID: {event.id}</span>
+            <span>Press ESC to close</span>
           </div>
           <div className="flex items-center space-x-2">
             {event.compareSlot !== undefined && event.compareSlot >= 0 && (
