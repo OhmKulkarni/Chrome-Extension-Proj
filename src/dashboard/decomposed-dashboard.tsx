@@ -165,7 +165,7 @@ const DecomposedDashboard: React.FC = () => {
       // MEMORY OPTIMIZATION: Enforce reasonable limits
       const MEMORY_LIMIT = 5000; // Max records to load at once
       const actualLimit = Math.min(totalCount, MEMORY_LIMIT);
-      
+
       if (totalCount > MEMORY_LIMIT) {
         console.warn(`⚠️ Memory optimization: Loading ${actualLimit} of ${totalCount} records to prevent memory issues`);
       }
@@ -184,7 +184,7 @@ const DecomposedDashboard: React.FC = () => {
           totalRequests: response.total || response.requests.length
         }))
         console.log(`✅ Loaded ${response.requests.length} total network requests for sorting (${actualLimit}/${totalCount})`)
-        
+
         // MEMORY CLEANUP: Schedule automatic cleanup after 2 minutes of inactivity
         setTimeout(() => {
           if (fullNetworkData.length > 0) {
@@ -193,7 +193,7 @@ const DecomposedDashboard: React.FC = () => {
             setNetworkSortMode(false);
           }
         }, 120000); // 2 minutes
-        
+
         return response.requests
       } else {
         console.warn('⚠️ Failed to load all network requests:', response)
@@ -222,7 +222,7 @@ const DecomposedDashboard: React.FC = () => {
       // MEMORY OPTIMIZATION: Enforce reasonable limits
       const MEMORY_LIMIT = 3000; // Smaller limit for errors (usually more verbose)
       const actualLimit = Math.min(totalCount, MEMORY_LIMIT);
-      
+
       if (totalCount > MEMORY_LIMIT) {
         console.warn(`⚠️ Memory optimization: Loading ${actualLimit} of ${totalCount} error records`);
       }
@@ -241,7 +241,7 @@ const DecomposedDashboard: React.FC = () => {
           totalErrors: response.total || response.errors.length
         }))
         console.log(`✅ Loaded ${response.errors.length} total console errors for sorting (${actualLimit}/${totalCount})`)
-        
+
         // MEMORY CLEANUP: Schedule automatic cleanup
         setTimeout(() => {
           if (fullErrorData.length > 0) {
@@ -250,7 +250,7 @@ const DecomposedDashboard: React.FC = () => {
             setErrorSortMode(false);
           }
         }, 120000); // 2 minutes
-        
+
         return response.errors
       } else {
         console.warn('⚠️ Failed to load all console errors:', response)
@@ -279,7 +279,7 @@ const DecomposedDashboard: React.FC = () => {
       // MEMORY OPTIMIZATION: Enforce reasonable limits
       const MEMORY_LIMIT = 2000; // Even smaller limit for tokens (often contain large payloads)
       const actualLimit = Math.min(totalCount, MEMORY_LIMIT);
-      
+
       if (totalCount > MEMORY_LIMIT) {
         console.warn(`⚠️ Memory optimization: Loading ${actualLimit} of ${totalCount} token records`);
       }
@@ -298,7 +298,7 @@ const DecomposedDashboard: React.FC = () => {
           totalTokenEvents: response.total || response.events.length
         }))
         console.log(`✅ Loaded ${response.events.length} total token events for sorting (${actualLimit}/${totalCount})`)
-        
+
         // MEMORY CLEANUP: Schedule automatic cleanup
         setTimeout(() => {
           if (fullTokenData.length > 0) {
@@ -307,7 +307,7 @@ const DecomposedDashboard: React.FC = () => {
             setTokenSortMode(false);
           }
         }, 120000); // 2 minutes
-        
+
         return response.events
       } else {
         console.warn('⚠️ Failed to load all token events:', response)
@@ -1031,13 +1031,13 @@ const DecomposedDashboard: React.FC = () => {
     setNetworkSortMode(false);
     setErrorSortMode(false);
     setTokenSortMode(false);
-    
+
     // Reset to current page pagination
     loadNetworkRequestsPage(currentPage, requestsPerPage);
     loadConsoleErrorsPage(currentErrorPage, errorsPerPage);
     loadTokenEventsPage(currentTokenPage, tokenEventsPerPage);
-  }, [loadNetworkRequestsPage, loadConsoleErrorsPage, loadTokenEventsPage, 
-      currentPage, requestsPerPage, currentErrorPage, errorsPerPage, 
+  }, [loadNetworkRequestsPage, loadConsoleErrorsPage, loadTokenEventsPage,
+      currentPage, requestsPerPage, currentErrorPage, errorsPerPage,
       currentTokenPage, tokenEventsPerPage]);
 
   // MEMORY MONITORING: Check memory usage and auto-cleanup if needed
@@ -1045,23 +1045,23 @@ const DecomposedDashboard: React.FC = () => {
     const checkMemoryUsage = () => {
       const totalCachedRecords = fullNetworkData.length + fullErrorData.length + fullTokenData.length;
       const estimatedMemoryMB = totalCachedRecords * 0.001; // Rough estimate: 1KB per record
-      
+
       console.log(`📊 Memory usage: ${totalCachedRecords} records (~${estimatedMemoryMB.toFixed(1)}MB cached)`);
-      
+
       // Auto-cleanup if too much data is cached (>10MB estimated)
       if (estimatedMemoryMB > 10) {
         console.warn('⚠️ High memory usage detected, triggering auto-cleanup');
         clearAllFullDataCache();
       }
     };
-    
+
     // Check memory usage every 30 seconds when there's cached data
     const interval = setInterval(() => {
       if (fullNetworkData.length > 0 || fullErrorData.length > 0 || fullTokenData.length > 0) {
         checkMemoryUsage();
       }
     }, 30000);
-    
+
     return () => clearInterval(interval);
   }, [fullNetworkData.length, fullErrorData.length, fullTokenData.length, clearAllFullDataCache]);
 

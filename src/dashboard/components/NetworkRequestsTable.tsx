@@ -598,8 +598,6 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
             <option value="POST">POST</option>
             <option value="PUT">PUT</option>
             <option value="DELETE">DELETE</option>
-            <option value="PATCH">PATCH</option>
-            <option value="OPTIONS">OPTIONS</option>
           </select>
         </div>
 
