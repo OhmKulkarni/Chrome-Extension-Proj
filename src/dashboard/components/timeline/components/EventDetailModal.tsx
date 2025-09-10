@@ -106,9 +106,9 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   const getAvailableFields = () => {
     switch (event.type) {
       case 'network':
-        return ['details', 'headers', 'body', 'rawjson']
+        return ['details', 'headers', 'body', 'performance', 'rawjson']
       case 'console':
-        return ['details', 'stack']
+        return ['details', 'stack', 'message']
       case 'token':
         return ['details', 'rawjson']
       default:
@@ -126,6 +126,10 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
         return 'Headers'
       case 'stack':
         return 'Stack'
+      case 'message':
+        return 'Message'
+      case 'performance':
+        return 'Performance'
       case 'details':
         return 'Details'
       default:
