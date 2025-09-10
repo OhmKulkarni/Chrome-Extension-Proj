@@ -417,7 +417,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   const handleRemoveFromCompare = useCallback(async (eventId: string) => {
     // Find the event to get its type
     const event = events.find(e => e.id === eventId)
-    if (!event || !event.compareSlot || event.compareSlot < 0) return
+    if (!event || event.compareSlot === undefined || event.compareSlot < 0) return
 
     // Use the same logic as handleMoveToQueue but without moving to queue
     await onSetCompareSlot(event.id, undefined)

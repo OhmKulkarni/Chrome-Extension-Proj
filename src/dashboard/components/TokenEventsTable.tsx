@@ -30,6 +30,7 @@ interface TokenEventsTableProps {
   showFullTokenHash: boolean;
   onToggleTokenHash: () => void;
   selectedToken?: TokenEvent | null;
+  onViewInTimeline?: (event: TokenEvent) => void;
 }
 
 export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
@@ -49,7 +50,8 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
   onDetailClick,
   showFullTokenHash,
   onToggleTokenHash,
-  selectedToken
+  selectedToken,
+  onViewInTimeline
 }) => {
   const indexOfLastEvent = currentPage * eventsPerPage;
   const indexOfFirstEvent = indexOfLastEvent - eventsPerPage;
@@ -281,6 +283,9 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                       )}
                     </div>
                   </th>
+                  <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -331,6 +336,23 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-20">
                       {new Date(event.timestamp).toLocaleTimeString()}
+                    </td>
+                    <td className="px-3 py-3 whitespace-nowrap text-center w-24">
+                      {onViewInTimeline && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onViewInTimeline(event);
+                          }}
+                          className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors duration-200"
+                          title="View this token event in the timeline"
+                        >
+                          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                          </svg>
+                          Timeline
+                        </button>
+                      )}
                     </td>
                   </tr>
                   );

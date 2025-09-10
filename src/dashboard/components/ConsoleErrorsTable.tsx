@@ -27,6 +27,7 @@ interface ConsoleErrorsTableProps {
   onSeverityFilterChange: (severity: string) => void;
   onDetailClick: (error: ConsoleError) => void;
   selectedError?: ConsoleError | null;
+  onViewInTimeline?: (error: ConsoleError) => void;
 }
 
 export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
@@ -44,7 +45,8 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
   filterSeverity,
   onSeverityFilterChange,
   onDetailClick,
-  selectedError
+  selectedError,
+  onViewInTimeline
 }) => {
   const indexOfLastError = currentPage * errorsPerPage;
   const indexOfFirstError = indexOfLastError - errorsPerPage;
@@ -247,6 +249,9 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                       )}
                     </div>
                   </th>
+                  <th className="w-24 px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -283,6 +288,23 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                     </td>
                     <td className="w-24 px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(error.timestamp).toLocaleTimeString()}
+                    </td>
+                    <td className="w-24 px-6 py-4 whitespace-nowrap text-center">
+                      {onViewInTimeline && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onViewInTimeline(error);
+                          }}
+                          className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors duration-200"
+                          title="View this error in the timeline"
+                        >
+                          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                          </svg>
+                          Timeline
+                        </button>
+                      )}
                     </td>
                   </tr>
                   );

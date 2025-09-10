@@ -6,7 +6,12 @@ import { useTimelineData } from './hooks/useTimelineData'
 import { useViewport } from './hooks/useViewport'
 import { useTimelineVisualization } from './hooks/useTimelineVisualization'
 import { SwimLaneConfig, DEFAULT_SWIMLANES } from './types/timeline.types'
-export const TimelineVisualization: React.FC = () => {
+
+interface TimelineVisualizationProps {
+  focusedEventId?: string;
+}
+
+export const TimelineVisualization: React.FC<TimelineVisualizationProps> = ({ focusedEventId }) => {
   const [swimlanes, setSwimlanes] = useState<SwimLaneConfig[]>(DEFAULT_SWIMLANES)
   const [debugMode, setDebugMode] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -55,6 +60,20 @@ export const TimelineVisualization: React.FC = () => {
       lane.id === laneId ? { ...lane, isVisible: true } : lane
     ))
   }
+
+  // Handle focusing on a specific event when navigated from data tables
+  useEffect(() => {
+    if (focusedEventId && timelineData.events) {
+      const targetEvent = timelineData.events.find(event => event.id === focusedEventId)
+      if (targetEvent) {
+        // Center the viewport on the target event's timestamp
+        const targetTime = targetEvent.timestamp
+        viewport.setCenterTime(targetTime)
+
+        console.log(`Timeline focused on event: ${focusedEventId} at ${new Date(targetTime).toLocaleString()}`)
+      }
+    }
+  }, [focusedEventId, timelineData.events, viewport])
 
   // Check for updates periodically - TEMPORARILY DISABLED
   useEffect(() => {
