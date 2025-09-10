@@ -63,19 +63,41 @@ export const TimelineVisualization: React.FC<TimelineVisualizationProps> = ({ fo
 
   // Handle focusing on a specific event when navigated from data tables
   useEffect(() => {
-    if (focusedEventId && timelineData.events) {
-      const targetEvent = timelineData.events.find(event => event.id === focusedEventId)
+    if (focusedEventId && !timelineData.loading && timelineData.events && timelineData.events.length > 0) {
+      // First try exact ID match
+      let targetEvent = timelineData.events.find(event => event.id === focusedEventId)
+
+      if (!targetEvent) {
+        // If no exact match, try to find by timestamp and type
+        const idParts = focusedEventId.split('_')
+        if (idParts.length >= 3) {
+          const eventType = idParts[0]
+          const timestamp = parseInt(idParts[idParts.length - 1])
+
+          if (!isNaN(timestamp)) {
+            // Find event by type and timestamp (within 100ms tolerance)
+            targetEvent = timelineData.events.find(event =>
+              event.type === eventType &&
+              Math.abs(event.timestamp - timestamp) <= 100
+            )
+          }
+        }
+      }
+
       if (targetEvent) {
         // Center the viewport on the target event's timestamp
         const targetTime = targetEvent.timestamp
         viewport.setCenterTime(targetTime)
 
         console.log(`Timeline focused on event: ${focusedEventId} at ${new Date(targetTime).toLocaleString()}`)
+      } else {
+        console.warn(`Timeline could not find event with ID: ${focusedEventId}`)
+        console.log('Available events:', timelineData.events.map(e => ({ id: e.id, type: e.type, timestamp: e.timestamp })))
       }
+    } else if (focusedEventId && timelineData.loading) {
+      console.log('Timeline waiting for data to load before focusing...')
     }
-  }, [focusedEventId, timelineData.events, viewport])
-
-  // Check for updates periodically - TEMPORARILY DISABLED
+  }, [focusedEventId, timelineData.events, timelineData.loading, viewport])  // Check for updates periodically - TEMPORARILY DISABLED
   useEffect(() => {
     // const interval = setInterval(() => {
     //   timelineData.checkForUpdates()

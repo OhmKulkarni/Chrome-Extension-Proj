@@ -751,13 +751,12 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                             e.stopPropagation();
                             onViewInTimeline(request);
                           }}
-                          className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors duration-200"
+                          className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors duration-200"
                           title="View this request in the timeline"
                         >
-                          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
                           </svg>
-                          Timeline
                         </button>
                       )}
                     </td>

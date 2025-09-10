@@ -725,10 +725,20 @@ const DecomposedDashboard: React.FC = () => {
 
   // Navigate to timeline view and focus on specific event
   const handleViewInTimeline = useCallback((item: any, type: 'network' | 'console' | 'token') => {
-    // Generate timeline event ID for the item
-    const timestamp = item.timestamp || Date.now();
-    let timelineId: string;
+    // Convert timestamp to number to match TimelineService logic
+    let timestamp: number;
+    if (typeof item.timestamp === 'number') {
+      timestamp = item.timestamp;
+    } else if (typeof item.timestamp === 'string') {
+      timestamp = new Date(item.timestamp).getTime();
+    } else if (item.timestamp instanceof Date) {
+      timestamp = item.timestamp.getTime();
+    } else {
+      timestamp = Date.now();
+    }
 
+    // Generate timeline event ID using the same logic as TimelineService
+    let timelineId: string;
     switch (type) {
       case 'network':
         timelineId = `network_${item.id || item.url || Date.now()}_${timestamp}`;
@@ -737,7 +747,7 @@ const DecomposedDashboard: React.FC = () => {
         timelineId = `console_${item.id || item.message || Date.now()}_${timestamp}`;
         break;
       case 'token':
-        timelineId = `token_${item.id || item.type || item.token_type || Date.now()}_${timestamp}`;
+        timelineId = `token_${item.id || item.type || Date.now()}_${timestamp}`;
         break;
       default:
         timelineId = `${type}_${Date.now()}_${timestamp}`;
