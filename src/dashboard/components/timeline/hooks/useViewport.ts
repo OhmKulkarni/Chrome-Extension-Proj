@@ -6,15 +6,21 @@ interface UseViewportProps {
   initialCenterTime?: number
 }
 
-export const useViewport = ({ 
-  initialScope = '1-hour', 
-  initialCenterTime 
+export const useViewport = ({
+  initialScope = '1-hour',
+  initialCenterTime
 }: UseViewportProps = {}) => {
   const [currentScope, setCurrentScope] = useState<string>(initialScope)
   const [centerTime, setCenterTime] = useState<number>(
     initialCenterTime || Date.now()
   )
   const [isAnimating, setIsAnimating] = useState<boolean>(false)
+  const [earliestDataTimestamp, setEarliestDataTimestamp] = useState<number>(
+    Date.now() - (24 * 60 * 60 * 1000) // Default fallback
+  )
+  const [latestDataTimestamp, setLatestDataTimestamp] = useState<number>(
+    Date.now() // Default fallback to current time
+  )
   const animationRef = useRef<number | null>(null)
 
   const scopeConfig = useMemo(() => {
@@ -31,7 +37,7 @@ export const useViewport = ({
   }, [centerTime, scopeConfig.duration])
 
   // Smooth animation function
-  const animateCenterTime = useCallback((targetTime: number, duration = 300) => {
+  const animateCenterTime = useCallback((targetTime: number, duration = 800) => {
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current)
     }
@@ -43,10 +49,10 @@ export const useViewport = ({
     const animate = (currentTimestamp: number) => {
       const elapsed = currentTimestamp - startTimestamp
       const progress = Math.min(elapsed / duration, 1)
-      
+
       // Smooth easing function (ease-out)
       const easeOut = 1 - Math.pow(1 - progress, 3)
-      
+
       const currentTime = startTime + (targetTime - startTime) * easeOut
       setCenterTime(currentTime)
 
@@ -63,32 +69,32 @@ export const useViewport = ({
 
   const zoomIn = useCallback(() => {
     const currentIndex = TIME_SCOPES.findIndex(scope => scope.key === currentScope)
-    if (currentIndex < TIME_SCOPES.length - 1) {
-      const nextScope = TIME_SCOPES[currentIndex + 1]
+    if (currentIndex > 0) {
+      const nextScope = TIME_SCOPES[currentIndex - 1]  // Go to shorter duration (more detailed)
       setCurrentScope(nextScope.key)
     }
   }, [currentScope])
 
   const zoomOut = useCallback(() => {
     const currentIndex = TIME_SCOPES.findIndex(scope => scope.key === currentScope)
-    if (currentIndex > 0) {
-      const prevScope = TIME_SCOPES[currentIndex - 1]
+    if (currentIndex < TIME_SCOPES.length - 1) {
+      const prevScope = TIME_SCOPES[currentIndex + 1]  // Go to longer duration (less detailed)
       setCurrentScope(prevScope.key)
     }
   }, [currentScope])
 
   const panLeft = useCallback(() => {
     if (isAnimating) return
-    // Move left by 50% of current viewport
-    const panAmount = scopeConfig.duration * 0.5
+    // Move left by 30% of current viewport
+    const panAmount = scopeConfig.duration * 0.3
     const targetTime = centerTime - panAmount
     animateCenterTime(targetTime)
   }, [centerTime, scopeConfig.duration, animateCenterTime, isAnimating])
 
   const panRight = useCallback(() => {
     if (isAnimating) return
-    // Move right by 50% of current viewport
-    const panAmount = scopeConfig.duration * 0.5
+    // Move right by 30% of current viewport
+    const panAmount = scopeConfig.duration * 0.3
     const targetTime = centerTime + panAmount
     animateCenterTime(targetTime)
   }, [centerTime, scopeConfig.duration, animateCenterTime, isAnimating])
@@ -97,43 +103,71 @@ export const useViewport = ({
     // Handle the new timeline header format (e.g., 'last-1-hour', 'first-30-minutes')
     let targetScope = presetScope
     let targetTime = Date.now()
-    
+
     if (presetScope.startsWith('last-') || presetScope.startsWith('first-')) {
       // Extract the actual scope from 'last-1-hour' or 'first-30-minutes'
       const scopePart = presetScope.replace(/^(last-|first-)/, '')
       targetScope = scopePart
-      
-      // For 'first-' scopes, we might want to jump to the earliest data time
-      // For now, we'll use current time for both
-      if (presetScope.startsWith('first-')) {
-        // TODO: Get earliest data timestamp from timeline data
-        targetTime = Date.now() - (24 * 60 * 60 * 1000) // Go back 24 hours as default
+
+      if (presetScope.startsWith('last-')) {
+        // For 'last-' scopes, jump to the latest data time (most recent record)
+        const now = Date.now()
+        const timeDiff = now - latestDataTimestamp
+
+        // Check if latestDataTimestamp looks like default fallback (current time)
+        const isCurrentTimeFallback = Math.abs(timeDiff) < (5 * 60 * 1000) // Within 5 minutes of current time
+
+        if (isCurrentTimeFallback) {
+          // This might be the default fallback - use current time but log for debugging
+          console.log('🕐 Using current time for last- scope (no data loaded yet)')
+          targetTime = now
+        } else {
+          // We have actual data - use the real latest timestamp
+          console.log(`🕐 Using latest record time: ${new Date(latestDataTimestamp).toISOString()}`)
+          targetTime = latestDataTimestamp
+        }
+      } else if (presetScope.startsWith('first-')) {
+        // For 'first-' scopes, jump to the earliest data time
+        const now = Date.now()
+        const timeDiff = now - earliestDataTimestamp
+
+        // Check if this looks like the default fallback (exactly 24 hours ago)
+        const isExactlyOneDayFallback = Math.abs(timeDiff - (24 * 60 * 60 * 1000)) < (60 * 1000) // Within 1 minute of exactly 24 hours
+
+        if (isExactlyOneDayFallback) {
+          // This is likely the default fallback - use a more reasonable estimate
+          // Based on typical usage patterns, go back 5 days to capture recent browsing history
+          targetTime = now - (5 * 24 * 60 * 60 * 1000)
+        } else {
+          // We have actual data - use the real earliest timestamp
+          targetTime = earliestDataTimestamp
+        }
       }
     } else if (presetScope === 'all-time') {
       targetScope = 'all-time'
       // For all-time, center on a reasonable time point
       targetTime = Date.now() - (30 * 24 * 60 * 60 * 1000) // Go back 30 days
     }
-    
+
     setCurrentScope(targetScope)
-    animateCenterTime(targetTime, 500) // Longer animation for bigger jumps
-  }, [animateCenterTime])
+    animateCenterTime(targetTime, 1000) // Longer animation for bigger jumps
+  }, [earliestDataTimestamp, latestDataTimestamp, animateCenterTime])
 
   const jumpToTime = useCallback((timestamp: number, scope?: string) => {
     if (scope && scope !== currentScope) {
       setCurrentScope(scope)
     }
-    animateCenterTime(timestamp, 400)
+    animateCenterTime(timestamp, 850)
   }, [currentScope, animateCenterTime])
 
   const canZoomIn = useMemo(() => {
     const currentIndex = TIME_SCOPES.findIndex(scope => scope.key === currentScope)
-    return currentIndex < TIME_SCOPES.length - 1
+    return currentIndex > 0  // Can zoom in if not at most detailed level (index 0)
   }, [currentScope])
 
   const canZoomOut = useMemo(() => {
     const currentIndex = TIME_SCOPES.findIndex(scope => scope.key === currentScope)
-    return currentIndex > 0
+    return currentIndex < TIME_SCOPES.length - 1  // Can zoom out if not at least detailed level (last index)
   }, [currentScope])
 
   return {
@@ -151,6 +185,8 @@ export const useViewport = ({
     panRight,
     jumpToPreset,
     jumpToTime,
-    setCenterTime
+    setCenterTime,
+    setEarliestDataTimestamp,
+    setLatestDataTimestamp
   }
 }

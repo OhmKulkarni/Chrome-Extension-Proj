@@ -1,18 +1,45 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import TimelineHeaderNew from './components/TimelineHeaderNew'
 import { SwimlanesContainer } from './components/SwimlanesContainer'
+import { AllTimeModal } from './components/AllTimeModal'
 import { useTimelineData } from './hooks/useTimelineData'
 import { useViewport } from './hooks/useViewport'
 import { useTimelineVisualization } from './hooks/useTimelineVisualization'
 import { SwimLaneConfig, DEFAULT_SWIMLANES } from './types/timeline.types'
-
 export const TimelineVisualization: React.FC = () => {
-  const viewport = useViewport({ initialScope: '1-hour' })
   const [swimlanes, setSwimlanes] = useState<SwimLaneConfig[]>(DEFAULT_SWIMLANES)
+  const [debugMode, setDebugMode] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [showAllTimeModal, setShowAllTimeModal] = useState(false)
+
+  // Initialize viewport with default settings first
+  const viewport = useViewport({ initialScope: '1-hour' })
+
   const timelineData = useTimelineData({
     swimlanes: ['network', 'console', 'token'],
     zoomLevel: viewport.zoomLevel
   })
+
+  // Calculate earliest and latest timestamps from timeline data for "first-" and "last-" scopes
+  const earliestTimestamp = useMemo(() => {
+    if (!timelineData.events || timelineData.events.length === 0) {
+      return Date.now() - (24 * 60 * 60 * 1000) // Default fallback
+    }
+    return Math.min(...timelineData.events.map(event => event.timestamp))
+  }, [timelineData.events])
+
+  const latestTimestamp = useMemo(() => {
+    if (!timelineData.events || timelineData.events.length === 0) {
+      return Date.now() // Default fallback to current time
+    }
+    return Math.max(...timelineData.events.map(event => event.timestamp))
+  }, [timelineData.events])
+
+  // Update viewport hook with timestamp boundaries when data changes
+  React.useEffect(() => {
+    viewport.setEarliestDataTimestamp(earliestTimestamp)
+    viewport.setLatestDataTimestamp(latestTimestamp)
+  }, [earliestTimestamp, latestTimestamp, viewport])
 
   // Use the new density-based visualization
   const visualizationData = useTimelineVisualization({
@@ -24,7 +51,7 @@ export const TimelineVisualization: React.FC = () => {
   const hiddenSwimlanes = swimlanes.filter(lane => !lane.isVisible).map(lane => lane.id)
 
   const handleShowSwimlane = (laneId: string) => {
-    setSwimlanes(prev => prev.map(lane => 
+    setSwimlanes(prev => prev.map(lane =>
       lane.id === laneId ? { ...lane, isVisible: true } : lane
     ))
   }
@@ -38,11 +65,27 @@ export const TimelineVisualization: React.FC = () => {
     // return () => clearInterval(interval)
   }, [])
 
+  // Add keyboard shortcut for debug mode
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Ctrl+Shift+D to toggle debug mode
+      if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+        e.preventDefault()
+        setDebugMode(prev => !prev)
+        console.log(`🐛 Timeline Debug Mode: ${!debugMode ? 'ON' : 'OFF'}`)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyPress)
+    return () => window.removeEventListener('keydown', handleKeyPress)
+  }, [debugMode])
+
   return (
     <div className="h-full flex flex-col bg-gray-50">
       <TimelineHeaderNew
         currentScope={viewport.currentScope}
         centerTime={viewport.centerTime}
+        viewport={viewport.viewport}
         canZoomIn={viewport.canZoomIn}
         canZoomOut={viewport.canZoomOut}
         isAnimating={viewport.isAnimating}
@@ -57,6 +100,7 @@ export const TimelineVisualization: React.FC = () => {
         onRefresh={timelineData.refreshData}
         onAcknowledgeUpdates={timelineData.acknowledgeUpdates}
         onShowSwimlane={handleShowSwimlane}
+        onShowAllTimeModal={() => setShowAllTimeModal(true)}
       />
 
       <div className="flex-1 overflow-hidden">
@@ -71,7 +115,7 @@ export const TimelineVisualization: React.FC = () => {
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <div className="text-red-500 mb-2">Error: {timelineData.error}</div>
-              <button 
+              <button
                 onClick={() => timelineData.refreshData()}
                 className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
               >
@@ -79,32 +123,62 @@ export const TimelineVisualization: React.FC = () => {
               </button>
             </div>
           </div>
-        ) : visualizationData.totalEventCount === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <div className="text-gray-400 mb-2">No events found in this time range</div>
-              <div className="text-sm text-gray-500">
-                Try adjusting the time range or check if data capture is enabled
-              </div>
-            </div>
-          </div>
         ) : (
-          <SwimlanesContainer
-            events={timelineData.events}
-            clusters={timelineData.clusters}
-            visualizationData={visualizationData}
-            viewport={viewport.viewport}
-            currentScope={viewport.scopeConfig}
-            shouldCluster={viewport.zoomLevel <= 3}
-            onBookmarkEvent={timelineData.bookmarkEvent}
-            onSetCompareSlot={timelineData.setCompareSlot}
-            onZoomIn={viewport.zoomIn}
-            zoomLevel={viewport.zoomLevel}
-            swimlanes={swimlanes}
-            onUpdateSwimlanes={setSwimlanes}
-          />
+          <div className="relative flex-1">
+            <SwimlanesContainer
+              events={timelineData.events}
+              clusters={timelineData.clusters}
+              visualizationData={visualizationData}
+              viewport={viewport.viewport}
+              currentScope={viewport.scopeConfig}
+              shouldCluster={!visualizationData.shouldShowCards}
+              onBookmarkEvent={timelineData.bookmarkEvent}
+              onSetCompareSlot={timelineData.setCompareSlot}
+              onZoomIn={viewport.zoomIn}
+              onJumpToTime={viewport.jumpToTime}
+              zoomLevel={viewport.zoomLevel}
+              swimlanes={swimlanes}
+              onUpdateSwimlanes={setSwimlanes}
+              debugMode={debugMode}
+              isAnimating={viewport.isAnimating}
+              sidebarCollapsed={sidebarCollapsed}
+              onToggleSidebarCollapsed={() => setSidebarCollapsed(!sidebarCollapsed)}
+            />
+
+            {/* Subtle overlay message when no events are visible */}
+            {visualizationData.totalEventCount === 0 && (
+              <div className="absolute inset-0 pointer-events-none">
+                <div className="flex items-center justify-center h-full">
+                  <div className="bg-white/90 backdrop-blur-sm rounded-lg border border-gray-200 px-6 py-4 shadow-sm max-w-md mx-4">
+                    <div className="text-center">
+                      <div className="text-gray-600 text-sm mb-1">No events in this time range</div>
+                      <div className="text-xs text-gray-500">
+                        Try adjusting the time range or check if data capture is enabled
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
+
+      {/* All Time Modal */}
+      <AllTimeModal
+        isOpen={showAllTimeModal}
+        events={timelineData.events}
+        earliestTimestamp={earliestTimestamp}
+        latestTimestamp={latestTimestamp}
+        onClose={() => setShowAllTimeModal(false)}
+        onJumpToTime={(timestamp, scope) => {
+          viewport.jumpToTime(timestamp)
+          if (scope) {
+            viewport.jumpToPreset(scope)
+          }
+          setShowAllTimeModal(false)
+        }}
+      />
     </div>
   )
 }

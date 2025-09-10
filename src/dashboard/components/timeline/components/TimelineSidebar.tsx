@@ -1,6 +1,6 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { TimelineEvent } from '../types/timeline.types'
-import { Bookmark, GitCompare, ChevronRight, Grid2X2 } from 'lucide-react'
+import { Bookmark, GitCompare, ChevronRight, ChevronLeft, Grid2X2, Navigation, Eye, ArrowDown, Network, AlertTriangle, Key } from 'lucide-react'
 
 interface TimelineSidebarProps {
   bookmarkedEvents: TimelineEvent[]
@@ -9,7 +9,12 @@ interface TimelineSidebarProps {
   onBookmarkRemove: (eventId: string) => void
   onCompareRemove: (eventId: string) => void
   onMoveFromQueue: (event: TimelineEvent) => void
+  onMoveToQueue?: (event: TimelineEvent) => void
   onShowCompareView: () => void
+  onEventClick?: (event: TimelineEvent) => void
+  onNavigateToEvent?: (event: TimelineEvent) => void
+  isCollapsed?: boolean
+  onToggleCollapsed?: () => void
 }
 
 export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
@@ -19,8 +24,59 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
   onBookmarkRemove,
   onCompareRemove,
   onMoveFromQueue,
-  onShowCompareView
+  onMoveToQueue,
+  onShowCompareView,
+  onEventClick,
+  onNavigateToEvent,
+  isCollapsed = false,
+  onToggleCollapsed
 }) => {
+  // Fallback to local state if parent doesn't manage collapsed state
+  const [localCollapsed, setLocalCollapsed] = useState(false)
+  const collapsed = onToggleCollapsed ? isCollapsed : localCollapsed
+  const toggleCollapsed = onToggleCollapsed || (() => setLocalCollapsed(!localCollapsed))
+
+  // Selected queue type for filtering
+  const [selectedQueueType, setSelectedQueueType] = useState<'network' | 'console' | 'token'>('network')
+
+  // Helper function to extract domain from URL
+  const getDomainFromEvent = (event: TimelineEvent): string | null => {
+    try {
+      if (event.type === 'network' && event.data.url) {
+        const url = new URL(event.data.url)
+        return url.hostname
+      }
+      if (event.type === 'console' && event.data.source) {
+        const url = new URL(event.data.source)
+        return url.hostname
+      }
+      if (event.type === 'token' && event.data.origin) {
+        const url = new URL(event.data.origin)
+        return url.hostname
+      }
+    } catch (error) {
+      // Invalid URL, return null
+    }
+    return null
+  }
+
+  // Group queue events by type
+  const queueEventsByType = {
+    network: compareQueue.filter(e => e.type === 'network'),
+    console: compareQueue.filter(e => e.type === 'console'),
+    token: compareQueue.filter(e => e.type === 'token')
+  }
+
+  // Get icon for event type
+  const getEventTypeIcon = (eventType: string) => {
+    switch (eventType) {
+      case 'network': return <Network className="w-3 h-3 text-blue-600" />
+      case 'console': return <AlertTriangle className="w-3 h-3 text-red-600" />
+      case 'token': return <Key className="w-3 h-3 text-green-600" />
+      default: return null
+    }
+  }
+
   const renderEventCard = (event: TimelineEvent, type: 'bookmark' | 'compare' | 'queue') => {
     const typeConfig = {
       network: { color: 'bg-blue-50 border-blue-200', icon: '🌐' },
@@ -33,46 +89,106 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
     return (
       <div
         key={event.id}
-        className={`p-2 border rounded-md ${config.color} text-xs`}
+        className={`p-3 border rounded-lg ${config.color} text-xs hover:shadow-md transition-shadow cursor-pointer`}
+        onClick={() => onEventClick?.(event)}
+        title="Click to view details"
       >
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center space-x-1">
-              <span>{config.icon}</span>
+            <div className="flex items-center space-x-2">
+              <span className="text-base">{config.icon}</span>
               <span className="font-medium truncate">
                 {event.type === 'network' && (event.data.url?.split('/').pop() || 'Request')}
-                {event.type === 'console' && (event.data.message?.substring(0, 50) || 'Error')}
+                {event.type === 'console' && (event.data.message?.substring(0, 40) || 'Error')}
                 {event.type === 'token' && (event.data.token_type || 'Token')}
               </span>
             </div>
-            <div className="text-gray-500 mt-1">
-              {new Date(event.timestamp).toLocaleTimeString()}
+
+            {/* Domain information */}
+            {getDomainFromEvent(event) && (
+              <div className="text-gray-400 mt-1 text-xs truncate">
+                🌐 {getDomainFromEvent(event)}
+              </div>
+            )}
+
+            <div className="text-gray-500 mt-1 flex items-center justify-between">
+              <span>{new Date(event.timestamp).toLocaleTimeString()}</span>
             </div>
           </div>
 
-          <div className="ml-2">
+          {/* Action buttons */}
+          <div className="ml-2 flex items-center space-x-1">
+            {/* Navigate to timeline button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onNavigateToEvent?.(event)
+              }}
+              className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+              title="Navigate to timeline position"
+            >
+              <Navigation className="w-3 h-3" />
+            </button>
+
+            {/* View details button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onEventClick?.(event)
+              }}
+              className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+              title="View details"
+            >
+              <Eye className="w-3 h-3" />
+            </button>
+
+            {/* Remove/action buttons */}
             {type === 'bookmark' && (
               <button
-                onClick={() => onBookmarkRemove(event.id)}
-                className="text-gray-400 hover:text-gray-600"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onBookmarkRemove(event.id)
+                }}
+                className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                 title="Remove bookmark"
               >
                 ×
               </button>
             )}
             {type === 'compare' && (
-              <button
-                onClick={() => onCompareRemove(event.id)}
-                className="text-gray-400 hover:text-gray-600"
-                title="Remove from compare"
-              >
-                ×
-              </button>
+              <>
+                {/* Move to Queue button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onMoveToQueue?.(event)
+                  }}
+                  className="p-1 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
+                  title="Move to queue"
+                >
+                  <ArrowDown className="w-3 h-3" />
+                </button>
+
+                {/* Remove button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onCompareRemove(event.id)
+                  }}
+                  className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                  title="Remove from compare"
+                >
+                  ×
+                </button>
+              </>
             )}
             {type === 'queue' && (
               <button
-                onClick={() => onMoveFromQueue(event)}
-                className="text-blue-500 hover:text-blue-700"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onMoveFromQueue(event)
+                }}
+                className="p-1 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
                 title="Move to compare"
               >
                 <ChevronRight className="w-3 h-3" />
@@ -83,8 +199,14 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
 
         {/* Compare slot indicator */}
         {event.compareSlot !== undefined && event.compareSlot >= 0 && (
-          <div className="mt-1 text-xs text-purple-600 font-medium">
-            Compare Slot {event.compareSlot + 1}
+          <div className="mt-2 text-xs text-purple-600 font-medium">
+            Compare Slot {(() => {
+              // Convert actual slot number to display slot number (1-4 for each type)
+              if (event.compareSlot >= 0 && event.compareSlot <= 3) return event.compareSlot + 1 // Network: 0-3 → 1-4
+              if (event.compareSlot >= 10 && event.compareSlot <= 13) return event.compareSlot - 9 // Console: 10-13 → 1-4
+              if (event.compareSlot >= 20 && event.compareSlot <= 23) return event.compareSlot - 19 // Token: 20-23 → 1-4
+              return event.compareSlot + 1 // Fallback
+            })()}
           </div>
         )}
       </div>
@@ -92,15 +214,32 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
   }
 
   return (
-    <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
-      {/* Bookmarks Section */}
-      <div className="flex-1 border-b border-gray-200 overflow-hidden flex flex-col">
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center space-x-2">
-            <Bookmark className="w-4 h-4 text-yellow-600" />
-            <h3 className="font-medium">Bookmarks ({bookmarkedEvents.length})</h3>
-          </div>
-        </div>
+    <div className={`${collapsed ? 'w-12' : 'w-80'} bg-white border-l border-gray-200 flex flex-col h-full transition-all duration-300 ease-in-out`}>
+      {/* Toggle Button */}
+      <div className="p-2 border-b border-gray-200 flex justify-center">
+        <button
+          onClick={toggleCollapsed}
+          className="p-2 hover:bg-gray-100 rounded transition-colors"
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {collapsed ? (
+            <ChevronLeft className="w-4 h-4 text-gray-600" />
+          ) : (
+            <ChevronRight className="w-4 h-4 text-gray-600" />
+          )}
+        </button>
+      </div>
+
+      {!collapsed && (
+        <>
+          {/* Bookmarks Section - Fixed height */}
+          <div className="border-b border-gray-200 overflow-hidden flex flex-col" style={{ height: '280px' }}>
+            <div className="p-4 border-b border-gray-200 flex-shrink-0">
+              <div className="flex items-center space-x-2">
+                <Bookmark className="w-4 h-4 text-yellow-600" />
+                <h3 className="font-medium">Bookmarks ({bookmarkedEvents.length})</h3>
+              </div>
+            </div>
         <div className="flex-1 overflow-y-auto p-4">
           {bookmarkedEvents.length > 0 ? (
             <div className="space-y-2">
@@ -114,55 +253,165 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
         </div>
       </div>
 
-      {/* Compare Section */}
-      <div className="flex-1 overflow-hidden flex flex-col">
-        <div className="p-4 border-b border-gray-200">
+      {/* Compare Section - Fixed height */}
+      <div className="overflow-hidden flex flex-col" style={{ height: '280px' }}>
+        <div className="p-4 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <GitCompare className="w-4 h-4 text-purple-600" />
-              <h3 className="font-medium">Compare ({compareEvents.length}/4)</h3>
+              <h3 className="font-medium">
+                Compare ({compareEvents.filter(e => e.type === selectedQueueType).length + queueEventsByType[selectedQueueType].length})
+              </h3>
             </div>
-            {compareEvents.length > 0 && (
-              <button
-                onClick={onShowCompareView}
-                className="p-1 hover:bg-gray-100 rounded transition-colors"
-                title="Show compare view"
-              >
-                <Grid2X2 className="w-4 h-4" />
-              </button>
-            )}
+            <div className="flex items-center space-x-1">
+              {/* Queue Type Selector */}
+              {(compareQueue.length > 0 || compareEvents.length > 0) && (
+                <div className="flex items-center bg-gray-100 rounded-lg p-1 mr-2">
+                  {(['network', 'console', 'token'] as const).map(type => {
+                    const queueCount = queueEventsByType[type].length
+                    const compareCount = compareEvents.filter(e => e.type === type).length
+                    const totalCount = queueCount + compareCount
+                    const isSelected = selectedQueueType === type
+                    const typeConfig = {
+                      network: { icon: <Network className="w-3 h-3" />, color: 'text-blue-600', label: 'Network' },
+                      console: { icon: <AlertTriangle className="w-3 h-3" />, color: 'text-red-600', label: 'Console' },
+                      token: { icon: <Key className="w-3 h-3" />, color: 'text-green-600', label: 'Token' }
+                    }
+
+                    return (
+                      <button
+                        key={type}
+                        onClick={() => setSelectedQueueType(type)}
+                        className={`relative flex items-center justify-center w-7 h-7 rounded transition-colors ${
+                          isSelected
+                            ? 'bg-white shadow-sm border border-gray-200'
+                            : 'hover:bg-gray-200'
+                        } ${totalCount === 0 ? 'opacity-50' : ''}`}
+                        disabled={totalCount === 0}
+                        title={`${typeConfig[type].label} (${compareCount} slots, ${queueCount} queued)`}
+                      >
+                        <span className={typeConfig[type].color}>
+                          {typeConfig[type].icon}
+                        </span>
+                        {totalCount > 0 && (
+                          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-medium">
+                            {totalCount > 9 ? '9+' : totalCount}
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+              {compareEvents.length > 0 && (
+                <button
+                  onClick={onShowCompareView}
+                  className="p-1 hover:bg-gray-100 rounded transition-colors"
+                  title="Show compare view"
+                >
+                  <Grid2X2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
-        
-        <div className="flex-1 overflow-y-auto p-4">
-          {compareEvents.length > 0 || compareQueue.length > 0 ? (
-            <div className="space-y-4">
-              {/* Active compare slots */}
-              {compareEvents.length > 0 && (
-                <div className="space-y-2">
-                  {compareEvents.map(event => renderEventCard(event, 'compare'))}
-                </div>
-              )}
 
-              {/* Queue */}
-              {compareQueue.length > 0 && (
-                <div>
-                  <div className="text-xs font-medium text-gray-500 mb-2">
-                    Queue ({compareQueue.length})
-                  </div>
-                  <div className="space-y-2">
-                    {compareQueue.map(event => renderEventCard(event, 'queue'))}
-                  </div>
+        <div className="flex-1 overflow-y-auto p-4">
+          {(() => {
+            // Filter compare events by selected type
+            const filteredCompareEvents = compareEvents.filter(event => event.type === selectedQueueType)
+            const queueEvents = queueEventsByType[selectedQueueType]
+            const hasAnyEvents = filteredCompareEvents.length > 0 || queueEvents.length > 0
+
+            if (!hasAnyEvents) {
+              return (
+                <div className="text-center text-gray-500 text-sm py-8">
+                  No {selectedQueueType} events to compare
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center text-gray-500 text-sm py-8">
-              No events to compare
-            </div>
-          )}
+              )
+            }
+
+            return (
+              <div className="space-y-4">
+                {/* Active compare slots for selected type */}
+                {filteredCompareEvents.length > 0 && (
+                  <div>
+                    <div className="flex items-center space-x-2 text-xs font-medium text-gray-500 mb-2">
+                      <span>Active Slots ({filteredCompareEvents.length}/4)</span>
+                    </div>
+                    <div className="space-y-2">
+                      {filteredCompareEvents.map(event => renderEventCard(event, 'compare'))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Queue for selected type */}
+                {queueEvents.length > 0 && (
+                  <div>
+                    <div className="flex items-center space-x-2 text-xs font-medium text-gray-500 mb-2">
+                      {getEventTypeIcon(selectedQueueType)}
+                      <span className="capitalize">{selectedQueueType} Queue ({queueEvents.length})</span>
+                    </div>
+                    <div className="space-y-2">
+                      {queueEvents.map(event => renderEventCard(event, 'queue'))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
       </div>
+        </>
+      )}
+
+      {/* Collapsed State - Show counts only */}
+      {collapsed && (
+        <div className="flex flex-col" style={{ height: '560px' }}>
+          {/* Bookmarks section placeholder - 280px */}
+          <div className="flex items-center justify-center border-b border-gray-200" style={{ height: '280px' }}>
+            <div className="text-center">
+              <Bookmark className="w-5 h-5 text-yellow-600 mx-auto mb-1" />
+              <div className="text-xs font-medium text-gray-600">{bookmarkedEvents.length}</div>
+            </div>
+          </div>
+
+          {/* Compare section placeholder - 280px */}
+          <div className="flex items-center justify-center" style={{ height: '280px' }}>
+            <div className="text-center space-y-2">
+              <GitCompare className="w-5 h-5 text-purple-600 mx-auto mb-1" />
+              <div className="text-xs font-medium text-gray-600">
+                {compareEvents.filter(e => e.type === selectedQueueType).length + queueEventsByType[selectedQueueType].length}
+              </div>
+              {(compareQueue.length > 0 || compareEvents.length > 0) && (
+                <div className="space-y-1">
+                  {/* Show selected queue type */}
+                  <div className="flex items-center justify-center space-x-1">
+                    {getEventTypeIcon(selectedQueueType)}
+                    <span className="text-xs text-gray-500 capitalize">{selectedQueueType}</span>
+                  </div>
+                  {/* Show other queue types with smaller indicators */}
+                  <div className="flex items-center justify-center space-x-2">
+                    {(['network', 'console', 'token'] as const).map(eventType => {
+                      if (eventType === selectedQueueType) return null
+                      const queueCount = queueEventsByType[eventType].length
+                      const compareCount = compareEvents.filter(e => e.type === eventType).length
+                      const totalCount = queueCount + compareCount
+                      if (totalCount === 0) return null
+                      return (
+                        <div key={eventType} className="flex items-center space-x-1 opacity-50">
+                          {getEventTypeIcon(eventType)}
+                          <span className="text-xs text-gray-400">{totalCount}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
