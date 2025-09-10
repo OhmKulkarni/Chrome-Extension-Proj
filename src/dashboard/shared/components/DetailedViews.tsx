@@ -46,6 +46,35 @@ export const RequestDetailContent: React.FC<{
     }
   };
 
+  const formatNetworkRequestSummary = (request: any) => {
+    const summary = {
+      // Basic request info
+      method: request.method || 'N/A',
+      url: request.url || 'N/A',
+      status: request.status || 'N/A',
+      
+      // Timing and size info
+      timestamp: request.timestamp || 'N/A',
+      duration: request.duration ? `${request.duration}ms` : 'N/A',
+      requestSize: request.requestSize ? `${request.requestSize} bytes` : '0 bytes',
+      responseSize: request.responseSize ? `${request.responseSize} bytes` : '0 bytes',
+      
+      // Source info
+      sourceUrl: request.source_url || 'N/A',
+      mainDomain: request.main_domain || 'N/A',
+      
+      // Headers (cleaned up)
+      requestHeaders: request.headers?.request || {},
+      responseHeaders: request.headers?.response || {},
+      
+      // Bodies (use consistent naming)
+      requestBody: request.requestBody || request.request_body || request.body || '',
+      responseBody: request.responseBody || request.response_body || ''
+    };
+    
+    return JSON.stringify(summary, null, 2);
+  };
+
   if (selectedField === 'details') {
     return (
       <div className="space-y-4">
@@ -53,7 +82,7 @@ export const RequestDetailContent: React.FC<{
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-gray-900">Request Details</h3>
             <button
-              onClick={() => copyToClipboard(JSON.stringify(request, null, 2))}
+              onClick={() => copyToClipboard(formatNetworkRequestSummary(request))}
               className="copy-button text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
             >
               Copy All
