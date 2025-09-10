@@ -69,12 +69,12 @@ export const TimelineVisualization: React.FC<TimelineVisualizationProps> = ({ fo
   // Handle focusing on a specific event when navigated from data tables
   useEffect(() => {
     // Only proceed if we have a new focusedEventId that we haven't processed yet
-    if (focusedEventId && 
-        focusedEventId !== lastProcessedEventIdRef.current && 
-        !timelineData.loading && 
-        timelineData.events && 
+    if (focusedEventId &&
+        focusedEventId !== lastProcessedEventIdRef.current &&
+        !timelineData.loading &&
+        timelineData.events &&
         timelineData.events.length > 0) {
-      
+
       // Mark this event ID as being processed
       lastProcessedEventIdRef.current = focusedEventId
 
