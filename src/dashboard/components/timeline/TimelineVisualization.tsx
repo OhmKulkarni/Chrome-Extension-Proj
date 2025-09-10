@@ -143,7 +143,7 @@ export const TimelineVisualization: React.FC<TimelineVisualizationProps> = ({ fo
   }, [debugMode])
 
   return (
-    <div className="h-full flex flex-col bg-gray-50">
+    <div className="h-full flex flex-col bg-gray-50 rounded-lg overflow-hidden border border-gray-200 shadow-sm">
       <TimelineHeaderNew
         currentScope={viewport.currentScope}
         centerTime={viewport.centerTime}
