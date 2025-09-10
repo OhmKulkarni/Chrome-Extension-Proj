@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Timeline Test</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-case {
+            margin: 15px 0;
+            padding: 10px;
+            border-left: 4px solid #3b82f6;
+            background: #f8fafc;
+        }
+        .result {
+            color: #059669;
+            font-weight: 500;
+        }
+        .error {
+            color: #dc2626;
+        }
+    </style>
+</head>
+<body>
+    <h1>Custom Timeline Date Calculation Test</h1>
+    
+    <div class="test-section">
+        <h2>Test Cases</h2>
+        
+        <div class="test-case">
+            <h3>Test 1: Sep 9, 2025 at 20:16 (1 hour scope)</h3>
+            <div id="test1-result"></div>
+        </div>
+        
+        <div class="test-case">
+            <h3>Test 2: Date only - Sep 9, 2025</h3>
+            <div id="test2-result"></div>
+        </div>
+        
+        <div class="test-case">
+            <h3>Test 3: Time only - 20:16</h3>
+            <div id="test3-result"></div>
+        </div>
+        
+        <div class="test-case">
+            <h3>Test 4: Current time verification</h3>
+            <div id="test4-result"></div>
+        </div>
+    </div>
+
+    <script>
+        function testCustomTimeCalculation() {
+            // Test case 1: Both date and time specified
+            const customStartDate1 = '2025-09-09'
+            const customStartTime1 = '20:16'
+            
+            const [year1, month1, day1] = customStartDate1.split('-').map(Number)
+            const [hours1, minutes1] = customStartTime1.split(':').map(Number)
+            const dateTime1 = new Date(year1, month1 - 1, day1, hours1, minutes1, 0, 0)
+            
+            document.getElementById('test1-result').innerHTML = `
+                <div>Input: ${customStartDate1} ${customStartTime1}</div>
+                <div>Calculated: ${dateTime1.toISOString()}</div>
+                <div>Local: ${dateTime1.toLocaleString()}</div>
+                <div>Timestamp: ${dateTime1.getTime()}</div>
+                <div class="result">Expected: September 9, 2025, 8:16 PM local time</div>
+            `
+            
+            // Test case 2: Date only
+            const customStartDate2 = '2025-09-09'
+            const [year2, month2, day2] = customStartDate2.split('-').map(Number)
+            const date2 = new Date(year2, month2 - 1, day2, 0, 0, 0, 0)
+            
+            document.getElementById('test2-result').innerHTML = `
+                <div>Input: ${customStartDate2}</div>
+                <div>Calculated: ${date2.toISOString()}</div>
+                <div>Local: ${date2.toLocaleString()}</div>
+                <div>Timestamp: ${date2.getTime()}</div>
+                <div class="result">Expected: September 9, 2025, midnight local time</div>
+            `
+            
+            // Test case 3: Time only
+            const customStartTime3 = '20:16'
+            const today3 = new Date()
+            const [hours3, minutes3] = customStartTime3.split(':').map(Number)
+            today3.setHours(hours3, minutes3, 0, 0)
+            
+            document.getElementById('test3-result').innerHTML = `
+                <div>Input: ${customStartTime3}</div>
+                <div>Calculated: ${today3.toISOString()}</div>
+                <div>Local: ${today3.toLocaleString()}</div>
+                <div>Timestamp: ${today3.getTime()}</div>
+                <div class="result">Expected: Today at 8:16 PM local time</div>
+            `
+            
+            // Test case 4: Current time verification
+            const now = new Date()
+            const sep9_2025 = new Date(2025, 8, 9, 20, 16, 0, 0) // Month is 0-indexed
+            const actualSep9 = new Date('2025-09-09T20:16:00')
+            
+            document.getElementById('test4-result').innerHTML = `
+                <div>Current time: ${now.toLocaleString()}</div>
+                <div>Sep 9, 2025 8:16 PM (constructor): ${sep9_2025.toLocaleString()}</div>
+                <div>Sep 9, 2025 8:16 PM (ISO string): ${actualSep9.toLocaleString()}</div>
+                <div>Difference from constructor: ${Math.abs(sep9_2025.getTime() - dateTime1.getTime())} ms</div>
+                <div class="${Math.abs(sep9_2025.getTime() - dateTime1.getTime()) === 0 ? 'result' : 'error'}">
+                    ${Math.abs(sep9_2025.getTime() - dateTime1.getTime()) === 0 ? 'PASS: Dates match exactly' : 'FAIL: Date calculation mismatch'}
+                </div>
+            `
+        }
+        
+        // Run tests when page loads
+        window.addEventListener('load', testCustomTimeCalculation)
+    </script>
+</body>
+</html>

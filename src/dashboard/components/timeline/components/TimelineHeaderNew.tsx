@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw, Eye } from 'lucide-react'
+import { ViewportRange } from '../types/timeline.types'
 
 interface TimelineHeaderNewProps {
   currentScope: string
   centerTime: number
+  viewport: ViewportRange
   canZoomIn: boolean
   canZoomOut: boolean
   isAnimating?: boolean
@@ -22,6 +24,7 @@ interface TimelineHeaderNewProps {
 
 const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
   currentScope,
+  viewport,
   canZoomIn,
   canZoomOut,
   isAnimating = false,
@@ -181,14 +184,75 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
           </button>
         </div>
 
-        {/* Current scope and mode indicator */}
-        <div className="flex items-center space-x-3">
+        {/* Current scope and viewport time display */}
+        <div className="flex items-center space-x-4">
+          {/* Scope Display */}
           <div className="flex items-center space-x-2">
-            <div className="text-sm text-gray-500">Viewing:</div>
+            <div className="text-sm text-gray-500">Scope:</div>
             <div className={`bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium transition-all duration-200 ${
               isAnimating ? 'animate-pulse' : ''
             }`}>
-              {timeSelectionMode === 'custom' && customLabel ? customLabel : currentScope}
+              {timeSelectionMode === 'custom' && customLabel ? customLabel.split(' from ')[0] : currentScope}
+            </div>
+          </div>
+
+          {/* Current Viewport Time Display */}
+          <div className="flex items-center space-x-2">
+            <div className="text-sm text-gray-500">Showing:</div>
+            <div className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm font-medium">
+              {(() => {
+                const startTime = new Date(viewport.startTime)
+                const endTime = new Date(viewport.endTime)
+                const duration = viewport.duration
+
+                // Format based on duration
+                if (duration <= 60 * 60 * 1000) { // 1 hour or less
+                  return `${startTime.toLocaleTimeString('en-US', { 
+                    hour12: false, 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  })} - ${endTime.toLocaleTimeString('en-US', { 
+                    hour12: false, 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  })}`
+                } else if (duration <= 24 * 60 * 60 * 1000) { // 1 day or less
+                  const isSameDay = startTime.toDateString() === endTime.toDateString()
+                  if (isSameDay) {
+                    return `${startTime.toLocaleDateString('en-US', { 
+                      month: 'short', 
+                      day: 'numeric' 
+                    })} ${startTime.toLocaleTimeString('en-US', { 
+                      hour12: false, 
+                      hour: '2-digit', 
+                      minute: '2-digit' 
+                    })}-${endTime.toLocaleTimeString('en-US', { 
+                      hour12: false, 
+                      hour: '2-digit', 
+                      minute: '2-digit' 
+                    })}`
+                  } else {
+                    return `${startTime.toLocaleDateString('en-US', { 
+                      month: 'short', 
+                      day: 'numeric' 
+                    })} - ${endTime.toLocaleDateString('en-US', { 
+                      month: 'short', 
+                      day: 'numeric' 
+                    })}`
+                  }
+                } else {
+                  // More than 1 day
+                  return `${startTime.toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric',
+                    year: startTime.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+                  })} - ${endTime.toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric',
+                    year: endTime.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+                  })}`
+                }
+              })()}
             </div>
           </div>
           
@@ -338,20 +402,25 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
                       let targetTimestamp = Date.now() // Default to now
 
                       if (customStartDate && customStartTime) {
-                        // Both date and time specified
-                        const dateTime = new Date(`${customStartDate}T${customStartTime}`)
+                        // Both date and time specified - use explicit date construction
+                        const [year, month, day] = customStartDate.split('-').map(Number)
+                        const [hours, minutes] = customStartTime.split(':').map(Number)
+                        const dateTime = new Date(year, month - 1, day, hours, minutes, 0, 0)
                         targetTimestamp = dateTime.getTime()
+                        console.log(`🕐 Custom time: ${customStartDate} ${customStartTime} -> ${dateTime.toISOString()} (${targetTimestamp})`)
                       } else if (customStartDate) {
                         // Only date specified, use start of day
-                        const date = new Date(customStartDate)
-                        date.setHours(0, 0, 0, 0)
+                        const [year, month, day] = customStartDate.split('-').map(Number)
+                        const date = new Date(year, month - 1, day, 0, 0, 0, 0)
                         targetTimestamp = date.getTime()
+                        console.log(`📅 Custom date: ${customStartDate} -> ${date.toISOString()} (${targetTimestamp})`)
                       } else if (customStartTime) {
                         // Only time specified, use today's date
                         const today = new Date()
                         const [hours, minutes] = customStartTime.split(':').map(Number)
                         today.setHours(hours, minutes, 0, 0)
                         targetTimestamp = today.getTime()
+                        console.log(`⏰ Custom time today: ${customStartTime} -> ${today.toISOString()} (${targetTimestamp})`)
                       }
 
                       // Jump to the calculated time with the selected scope

@@ -75,6 +75,7 @@ export const TimelineVisualization: React.FC = () => {
       <TimelineHeaderNew
         currentScope={viewport.currentScope}
         centerTime={viewport.centerTime}
+        viewport={viewport.viewport}
         canZoomIn={viewport.canZoomIn}
         canZoomOut={viewport.canZoomOut}
         isAnimating={viewport.isAnimating}
