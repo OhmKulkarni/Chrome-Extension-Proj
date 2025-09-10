@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { TimelineEvent } from '../types/timeline.types'
-import { Bookmark, GitCompare, ChevronRight, ChevronLeft, Grid2X2, Navigation, Eye, ArrowDown } from 'lucide-react'
+import { Bookmark, GitCompare, ChevronRight, ChevronLeft, Grid2X2, Navigation, Eye, ArrowDown, Network, AlertTriangle, Key } from 'lucide-react'
 
 interface TimelineSidebarProps {
   bookmarkedEvents: TimelineEvent[]
@@ -36,6 +36,9 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
   const collapsed = onToggleCollapsed ? isCollapsed : localCollapsed
   const toggleCollapsed = onToggleCollapsed || (() => setLocalCollapsed(!localCollapsed))
 
+  // Selected queue type for filtering
+  const [selectedQueueType, setSelectedQueueType] = useState<'network' | 'console' | 'token'>('network')
+
   // Helper function to extract domain from URL
   const getDomainFromEvent = (event: TimelineEvent): string | null => {
     try {
@@ -55,6 +58,23 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
       // Invalid URL, return null
     }
     return null
+  }
+
+  // Group queue events by type
+  const queueEventsByType = {
+    network: compareQueue.filter(e => e.type === 'network'),
+    console: compareQueue.filter(e => e.type === 'console'),
+    token: compareQueue.filter(e => e.type === 'token')
+  }
+
+  // Get icon for event type
+  const getEventTypeIcon = (eventType: string) => {
+    switch (eventType) {
+      case 'network': return <Network className="w-3 h-3 text-blue-600" />
+      case 'console': return <AlertTriangle className="w-3 h-3 text-red-600" />
+      case 'token': return <Key className="w-3 h-3 text-green-600" />
+      default: return null
+    }
   }
 
   const renderEventCard = (event: TimelineEvent, type: 'bookmark' | 'compare' | 'queue') => {
@@ -180,7 +200,13 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
         {/* Compare slot indicator */}
         {event.compareSlot !== undefined && event.compareSlot >= 0 && (
           <div className="mt-2 text-xs text-purple-600 font-medium">
-            Compare Slot {event.compareSlot + 1}
+            Compare Slot {(() => {
+              // Convert actual slot number to display slot number (1-4 for each type)
+              if (event.compareSlot >= 0 && event.compareSlot <= 3) return event.compareSlot + 1 // Network: 0-3 → 1-4
+              if (event.compareSlot >= 10 && event.compareSlot <= 13) return event.compareSlot - 9 // Console: 10-13 → 1-4
+              if (event.compareSlot >= 20 && event.compareSlot <= 23) return event.compareSlot - 19 // Token: 20-23 → 1-4
+              return event.compareSlot + 1 // Fallback
+            })()}
           </div>
         )}
       </div>
@@ -233,47 +259,107 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <GitCompare className="w-4 h-4 text-purple-600" />
-              <h3 className="font-medium">Compare ({compareEvents.length}/4)</h3>
+              <h3 className="font-medium">
+                Compare ({compareEvents.filter(e => e.type === selectedQueueType).length + queueEventsByType[selectedQueueType].length})
+              </h3>
             </div>
-            {compareEvents.length > 0 && (
-              <button
-                onClick={onShowCompareView}
-                className="p-1 hover:bg-gray-100 rounded transition-colors"
-                title="Show compare view"
-              >
-                <Grid2X2 className="w-4 h-4" />
-              </button>
-            )}
+            <div className="flex items-center space-x-1">
+              {/* Queue Type Selector */}
+              {(compareQueue.length > 0 || compareEvents.length > 0) && (
+                <div className="flex items-center bg-gray-100 rounded-lg p-1 mr-2">
+                  {(['network', 'console', 'token'] as const).map(type => {
+                    const queueCount = queueEventsByType[type].length
+                    const compareCount = compareEvents.filter(e => e.type === type).length
+                    const totalCount = queueCount + compareCount
+                    const isSelected = selectedQueueType === type
+                    const typeConfig = {
+                      network: { icon: <Network className="w-3 h-3" />, color: 'text-blue-600', label: 'Network' },
+                      console: { icon: <AlertTriangle className="w-3 h-3" />, color: 'text-red-600', label: 'Console' },
+                      token: { icon: <Key className="w-3 h-3" />, color: 'text-green-600', label: 'Token' }
+                    }
+
+                    return (
+                      <button
+                        key={type}
+                        onClick={() => setSelectedQueueType(type)}
+                        className={`relative flex items-center justify-center w-7 h-7 rounded transition-colors ${
+                          isSelected
+                            ? 'bg-white shadow-sm border border-gray-200'
+                            : 'hover:bg-gray-200'
+                        } ${totalCount === 0 ? 'opacity-50' : ''}`}
+                        disabled={totalCount === 0}
+                        title={`${typeConfig[type].label} (${compareCount} slots, ${queueCount} queued)`}
+                      >
+                        <span className={typeConfig[type].color}>
+                          {typeConfig[type].icon}
+                        </span>
+                        {totalCount > 0 && (
+                          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-medium">
+                            {totalCount > 9 ? '9+' : totalCount}
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+              {compareEvents.length > 0 && (
+                <button
+                  onClick={onShowCompareView}
+                  className="p-1 hover:bg-gray-100 rounded transition-colors"
+                  title="Show compare view"
+                >
+                  <Grid2X2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
-          {compareEvents.length > 0 || compareQueue.length > 0 ? (
-            <div className="space-y-4">
-              {/* Active compare slots */}
-              {compareEvents.length > 0 && (
-                <div className="space-y-2">
-                  {compareEvents.map(event => renderEventCard(event, 'compare'))}
-                </div>
-              )}
+          {(() => {
+            // Filter compare events by selected type
+            const filteredCompareEvents = compareEvents.filter(event => event.type === selectedQueueType)
+            const queueEvents = queueEventsByType[selectedQueueType]
+            const hasAnyEvents = filteredCompareEvents.length > 0 || queueEvents.length > 0
 
-              {/* Queue */}
-              {compareQueue.length > 0 && (
-                <div>
-                  <div className="text-xs font-medium text-gray-500 mb-2">
-                    Queue ({compareQueue.length})
-                  </div>
-                  <div className="space-y-2">
-                    {compareQueue.map(event => renderEventCard(event, 'queue'))}
-                  </div>
+            if (!hasAnyEvents) {
+              return (
+                <div className="text-center text-gray-500 text-sm py-8">
+                  No {selectedQueueType} events to compare
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center text-gray-500 text-sm py-8">
-              No events to compare
-            </div>
-          )}
+              )
+            }
+
+            return (
+              <div className="space-y-4">
+                {/* Active compare slots for selected type */}
+                {filteredCompareEvents.length > 0 && (
+                  <div>
+                    <div className="flex items-center space-x-2 text-xs font-medium text-gray-500 mb-2">
+                      <span>Active Slots ({filteredCompareEvents.length}/4)</span>
+                    </div>
+                    <div className="space-y-2">
+                      {filteredCompareEvents.map(event => renderEventCard(event, 'compare'))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Queue for selected type */}
+                {queueEvents.length > 0 && (
+                  <div>
+                    <div className="flex items-center space-x-2 text-xs font-medium text-gray-500 mb-2">
+                      {getEventTypeIcon(selectedQueueType)}
+                      <span className="capitalize">{selectedQueueType} Queue ({queueEvents.length})</span>
+                    </div>
+                    <div className="space-y-2">
+                      {queueEvents.map(event => renderEventCard(event, 'queue'))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
       </div>
         </>
@@ -292,9 +378,36 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
 
           {/* Compare section placeholder - 280px */}
           <div className="flex items-center justify-center" style={{ height: '280px' }}>
-            <div className="text-center">
+            <div className="text-center space-y-2">
               <GitCompare className="w-5 h-5 text-purple-600 mx-auto mb-1" />
-              <div className="text-xs font-medium text-gray-600">{compareEvents.length}</div>
+              <div className="text-xs font-medium text-gray-600">
+                {compareEvents.filter(e => e.type === selectedQueueType).length + queueEventsByType[selectedQueueType].length}
+              </div>
+              {(compareQueue.length > 0 || compareEvents.length > 0) && (
+                <div className="space-y-1">
+                  {/* Show selected queue type */}
+                  <div className="flex items-center justify-center space-x-1">
+                    {getEventTypeIcon(selectedQueueType)}
+                    <span className="text-xs text-gray-500 capitalize">{selectedQueueType}</span>
+                  </div>
+                  {/* Show other queue types with smaller indicators */}
+                  <div className="flex items-center justify-center space-x-2">
+                    {(['network', 'console', 'token'] as const).map(eventType => {
+                      if (eventType === selectedQueueType) return null
+                      const queueCount = queueEventsByType[eventType].length
+                      const compareCount = compareEvents.filter(e => e.type === eventType).length
+                      const totalCount = queueCount + compareCount
+                      if (totalCount === 0) return null
+                      return (
+                        <div key={eventType} className="flex items-center space-x-1 opacity-50">
+                          {getEventTypeIcon(eventType)}
+                          <span className="text-xs text-gray-400">{totalCount}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

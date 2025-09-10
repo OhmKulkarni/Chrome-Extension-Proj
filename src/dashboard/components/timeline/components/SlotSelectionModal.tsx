@@ -90,9 +90,22 @@ export const SlotSelectionModal: React.FC<SlotSelectionModalProps> = ({
           </div>
 
           <div className="space-y-2">
-            <h4 className="text-sm font-medium text-gray-700 mb-3">Replace which compare slot?</h4>
+            <h4 className="text-sm font-medium text-gray-700 mb-3">Replace which {queuedEvent.type} compare slot?</h4>
             {[0, 1, 2, 3].map((slot) => {
-              const eventInSlot = activeCompareEvents.find(e => e.compareSlot === slot)
+              // Get slot range for the queued event type
+              const getSlotRange = (eventType: string) => {
+                switch (eventType) {
+                  case 'network': return { start: 0, end: 3 }
+                  case 'console': return { start: 10, end: 13 }
+                  case 'token': return { start: 20, end: 23 }
+                  default: return { start: 0, end: 3 }
+                }
+              }
+
+              const slotRange = getSlotRange(queuedEvent.type)
+              const actualSlot = slotRange.start + slot
+              const eventInSlot = activeCompareEvents.find(e => e.compareSlot === actualSlot)
+
               return (
                 <button
                   key={slot}

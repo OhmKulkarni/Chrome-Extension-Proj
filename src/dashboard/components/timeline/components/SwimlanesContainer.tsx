@@ -184,16 +184,25 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   const handleSlotSelection = useCallback(async (targetSlot: number) => {
     if (!queuedEventForSlotSelection) return
 
+    // Get slot range for this event type
+    const getSlotRange = (eventType: string) => {
+      switch (eventType) {
+        case 'network': return { start: 0, end: 3 }
+        case 'console': return { start: 10, end: 13 }
+        case 'token': return { start: 20, end: 23 }
+        default: return { start: 0, end: 3 }
+      }
+    }
+
+    const slotRange = getSlotRange(queuedEventForSlotSelection.type)
+    const actualSlot = slotRange.start + targetSlot // Convert 0-3 UI slot to actual slot number
+
     // Get current events to find what needs to be replaced
     const viewportEvents = visualizationData.shouldShowCards ?
       visualizationData.individualEvents :
       visualizationData.densityClusters.flatMap(cluster => cluster.events)
 
-    const currentCompareEvents = viewportEvents.filter(e =>
-      e.compareSlot !== undefined && e.compareSlot >= 0 && e.compareSlot <= 3
-    )
-
-    const eventToReplace = currentCompareEvents.find(e => e.compareSlot === targetSlot)
+    const eventToReplace = viewportEvents.find(e => e.compareSlot === actualSlot)
 
     if (eventToReplace) {
       // Move the replaced event to the queue (it will get compareSlot = -1)
@@ -201,7 +210,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
     }
 
     // Move the queued event to the selected slot
-    await onSetCompareSlot(queuedEventForSlotSelection.id, targetSlot)
+    await onSetCompareSlot(queuedEventForSlotSelection.id, actualSlot)
 
     // Close modal
     setShowSlotSelection(false)
@@ -275,72 +284,131 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
       const removedSlot = event.compareSlot
       await onSetCompareSlot(event.id, undefined)
 
-      // If it was queued, just return since compareSlot will be set to undefined
-      if (event.compareSlot === -1) {
-        return
-      }
-
-      // Compact slots to remove gaps (e.g., if slot 1 is removed, move slot 2->1, slot 3->2)
+      // If it was in an active slot, compact remaining slots to remove gaps
       if (removedSlot >= 0) {
         const viewportEvents = visualizationData.shouldShowCards ?
           visualizationData.individualEvents :
           visualizationData.densityClusters.flatMap(cluster => cluster.events)
 
+        // Get slot range for this event type
+        const getSlotRange = (eventType: string) => {
+          switch (eventType) {
+            case 'network': return { start: 0, end: 3 }
+            case 'console': return { start: 10, end: 13 }
+            case 'token': return { start: 20, end: 23 }
+            default: return { start: 0, end: 3 }
+          }
+        }
+
+        const slotRange = getSlotRange(event.type)
+
         const remainingCompareEvents = viewportEvents.filter(e =>
-          e.compareSlot !== undefined && e.compareSlot >= 0 && e.compareSlot <= 3 && e.id !== event.id
+          e.compareSlot !== undefined &&
+          e.compareSlot >= slotRange.start &&
+          e.compareSlot <= slotRange.end &&
+          e.id !== event.id
         ).sort((a, b) => (a.compareSlot || 0) - (b.compareSlot || 0))
 
-        // Reassign consecutive slot numbers
+        // Reassign consecutive slot numbers within the type's range
         for (let i = 0; i < remainingCompareEvents.length; i++) {
-          if (remainingCompareEvents[i].compareSlot !== i) {
-            await onSetCompareSlot(remainingCompareEvents[i].id, i)
+          const expectedSlot = slotRange.start + i
+          if (remainingCompareEvents[i].compareSlot !== expectedSlot) {
+            await onSetCompareSlot(remainingCompareEvents[i].id, expectedSlot)
+          }
+        }
+
+        // If there are queued events of the same type, promote the first one to fill the gap
+        const queuedEventsOfType = events.filter(e => e.compareSlot === -1 && e.type === event.type)
+        if (queuedEventsOfType.length > 0) {
+          const nextInQueue = queuedEventsOfType[0] // Get first in queue of same type
+          const newSlot = slotRange.start + remainingCompareEvents.length
+          if (newSlot <= slotRange.end) {
+            await onSetCompareSlot(nextInQueue.id, newSlot)
           }
         }
       }
       return
     }
 
-    // Get the viewport-filtered events for compare calculation
-    const viewportEvents = visualizationData.shouldShowCards ?
-      visualizationData.individualEvents :
-      visualizationData.densityClusters.flatMap(cluster => cluster.events)
-
-    const currentCompareEvents = viewportEvents.filter(e =>
-      e.compareSlot !== undefined && e.compareSlot >= 0 && e.compareSlot <= 3
-    ).sort((a, b) => (a.compareSlot || 0) - (b.compareSlot || 0))
-
-    // New event always goes to slot 0 (first position), everything else shifts right
-    // Add the new event to slot 0
-    await onSetCompareSlot(event.id, 0)
-
-    // Shift existing events to the right
-    for (let i = 0; i < currentCompareEvents.length; i++) {
-      const existingEvent = currentCompareEvents[i]
-      const newSlot = i + 1
-
-      if (newSlot <= 3) {
-        // Event fits in compare slots, shift it
-        await onSetCompareSlot(existingEvent.id, newSlot)
-      } else {
-        // Event overflows to queue (this happens when we had 4 events and are adding a 5th)
-        await onSetCompareSlot(existingEvent.id, -1)
+    // Get slot range for this event type
+    const getSlotRange = (eventType: string) => {
+      switch (eventType) {
+        case 'network': return { start: 0, end: 3 }
+        case 'console': return { start: 10, end: 13 }
+        case 'token': return { start: 20, end: 23 }
+        default: return { start: 0, end: 3 }
       }
     }
-  }, [visualizationData, onSetCompareSlot])
 
-  const handleMoveFromQueue = useCallback((event: TimelineEvent) => {
-    // Show slot selection modal instead of auto-adding
-    setQueuedEventForSlotSelection(event)
-    setShowSlotSelection(true)
-  }, [])
+    const slotRange = getSlotRange(event.type)
+
+    // Check how many active slots are currently occupied for this event type
+    const currentTypeCompareEvents = events.filter(e =>
+      e.compareSlot !== undefined &&
+      e.compareSlot >= slotRange.start &&
+      e.compareSlot <= slotRange.end
+    )
+
+    if (currentTypeCompareEvents.length < 4) {
+      // There's space in active slots for this type - add directly to next available slot
+      const occupiedSlots = new Set(currentTypeCompareEvents.map(e => e.compareSlot))
+      let targetSlot = slotRange.start
+      while (occupiedSlots.has(targetSlot) && targetSlot <= slotRange.end) {
+        targetSlot++
+      }
+      await onSetCompareSlot(event.id, targetSlot)
+    } else {
+      // All 4 slots for this type are full - add to queue
+      await onSetCompareSlot(event.id, -1)
+    }
+  }, [visualizationData, onSetCompareSlot, events])
+
+  const handleMoveFromQueue = useCallback(async (event: TimelineEvent) => {
+    // Get slot range for this event type
+    const getSlotRange = (eventType: string) => {
+      switch (eventType) {
+        case 'network': return { start: 0, end: 3 }
+        case 'console': return { start: 10, end: 13 }
+        case 'token': return { start: 20, end: 23 }
+        default: return { start: 0, end: 3 }
+      }
+    }
+
+    const slotRange = getSlotRange(event.type)
+
+    // Check if there are available slots for this event type
+    const currentTypeCompareEvents = events.filter(e =>
+      e.compareSlot !== undefined &&
+      e.compareSlot >= slotRange.start &&
+      e.compareSlot <= slotRange.end
+    )
+
+    if (currentTypeCompareEvents.length < 4) {
+      // There's space for this type - add directly to next available slot
+      const occupiedSlots = new Set(currentTypeCompareEvents.map(e => e.compareSlot))
+      let targetSlot = slotRange.start
+      while (occupiedSlots.has(targetSlot) && targetSlot <= slotRange.end) {
+        targetSlot++
+      }
+      await onSetCompareSlot(event.id, targetSlot)
+    } else {
+      // All slots for this type are full - show slot selection modal for replacement
+      setQueuedEventForSlotSelection(event)
+      setShowSlotSelection(true)
+    }
+  }, [events, onSetCompareSlot])
 
   // Get bookmarked events for sidebar
   const bookmarkedEvents = events.filter(e => e.isBookmarked)
 
-  // Get compare events (both active and queued)
-  const activeCompareEvents = events.filter(e =>
-    e.compareSlot !== undefined && e.compareSlot >= 0 && e.compareSlot <= 3
-  ).sort((a, b) => (a.compareSlot || 0) - (b.compareSlot || 0))
+  // Get compare events (both active and queued) - includes all event types with their slots
+  const activeCompareEvents = events.filter(e => {
+    if (e.compareSlot === undefined) return false
+    // Network: slots 0-3, Console: slots 10-13, Token: slots 20-23
+    return (e.compareSlot >= 0 && e.compareSlot <= 3) ||
+           (e.compareSlot >= 10 && e.compareSlot <= 13) ||
+           (e.compareSlot >= 20 && e.compareSlot <= 23)
+  }).sort((a, b) => (a.compareSlot || 0) - (b.compareSlot || 0))
 
   const queuedCompareEvents = events.filter(e => e.compareSlot === -1)
 
