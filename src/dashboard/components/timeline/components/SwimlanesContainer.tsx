@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef } from 'react'
 import { TimelineEvent, TimelineCluster, SwimLaneConfig, DensityCluster, ViewportEventData, TimeScope } from '../types/timeline.types'
 import { Swimlane } from './Swimlane'
 import { EventPopup } from './EventPopup'
+import { EventDetailModal } from './EventDetailModal'
 import { TimelineSidebar } from './TimelineSidebar'
 import { CompareView } from './CompareView'
 import { DensityClusterComponent } from './DensityCluster'
@@ -51,6 +52,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
 }) => {
   const [selectedCluster, setSelectedCluster] = useState<TimelineCluster | null>(null)
   const [selectedDensityCluster, setSelectedDensityCluster] = useState<DensityCluster | null>(null)
+  const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null)
   const [showCompareView, setShowCompareView] = useState(false)
   const [compareQueue, setCompareQueue] = useState<TimelineEvent[]>([])
   const containerRef = useRef<HTMLDivElement>(null)
@@ -82,33 +84,9 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   }, [])
 
   const handleEventClick = useCallback((event: TimelineEvent) => {
-    // Get the viewport-filtered events for stack detection
-    const viewportEvents = visualizationData.shouldShowCards ?
-      visualizationData.individualEvents :
-      visualizationData.densityClusters.flatMap(cluster => cluster.events)
-
-    // If it's a dense stack, show popup
-    const samePositionEvents = viewportEvents.filter(e =>
-      Math.abs(e.timestamp - event.timestamp) < 1000 &&
-      e.swimlane === event.swimlane
-    )
-
-    if (samePositionEvents.length > 1) {
-      setSelectedCluster({
-        id: `stack_${event.id}`,
-        events: samePositionEvents,
-        startTime: event.timestamp - 500,
-        endTime: event.timestamp + 500,
-        centerTime: event.timestamp,
-        density: samePositionEvents.length,
-        swimlane: event.swimlane,
-        x: 0,
-        y: 0,
-        size: Math.min(5, samePositionEvents.length),
-        visualType: 'card'
-      })
-    }
-  }, [visualizationData])
+    // Always show the detailed modal for any clicked event
+    setSelectedEvent(event)
+  }, [])
 
   const handleDensityClusterZoom = useCallback((cluster: DensityCluster) => {
     // Center viewport on the cluster's center time when zooming in
@@ -143,7 +121,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
       // Event is already in compare, remove it
       const removedSlot = event.compareSlot
       await onSetCompareSlot(event.id, undefined)
-      
+
       // If it was queued, also remove from queue state
       if (event.compareSlot === -1) {
         setCompareQueue(prev => prev.filter(e => e.id !== event.id))
@@ -298,6 +276,16 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
           onClose={handleCloseDensityClusterList}
           onBookmarkEvent={onBookmarkEvent}
           onSetCompareSlot={onSetCompareSlot}
+        />
+      )}
+
+      {/* Event Detail Modal */}
+      {selectedEvent && (
+        <EventDetailModal
+          event={selectedEvent}
+          onClose={() => setSelectedEvent(null)}
+          onBookmark={onBookmarkEvent}
+          onAddToCompare={handleAddToCompare}
         />
       )}
     </div>
