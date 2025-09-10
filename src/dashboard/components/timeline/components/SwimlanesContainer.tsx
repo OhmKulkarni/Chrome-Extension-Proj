@@ -317,7 +317,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
     for (let i = 0; i < currentCompareEvents.length; i++) {
       const existingEvent = currentCompareEvents[i]
       const newSlot = i + 1
-      
+
       if (newSlot <= 3) {
         // Event fits in compare slots, shift it
         await onSetCompareSlot(existingEvent.id, newSlot)
