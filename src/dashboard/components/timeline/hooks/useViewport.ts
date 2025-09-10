@@ -113,10 +113,10 @@ export const useViewport = ({
         // For 'last-' scopes, jump to the latest data time (most recent record)
         const now = Date.now()
         const timeDiff = now - latestDataTimestamp
-        
+
         // Check if latestDataTimestamp looks like default fallback (current time)
         const isCurrentTimeFallback = Math.abs(timeDiff) < (5 * 60 * 1000) // Within 5 minutes of current time
-        
+
         if (isCurrentTimeFallback) {
           // This might be the default fallback - use current time but log for debugging
           console.log('🕐 Using current time for last- scope (no data loaded yet)')
@@ -130,10 +130,10 @@ export const useViewport = ({
         // For 'first-' scopes, jump to the earliest data time
         const now = Date.now()
         const timeDiff = now - earliestDataTimestamp
-        
+
         // Check if this looks like the default fallback (exactly 24 hours ago)
         const isExactlyOneDayFallback = Math.abs(timeDiff - (24 * 60 * 60 * 1000)) < (60 * 1000) // Within 1 minute of exactly 24 hours
-        
+
         if (isExactlyOneDayFallback) {
           // This is likely the default fallback - use a more reasonable estimate
           // Based on typical usage patterns, go back 5 days to capture recent browsing history

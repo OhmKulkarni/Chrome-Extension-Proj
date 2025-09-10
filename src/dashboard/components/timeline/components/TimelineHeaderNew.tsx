@@ -20,6 +20,7 @@ interface TimelineHeaderNewProps {
   onRefresh: () => void
   onAcknowledgeUpdates: () => void
   onShowSwimlane: (laneId: string) => void
+  onShowAllTimeModal: () => void
 }
 
 const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
@@ -38,7 +39,8 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
   onJumpToTime,
   onRefresh,
   onAcknowledgeUpdates,
-  onShowSwimlane
+  onShowSwimlane,
+  onShowAllTimeModal
 }) => {
   // State for dropdown visibility
   const [showLastDropdown, setShowLastDropdown] = useState(false)
@@ -103,7 +105,14 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
     { value: '4-days', label: '4 Days' },
     { value: '5-days', label: '5 Days' },
     { value: '6-days', label: '6 Days' },
-    { value: '1-week', label: '1 Week' }
+    { value: '1-week', label: '1 Week' },
+    { value: '2-weeks', label: '2 Weeks' },
+    { value: '3-weeks', label: '3 Weeks' },
+    { value: '4-weeks', label: '4 Weeks' },
+    { value: '1-month', label: '1 Month' },
+    { value: '3-months', label: '3 Months' },
+    { value: '6-months', label: '6 Months' },
+    { value: '12-months', label: '12 Months' }
   ]
 
   const lastOptions = timeIntervals.map(interval => ({
@@ -163,12 +172,8 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
             First
           </button>
           <button
-            onClick={() => handleTimeSelectionModeChange('all-time')}
-            className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-              timeSelectionMode === 'all-time'
-                ? 'bg-white text-blue-600 shadow-sm ring-1 ring-blue-200'
-                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
-            }`}
+            onClick={() => onShowAllTimeModal()}
+            className="px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 text-gray-600 hover:text-gray-800 hover:bg-gray-50"
           >
             All Time
           </button>
@@ -207,47 +212,47 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
 
                 // Format based on duration
                 if (duration <= 60 * 60 * 1000) { // 1 hour or less
-                  return `${startTime.toLocaleTimeString('en-US', { 
-                    hour12: false, 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                  })} - ${endTime.toLocaleTimeString('en-US', { 
-                    hour12: false, 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
+                  return `${startTime.toLocaleTimeString('en-US', {
+                    hour12: false,
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })} - ${endTime.toLocaleTimeString('en-US', {
+                    hour12: false,
+                    hour: '2-digit',
+                    minute: '2-digit'
                   })}`
                 } else if (duration <= 24 * 60 * 60 * 1000) { // 1 day or less
                   const isSameDay = startTime.toDateString() === endTime.toDateString()
                   if (isSameDay) {
-                    return `${startTime.toLocaleDateString('en-US', { 
-                      month: 'short', 
-                      day: 'numeric' 
-                    })} ${startTime.toLocaleTimeString('en-US', { 
-                      hour12: false, 
-                      hour: '2-digit', 
-                      minute: '2-digit' 
-                    })}-${endTime.toLocaleTimeString('en-US', { 
-                      hour12: false, 
-                      hour: '2-digit', 
-                      minute: '2-digit' 
+                    return `${startTime.toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric'
+                    })} ${startTime.toLocaleTimeString('en-US', {
+                      hour12: false,
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}-${endTime.toLocaleTimeString('en-US', {
+                      hour12: false,
+                      hour: '2-digit',
+                      minute: '2-digit'
                     })}`
                   } else {
-                    return `${startTime.toLocaleDateString('en-US', { 
-                      month: 'short', 
-                      day: 'numeric' 
-                    })} - ${endTime.toLocaleDateString('en-US', { 
-                      month: 'short', 
-                      day: 'numeric' 
+                    return `${startTime.toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric'
+                    })} - ${endTime.toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric'
                     })}`
                   }
                 } else {
                   // More than 1 day
-                  return `${startTime.toLocaleDateString('en-US', { 
-                    month: 'short', 
+                  return `${startTime.toLocaleDateString('en-US', {
+                    month: 'short',
                     day: 'numeric',
                     year: startTime.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
-                  })} - ${endTime.toLocaleDateString('en-US', { 
-                    month: 'short', 
+                  })} - ${endTime.toLocaleDateString('en-US', {
+                    month: 'short',
                     day: 'numeric',
                     year: endTime.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
                   })}`
@@ -255,7 +260,7 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
               })()}
             </div>
           </div>
-          
+
           {/* Visual mode indicator */}
           <div className="flex items-center space-x-2 text-xs">
             <div className="text-gray-500">Mode:</div>
@@ -266,7 +271,7 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
               </span>
             </div>
           </div>
-          
+
           {isAnimating && (
             <div className="flex items-center text-xs text-gray-400">
               <div className="animate-spin w-3 h-3 border border-gray-300 border-t-blue-500 rounded-full mr-1"></div>

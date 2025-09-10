@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import TimelineHeaderNew from './components/TimelineHeaderNew'
 import { SwimlanesContainer } from './components/SwimlanesContainer'
+import { AllTimeModal } from './components/AllTimeModal'
 import { useTimelineData } from './hooks/useTimelineData'
 import { useViewport } from './hooks/useViewport'
 import { useTimelineVisualization } from './hooks/useTimelineVisualization'
@@ -9,6 +10,7 @@ export const TimelineVisualization: React.FC = () => {
   const [swimlanes, setSwimlanes] = useState<SwimLaneConfig[]>(DEFAULT_SWIMLANES)
   const [debugMode, setDebugMode] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [showAllTimeModal, setShowAllTimeModal] = useState(false)
 
   // Initialize viewport with default settings first
   const viewport = useViewport({ initialScope: '1-hour' })
@@ -98,6 +100,7 @@ export const TimelineVisualization: React.FC = () => {
         onRefresh={timelineData.refreshData}
         onAcknowledgeUpdates={timelineData.acknowledgeUpdates}
         onShowSwimlane={handleShowSwimlane}
+        onShowAllTimeModal={() => setShowAllTimeModal(true)}
       />
 
       <div className="flex-1 overflow-hidden">
@@ -160,6 +163,22 @@ export const TimelineVisualization: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* All Time Modal */}
+      <AllTimeModal
+        isOpen={showAllTimeModal}
+        events={timelineData.events}
+        earliestTimestamp={earliestTimestamp}
+        latestTimestamp={latestTimestamp}
+        onClose={() => setShowAllTimeModal(false)}
+        onJumpToTime={(timestamp, scope) => {
+          viewport.jumpToTime(timestamp)
+          if (scope) {
+            viewport.jumpToPreset(scope)
+          }
+          setShowAllTimeModal(false)
+        }}
+      />
     </div>
   )
 }
