@@ -341,7 +341,7 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
             {[0, 25, 50, 75, 100].map(percent => (
               <div
                 key={percent}
-                className="absolute top-0 bottom-0 w-px bg-gray-200"
+                className="absolute top-0 bottom-0 w-px bg-gray-200 dark:bg-gray-600"
                 style={{ left: `${percent}%` }}
               />
             ))}
