@@ -315,7 +315,8 @@ export class TokenTrackerModule {
         const mainDomain = tabUrl ? this.extractDomain(tabUrl) : this.extractDomain(url);
 
         const tokenEventData = {
-          type: tokenType as 'jwt_token' | 'session_token' | 'api_key' | 'oauth_token',
+          type: eventType,  // Store the event type (acquire, expired, etc.) for dashboard display
+          tokenType: tokenType as 'jwt_token' | 'session_token' | 'api_key' | 'oauth_token',  // Store the token classification for analysis
           valueHash,
           timestamp: timestamp ? new Date(timestamp).getTime() : Date.now(),
           source_url: requestData.source_url || url,
@@ -820,12 +821,9 @@ export class TokenTrackerModule {
       case 'verified':
         return 'api_key'; // Verified tokens are often API keys or access tokens
       case 'expired':
-      case 'validation_failed':
         return 'session_token'; // Failed validations often involve session tokens
       case 'refresh_error':
         return 'jwt_token'; // Refresh errors typically involve JWT refresh tokens
-      case 'revoked':
-        return 'oauth_token'; // Revocation typically applies to OAuth tokens
       default:
         return 'api_key'; // Safe default for unknown cases
     }
@@ -868,7 +866,7 @@ export class TokenTrackerModule {
   /**
    * Map IndexedDB token type back to event type
    */
-  private mapTokenTypeToEventType(tokenType: string): 'acquire' | 'refresh' | 'expired' | 'refresh_error' | 'verified' | 'validation_failed' | 'revoked' {
+  private mapTokenTypeToEventType(tokenType: string): 'acquire' | 'refresh' | 'expired' | 'refresh_error' | 'verified' {
     switch (tokenType) {
       case 'jwt_token':
         return 'acquire';

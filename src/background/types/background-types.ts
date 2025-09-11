@@ -8,7 +8,7 @@
 // ===== TOKEN SYSTEM TYPES =====
 
 export interface TokenEvent {
-  type: 'acquire' | 'refresh' | 'expired' | 'refresh_error' | 'verified' | 'validation_failed' | 'revoked';
+  type: 'acquire' | 'refresh' | 'expired' | 'refresh_error' | 'verified';
   url: string;
   method: string;
   status: number;
