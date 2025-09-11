@@ -184,6 +184,18 @@ export class TokenTrackerModule {
       const isTokenValidation = this.isTokenEndpoint(url, 'token_validation');
       const isWebSocketAuth = this.isTokenEndpoint(url, 'websocket_auth');
 
+      // Debug which endpoint type was detected
+      if (isAcquireEndpoint || isRefreshEndpoint || isApiCall || isServiceAuth || isTokenValidation || isWebSocketAuth) {
+        console.log(`🔍 TokenTrackerModule: Endpoint detection for ${url}`);
+        console.log(`   - isAcquireEndpoint: ${isAcquireEndpoint}`);
+        console.log(`   - isRefreshEndpoint: ${isRefreshEndpoint}`);
+        console.log(`   - isApiCall: ${isApiCall}`);
+        console.log(`   - isServiceAuth: ${isServiceAuth}`);
+        console.log(`   - isTokenValidation: ${isTokenValidation}`);
+        console.log(`   - isWebSocketAuth: ${isWebSocketAuth}`);
+        console.log(`   - status: ${status}`);
+      }
+
       // Check if request has authentication (any token-related headers/content/URL params)
       const hasAuthHeaders = this.hasAuthenticationHeaders(requestData.headers || {});
       const hasAuthContent = this.hasAuthenticationInBody(requestData.body);
@@ -208,50 +220,59 @@ export class TokenTrackerModule {
 
       // Determine token event type based on endpoint and response status
       let eventType: TokenEvent['type'];
+      
+      // Ensure status is a number for proper comparison
+      const statusCode = typeof status === 'string' ? parseInt(status, 10) : status;
+      console.log(`🔍 TokenTrackerModule: Original status: ${status} (${typeof status}), converted: ${statusCode} (${typeof statusCode})`);
 
       if (isRefreshEndpoint) {
-        if (status >= 200 && status < 300) {
+        console.log(`🔍 TokenTrackerModule: Taking REFRESH path for status ${statusCode}`);
+        if (statusCode >= 200 && statusCode < 300) {
           eventType = 'refresh';
-        } else if (status === 401 || status === 403) {
+        } else if (statusCode === 401 || statusCode === 403) {
           eventType = 'refresh_error';
         } else {
           eventType = 'expired';
         }
       } else if (isAcquireEndpoint || isServiceAuth) {
-        if (status >= 200 && status < 300) {
+        console.log(`🔍 TokenTrackerModule: Taking ACQUIRE path for status ${statusCode}`);
+        if (statusCode >= 200 && statusCode < 300) {
           eventType = 'acquire';
-        } else if (status === 401 || status === 403) {
+          console.log(`🔍 TokenTrackerModule: Setting eventType to 'acquire' (success) - condition: ${statusCode} >= 200 && ${statusCode} < 300`);
+        } else if (statusCode === 401 || statusCode === 403) {
           eventType = 'validation_failed';
-        } else if (status === 400) {
+          console.log(`🔍 TokenTrackerModule: Setting eventType to 'validation_failed' (401/403)`);
+        } else if (statusCode === 400) {
           eventType = 'validation_failed'; // Bad request often means invalid credentials
-          console.log(`🔍 TokenTrackerModule: Status 400 on login endpoint, treating as validation_failed`);
+          console.log(`🔍 TokenTrackerModule: Setting eventType to 'validation_failed' (400)`);
         } else {
+          console.log(`🔍 TokenTrackerModule: Rejecting status ${statusCode} for acquire endpoint - no condition matched`);
           return null; // Don't track other failed acquisition attempts (5xx errors, etc.)
         }
       } else if (isTokenValidation) {
-        if (status >= 200 && status < 300) {
+        if (statusCode >= 200 && statusCode < 300) {
           eventType = 'verified';
-        } else if (status === 401 || status === 403) {
+        } else if (statusCode === 401 || statusCode === 403) {
           eventType = 'validation_failed';
-        } else if (status === 400) {
+        } else if (statusCode === 400) {
           eventType = 'validation_failed'; // Bad request often means invalid token format
           console.log(`🔍 TokenTrackerModule: Status 400 on validation endpoint, treating as validation_failed`);
         } else {
           return null;
         }
       } else if (isWebSocketAuth) {
-        if (status >= 200 && status < 300) {
+        if (statusCode >= 200 && statusCode < 300) {
           eventType = 'acquire'; // WebSocket auth success treated as token acquisition
         } else {
           eventType = 'validation_failed';
         }
       } else if (isApiCall && (hasAuthHeaders || hasAuthContent || hasAuthInUrl)) {
         // API calls with authentication - treat as token usage verification
-        if (status >= 200 && status < 300) {
+        if (statusCode >= 200 && statusCode < 300) {
           eventType = 'verified';
-        } else if (status === 401 || status === 403) {
+        } else if (statusCode === 401 || statusCode === 403) {
           eventType = 'expired';
-        } else if (status === 0) {
+        } else if (statusCode === 0) {
           // Status 0 can indicate network error, CORS, or pending request - still log as verified attempt
           eventType = 'verified';
           console.log(`⚠️ TokenTrackerModule: Status 0 detected for API call, treating as verified attempt`);
