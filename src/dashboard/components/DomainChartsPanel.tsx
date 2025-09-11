@@ -384,9 +384,9 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
           {/* Performance Badge with Safe Fallbacks */}
           <div className="flex items-center gap-2">
             <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
-              (chartData.successRate ?? 0) >= 95 ? 'bg-green-100 text-green-800' :
-              (chartData.successRate ?? 0) >= 85 ? 'bg-yellow-100 text-yellow-800' :
-              chartData.successRate !== undefined ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-600'
+              (chartData.successRate ?? 0) >= 95 ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' :
+              (chartData.successRate ?? 0) >= 85 ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200' :
+              chartData.successRate !== undefined ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
             }`}>
               {chartData.successRate !== undefined ? (
                 chartData.successRate >= 95 ? '✅ Excellent' :
@@ -433,7 +433,7 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
             <div className="flex items-center gap-2">
               <Clock className="h-5 w-5 text-blue-600" />
               <h4 className="text-lg font-semibold text-gray-800">Activity Timeline</h4>
-              <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
+              <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 rounded-full font-medium">
                 All Records
               </span>
             </div>

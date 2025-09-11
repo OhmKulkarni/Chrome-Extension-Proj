@@ -146,12 +146,12 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
 
   const getEventTypeColor = (type: string) => {
     switch (type.toLowerCase()) {
-      case 'acquire': return 'bg-green-100 text-green-800';
-      case 'refresh': return 'bg-yellow-100 text-yellow-800';
+      case 'acquire': return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200';
+      case 'refresh': return 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200';
       case 'expire':
-      case 'expired': return 'bg-red-100 text-red-800';
-      case 'verified': return 'bg-emerald-100 text-emerald-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'expired': return 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200';
+      case 'verified': return 'bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200';
+      default: return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200';
     }
   };
 
@@ -166,7 +166,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Token Events</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-200">Token Events</h2>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Authentication token lifecycle events from all tabs</p>
         </div>
         <div className="flex items-center space-x-4">
@@ -245,7 +245,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
           <div className="overflow-x-auto min-w-0">
             <table className="w-full table-fixed divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-800">
-                <tr>
+                <tr className="border-b border-gray-200 dark:border-gray-700">
                   <th
                     className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 w-24"
                     onClick={() => onSort('type')}
@@ -317,18 +317,18 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                       </span>
                     </td>
                     <td className="px-3 py-3 w-2/5">
-                      <div className={`text-sm truncate max-w-lg flex items-center ${isSelected ? 'text-yellow-900 dark:text-yellow-100 font-medium' : 'text-gray-900 dark:text-gray-100'}`} title={event.url}>
+                      <div className={`text-sm truncate max-w-lg flex items-center ${isSelected ? 'text-yellow-900 dark:text-yellow-100 font-medium' : 'text-gray-900 dark:text-gray-300'}`} title={event.url}>
                         {isSelected && (
                           <div className="w-2 h-2 bg-yellow-500 rounded-full mr-2 flex-shrink-0"></div>
                         )}
                         {event.url || 'N/A'}
                       </div>
                     </td>
-                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-16">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 w-16">
                       {event.method || 'N/A'}
                     </td>
                     <td
-                      className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 font-mono w-1/4"
+                      className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 font-mono w-1/4"
                       title={
                         (event.valueHash || event.value_hash) && !showFullTokenHash
                           ? `${event.valueHash || event.value_hash} (click Toggle Full Hash to see complete value)`
@@ -340,7 +340,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                         return formatHash(hashValue);
                       })()}
                     </td>
-                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-20">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 w-20">
                       {new Date(event.timestamp).toLocaleTimeString()}
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-center w-24">
@@ -443,11 +443,11 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
         </div>
       ) : (
         <div className="text-center py-12">
-          <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
           </svg>
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No token events found</h3>
-          <p className="mt-1 text-sm text-gray-500">
+          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-200">No token events found</h3>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             {searchTerm || filterType !== 'all'
               ? 'Try adjusting your search criteria or filters'
               : 'Token events will appear here when they are captured'

@@ -25,7 +25,7 @@ const DomainChartsHeader: React.FC<DomainChartsHeaderProps> = ({
           {expandedCount} domain chart{expandedCount === 1 ? '' : 's'} expanded
         </span>
         {expandedCount >= maxExpanded && (
-          <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded">
+          <span className="text-xs text-blue-600 dark:text-blue-200 bg-blue-100 dark:bg-blue-900 px-2 py-0.5 rounded">
             Max limit reached
           </span>
         )}

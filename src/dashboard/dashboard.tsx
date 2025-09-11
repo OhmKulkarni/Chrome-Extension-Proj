@@ -1544,7 +1544,7 @@ const DecomposedDashboard: React.FC = () => {
       {/* Enhanced Drag-Up Detail Viewer */}
       {detailViewerOpen && expandedItem && (
         <div
-          className={`fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40 ${
+          className={`fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 shadow-lg z-40 ${
             isDragging ? 'transition-none' : 'transition-all duration-200'
           }`}
           style={{ height: `${detailViewerHeight}px` }}
@@ -1553,29 +1553,29 @@ const DecomposedDashboard: React.FC = () => {
           <div
             className={`w-full h-3 cursor-ns-resize transition-all duration-150 flex items-center justify-center ${
               isDragging
-                ? 'bg-blue-200 border-t border-blue-300'
-                : 'bg-gray-100 hover:bg-gray-200 border-t border-gray-200'
+                ? 'bg-blue-200 dark:bg-blue-700 border-t border-blue-300 dark:border-blue-600'
+                : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border-t border-gray-200 dark:border-gray-700'
             }`}
             onMouseDown={handleMouseDown}
             title="Drag to resize"
           >
             <div className={`transition-all duration-150 rounded-full ${
               isDragging
-                ? 'w-16 h-1.5 bg-blue-500'
-                : 'w-12 h-1 bg-gray-400 hover:bg-gray-500'
+                ? 'w-16 h-1.5 bg-blue-500 dark:bg-blue-400'
+                : 'w-12 h-1 bg-gray-400 dark:bg-gray-500 hover:bg-gray-500 dark:hover:bg-gray-400'
             }`}></div>
           </div>
 
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
             <div className="flex items-center space-x-4">
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-200">
                 {expandedItemType === 'request' ? 'Request Details' :
                  expandedItemType === 'error' ? 'Error Details' : 'Token Event Details'}
               </h3>
 
               {/* Side-by-side Field Selector */}
-              <div className="flex bg-gray-100 rounded-lg p-1">
+              <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
                 {(expandedItemType === 'request' ? ['details', 'headers', 'body', 'rawjson'] :
                   expandedItemType === 'error' ? ['details', 'stack'] :
                   ['details', 'rawjson']).map((field) => (
@@ -1584,8 +1584,8 @@ const DecomposedDashboard: React.FC = () => {
                     onClick={() => setSelectedField(field)}
                     className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors capitalize ${
                       selectedField === field
-                        ? 'bg-white text-blue-600 shadow-sm'
-                        : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
+                        ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                        : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
                   >
                     {field === 'rawjson' ? 'Raw JSON' :
@@ -1601,7 +1601,7 @@ const DecomposedDashboard: React.FC = () => {
 
             <button
               onClick={closeDetailViewer}
-              className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+              className="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
