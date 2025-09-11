@@ -10,25 +10,6 @@ interface SettingsData {
       captureResponses: boolean;
       maxBodySize: number;
     };
-    privacy: {
-      noiseFilters: {
-        analytics: boolean;     // Google Analytics, Tag Manager
-        advertising: boolean;   // Ad networks, tracking
-        socialMedia: boolean;   // Facebook, Twitter pixels
-        telemetry: boolean;     // Health checks, telemetry
-        staticAssets: boolean;  // CSS, JS, images, fonts
-        preflight: boolean;     // HEAD, OPTIONS requests
-      };
-    };
-    urlPatterns: {
-      enabled: boolean;
-      patterns: Array<{
-        id: string;
-        pattern: string;
-        active: boolean;
-        description?: string;
-      }>;
-    };
     tabSpecific: {
       defaultState: 'active' | 'paused';
     };
@@ -67,27 +48,6 @@ const defaultSettings: SettingsData = {
       captureResponses: false,
       maxBodySize: 2000,
     },
-    privacy: {
-      noiseFilters: {
-        analytics: true,     // Google Analytics, Tag Manager
-        advertising: true,   // Ad networks, tracking
-        socialMedia: true,   // Facebook, Twitter pixels
-        telemetry: true,     // Health checks, telemetry
-        staticAssets: true,  // CSS, JS, images, fonts
-        preflight: true,     // HEAD, OPTIONS requests
-      },
-    },
-    urlPatterns: {
-      enabled: false,
-      patterns: [
-        {
-          id: 'example-1',
-          pattern: 'https://example.com/*',
-          active: true,
-          description: 'Example pattern for example.com'
-        }
-      ]
-    },
     tabSpecific: {
       defaultState: 'active' // Changed from 'paused' to 'active' for better UX
     }
@@ -112,8 +72,8 @@ const defaultSettings: SettingsData = {
   chartSettings: {
     refreshMode: 'manual',  // Conservative default - manual mode
     refreshInterval: 30,    // Slower refresh rate
-    enableSharedProcessing: false,  // Disabled for safety
-    enableStalenessTracking: false // Disabled for safety
+    enableSharedProcessing: false,  // Not implemented - disabled
+    enableStalenessTracking: false // Not implemented - disabled
   },
 };
 
@@ -275,34 +235,7 @@ const SettingsInline: React.FC = () => {
         };
       }
 
-      // MIGRATION: Convert old filterNoise setting to new granular noiseFilters
-      if (loadedSettings.networkInterception?.privacy) {
-        const privacy = loadedSettings.networkInterception.privacy as any;
-
-        // If we have the old filterNoise setting but no new noiseFilters
-        if (privacy.filterNoise !== undefined && !privacy.noiseFilters) {
-          console.log('📋 Migrating old filterNoise setting to new granular filters');
-
-          // Migrate based on the old setting value
-          privacy.noiseFilters = {
-            analytics: privacy.filterNoise,
-            advertising: privacy.filterNoise,
-            socialMedia: privacy.filterNoise,
-            telemetry: privacy.filterNoise,
-            staticAssets: privacy.filterNoise,
-            preflight: privacy.filterNoise
-          };
-
-          // Remove the old setting
-          delete privacy.filterNoise;
-
-          // Save the migrated settings immediately
-          console.log('💾 Auto-saving migrated settings');
-          setTimeout(() => {
-            updateSetting('networkInterception', loadedSettings.networkInterception);
-          }, 100);
-        }
-      }
+      // Privacy settings migration removed - features not implemented
 
       setSettings(loadedSettings);
     } catch (error) {
@@ -623,212 +556,7 @@ const SettingsInline: React.FC = () => {
                 </div>
               )}
 
-              <div className="space-y-4">
-                <div>
-                  <h4 className="text-sm font-medium text-gray-900 mb-3">Request Filtering</h4>
-                  <p className="text-xs text-gray-600 mb-4">
-                    Choose which types of requests to filter out from logging. Uncheck categories you want to track.
-                  </p>
-
-                  <div className="space-y-3">
-                    <Switch
-                      checked={settings.networkInterception?.privacy?.noiseFilters?.analytics || true}
-                      onChange={(e) => updateSetting('networkInterception', {
-                        ...settings.networkInterception,
-                        privacy: {
-                          ...settings.networkInterception?.privacy,
-                          noiseFilters: {
-                            ...settings.networkInterception?.privacy?.noiseFilters,
-                            analytics: e.target.checked
-                          }
-                        }
-                      })}
-                      label="Analytics & Tracking"
-                      description="Google Analytics, Tag Manager, Mixpanel, Amplitude"
-                    />
-
-                    <Switch
-                      checked={settings.networkInterception?.privacy?.noiseFilters?.advertising || true}
-                      onChange={(e) => updateSetting('networkInterception', {
-                        ...settings.networkInterception,
-                        privacy: {
-                          ...settings.networkInterception?.privacy,
-                          noiseFilters: {
-                            ...settings.networkInterception?.privacy?.noiseFilters,
-                            advertising: e.target.checked
-                          }
-                        }
-                      })}
-                      label="Advertising Networks"
-                      description="DoubleClick, Google Ads, Amazon Ads, Facebook Pixel"
-                    />
-
-                    <Switch
-                      checked={settings.networkInterception?.privacy?.noiseFilters?.socialMedia || true}
-                      onChange={(e) => updateSetting('networkInterception', {
-                        ...settings.networkInterception,
-                        privacy: {
-                          ...settings.networkInterception?.privacy,
-                          noiseFilters: {
-                            ...settings.networkInterception?.privacy?.noiseFilters,
-                            socialMedia: e.target.checked
-                          }
-                        }
-                      })}
-                      label="Social Media Tracking"
-                      description="Facebook, Twitter analytics, social media pixels"
-                    />
-
-                    <Switch
-                      checked={settings.networkInterception?.privacy?.noiseFilters?.telemetry || true}
-                      onChange={(e) => updateSetting('networkInterception', {
-                        ...settings.networkInterception,
-                        privacy: {
-                          ...settings.networkInterception?.privacy,
-                          noiseFilters: {
-                            ...settings.networkInterception?.privacy?.noiseFilters,
-                            telemetry: e.target.checked
-                          }
-                        }
-                      })}
-                      label="Telemetry & Health Checks"
-                      description="/ping, /health, /telemetry, error reporting, GCP Privacy"
-                    />
-
-                    <Switch
-                      checked={settings.networkInterception?.privacy?.noiseFilters?.staticAssets || true}
-                      onChange={(e) => updateSetting('networkInterception', {
-                        ...settings.networkInterception,
-                        privacy: {
-                          ...settings.networkInterception?.privacy,
-                          noiseFilters: {
-                            ...settings.networkInterception?.privacy?.noiseFilters,
-                            staticAssets: e.target.checked
-                          }
-                        }
-                      })}
-                      label="Static Assets"
-                      description="CSS, JS, images, fonts, favicon.ico"
-                    />
-
-                    <Switch
-                      checked={settings.networkInterception?.privacy?.noiseFilters?.preflight || true}
-                      onChange={(e) => updateSetting('networkInterception', {
-                        ...settings.networkInterception,
-                        privacy: {
-                          ...settings.networkInterception?.privacy,
-                          noiseFilters: {
-                            ...settings.networkInterception?.privacy?.noiseFilters,
-                            preflight: e.target.checked
-                          }
-                        }
-                      })}
-                      label="Preflight Requests"
-                      description="HEAD and OPTIONS requests (CORS preflight)"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <Switch
-                  checked={settings.networkInterception?.urlPatterns?.enabled || false}
-                  onChange={(e) => updateSetting('networkInterception', {
-                    ...settings.networkInterception,
-                    urlPatterns: {
-                      ...settings.networkInterception?.urlPatterns,
-                      enabled: e.target.checked
-                    }
-                  })}
-                  label="Enable URL pattern filtering"
-                  description="Only capture requests matching specific URL patterns (e.g., https://api.example.com/*)"
-                />
-
-                {settings.networkInterception?.urlPatterns?.enabled && (
-                  <div className="ml-4 mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <p className="text-sm font-medium mb-3">🎯 URL Pattern Configuration</p>
-                    <p className="text-xs text-gray-600 mb-3">
-                      Define URL patterns to capture. Use * for wildcards (e.g., https://api.example.com/*)
-                    </p>
-
-                    {settings.networkInterception?.urlPatterns?.patterns?.map((pattern, index) => (
-                      <div key={pattern.id} className="flex items-center space-x-3 mb-2 p-2 bg-white rounded border">
-                        <input
-                          type="checkbox"
-                          checked={pattern.active}
-                          onChange={(e) => {
-                            const updatedPatterns = [...(settings.networkInterception?.urlPatterns?.patterns || [])];
-                            updatedPatterns[index] = { ...pattern, active: e.target.checked };
-                            updateSetting('networkInterception', {
-                              ...settings.networkInterception,
-                              urlPatterns: {
-                                ...settings.networkInterception?.urlPatterns,
-                                patterns: updatedPatterns
-                              }
-                            });
-                          }}
-                          className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                        />
-                        <Input
-                          value={pattern.pattern}
-                          onChange={(e) => {
-                            const updatedPatterns = [...(settings.networkInterception?.urlPatterns?.patterns || [])];
-                            updatedPatterns[index] = { ...pattern, pattern: e.target.value };
-                            updateSetting('networkInterception', {
-                              ...settings.networkInterception,
-                              urlPatterns: {
-                                ...settings.networkInterception?.urlPatterns,
-                                patterns: updatedPatterns
-                              }
-                            });
-                          }}
-                          placeholder="https://api.example.com/*"
-                          className="flex-1"
-                        />
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const updatedPatterns = settings.networkInterception?.urlPatterns?.patterns?.filter((_, i) => i !== index) || [];
-                            updateSetting('networkInterception', {
-                              ...settings.networkInterception,
-                              urlPatterns: {
-                                ...settings.networkInterception?.urlPatterns,
-                                patterns: updatedPatterns
-                              }
-                            });
-                          }}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const newPattern = {
-                          id: `pattern-${Date.now()}`,
-                          pattern: '',
-                          active: true,
-                          description: ''
-                        };
-                        const updatedPatterns = [...(settings.networkInterception?.urlPatterns?.patterns || []), newPattern];
-                        updateSetting('networkInterception', {
-                          ...settings.networkInterception,
-                          urlPatterns: {
-                            ...settings.networkInterception?.urlPatterns,
-                            patterns: updatedPatterns
-                          }
-                        });
-                      }}
-                    >
-                      Add Pattern
-                    </Button>
-                  </div>
-                )}
-              </div>
+              {/* Request filtering and URL patterns removed - not implemented in backend */}
 
               <div className="space-y-4">
                 <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
@@ -1151,7 +879,7 @@ const SettingsInline: React.FC = () => {
           <div className="border-b border-gray-200 p-4">
             <h3 className="text-xl font-semibold text-gray-900">Chart Performance Settings</h3>
             <p className="text-sm text-gray-600 mt-1">
-              Configure dashboard chart refresh behavior and performance optimizations
+              Configure dashboard chart refresh behavior
             </p>
           </div>
           <div className="p-6 space-y-6">
@@ -1224,39 +952,11 @@ const SettingsInline: React.FC = () => {
                 </div>
               )}
 
-              {/* Performance Optimizations */}
-              <div className="border-t pt-4">
-                <p className="text-sm font-medium mb-3">Performance Optimizations</p>
-
-                <div className="space-y-3">
-                  <Switch
-                    checked={settings.chartSettings?.enableSharedProcessing || true}
-                    onChange={(e) => updateSetting('chartSettings', {
-                      ...settings.chartSettings,
-                      enableSharedProcessing: e.target.checked
-                    })}
-                    label="Enable shared data processing"
-                    description="Process chart data once and share across charts (reduces CPU usage by ~60-80%)"
-                  />
-
-                  <Switch
-                    checked={settings.chartSettings?.enableStalenessTracking || true}
-                    onChange={(e) => updateSetting('chartSettings', {
-                      ...settings.chartSettings,
-                      enableStalenessTracking: e.target.checked
-                    })}
-                    label="Show data staleness indicators"
-                    description="Display visual indicators when chart data becomes outdated"
-                  />
-                </div>
-              </div>
-
-              {/* Performance Impact Info */}
+              {/* Performance optimizations removed - not implemented in backend */}
               <div className="p-3 bg-blue-50 text-blue-800 rounded-lg border border-blue-200">
                 <p className="text-sm font-medium mb-2">💡 Performance Impact</p>
                 <div className="text-xs space-y-1">
                   <p><strong>Manual mode:</strong> ~90% less CPU usage, charts update only when refreshed</p>
-                  <p><strong>Shared processing:</strong> ~60-80% less redundant calculations</p>
                   <p><strong>Longer intervals:</strong> Proportionally less CPU usage vs refresh frequency</p>
                 </div>
               </div>
