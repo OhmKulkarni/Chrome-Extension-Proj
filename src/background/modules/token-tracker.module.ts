@@ -577,7 +577,8 @@ export class TokenTrackerModule {
       const apiKeyParams = [
         'key', 'api_key', 'apikey', 'api-key',
         'access_token', 'token', 'auth_token', 'auth-token',
-        'client_id', 'app_id', 'appid', 'app-id'
+        'client_id', 'app_id', 'appid', 'app-id',
+        'authuser' // Check but filter out if it's just a user ID
       ];
 
       // Check if any API key parameters exist and have values
@@ -585,6 +586,12 @@ export class TokenTrackerModule {
         const value = params.get(param);
         if (value && value.length > 10) { // API keys are typically longer than 10 chars
           console.log(`🔍 TokenTrackerModule: Found URL param ${param}=${value.substring(0, 10)}... (length: ${value.length})`);
+
+          // Skip authuser parameter - it's a user ID, not a token
+          if (param === 'authuser' || (param.includes('user') && /^\d+$/.test(value))) {
+            console.log(`⚠️ TokenTrackerModule: Skipping ${param} - appears to be user ID, not token`);
+            continue;
+          }
 
           // Additional validation for Google API keys (starts with AIza)
           if (param === 'key' && value.startsWith('AIza')) {
