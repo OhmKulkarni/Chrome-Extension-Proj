@@ -149,8 +149,10 @@ export class TokenTrackerModule {
       if (tabId) {
         try {
           const isTabTokenLoggingActive = await this.storageManager.getTabTokenState(tabId);
+          console.log(`🔍 TokenTrackerModule: Tab ${tabId} token logging state: ${isTabTokenLoggingActive}`);
           if (!isTabTokenLoggingActive) {
             // Token logging is disabled for this tab, skip processing
+            console.log(`⚠️ TokenTrackerModule: Token logging disabled for tab ${tabId}, skipping ${url}`);
             return null;
           }
         } catch (error) {
@@ -163,9 +165,11 @@ export class TokenTrackerModule {
       try {
         const settings = await this.storageManager.getSettings();
         const tokenConfig = settings?.tokenLogging || {};
+        console.log(`🔍 TokenTrackerModule: Global token logging enabled: ${tokenConfig.enabled !== false}`);
 
         // If global token logging is disabled, skip
         if (tokenConfig.enabled === false) {
+          console.log(`⚠️ TokenTrackerModule: Global token logging disabled, skipping ${url}`);
           return null;
         }
       } catch (error) {
