@@ -57,7 +57,7 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({ className = '' }) => {
         {getIcon(themeMode)}
         <span className="text-sm font-medium">{getLabel(themeMode)}</span>
       </div>
-      
+
       {/* Theme indicator dots */}
       <div className="flex gap-1 ml-1">
         {(['light', 'auto', 'dark'] as ThemeMode[]).map((mode) => (
@@ -65,11 +65,11 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({ className = '' }) => {
             key={mode}
             className={`
               w-1.5 h-1.5 rounded-full transition-all duration-200
-              ${themeMode === mode 
-                ? mode === 'light' 
-                  ? 'bg-yellow-400' 
-                  : mode === 'dark' 
-                    ? 'bg-blue-400' 
+              ${themeMode === mode
+                ? mode === 'light'
+                  ? 'bg-yellow-400'
+                  : mode === 'dark'
+                    ? 'bg-blue-400'
                     : 'bg-green-400'
                 : 'bg-gray-300 dark:bg-gray-600'
               }

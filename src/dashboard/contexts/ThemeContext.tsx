@@ -55,17 +55,17 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // Apply theme to DOM
   const applyTheme = (theme: ActualTheme) => {
     const root = document.documentElement;
-    
+
     // Add transition class to prevent flash
     root.classList.add('theme-transitioning');
-    
+
     // Apply theme class
     if (theme === 'dark') {
       root.classList.add('dark');
     } else {
       root.classList.remove('dark');
     }
-    
+
     // Remove transition class after a short delay
     setTimeout(() => {
       root.classList.remove('theme-transitioning');
@@ -100,7 +100,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // Listen for system theme changes when in auto mode
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    
+
     const handleSystemThemeChange = () => {
       if (themeMode === 'auto') {
         const newActualTheme = getSystemTheme();
@@ -110,7 +110,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     };
 
     mediaQuery.addEventListener('change', handleSystemThemeChange);
-    
+
     return () => {
       mediaQuery.removeEventListener('change', handleSystemThemeChange);
     };
