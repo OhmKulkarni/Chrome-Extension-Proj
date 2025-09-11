@@ -572,7 +572,7 @@ export class TokenTrackerModule {
     try {
       const urlObj = new URL(url);
       const params = urlObj.searchParams;
-      
+
       // Common API key parameter names
       const apiKeyParams = [
         'key', 'api_key', 'apikey', 'api-key',
@@ -585,7 +585,7 @@ export class TokenTrackerModule {
         const value = params.get(param);
         if (value && value.length > 10) { // API keys are typically longer than 10 chars
           console.log(`🔍 TokenTrackerModule: Found URL param ${param}=${value.substring(0, 10)}... (length: ${value.length})`);
-          
+
           // Additional validation for Google API keys (starts with AIza)
           if (param === 'key' && value.startsWith('AIza')) {
             console.log(`✅ TokenTrackerModule: Google API key detected in URL`);
@@ -608,7 +608,7 @@ export class TokenTrackerModule {
         'api_key=', 'apikey=', 'access_token=',
         'client_id=', 'app_id='
       ];
-      
+
       const hasPattern = apiKeyPatterns.some(pattern => url.includes(pattern));
       if (hasPattern) {
         console.log(`✅ TokenTrackerModule: API key pattern detected in URL via fallback`);
