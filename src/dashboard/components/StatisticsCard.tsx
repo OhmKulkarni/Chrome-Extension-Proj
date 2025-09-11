@@ -56,20 +56,74 @@ const getPrimaryCategory = (type: string): 'libraries' | 'analytics' | 'privacy'
   }
 };
 
-const getPrimaryCategoryInfo = (primaryType: string) => {
+// Hook to detect dark mode
+const useDarkMode = () => {
+  const [isDark, setIsDark] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkDarkMode = () => {
+      setIsDark(document.documentElement.classList.contains('dark'));
+    };
+
+    checkDarkMode();
+
+    // Watch for class changes
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  return isDark;
+};
+
+const getPrimaryCategoryInfo = (primaryType: string, isDark: boolean = false) => {
   switch (primaryType) {
     case 'libraries':
-      return { icon: Library, bgColor: 'bg-blue-100', textColor: 'text-blue-800', label: 'Libraries' };
+      return { 
+        icon: Library, 
+        bgColor: isDark ? 'bg-blue-900' : 'bg-blue-100', 
+        textColor: isDark ? 'text-blue-200' : 'text-blue-800', 
+        label: 'Libraries' 
+      };
     case 'analytics':
-      return { icon: BarChart, bgColor: 'bg-purple-100', textColor: 'text-purple-800', label: 'Analytics' };
+      return { 
+        icon: BarChart, 
+        bgColor: isDark ? 'bg-purple-900' : 'bg-purple-100', 
+        textColor: isDark ? 'text-purple-200' : 'text-purple-800', 
+        label: 'Analytics' 
+      };
     case 'privacy':
-      return { icon: Shield, bgColor: 'bg-green-100', textColor: 'text-green-800', label: 'Privacy' };
+      return { 
+        icon: Shield, 
+        bgColor: isDark ? 'bg-green-900' : 'bg-green-100', 
+        textColor: isDark ? 'text-green-200' : 'text-green-800', 
+        label: 'Privacy' 
+      };
     case 'services':
-      return { icon: Megaphone, bgColor: 'bg-red-100', textColor: 'text-red-800', label: 'Services' };
+      return { 
+        icon: Megaphone, 
+        bgColor: isDark ? 'bg-red-900' : 'bg-red-100', 
+        textColor: isDark ? 'text-red-200' : 'text-red-800', 
+        label: 'Services' 
+      };
     case 'assets':
-      return { icon: Package, bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Assets' };
+      return { 
+        icon: Package, 
+        bgColor: isDark ? 'bg-gray-800' : 'bg-gray-100', 
+        textColor: isDark ? 'text-gray-200' : 'text-gray-800', 
+        label: 'Assets' 
+      };
     default:
-      return { icon: HelpCircle, bgColor: 'bg-gray-100', textColor: 'text-gray-800', label: 'Unknown' };
+      return { 
+        icon: HelpCircle, 
+        bgColor: isDark ? 'bg-gray-800' : 'bg-gray-100', 
+        textColor: isDark ? 'text-gray-200' : 'text-gray-800', 
+        label: 'Unknown' 
+      };
   }
 };
 
@@ -117,6 +171,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   totalTokenEvents
   // REMOVED: onRefreshAnalysisData to eliminate infinite loops
 }) => {
+  const isDark = useDarkMode();
+  
   // MEMORY LEAK FIX: AbortController for cleanup
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -1906,7 +1962,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                     <span className="text-sm font-medium">{stat.domain}</span>
                                     {stat.isThirdParty && (
                                       <span
-                                        className="inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded-md bg-teal-100 text-teal-800"
+                                        className="inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded-md bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200"
                                         title={`3rd party ${stat.thirdPartyType || 'service'}`}
                                       >
                                         3rd party domain
@@ -1924,7 +1980,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                 <div className="space-y-2">
                                   {/* Main library count and expand button */}
                                   <div className="flex items-center gap-2">
-                                    <span className="inline-flex items-center justify-center w-8 h-6 bg-purple-100 text-purple-800 text-xs font-medium rounded-full">
+                                    <span className="inline-flex items-center justify-center w-8 h-6 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 text-xs font-medium rounded-full">
                                       {stat.libraryCount}
                                     </span>
                                     {stat.librarySourceDomains.length > 1 && (
@@ -1954,7 +2010,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                         // Get primary category info for dashboard display
                                         const getPrimaryResourceTypeInfo = (libType: string) => {
                                           const primaryCategory = getPrimaryCategory(libType);
-                                          const primaryInfo = getPrimaryCategoryInfo(primaryCategory);
+                                          const primaryInfo = getPrimaryCategoryInfo(primaryCategory, isDark);
 
                                           // Get detailed label for tooltip
                                           const detailedLabel = (() => {
@@ -1998,7 +2054,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                         );
                                       })}
                                       {stat.libraries.length > 4 && (
-                                        <span className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded">
+                                        <span className="inline-flex items-center px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-xs font-medium rounded">
                                           +{stat.libraries.length - 4} more
                                         </span>
                                       )}
@@ -2007,19 +2063,19 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
 
                                   {/* Expanded view - scrollable container for web resource details */}
                                   {expandedLibraryDomains.has(stat.domain) && (
-                                    <div className="mt-2 border rounded-md bg-gray-50/50 max-h-64 overflow-y-auto">
+                                    <div className="mt-2 border border-gray-200 dark:border-gray-600 rounded-md bg-gray-100 dark:bg-gray-900 max-h-64 overflow-y-auto">
                                       <div className="p-3 space-y-3">
                                         {stat.librarySourceDomains.map((sourceDomain, sourceIndex) => (
-                                          <div key={sourceIndex} className="border rounded p-2 bg-white shadow-sm">
+                                          <div key={sourceIndex} className="border border-gray-200 dark:border-gray-700 rounded p-2 bg-gray-50 dark:bg-gray-800 shadow-sm">
                                             <div className="flex items-center gap-2 mb-2">
-                                              <span className="text-xs font-medium text-gray-700">
+                                              <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
                                                 {sourceDomain.domain}
                                               </span>
-                                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
                                                 {sourceDomain.count}
                                               </span>
                                               {sourceDomain.isThirdParty && (
-                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-800" title="Third-party domain">
+                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200" title="Third-party domain">
                                                   3rd party domain
                                                 </span>
                                               )}
@@ -2033,7 +2089,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                                 // Get primary category info for domain library display
                                                 const getDomainPrimaryResourceTypeInfo = (libType: string) => {
                                                   const primaryCategory = getPrimaryCategory(libType);
-                                                  const primaryInfo = getPrimaryCategoryInfo(primaryCategory);
+                                                  const primaryInfo = getPrimaryCategoryInfo(primaryCategory, isDark);
 
                                                   // Get detailed label for tooltip
                                                   const detailedLabel = (() => {
