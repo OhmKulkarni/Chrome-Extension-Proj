@@ -1319,7 +1319,6 @@ const DecomposedDashboard: React.FC = () => {
           event.valueHash?.toLowerCase().includes(searchLower) ||
           event.value_hash?.toLowerCase().includes(searchLower) ||
           event.domain?.toLowerCase().includes(searchLower) ||
-          event.action?.toLowerCase().includes(searchLower) ||
           event.url?.toLowerCase().includes(searchLower) ||
           event.source_url?.toLowerCase().includes(searchLower) ||
           event.type?.toLowerCase().includes(searchLower);
@@ -1328,7 +1327,7 @@ const DecomposedDashboard: React.FC = () => {
 
       // Type filter
       if (tokenFilterType && tokenFilterType !== 'all') {
-        if (event.action?.toLowerCase() !== tokenFilterType.toLowerCase()) {
+        if (event.type?.toLowerCase() !== tokenFilterType.toLowerCase()) {
           return false;
         }
       }
@@ -1455,7 +1454,6 @@ const DecomposedDashboard: React.FC = () => {
           event.valueHash?.toLowerCase().includes(searchLower) ||
           event.value_hash?.toLowerCase().includes(searchLower) ||
           event.domain?.toLowerCase().includes(searchLower) ||
-          event.action?.toLowerCase().includes(searchLower) ||
           event.url?.toLowerCase().includes(searchLower) ||
           event.source_url?.toLowerCase().includes(searchLower) ||
           event.type?.toLowerCase().includes(searchLower);
@@ -1464,7 +1462,7 @@ const DecomposedDashboard: React.FC = () => {
 
       // Type filter
       if (tokenFilterType && tokenFilterType !== 'all') {
-        if (event.action?.toLowerCase() !== tokenFilterType.toLowerCase()) {
+        if (event.type?.toLowerCase() !== tokenFilterType.toLowerCase()) {
           return false;
         }
       }
