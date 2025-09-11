@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Button } from './ui/button';
-import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen, Megaphone, BarChart, Shield, Library, Globe, HelpCircle, Package, Wrench, Target, Database, Settings, Film, Zap, Server, Lock, Box, Puzzle, CheckCircle, Loader2, RotateCcw, Clock } from 'lucide-react';
+import { ArrowUpDown, BarChart3, TrendingUp, Layers, Monitor, ChevronDown, ChevronRight, List, LineChart, Search, Eye, EyeOff, RefreshCw, Activity, BookOpen, Megaphone, BarChart, Shield, Library, Globe, Globe2, HelpCircle, Package, Wrench, Target, Database, Settings, Film, Zap, Server, Lock, Box, Puzzle, CheckCircle, Loader2, RotateCcw, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { groupDataByDomain, DomainStats } from './domainUtils';
 // Import the new shared data processing system
@@ -83,46 +83,46 @@ const useDarkMode = () => {
 const getPrimaryCategoryInfo = (primaryType: string, isDark: boolean = false) => {
   switch (primaryType) {
     case 'libraries':
-      return { 
-        icon: Library, 
-        bgColor: isDark ? 'bg-blue-900' : 'bg-blue-100', 
-        textColor: isDark ? 'text-blue-200' : 'text-blue-800', 
-        label: 'Libraries' 
+      return {
+        icon: Library,
+        bgColor: isDark ? 'bg-blue-900' : 'bg-blue-100',
+        textColor: isDark ? 'text-blue-200' : 'text-blue-800',
+        label: 'Libraries'
       };
     case 'analytics':
-      return { 
-        icon: BarChart, 
-        bgColor: isDark ? 'bg-purple-900' : 'bg-purple-100', 
-        textColor: isDark ? 'text-purple-200' : 'text-purple-800', 
-        label: 'Analytics' 
+      return {
+        icon: BarChart,
+        bgColor: isDark ? 'bg-purple-900' : 'bg-purple-100',
+        textColor: isDark ? 'text-purple-200' : 'text-purple-800',
+        label: 'Analytics'
       };
     case 'privacy':
-      return { 
-        icon: Shield, 
-        bgColor: isDark ? 'bg-green-900' : 'bg-green-100', 
-        textColor: isDark ? 'text-green-200' : 'text-green-800', 
-        label: 'Privacy' 
+      return {
+        icon: Shield,
+        bgColor: isDark ? 'bg-green-900' : 'bg-green-100',
+        textColor: isDark ? 'text-green-200' : 'text-green-800',
+        label: 'Privacy'
       };
     case 'services':
-      return { 
-        icon: Megaphone, 
-        bgColor: isDark ? 'bg-red-900' : 'bg-red-100', 
-        textColor: isDark ? 'text-red-200' : 'text-red-800', 
-        label: 'Services' 
+      return {
+        icon: Megaphone,
+        bgColor: isDark ? 'bg-red-900' : 'bg-red-100',
+        textColor: isDark ? 'text-red-200' : 'text-red-800',
+        label: 'Services'
       };
     case 'assets':
-      return { 
-        icon: Package, 
-        bgColor: isDark ? 'bg-gray-800' : 'bg-gray-100', 
-        textColor: isDark ? 'text-gray-200' : 'text-gray-800', 
-        label: 'Assets' 
+      return {
+        icon: Package,
+        bgColor: isDark ? 'bg-gray-800' : 'bg-gray-100',
+        textColor: isDark ? 'text-gray-200' : 'text-gray-800',
+        label: 'Assets'
       };
     default:
-      return { 
-        icon: HelpCircle, 
-        bgColor: isDark ? 'bg-gray-800' : 'bg-gray-100', 
-        textColor: isDark ? 'text-gray-200' : 'text-gray-800', 
-        label: 'Unknown' 
+      return {
+        icon: HelpCircle,
+        bgColor: isDark ? 'bg-gray-800' : 'bg-gray-100',
+        textColor: isDark ? 'text-gray-200' : 'text-gray-800',
+        label: 'Unknown'
       };
   }
 };
@@ -172,7 +172,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   // REMOVED: onRefreshAnalysisData to eliminate infinite loops
 }) => {
   const isDark = useDarkMode();
-  
+
   // MEMORY LEAK FIX: AbortController for cleanup
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -1928,7 +1928,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                           <TableRow>
                             <TableHead className="font-semibold w-[40%]">
                               <div className="flex items-center gap-2">
-                                <BookOpen className="h-4 w-4" />
+                                <Globe2 className="h-4 w-4" />
                                 Domain
                                 <SortButton column="domain" currentSort={domainSortConfig} onSort={handleDomainSort} />
                               </div>
@@ -2159,7 +2159,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                             {/* Inline Web Resources Section - Similar to domain charts */}
                             {isLibrarySectionExpanded(stat.domain) && (
                               <TableRow key={`${stat.domain}-resources`}>
-                                <TableCell colSpan={3} className="p-0 bg-gray-50">
+                                <TableCell colSpan={3} className="p-0 bg-gray-50 dark:bg-gray-900">
                                   <InlineResourcesSection
                                     domain={stat.domain}
                                     resources={stat.libraries || []}
