@@ -64,9 +64,9 @@ export const EventPopup: React.FC<EventPopupProps> = ({
                       }`}
                       title={event.isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
                     >
-                      <Bookmark 
-                        className="w-4 h-4" 
-                        fill={event.isBookmarked ? 'currentColor' : 'none'} 
+                      <Bookmark
+                        className="w-4 h-4"
+                        fill={event.isBookmarked ? 'currentColor' : 'none'}
                       />
                     </button>
 

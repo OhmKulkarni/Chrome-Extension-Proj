@@ -117,15 +117,15 @@ export const EventCard: React.FC<EventCardProps> = ({
   const isCompact = cardDimensions.height < 60 || zoomLevel > 5
 
   const cardColors = {
-    network: 'bg-blue-50 border-blue-200 hover:bg-blue-100 hover:border-blue-300',
-    console: 'bg-red-50 border-red-200 hover:bg-red-100 hover:border-red-300',
-    token: 'bg-green-50 border-green-200 hover:bg-green-100 hover:border-green-300'
+    network: 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-800/40 hover:border-blue-300 dark:hover:border-blue-600',
+    console: 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700 hover:bg-red-100 dark:hover:bg-red-800/40 hover:border-red-300 dark:hover:border-red-600',
+    token: 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700 hover:bg-green-100 dark:hover:bg-green-800/40 hover:border-green-300 dark:hover:border-green-600'
   }
 
   const iconColors = {
-    network: 'text-blue-600',
-    console: 'text-red-600',
-    token: 'text-green-600'
+    network: 'text-blue-600 dark:text-blue-400',
+    console: 'text-red-600 dark:text-red-400',
+    token: 'text-green-600 dark:text-green-400'
   }
 
   // Enhanced shadow for stacked cards
@@ -171,18 +171,18 @@ export const EventCard: React.FC<EventCardProps> = ({
               <div className={iconColors[event.type]}>
                 {getIcon()}
               </div>
-              <span className="text-xs font-medium text-gray-700 truncate">
+              <span className="text-xs font-medium text-gray-700 dark:text-gray-200 truncate">
                 {getEventTitle()}
               </span>
             </div>
 
             {!isCompact && (
-              <div className="text-xs text-gray-500 mb-1">
+              <div className="text-xs text-gray-500 dark:text-gray-300 mb-1">
                 {getEventSubtitle()}
               </div>
             )}
 
-            <div className="text-xs text-gray-400">
+            <div className="text-xs text-gray-400 dark:text-gray-400">
               {new Date(event.timestamp).toLocaleTimeString()}
             </div>
           </div>
@@ -192,8 +192,8 @@ export const EventCard: React.FC<EventCardProps> = ({
               onClick={handleBookmarkClick}
               className={`p-1 rounded transition-colors ${
                 event.isBookmarked
-                  ? 'text-yellow-600 hover:text-yellow-700'
-                  : 'text-gray-400 hover:text-yellow-600'
+                  ? 'text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300'
+                  : 'text-gray-400 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400'
               }`}
               title={event.isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
             >
@@ -204,8 +204,8 @@ export const EventCard: React.FC<EventCardProps> = ({
               onClick={handleCompareClick}
               className={`p-1 rounded transition-colors ${
                 event.compareSlot !== undefined
-                  ? 'text-purple-600 hover:text-purple-700'
-                  : 'text-gray-400 hover:text-purple-600'
+                  ? 'text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300'
+                  : 'text-gray-400 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400'
               }`}
               title="Add to compare"
             >
@@ -216,7 +216,7 @@ export const EventCard: React.FC<EventCardProps> = ({
 
         {/* Layer indicator for stacked cards */}
         {isStacked && layerIndex > 0 && (
-          <div className="text-xs text-gray-400 mt-1 text-center">
+          <div className="text-xs text-gray-400 dark:text-gray-500 mt-1 text-center">
             Layer {layerIndex + 1}
           </div>
         )}
