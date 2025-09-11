@@ -1802,7 +1802,7 @@ export const TokenDetailContent: React.FC<{
   networkRequests?: any[];
 }> = ({ tokenEvent, selectedField, showFullTokenHash = false, settings, networkRequests = [] }) => {
   const [activeNetworkView, setActiveNetworkView] = useState<string>('details');
-  
+
   const copyToClipboard = (text: string) => {
     // Use settings-based limit for tokens
     const maxClipboardSize = settings?.networkInterception?.bodyCapture?.maxBodySize || 10000;
@@ -1890,53 +1890,53 @@ export const TokenDetailContent: React.FC<{
   // Enhanced matching logic for finding related network request
   const findMatchingNetworkRequest = (tokenEvent: any) => {
     if (!networkRequests || networkRequests.length === 0) return null;
-    
+
     const tokenUrl = tokenEvent.url;
     const tokenMethod = (tokenEvent.method || tokenEvent.request_method || '').toUpperCase();
     const tokenStatus = tokenEvent.status || tokenEvent.response_status;
     const tokenTimestamp = new Date(tokenEvent.timestamp).getTime();
-    
+
     // Enhanced matching with multiple strategies
     const candidates = networkRequests.filter(req => {
       // Must have same URL (exact match)
       if (req.url !== tokenUrl) return false;
-      
+
       // Must have same method (case-insensitive)
       const reqMethod = (req.method || '').toUpperCase();
       if (reqMethod !== tokenMethod) return false;
-      
+
       return true;
     });
-    
+
     if (candidates.length === 0) return null;
-    
+
     // Strategy 1: Find exact timestamp + status match (within 2 seconds)
     let match = candidates.find(req => {
       const reqTimestamp = new Date(req.timestamp).getTime();
       const timeDiff = Math.abs(reqTimestamp - tokenTimestamp);
       const statusMatch = req.status === tokenStatus || req.response_status === tokenStatus;
-      
+
       return timeDiff <= 2000 && statusMatch; // 2 second tolerance + status match
     });
-    
+
     if (match) return match;
-    
+
     // Strategy 2: Find closest timestamp match (within 10 seconds)
     const closeMatches = candidates.filter(req => {
       const reqTimestamp = new Date(req.timestamp).getTime();
       const timeDiff = Math.abs(reqTimestamp - tokenTimestamp);
       return timeDiff <= 10000; // 10 second tolerance
     });
-    
+
     if (closeMatches.length === 1) return closeMatches[0];
-    
+
     // Strategy 3: Find best timestamp match with status preference
     if (closeMatches.length > 1) {
       // Prefer status matches
-      const statusMatches = closeMatches.filter(req => 
+      const statusMatches = closeMatches.filter(req =>
         req.status === tokenStatus || req.response_status === tokenStatus
       );
-      
+
       if (statusMatches.length > 0) {
         // Return closest timestamp among status matches
         return statusMatches.reduce((closest, req) => {
@@ -1944,29 +1944,29 @@ export const TokenDetailContent: React.FC<{
           const closestTime = new Date(closest.timestamp).getTime();
           const reqDiff = Math.abs(reqTime - tokenTimestamp);
           const closestDiff = Math.abs(closestTime - tokenTimestamp);
-          
+
           return reqDiff < closestDiff ? req : closest;
         });
       }
-      
+
       // No status matches, return closest by time
       return closeMatches.reduce((closest, req) => {
         const reqTime = new Date(req.timestamp).getTime();
         const closestTime = new Date(closest.timestamp).getTime();
         const reqDiff = Math.abs(reqTime - tokenTimestamp);
         const closestDiff = Math.abs(closestTime - tokenTimestamp);
-        
+
         return reqDiff < closestDiff ? req : closest;
       });
     }
-    
+
     // Strategy 4: Last resort - any URL/method match (expand tolerance to 30 seconds)
     const anyMatch = candidates.find(req => {
       const reqTimestamp = new Date(req.timestamp).getTime();
       const timeDiff = Math.abs(reqTimestamp - tokenTimestamp);
       return timeDiff <= 30000; // 30 second tolerance
     });
-    
+
     return anyMatch || null;
   };  if (selectedField === 'details') {
     return (
@@ -2056,7 +2056,7 @@ export const TokenDetailContent: React.FC<{
               <div className="bg-green-50 border border-green-200 rounded-lg">
                 {/* Tab Navigation */}
                 <div className="flex border-b border-green-200">
-                  {['details', 'headers', 'request', 'response', 'raw'].map((tab) => (
+                  {['details', 'headers', 'request', 'response'].map((tab) => (
                     <button
                       key={tab}
                       onClick={() => setActiveNetworkView(tab)}
