@@ -4,6 +4,30 @@ import { LibraryInfo } from '../../background/utils/library-detector';
 import { useState, useMemo } from 'react';
 import React from 'react';
 
+// Hook to detect dark mode
+const useDarkMode = () => {
+  const [isDark, setIsDark] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkDarkMode = () => {
+      setIsDark(document.documentElement.classList.contains('dark'));
+    };
+
+    checkDarkMode();
+
+    // Watch for class changes
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  return isDark;
+};
+
 interface ResourceStatsSectionProps {
   resources: LibraryInfo[];
   className?: string;
@@ -108,32 +132,32 @@ const getTypeDisplayName = (type: LibraryInfo['type']): string => {
   }
 };
 
-const getBadgeStyle = (type: LibraryInfo['type']): string => {
+const getBadgeStyle = (type: LibraryInfo['type'], isDark: boolean): string => {
   switch (type) {
     case 'framework':
-      return 'bg-blue-600 text-white hover:bg-blue-700';
+      return isDark ? 'bg-blue-800 text-blue-200 hover:bg-blue-700' : 'bg-blue-600 text-white hover:bg-blue-700';
     case 'utility':
-      return 'bg-green-600 text-white hover:bg-green-700';
+      return isDark ? 'bg-green-800 text-green-200 hover:bg-green-700' : 'bg-green-600 text-white hover:bg-green-700';
     case 'polyfill':
-      return 'bg-orange-600 text-white hover:bg-orange-700';
+      return isDark ? 'bg-orange-800 text-orange-200 hover:bg-orange-700' : 'bg-orange-600 text-white hover:bg-orange-700';
     case 'data-collector':
-      return 'bg-purple-600 text-white hover:bg-purple-700';
+      return isDark ? 'bg-purple-800 text-purple-200 hover:bg-purple-700' : 'bg-purple-600 text-white hover:bg-purple-700';
     case 'tracking-tools':
-      return 'bg-red-600 text-white hover:bg-red-700';
+      return isDark ? 'bg-red-800 text-red-200 hover:bg-red-700' : 'bg-red-600 text-white hover:bg-red-700';
     case 'privacy-tools':
-      return 'bg-indigo-600 text-white hover:bg-indigo-700';
+      return isDark ? 'bg-indigo-800 text-indigo-200 hover:bg-indigo-700' : 'bg-indigo-600 text-white hover:bg-indigo-700';
     case 'service':
-      return 'bg-cyan-600 text-white hover:bg-cyan-700';
+      return isDark ? 'bg-cyan-800 text-cyan-200 hover:bg-cyan-700' : 'bg-cyan-600 text-white hover:bg-cyan-700';
     case 'site-tools':
-      return 'bg-teal-600 text-white hover:bg-teal-700';
+      return isDark ? 'bg-teal-800 text-teal-200 hover:bg-teal-700' : 'bg-teal-600 text-white hover:bg-teal-700';
     case 'media-tools':
-      return 'bg-pink-600 text-white hover:bg-pink-700';
+      return isDark ? 'bg-pink-800 text-pink-200 hover:bg-pink-700' : 'bg-pink-600 text-white hover:bg-pink-700';
     case 'performance-tools':
-      return 'bg-yellow-600 text-white hover:bg-yellow-700';
+      return isDark ? 'bg-yellow-800 text-yellow-200 hover:bg-yellow-700' : 'bg-yellow-600 text-white hover:bg-yellow-700';
     case 'build-artifact':
-      return 'bg-gray-600 text-white hover:bg-gray-700';
+      return isDark ? 'bg-gray-700 text-gray-200 hover:bg-gray-600' : 'bg-gray-600 text-white hover:bg-gray-700';
     default:
-      return 'bg-gray-600 text-white hover:bg-gray-700';
+      return isDark ? 'bg-gray-700 text-gray-200 hover:bg-gray-600' : 'bg-gray-600 text-white hover:bg-gray-700';
   }
 };
 
@@ -148,6 +172,7 @@ const copyToClipboard = async (text: string): Promise<boolean> => {
 };
 
 const ResourceStatsSection: React.FC<ResourceStatsSectionProps> = ({ resources, className = '' }) => {
+  const isDark = useDarkMode();
   const [searchTerm, setSearchTerm] = useState('');
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [copiedItems, setCopiedItems] = useState<Set<string>>(new Set());
@@ -292,7 +317,7 @@ const ResourceStatsSection: React.FC<ResourceStatsSectionProps> = ({ resources, 
                                       v{resource.version}
                                     </Badge>
                                   )}
-                                  <Badge className={`text-xs px-2 py-0.5 ${getBadgeStyle(resource.type)}`}>
+                                  <Badge className={`text-xs px-2 py-0.5 ${getBadgeStyle(resource.type, isDark)}`}>
                                     {getTypeDisplayName(resource.type)}
                                   </Badge>
                                 </div>

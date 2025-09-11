@@ -4,6 +4,30 @@ import { LibraryInfo } from '../../background/utils/library-detector';
 import { useState, useMemo } from 'react';
 import React from 'react';
 
+// Hook to detect dark mode
+const useDarkMode = () => {
+  const [isDark, setIsDark] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkDarkMode = () => {
+      setIsDark(document.documentElement.classList.contains('dark'));
+    };
+
+    checkDarkMode();
+
+    // Watch for class changes
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  return isDark;
+};
+
 interface InlineResourcesSectionProps {
   domain: string;
   resources: LibraryInfo[];
@@ -80,49 +104,49 @@ const getTypeIcon = (type: LibraryInfo['type']) => {
   }
 };
 
-const getTypeBadgeColor = (type: LibraryInfo['type']) => {
+const getTypeBadgeColor = (type: LibraryInfo['type'], isDark: boolean) => {
   switch (type) {
     case 'framework':
-      return 'bg-blue-600 text-white';
+      return isDark ? 'bg-blue-800 text-blue-200' : 'bg-blue-600 text-white';
     case 'utility':
-      return 'bg-green-600 text-white';
+      return isDark ? 'bg-green-800 text-green-200' : 'bg-green-600 text-white';
     case 'polyfill':
-      return 'bg-purple-600 text-white';
+      return isDark ? 'bg-purple-800 text-purple-200' : 'bg-purple-600 text-white';
     case 'data-collector':
-      return 'bg-orange-600 text-white';
+      return isDark ? 'bg-orange-800 text-orange-200' : 'bg-orange-600 text-white';
     case 'service':
-      return 'bg-teal-600 text-white';
+      return isDark ? 'bg-teal-800 text-teal-200' : 'bg-teal-600 text-white';
     case 'privacy-tools':
-      return 'bg-red-600 text-white';
+      return isDark ? 'bg-red-800 text-red-200' : 'bg-red-600 text-white';
     case 'tracking-tools':
-      return 'bg-yellow-600 text-white';
+      return isDark ? 'bg-yellow-800 text-yellow-200' : 'bg-yellow-600 text-white';
     case 'site-tools':
-      return 'bg-indigo-600 text-white';
+      return isDark ? 'bg-indigo-800 text-indigo-200' : 'bg-indigo-600 text-white';
     case 'media-tools':
-      return 'bg-pink-600 text-white';
+      return isDark ? 'bg-pink-800 text-pink-200' : 'bg-pink-600 text-white';
     case 'performance-tools':
-      return 'bg-cyan-600 text-white';
+      return isDark ? 'bg-cyan-800 text-cyan-200' : 'bg-cyan-600 text-white';
     case 'build-artifact':
-      return 'bg-gray-600 text-white';
+      return isDark ? 'bg-gray-700 text-gray-200' : 'bg-gray-600 text-white';
     default:
-      return 'bg-gray-600 text-white';
+      return isDark ? 'bg-gray-700 text-gray-200' : 'bg-gray-600 text-white';
   }
 };
 
-const getPrimaryCategoryColor = (primaryType: string) => {
+const getPrimaryCategoryColor = (primaryType: string, isDark: boolean) => {
   switch (primaryType) {
     case 'libraries':
-      return 'bg-blue-700 text-white';
+      return isDark ? 'bg-blue-800 text-blue-200' : 'bg-blue-700 text-white';
     case 'analytics':
-      return 'bg-orange-700 text-white';
+      return isDark ? 'bg-orange-800 text-orange-200' : 'bg-orange-700 text-white';
     case 'privacy':
-      return 'bg-red-700 text-white';
+      return isDark ? 'bg-red-800 text-red-200' : 'bg-red-700 text-white';
     case 'services':
-      return 'bg-teal-700 text-white';
+      return isDark ? 'bg-teal-800 text-teal-200' : 'bg-teal-700 text-white';
     case 'assets':
-      return 'bg-gray-700 text-white';
+      return isDark ? 'bg-gray-700 text-gray-200' : 'bg-gray-700 text-white';
     default:
-      return 'bg-gray-700 text-white';
+      return isDark ? 'bg-gray-700 text-gray-200' : 'bg-gray-700 text-white';
   }
 };
 
@@ -136,6 +160,7 @@ const formatTypeName = (type: LibraryInfo['type']) => {
 };
 
 const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain, resources, className = '' }) => {
+  const isDark = useDarkMode();
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set(['libraries', 'analytics', 'privacy', 'services', 'assets']));
   const [searchTerm, setSearchTerm] = useState('');
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
@@ -250,11 +275,11 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
                         </div>
 
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          <Badge className={`text-xs flex items-center gap-1 ${getPrimaryCategoryColor(primaryType)} flex-shrink-0`}>
+                          <Badge className={`text-xs flex items-center gap-1 ${getPrimaryCategoryColor(primaryType, isDark)} flex-shrink-0`}>
                             {getPrimaryCategoryIcon(primaryType)}
                             <span className="capitalize">{primaryType}</span>
                           </Badge>
-                          <Badge className={`text-xs flex items-center gap-1 ${getTypeBadgeColor(lib.type)} flex-shrink-0`}>
+                          <Badge className={`text-xs flex items-center gap-1 ${getTypeBadgeColor(lib.type, isDark)} flex-shrink-0`}>
                             {getTypeIcon(lib.type)}
                             <span>{formatTypeName(lib.type)}</span>
                           </Badge>
