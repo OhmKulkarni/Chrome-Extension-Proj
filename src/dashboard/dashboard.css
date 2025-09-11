@@ -98,6 +98,55 @@ body {
   background: #94a3b8;
 }
 
+/* Dark Mode Scrollbars - Global */
+.dark {
+  scrollbar-width: thin;
+  scrollbar-color: #4b5563 #1f2937;
+}
+
+.dark::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark::-webkit-scrollbar-track {
+  background: #1f2937;
+  border-radius: 4px;
+}
+
+.dark::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 4px;
+  border: 1px solid #374151;
+}
+
+.dark::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+.dark::-webkit-scrollbar-corner {
+  background: #1f2937;
+}
+
+/* Dark Mode Custom Scrollbar */
+.dark .custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #4b5563 #1f2937;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border: 1px solid #374151;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
 .detail-viewer-drag-handle {
   transition: all 0.15s ease;
 }
@@ -109,6 +158,16 @@ body {
 .detail-viewer-drag-handle.dragging {
   background-color: #dbeafe;
   border-top: 1px solid #93c5fd;
+}
+
+/* Dark mode drag handle */
+.dark .detail-viewer-drag-handle:hover {
+  background-color: #4b5563;
+}
+
+.dark .detail-viewer-drag-handle.dragging {
+  background-color: #1e3a8a;
+  border-top: 1px solid #3b82f6;
 }
 
 .detail-viewer-content {
@@ -133,6 +192,66 @@ body {
 /* Smooth scrolling for detail viewer */
 .detail-viewer-scroll {
   scroll-behavior: smooth;
+}
+
+/* Global Scrollbar Styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+*::-webkit-scrollbar-corner {
+  background: #f1f5f9;
+}
+
+/* Dark Mode Global Scrollbars */
+.dark * {
+  scrollbar-width: thin;
+  scrollbar-color: #4b5563 #1f2937;
+}
+
+.dark *::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark *::-webkit-scrollbar-track {
+  background: #1f2937;
+  border-radius: 4px;
+}
+
+.dark *::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 4px;
+  border: 1px solid #374151;
+}
+
+.dark *::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+.dark *::-webkit-scrollbar-corner {
+  background: #1f2937;
 }
 
 /* Dark mode transition effects */
@@ -189,6 +308,16 @@ body {
 .table-row-hover:hover {
   background-color: #f9fafb;
   cursor: pointer;
+}
+
+/* Dark mode row hover effects */
+.dark .table-row-hover:hover {
+  background-color: #374151;
+}
+
+.dark .detail-table th {
+  background-color: #374151;
+  color: #d1d5db;
 }
 
 /* Loading animation */

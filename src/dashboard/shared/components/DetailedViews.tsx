@@ -770,15 +770,15 @@ export const RequestDetailContent: React.FC<{
                 <h3 className="text-sm font-semibold text-gray-900">Response Body</h3>
                 {isStatusOnlyResponse(responseBody) && (
                   <div className="relative group">
-                    <div className="w-4 h-4 bg-yellow-100 border border-yellow-300 rounded-full flex items-center justify-center cursor-help">
-                      <span className="text-yellow-600 text-xs font-bold">?</span>
+                    <div className="w-4 h-4 bg-yellow-100 dark:bg-yellow-800 border border-yellow-300 dark:border-yellow-600 rounded-full flex items-center justify-center cursor-help">
+                      <span className="text-yellow-600 dark:text-yellow-300 text-xs font-bold">?</span>
                     </div>
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 bg-gray-800 text-white text-xs rounded-lg py-2 px-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10 pointer-events-none">
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 bg-gray-800 dark:bg-gray-700 text-white dark:text-gray-200 text-xs rounded-lg py-2 px-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10 pointer-events-none">
                       <div className="text-center">
                         <p className="font-medium mb-1">Why can't I see the response content?</p>
-                        <p className="text-gray-300">{getBodyExplanation(responseBody, request.status)}</p>
+                        <p className="text-gray-300 dark:text-gray-400">{getBodyExplanation(responseBody, request.status)}</p>
                       </div>
-                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-800 rotate-45"></div>
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-800 dark:bg-gray-700 rotate-45"></div>
                     </div>
                   </div>
                 )}
@@ -796,20 +796,20 @@ export const RequestDetailContent: React.FC<{
 
             {/* Enhanced response body display with status explanation */}
             {isStatusOnlyResponse(responseBody) ? (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4">
                 <div className="flex items-start space-x-3">
                   <div className="flex-shrink-0">
-                    <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                      <span className="text-yellow-600 text-sm">📄</span>
+                    <div className="w-8 h-8 bg-yellow-100 dark:bg-yellow-800 rounded-full flex items-center justify-center">
+                      <span className="text-yellow-600 dark:text-yellow-300 text-sm">📄</span>
                     </div>
                   </div>
                   <div className="flex-1">
-                    <h4 className="text-sm font-medium text-yellow-800 mb-1">Response Content Not Available</h4>
-                    <p className="text-sm text-yellow-700 mb-2">{getBodyExplanation(responseBody, request.status)}</p>
-                    <div className="bg-yellow-100 rounded p-2 text-xs font-mono text-yellow-800">
+                    <h4 className="text-sm font-medium text-yellow-800 dark:text-yellow-300 mb-1">Response Content Not Available</h4>
+                    <p className="text-sm text-yellow-700 dark:text-yellow-300 mb-2">{getBodyExplanation(responseBody, request.status)}</p>
+                    <div className="bg-yellow-100 dark:bg-yellow-800/50 rounded p-2 text-xs font-mono text-yellow-800 dark:text-yellow-200">
                       {responseBody}
                     </div>
-                    <div className="mt-2 text-xs text-yellow-600">
+                    <div className="mt-2 text-xs text-yellow-600 dark:text-yellow-400">
                       <p><strong>Common reasons:</strong></p>
                       <ul className="list-disc list-inside space-y-1 mt-1">
                         {getCommonReasons(responseBody, request.status).map((reason, index) => (
@@ -875,17 +875,17 @@ export const RequestDetailContent: React.FC<{
       const percentage = total > 0 ? (value / total) * 100 : 0;
       return (
         <div className="flex items-center space-x-3">
-          <div className="w-32 text-sm font-medium text-gray-700">{label}:</div>
-          <div className="flex-1 bg-gray-200 rounded-full h-4 relative overflow-hidden">
+          <div className="w-32 text-sm font-medium text-gray-700 dark:text-gray-300">{label}:</div>
+          <div className="flex-1 bg-gray-200 dark:bg-gray-600 rounded-full h-4 relative overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-300 ${color}`}
               style={{ width: `${Math.max(percentage, 2)}%` }}
             ></div>
           </div>
-          <div className="w-16 text-sm text-gray-600 text-right">
+          <div className="w-16 text-sm text-gray-600 dark:text-gray-400 text-right">
             {value > 0 ? `${value}ms` : '-'}
           </div>
-          <div className="w-12 text-xs text-gray-500 text-right">
+          <div className="w-12 text-xs text-gray-500 dark:text-gray-400 text-right">
             {percentage > 0 ? `${Math.round(percentage)}%` : '-'}
           </div>
         </div>
@@ -905,7 +905,7 @@ export const RequestDetailContent: React.FC<{
             </button>
           </div>
 
-          <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-3">
             <ProgressBar value={metrics.dnsLookup} total={total} color="bg-blue-500" label="DNS Lookup" />
             <ProgressBar value={metrics.tcpConnect} total={total} color="bg-green-500" label="TCP Connect" />
             <ProgressBar value={metrics.sslHandshake} total={total} color="bg-yellow-500" label="SSL Handshake" />
@@ -914,16 +914,16 @@ export const RequestDetailContent: React.FC<{
             <ProgressBar value={metrics.contentDownload} total={total} color="bg-purple-500" label="Content Download" />
             <ProgressBar value={metrics.redirectTime} total={total} color="bg-gray-500" label="Redirect Time" />
 
-            <div className="border-t border-gray-300 pt-3 mt-4">
+            <div className="border-t border-gray-300 dark:border-gray-600 pt-3 mt-4">
               <div className="flex items-center space-x-3">
-                <div className="w-32 text-sm font-bold text-gray-900">Total Time:</div>
-                <div className="flex-1 bg-gray-300 rounded-full h-5 relative overflow-hidden">
+                <div className="w-32 text-sm font-bold text-gray-900 dark:text-gray-300">Total Time:</div>
+                <div className="flex-1 bg-gray-300 dark:bg-gray-600 rounded-full h-5 relative overflow-hidden">
                   <div className="h-full bg-gradient-to-r from-blue-500 via-green-500 via-yellow-500 via-indigo-500 via-orange-500 to-purple-500 rounded-full"></div>
                 </div>
-                <div className="w-16 text-sm font-bold text-gray-900 text-right">
+                <div className="w-16 text-sm font-bold text-gray-900 dark:text-gray-300 text-right">
                   {total > 0 ? `${total}ms` : '-'}
                 </div>
-                <div className="w-12 text-xs text-gray-500 text-right">100%</div>
+                <div className="w-12 text-xs text-gray-500 dark:text-gray-400 text-right">100%</div>
               </div>
             </div>
           </div>
@@ -931,16 +931,16 @@ export const RequestDetailContent: React.FC<{
 
         <div>
           <h3 className="text-sm font-semibold text-gray-900 mb-3">Transfer Information</h3>
-          <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-4">
 
             {/* Size Breakdown Explanation */}
-            <div className="bg-blue-50 border-l-4 border-blue-400 p-3 mb-4">
-              <h4 className="text-sm font-medium text-blue-900 mb-2">📊 Size Breakdown</h4>
-              <div className="text-xs text-blue-800 space-y-1">
+            <div className="bg-blue-50 dark:bg-blue-900/50 border-l-4 border-blue-400 p-3 mb-4">
+              <h4 className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-2">📊 Size Breakdown</h4>
+              <div className="text-xs text-blue-800 dark:text-blue-300 space-y-1">
                 <div><strong>Transfer Size:</strong> Total bytes over network (headers + compressed body)</div>
                 <div><strong>Encoded Body:</strong> Response body size (compressed/as-received)</div>
                 <div><strong>Decoded Body:</strong> Response body size (uncompressed/final)</div>
-                <div className="mt-2 text-blue-600">
+                <div className="mt-2 text-blue-600 dark:text-blue-400">
                   <strong>Why Transfer Size is larger:</strong> Includes HTTP headers (~200-400 bytes)
                 </div>
               </div>
@@ -992,21 +992,21 @@ export const RequestDetailContent: React.FC<{
 
             {/* Compression Analysis */}
             {metrics.encodedBodySize > 0 && metrics.decodedBodySize > 0 && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                <h4 className="text-sm font-medium text-green-900 mb-2">🗜️ Compression Analysis</h4>
+              <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-lg p-3">
+                <h4 className="text-sm font-medium text-green-900 dark:text-green-300 mb-2">🗜️ Compression Analysis</h4>
                 {metrics.encodedBodySize < metrics.decodedBodySize ? (
                   <div className="space-y-1">
-                    <p className="text-sm text-green-800">
+                    <p className="text-sm text-green-800 dark:text-green-300">
                       <strong>{Math.round((1 - metrics.encodedBodySize / metrics.decodedBodySize) * 100)}% compression savings</strong>
                     </p>
-                    <p className="text-xs text-green-700">
+                    <p className="text-xs text-green-700 dark:text-green-400">
                       Saved {formatSize(metrics.decodedBodySize - metrics.encodedBodySize)} through compression
                     </p>
                   </div>
                 ) : metrics.encodedBodySize === metrics.decodedBodySize ? (
-                  <p className="text-sm text-gray-600">No compression applied (sizes match)</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">No compression applied (sizes match)</p>
                 ) : (
-                  <p className="text-sm text-orange-600">Encoded size larger than decoded (unusual)</p>
+                  <p className="text-sm text-orange-600 dark:text-orange-400">Encoded size larger than decoded (unusual)</p>
                 )}
               </div>
             )}
@@ -1056,7 +1056,7 @@ export const RequestDetailContent: React.FC<{
             return (
               <div className="space-y-4">
                 <h4 className="text-sm font-semibold text-gray-900">Size Metrics Comparison</h4>
-                <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-3">
                   {/* Application-level sizes */}
                   {payloadSize > 0 && (
                     <SizeBar
@@ -1109,7 +1109,7 @@ export const RequestDetailContent: React.FC<{
                     />
                   )}
                 </div>
-                <div className="text-xs text-gray-500 bg-blue-50 border border-blue-200 rounded p-3">
+                <div className="text-xs text-gray-500 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded p-3">
                   <p><strong>Size Metrics Info:</strong></p>
                   <ul className="list-disc list-inside mt-1 space-y-1">
                     <li><strong>Transfer Size</strong> includes headers and represents actual network bytes</li>
@@ -1161,9 +1161,9 @@ export const RequestDetailContent: React.FC<{
         </div>
 
         {/* Response Status */}
-        <div className="bg-gray-50 rounded-lg p-4">
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
           <div className="mb-3">
-            <span className="text-sm font-medium text-gray-700">Status:</span>
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Status:</span>
             <span className={`inline-block px-2 py-1 text-xs rounded-full ml-2 ${
               request.status >= 200 && request.status < 300 ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' :
               request.status >= 300 && request.status < 400 ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200' :
@@ -1177,8 +1177,8 @@ export const RequestDetailContent: React.FC<{
           {/* Response Size */}
           {(request.responseSize || request.response_size) && (
             <div className="mb-3">
-              <span className="text-sm font-medium text-gray-700">Response Size:</span>
-              <p className="text-sm text-gray-900 mt-1">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Response Size:</span>
+              <p className="text-sm text-gray-900 dark:text-gray-300 mt-1">
                 {(() => {
                   const size = request.responseSize || request.response_size;
                   return typeof size === 'number' ? `${(size / 1024).toFixed(2)}KB (${size} bytes)` : size;
@@ -1191,12 +1191,12 @@ export const RequestDetailContent: React.FC<{
         {/* Response Headers */}
         {Object.keys(responseHeaders).length > 0 && (
           <div>
-            <h4 className="text-sm font-medium text-gray-900 mb-2">Response Headers</h4>
-            <div className="bg-gray-50 rounded-lg p-3 max-h-48 overflow-y-auto">
+            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-300 mb-2">Response Headers</h4>
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 max-h-48 overflow-y-auto">
               {Object.entries(responseHeaders).map(([key, value]) => (
                 <div key={key} className="mb-2 last:mb-0">
-                  <div className="text-xs font-medium text-blue-700">{key}:</div>
-                  <div className="text-xs text-gray-600 break-all ml-2">{String(value)}</div>
+                  <div className="text-xs font-medium text-blue-700 dark:text-blue-400">{key}:</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400 break-all ml-2">{String(value)}</div>
                 </div>
               ))}
             </div>
@@ -1252,35 +1252,35 @@ export const RequestDetailContent: React.FC<{
           </button>
         </div>
 
-        <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-3">
           {/* Response Time */}
           {request.response_time && (
             <div>
-              <span className="text-sm font-medium text-gray-700">Response Time:</span>
-              <p className="text-sm text-gray-900 mt-1">{request.response_time}ms</p>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Response Time:</span>
+              <p className="text-sm text-gray-900 dark:text-gray-300 mt-1">{request.response_time}ms</p>
             </div>
           )}
 
           {/* Duration */}
           {request.duration && request.duration !== request.response_time && (
             <div>
-              <span className="text-sm font-medium text-gray-700">Duration:</span>
-              <p className="text-sm text-gray-900 mt-1">{request.duration}ms</p>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Duration:</span>
+              <p className="text-sm text-gray-900 dark:text-gray-300 mt-1">{request.duration}ms</p>
             </div>
           )}
 
           {/* Time Taken */}
           {request.time_taken && request.time_taken !== request.response_time && request.time_taken !== request.duration && (
             <div>
-              <span className="text-sm font-medium text-gray-700">Time Taken:</span>
-              <p className="text-sm text-gray-900 mt-1">{request.time_taken}ms</p>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Time Taken:</span>
+              <p className="text-sm text-gray-900 dark:text-gray-300 mt-1">{request.time_taken}ms</p>
             </div>
           )}
 
           {/* Timestamp */}
           <div>
-            <span className="text-sm font-medium text-gray-700">Request Time:</span>
-            <p className="text-sm text-gray-900 mt-1">{new Date(request.timestamp).toLocaleString()}</p>
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Request Time:</span>
+            <p className="text-sm text-gray-900 dark:text-gray-300 mt-1">{new Date(request.timestamp).toLocaleString()}</p>
           </div>
 
           {/* Performance Metrics Summary (if available) */}
@@ -1504,30 +1504,30 @@ export const ErrorDetailContent: React.FC<{
         <div className="space-y-4">
           {/* Primary Message */}
           <div>
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Error Message</h4>
-            <div className="bg-red-50 rounded-lg p-4 border border-red-200">
-              <pre className="text-sm text-red-800 whitespace-pre-wrap font-mono">{error.message || 'No message available'}</pre>
+            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Error Message</h4>
+            <div className="bg-red-50 dark:bg-red-900/30 rounded-lg p-4 border border-red-200 dark:border-red-700">
+              <pre className="text-sm text-red-800 dark:text-red-300 whitespace-pre-wrap font-mono">{error.message || 'No message available'}</pre>
             </div>
           </div>
 
           {/* Raw Error Object */}
           <div>
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Complete Error Object</h4>
-            <div className="bg-gray-900 rounded-lg p-4">
-              <pre className="text-sm text-green-400 whitespace-pre-wrap overflow-auto max-h-96">{formatJSON(error)}</pre>
+            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Complete Error Object</h4>
+            <div className="bg-gray-900 dark:bg-gray-800 rounded-lg p-4">
+              <pre className="text-sm text-green-400 dark:text-green-300 whitespace-pre-wrap overflow-auto max-h-96">{formatJSON(error)}</pre>
             </div>
           </div>
 
           {/* Additional Context if Available */}
           {error.url && (
             <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Source Context</h4>
-              <div className="bg-gray-50 rounded-lg p-3">
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Source Context</h4>
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
                 <div className="text-sm">
-                  <span className="font-medium">URL:</span> <span className="text-blue-600 break-all">{error.url}</span>
+                  <span className="font-medium dark:text-gray-300">URL:</span> <span className="text-blue-600 dark:text-blue-400 break-all">{error.url}</span>
                 </div>
                 {error.line && (
-                  <div className="text-sm mt-1">
+                  <div className="text-sm dark:text-gray-300 mt-1">
                     <span className="font-medium">Location:</span> Line {error.line}{error.column ? `:${error.column}` : ''}
                   </div>
                 )}
