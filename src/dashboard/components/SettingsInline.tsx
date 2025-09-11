@@ -1,6 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from '../../utils/storage-service';
 
+// Hook to detect dark mode
+const useDarkMode = () => {
+  const [isDark, setIsDark] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkDarkMode = () => {
+      setIsDark(document.documentElement.classList.contains('dark'));
+    };
+
+    checkDarkMode();
+
+    // Watch for class changes
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  return isDark;
+};
+
 // Essential settings interface - only core functionality
 interface SettingsData {
   networkInterception: {
@@ -28,6 +52,8 @@ const defaultSettings: SettingsData = {
 };
 
 const SettingsInline: React.FC = () => {
+  const isDark = useDarkMode();
+  
   // Storage service for IndexedDB access
   const storageService = React.useMemo(() => new StorageService(), []);
 
@@ -295,7 +321,7 @@ const SettingsInline: React.FC = () => {
       placeholder={placeholder}
       min={min}
       id={id}
-      className={`px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${className}`}
+      className={`px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${className}`}
     />
   );
 
@@ -306,10 +332,10 @@ const SettingsInline: React.FC = () => {
     disabled?: boolean;
     children: React.ReactNode;
   }> = ({ variant = 'default', size = 'default', onClick, disabled, children }) => {
-    const baseClasses = `font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`;
+    const baseClasses = `font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800`;
     const variantClasses = variant === 'outline'
-      ? 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
-      : 'bg-blue-600 text-white hover:bg-blue-700';
+      ? 'border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
+      : 'bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600';
     const sizeClasses = size === 'sm' ? 'px-3 py-1.5 text-sm' : 'px-4 py-2 text-sm';
     const disabledClasses = disabled ? 'opacity-50 cursor-not-allowed' : '';
 
@@ -326,23 +352,23 @@ const SettingsInline: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="w-full bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+      <div className="w-full bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8">
         <div className="flex items-center justify-center space-x-4">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="text-gray-600">Loading settings...</p>
+          <p className="text-gray-600 dark:text-gray-400">Loading settings...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full bg-white rounded-lg shadow-sm border border-gray-200">
+    <div className="w-full bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
       {/* Header */}
-      <div className="border-b border-gray-200 p-6">
+      <div className="border-b border-gray-200 dark:border-gray-700 p-6">
         <div className="flex justify-between items-start">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight text-gray-900">Settings</h2>
-            <p className="text-gray-600 mt-2">
+            <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Settings</h2>
+            <p className="text-gray-600 dark:text-gray-400 mt-2">
               Manage your extension preferences and behavior
             </p>
           </div>
@@ -369,8 +395,8 @@ const SettingsInline: React.FC = () => {
       {saveMessage && (
         <div className={`mx-6 mt-6 p-4 rounded-lg border ${
           saveMessage.includes('Error')
-            ? 'bg-red-50 text-red-700 border-red-200'
-            : 'bg-green-50 text-green-700 border-green-200'
+            ? 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700'
+            : 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-700'
         }`}>
           {saveMessage}
         </div>
@@ -378,10 +404,10 @@ const SettingsInline: React.FC = () => {
 
       <div className="p-6 space-y-6 max-h-[600px] overflow-y-auto">
         {/* Network Body Size Limit */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-          <div className="border-b border-gray-200 p-4">
-            <h3 className="text-xl font-semibold text-gray-900">Network Body Size Limit</h3>
-            <p className="text-sm text-gray-600 mt-1">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="border-b border-gray-200 dark:border-gray-700 p-4">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Network Body Size Limit</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
               Configure memory safeguards for network request body capture
             </p>
           </div>
@@ -389,14 +415,14 @@ const SettingsInline: React.FC = () => {
             <div className="space-y-4">
               <div className="grid gap-2">
                 <div className="flex items-center space-x-2">
-                  <label htmlFor="maxBodySize" className="text-sm font-medium text-gray-900">
+                  <label htmlFor="maxBodySize" className="text-sm font-medium text-gray-900 dark:text-gray-100">
                     Max body size (characters, 0 = no limit)
                   </label>
                   <div
                     className="relative group cursor-help"
                     title="This setting prevents memory issues by limiting how much request/response body content is stored. Large payloads are truncated to this size. Set to 0 to disable truncation (not recommended for production use)."
                   >
-                    <div className="w-4 h-4 rounded-full bg-blue-100 text-xs flex items-center justify-center text-blue-600 hover:bg-blue-200 transition-colors">
+                    <div className="w-4 h-4 rounded-full bg-blue-100 dark:bg-blue-900 text-xs flex items-center justify-center text-blue-600 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors">
                       ?
                     </div>
                   </div>
@@ -443,10 +469,10 @@ const SettingsInline: React.FC = () => {
 
 
         {/* Storage Usage Card */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-          <div className="border-b border-gray-200 p-4">
-            <h3 className="text-xl font-semibold text-gray-900">Storage Usage</h3>
-            <p className="text-sm text-gray-600 mt-1">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="border-b border-gray-200 dark:border-gray-700 p-4">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Storage Usage</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
               IndexedDB storage usage and data management
             </p>
           </div>
@@ -455,7 +481,7 @@ const SettingsInline: React.FC = () => {
               {storageUsage.isLoading ? (
                 <div className="flex items-center space-x-3">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                  <span className="text-sm text-gray-600">Calculating storage usage...</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Calculating storage usage...</span>
                 </div>
               ) : (
                 <>
@@ -477,7 +503,7 @@ const SettingsInline: React.FC = () => {
                   </div>
 
                   {/* Progress Bar */}
-                  <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
                     <div
                       className={`h-3 rounded-full transition-all duration-300 ${
                         storageUsage.percentage < 50 ? 'bg-green-500' :
@@ -489,12 +515,12 @@ const SettingsInline: React.FC = () => {
 
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <span className="text-gray-600">Usage:</span>
-                      <span className="ml-2 font-medium">{storageUsage.percentage.toFixed(1)}%</span>
+                      <span className="text-gray-600 dark:text-gray-400">Usage:</span>
+                      <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">{storageUsage.percentage.toFixed(1)}%</span>
                     </div>
                     <div>
-                      <span className="text-gray-600">Available:</span>
-                      <span className="ml-2 font-medium">
+                      <span className="text-gray-600 dark:text-gray-400">Available:</span>
+                      <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
                         {formatBytes(100 * 1024 * 1024 - storageUsage.bytes)}
                       </span>
                     </div>
@@ -515,10 +541,10 @@ const SettingsInline: React.FC = () => {
         </div>
 
         {/* Chart Settings Card */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-          <div className="border-b border-gray-200 p-4">
-            <h3 className="text-xl font-semibold text-gray-900">Chart Performance Settings</h3>
-            <p className="text-sm text-gray-600 mt-1">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="border-b border-gray-200 dark:border-gray-700 p-4">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Chart Performance Settings</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
               Configure dashboard chart refresh behavior
             </p>
           </div>
@@ -526,7 +552,7 @@ const SettingsInline: React.FC = () => {
             <div className="space-y-4">
               {/* Chart Refresh Mode */}
               <div>
-                <label className="text-sm font-medium text-gray-900 mb-2 block">Chart Refresh Mode</label>
+                <label className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2 block">Chart Refresh Mode</label>
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2">
                     <input
@@ -541,7 +567,7 @@ const SettingsInline: React.FC = () => {
                       })}
                       className="text-blue-600"
                     />
-                    <label htmlFor="refresh-auto" className="text-sm">
+                    <label htmlFor="refresh-auto" className="text-sm text-gray-900 dark:text-gray-100">
                       🔄 Automatic (periodic refresh)
                     </label>
                   </div>
@@ -558,7 +584,7 @@ const SettingsInline: React.FC = () => {
                       })}
                       className="text-blue-600"
                     />
-                    <label htmlFor="refresh-manual" className="text-sm">
+                    <label htmlFor="refresh-manual" className="text-sm text-gray-900 dark:text-gray-100">
                       🖱️ Manual (refresh button only)
                     </label>
                   </div>
@@ -568,7 +594,7 @@ const SettingsInline: React.FC = () => {
               {/* Refresh Interval - only show when auto mode is selected */}
               {settings.chartSettings?.refreshMode === 'auto' && (
                 <div>
-                  <label className="text-sm font-medium text-gray-900 mb-2 block">Refresh Interval</label>
+                  <label className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2 block">Refresh Interval</label>
                   <div className="flex items-center space-x-3">
                     <input
                       type="range"
@@ -580,20 +606,20 @@ const SettingsInline: React.FC = () => {
                         ...settings.chartSettings,
                         refreshInterval: parseInt(e.target.value)
                       })}
-                      className="flex-1"
+                      className={`flex-1 ${isDark ? 'accent-blue-400' : 'accent-blue-600'}`}
                     />
-                    <span className="text-sm font-medium min-w-[4rem]">
+                    <span className="text-sm font-medium min-w-[4rem] text-gray-900 dark:text-gray-100">
                       {Math.max(settings.chartSettings?.refreshInterval || 30, 15)}s
                     </span>
                   </div>
-                  <p className="text-xs text-gray-600 mt-1">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                     Higher intervals reduce CPU usage but may show stale data longer
                   </p>
                 </div>
               )}
 
               {/* Performance optimizations removed - not implemented in backend */}
-              <div className="p-3 bg-blue-50 text-blue-800 rounded-lg border border-blue-200">
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-lg border border-blue-200 dark:border-blue-700">
                 <p className="text-sm font-medium mb-2">💡 Performance Impact</p>
                 <div className="text-xs space-y-1">
                   <p><strong>Manual mode:</strong> ~90% less CPU usage, charts update only when refreshed</p>
