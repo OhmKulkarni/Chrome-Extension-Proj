@@ -170,7 +170,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Authentication token lifecycle events from all tabs</p>
         </div>
         <div className="flex items-center space-x-4">
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-gray-500 dark:text-gray-400">
             {totalFilteredEvents > 0 && (
               `Showing ${indexOfFirstEvent + 1}-${Math.min(indexOfLastEvent, totalFilteredEvents)} of ${totalFilteredEvents}`
             )}
@@ -179,7 +179,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
             )}
           </span>
           {totalPages > 1 && (
-            <span className="text-sm text-gray-500">Page {currentPage} of {totalPages}</span>
+            <span className="text-sm text-gray-500 dark:text-gray-400">Page {currentPage} of {totalPages}</span>
           )}
         </div>
       </div>
@@ -197,7 +197,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
             <input
               type="text"
               placeholder="Search by URL or token type..."
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 focus:outline-none focus:placeholder-gray-400 dark:focus:placeholder-gray-500 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
             />
@@ -206,11 +206,11 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
 
         {/* Enhanced Type Filter */}
         <div className="flex items-center space-x-3">
-          <label className="text-sm font-medium text-gray-700">Type:</label>
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Type:</label>
           <select
             value={filterType}
             onChange={(e) => onTypeFilterChange(e.target.value)}
-            className="block pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+            className="block pl-3 pr-10 py-2 text-base border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
           >
             <option value="all">All Types</option>
             <option value="acquire">Acquire</option>
@@ -223,7 +223,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
         {/* Token Hash Toggle */}
         <button
           onClick={onToggleTokenHash}
-          className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
           {showFullTokenHash ? 'Hide Full Hash' : 'Show Full Hash'}
         </button>
@@ -232,7 +232,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
         {(searchTerm || filterType !== 'all') && (
           <button
             onClick={clearFilters}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             Clear Filters
           </button>
@@ -384,12 +384,12 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
           {totalPages > 1 && (
             <div className="mt-6 flex items-center justify-between">
               <div className="flex items-center">
-                <p className="text-sm text-gray-700">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
                   Showing <span className="font-medium">{indexOfFirstEvent + 1}</span> to{' '}
                   <span className="font-medium">{Math.min(indexOfLastEvent, totalFilteredEvents)}</span> of{' '}
                   <span className="font-medium">{totalFilteredEvents}</span> results
                   {totalEvents > 0 && totalFilteredEvents !== totalEvents && (
-                    <span className="text-gray-500"> (filtered from {totalEvents})</span>
+                    <span className="text-gray-500 dark:text-gray-400"> (filtered from {totalEvents})</span>
                   )}
                 </p>
               </div>
@@ -400,8 +400,8 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                   disabled={currentPage === 1}
                   className={`px-3 py-2 text-sm font-medium rounded-md ${
                     currentPage === 1
-                      ? 'text-gray-300 cursor-not-allowed bg-gray-100'
-                      : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
+                      ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed bg-gray-100 dark:bg-gray-700'
+                      : 'text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
                   }`}
                 >
                   Previous
@@ -417,8 +417,8 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                       pageNumber === currentPage
                         ? 'bg-blue-600 text-white'
                         : typeof pageNumber === 'string'
-                        ? 'text-gray-400 cursor-default'
-                        : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                        ? 'text-gray-400 dark:text-gray-600 cursor-default'
+                        : 'text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
                     }`}
                   >
                     {pageNumber}
@@ -431,8 +431,8 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                   disabled={currentPage === totalPages}
                   className={`px-3 py-2 text-sm font-medium rounded-md ${
                     currentPage === totalPages
-                      ? 'text-gray-300 cursor-not-allowed bg-gray-100'
-                      : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
+                      ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed bg-gray-100 dark:bg-gray-700'
+                      : 'text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
                   }`}
                 >
                   Next

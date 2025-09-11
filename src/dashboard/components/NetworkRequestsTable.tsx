@@ -578,7 +578,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
             <input
               type="text"
               placeholder="Search by URL or method..."
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 focus:outline-none focus:placeholder-gray-400 dark:focus:placeholder-gray-500 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
             />
@@ -587,11 +587,11 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
 
         {/* Method Filter */}
         <div className="flex items-center space-x-3">
-          <label className="text-sm font-medium text-gray-700">Method:</label>
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Method:</label>
           <select
             value={filterMethod}
             onChange={(e) => onMethodFilterChange(e.target.value)}
-            className="block pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+            className="block pl-3 pr-10 py-2 text-base border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
           >
             <option value="all">All Methods</option>
             <option value="GET">GET</option>
@@ -605,7 +605,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
         {(searchTerm || filterMethod !== 'all') && (
           <button
             onClick={clearFilters}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             Clear Filters
           </button>
@@ -818,12 +818,12 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
           {totalPages > 1 && (
             <div className="mt-6 flex items-center justify-between">
               <div className="flex items-center">
-                <p className="text-sm text-gray-700">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
                   Showing <span className="font-medium">{indexOfFirstRequest + 1}</span> to{' '}
                   <span className="font-medium">{Math.min(indexOfLastRequest, totalFilteredRequests)}</span> of{' '}
                   <span className="font-medium">{totalFilteredRequests}</span> results
                   {totalRequests > 0 && totalFilteredRequests !== totalRequests && (
-                    <span className="text-gray-500"> (filtered from {totalRequests})</span>
+                    <span className="text-gray-500 dark:text-gray-400"> (filtered from {totalRequests})</span>
                   )}
                 </p>
               </div>
@@ -834,8 +834,8 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                   disabled={currentPage === 1}
                   className={`px-3 py-2 text-sm font-medium rounded-md ${
                     currentPage === 1
-                      ? 'text-gray-300 cursor-not-allowed bg-gray-100'
-                      : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
+                      ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed bg-gray-100 dark:bg-gray-700'
+                      : 'text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
                   }`}
                 >
                   Previous
@@ -851,8 +851,8 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                       pageNumber === currentPage
                         ? 'bg-blue-600 text-white'
                         : typeof pageNumber === 'string'
-                        ? 'text-gray-400 cursor-default'
-                        : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                        ? 'text-gray-400 dark:text-gray-600 cursor-default'
+                        : 'text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
                     }`}
                   >
                     {pageNumber}
@@ -865,8 +865,8 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                   disabled={currentPage === totalPages}
                   className={`px-3 py-2 text-sm font-medium rounded-md ${
                     currentPage === totalPages
-                      ? 'text-gray-300 cursor-not-allowed bg-gray-100'
-                      : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
+                      ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed bg-gray-100 dark:bg-gray-700'
+                      : 'text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
                   }`}
                 >
                   Next
