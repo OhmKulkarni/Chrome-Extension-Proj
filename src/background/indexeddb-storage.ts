@@ -992,6 +992,7 @@ export class IndexedDBStorage implements StorageOperations {
   }
 
   async getTokenEvents(limit = 100, offset = 0): Promise<TokenEvent[]> {
+    console.log(`🚨 INDEXEDDB DEBUG: getTokenEvents called with limit=${limit}, offset=${offset}`);
     if (!this.db) throw new Error('Database not initialized')
 
     // MEMORY LEAK FIX: Convert Promise constructor to helper method
@@ -1001,6 +1002,7 @@ export class IndexedDBStorage implements StorageOperations {
     const request = index.openCursor(null, 'prev') // Latest first
 
     const results = await this.promiseFromCursor<TokenEvent[]>(request, transaction, limit, offset)
+    console.log(`🚨 INDEXEDDB DEBUG: Retrieved ${results.length} token events:`, results);
 
     // MEMORY LEAK FIX: Check memory pressure after data retrieval
     await this.checkMemoryPressure()

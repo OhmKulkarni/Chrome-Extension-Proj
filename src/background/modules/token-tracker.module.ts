@@ -291,6 +291,8 @@ export class TokenTrackerModule {
       // Generate token hash for identification
       const valueHash = await this.generateTokenHash(url, timestamp, eventType, method);
 
+      console.log(`🔍 TokenTrackerModule: FINAL CHECK - About to create token event with eventType: "${eventType}" for status ${statusCode}`);
+
       const tokenEvent: TokenEvent = {
         type: eventType,
         url,
@@ -328,6 +330,8 @@ export class TokenTrackerModule {
           tab_url: tabUrl,
           main_domain: mainDomain
         };
+
+        console.log(`🔍 TokenTrackerModule: STORAGE CHECK - About to store tokenEventData with type: "${tokenEventData.type}" for status ${statusCode}`);
 
         // Use IndexedDB storage with race condition protection
         if (this.config.enableRaceConditionProtection) {
@@ -863,23 +867,7 @@ export class TokenTrackerModule {
 
   // ===== DATA RETRIEVAL =====
 
-  /**
-   * Map IndexedDB token type back to event type
-   */
-  private mapTokenTypeToEventType(tokenType: string): 'acquire' | 'refresh' | 'expired' | 'refresh_error' | 'verified' {
-    switch (tokenType) {
-      case 'jwt_token':
-        return 'acquire';
-      case 'session_token':
-        return 'expired';
-      case 'api_key':
-        return 'acquire';
-      case 'oauth_token':
-        return 'refresh';
-      default:
-        return 'acquire';
-    }
-  }
+
 
   /**
    * Get token events with pagination (from IndexedDB)
@@ -888,18 +876,35 @@ export class TokenTrackerModule {
     return this.executeWithSafety('getTokenEvents', async () => {
       // Get data from IndexedDB instead of Chrome storage
       const tokenEvents = await this.indexedDbStorage.getTokenEvents(limit, offset);
+      console.log('🚨 TOKEN TRACKER: Retrieved from IndexedDB:', tokenEvents);
 
       // Transform IndexedDB TokenEvent format to module TokenEvent format for compatibility
-      return tokenEvents.map(event => ({
-        type: this.mapTokenTypeToEventType(event.type),
-        url: event.url || '',
-        method: event.method || '',
-        status: event.status || 0,
-        timestamp: new Date(event.timestamp).toISOString(),
-        source_url: event.source_url || event.url || '',
-        expiry: event.expiry ? new Date(event.expiry).getTime() : undefined,
-        value_hash: event.valueHash
-      }));
+      const transformedEvents = tokenEvents.map(event => {
+        console.log('🚨 TOKEN TRACKER: Processing event:', {
+          originalType: event.type,
+          tokenType: event.tokenType,
+          status: event.status
+        });
+
+        // ✅ FIX: Use the event.type directly since we're storing it correctly now
+        // No more incorrect mapping based on tokenType!
+        const transformedEvent = {
+          type: event.type as 'acquire' | 'refresh' | 'expired' | 'refresh_error' | 'verified', // Use stored type directly
+          url: event.url || '',
+          method: event.method || '',
+          status: event.status || 0,
+          timestamp: new Date(event.timestamp).toISOString(),
+          source_url: event.source_url || event.url || '',
+          expiry: event.expiry ? new Date(event.expiry).getTime() : undefined,
+          value_hash: event.valueHash
+        };
+
+        console.log('🚨 TOKEN TRACKER: Final transformed event:', transformedEvent);
+        return transformedEvent;
+      });
+
+      console.log('🚨 TOKEN TRACKER: Returning transformed events:', transformedEvents);
+      return transformedEvents;
     });
   }
 

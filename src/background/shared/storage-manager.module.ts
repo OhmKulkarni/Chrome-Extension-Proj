@@ -323,13 +323,16 @@ export class StorageManagerModule {
    * Get paginated token events - Uses IndexedDB
    */
   async getTokenEvents(limit = 50, offset = 0): Promise<TokenEvent[]> {
+    console.log(`� CRITICAL DEBUG: getTokenEvents called with limit=${limit}, offset=${offset}`);
     return this.executeWithSafety('getTokenEvents', async () => {
       // Try IndexedDB first
       try {
+        console.log(`� CRITICAL DEBUG: Attempting to retrieve from IndexedDB...`);
         const storageTokenEvents = await this.indexedDbStorage.getTokenEvents(limit, offset);
+        console.log(`� CRITICAL DEBUG: Retrieved ${storageTokenEvents.length} events from IndexedDB:`, storageTokenEvents);
 
         // Convert storage TokenEvent format back to background TokenEvent format
-        return storageTokenEvents.map(event => ({
+        const convertedEvents = storageTokenEvents.map(event => ({
           type: event.type,  // Event type is stored directly now
           url: event.url || '',
           method: event.method || 'GET',
@@ -339,12 +342,16 @@ export class StorageManagerModule {
           expiry: event.expiry,
           valueHash: event.valueHash
         } as TokenEvent));
+
+        console.log(`� CRITICAL DEBUG: Returning converted events:`, convertedEvents);
+        return convertedEvents;
       } catch (error) {
-        console.warn('StorageManagerModule: Failed to get token events from IndexedDB, falling back to Chrome storage:', error);
+        console.warn('🚨 CRITICAL DEBUG: Failed to get token events from IndexedDB, falling back to Chrome storage:', error);
 
         // Fallback to Chrome storage
         const result = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.TOKEN_EVENTS);
         const events = result[this.STORAGE_KEYS.TOKEN_EVENTS] || [];
+        console.log(`� CRITICAL DEBUG: Using Chrome storage fallback - found ${events.length} events:`, events);
         return events.slice(offset, offset + limit);
       }
     });
