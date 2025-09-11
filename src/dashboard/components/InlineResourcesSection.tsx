@@ -205,7 +205,7 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
   const filteredResources = Object.values(groupedResources).flat().length;
 
   return (
-    <div className={`bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg w-full ${className}`}>
+    <div className={`bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg w-full ${className}`}>
       <div className="p-4 space-y-4 w-full">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -239,10 +239,10 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
         {/* Library Categories */}
         <div className="space-y-3 max-h-96 overflow-y-auto w-full px-2 bg-transparent">
           {Object.entries(groupedResources).map(([primaryType, resourceList]) => (
-            <div key={primaryType} className="border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 w-full">
+            <div key={primaryType} className="border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 w-full">
               <button
                 onClick={() => toggleSection(primaryType)}
-                className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 dark:hover:bg-gray-600"
+                className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700"
               >
                 <div className="flex items-center gap-2">
                   {getPrimaryCategoryIcon(primaryType)}
@@ -258,11 +258,11 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
               </button>
 
               {!collapsedSections.has(primaryType) && (
-                <div className="px-3 pb-3 space-y-2 border-t border-gray-100 dark:border-gray-600">
+                <div className="px-3 pb-3 space-y-2 border-t border-gray-100 dark:border-gray-600 bg-gray-50 dark:bg-gray-900">
                   {resourceList.map((lib, index) => (
                     <div
                       key={`${lib.name}-${index}`}
-                      className="flex flex-col p-3 bg-gray-50 dark:bg-gray-600 rounded-md w-full"
+                      className="flex flex-col p-3 bg-white dark:bg-gray-800 rounded-md w-full border border-gray-200 dark:border-gray-700"
                     >
                       <div className="w-full">
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
