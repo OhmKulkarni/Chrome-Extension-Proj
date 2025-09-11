@@ -47,18 +47,18 @@ export const ViewedStateSettings: React.FC<ViewedStateSettingsProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-600">
           <div className="flex items-center space-x-2">
-            <Settings className="w-5 h-5 text-gray-600" />
-            <h3 className="text-lg font-semibold text-gray-900">
+            <Settings className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               Viewed State Settings
             </h3>
           </div>
           <button
             onClick={handleCancel}
-            className="text-gray-400 hover:text-gray-600"
+            className="text-gray-400 dark:text-gray-300 hover:text-gray-600 dark:hover:text-gray-100"
           >
             <X className="w-5 h-5" />
           </button>
@@ -70,11 +70,11 @@ export const ViewedStateSettings: React.FC<ViewedStateSettingsProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               {localSettings.enabled ? (
-                <Eye className="w-4 h-4 text-green-600" />
+                <Eye className="w-4 h-4 text-green-600 dark:text-green-400" />
               ) : (
-                <EyeOff className="w-4 h-4 text-gray-400" />
+                <EyeOff className="w-4 h-4 text-gray-400 dark:text-gray-500" />
               )}
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-200">
                 Enable Viewed Tracking
               </label>
             </div>
@@ -84,7 +84,7 @@ export const ViewedStateSettings: React.FC<ViewedStateSettingsProps> = ({
                 enabled: !localSettings.enabled
               })}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                localSettings.enabled ? 'bg-blue-600' : 'bg-gray-200'
+                localSettings.enabled ? 'bg-blue-600 dark:bg-blue-500' : 'bg-gray-200 dark:bg-gray-600'
               }`}
             >
               <span
@@ -98,12 +98,12 @@ export const ViewedStateSettings: React.FC<ViewedStateSettingsProps> = ({
           {/* Persistence Level */}
           {localSettings.enabled && (
             <div className="space-y-3">
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-200">
                 Persistence Level
               </label>
               <div className="space-y-2">
                 {/* Session */}
-                <label className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                <label className="flex items-center space-x-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 bg-white dark:bg-gray-700">
                   <input
                     type="radio"
                     name="persistenceLevel"
@@ -115,15 +115,15 @@ export const ViewedStateSettings: React.FC<ViewedStateSettingsProps> = ({
                     })}
                     className="text-blue-600"
                   />
-                  <Timer className="w-4 h-4 text-orange-500" />
+                  <Timer className="w-4 h-4 text-orange-500 dark:text-orange-400" />
                   <div className="flex-1">
-                    <div className="text-sm font-medium text-gray-900">Session Only</div>
-                    <div className="text-xs text-gray-500">Cleared when you navigate away</div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">Session Only</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-300">Cleared when you navigate away</div>
                   </div>
                 </label>
 
                 {/* Medium */}
-                <label className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                <label className="flex items-center space-x-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 bg-white dark:bg-gray-700">
                   <input
                     type="radio"
                     name="persistenceLevel"
@@ -135,15 +135,15 @@ export const ViewedStateSettings: React.FC<ViewedStateSettingsProps> = ({
                     })}
                     className="text-blue-600"
                   />
-                  <Clock className="w-4 h-4 text-blue-500" />
+                  <Clock className="w-4 h-4 text-blue-500 dark:text-blue-400" />
                   <div className="flex-1">
-                    <div className="text-sm font-medium text-gray-900">24 Hours</div>
-                    <div className="text-xs text-gray-500">Survives browser restarts for 1 day</div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">24 Hours</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-300">Survives browser restarts for 1 day</div>
                   </div>
                 </label>
 
                 {/* Permanent */}
-                <label className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                <label className="flex items-center space-x-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 bg-white dark:bg-gray-700">
                   <input
                     type="radio"
                     name="persistenceLevel"
@@ -155,10 +155,10 @@ export const ViewedStateSettings: React.FC<ViewedStateSettingsProps> = ({
                     })}
                     className="text-blue-600"
                   />
-                  <Database className="w-4 h-4 text-green-500" />
+                  <Database className="w-4 h-4 text-green-500 dark:text-green-400" />
                   <div className="flex-1">
-                    <div className="text-sm font-medium text-gray-900">Permanent</div>
-                    <div className="text-xs text-gray-500">Saved until manually cleared</div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">Permanent</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-300">Saved until manually cleared</div>
                   </div>
                 </label>
               </div>
@@ -169,7 +169,7 @@ export const ViewedStateSettings: React.FC<ViewedStateSettingsProps> = ({
           {localSettings.enabled && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-200">
                   Show Visual Indicators
                 </label>
                 <button
@@ -192,7 +192,7 @@ export const ViewedStateSettings: React.FC<ViewedStateSettingsProps> = ({
               {/* Opacity Slider */}
               {localSettings.showIndicators && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-200">
                     Viewed Card Opacity: {Math.round(localSettings.viewedOpacity * 100)}%
                   </label>
                   <input
@@ -205,9 +205,9 @@ export const ViewedStateSettings: React.FC<ViewedStateSettingsProps> = ({
                       ...localSettings,
                       viewedOpacity: parseFloat(e.target.value)
                     })}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer"
                   />
-                  <div className="flex justify-between text-xs text-gray-500">
+                  <div className="flex justify-between text-xs text-gray-500 dark:text-gray-300">
                     <span>Faded</span>
                     <span>Visible</span>
                   </div>
@@ -242,16 +242,16 @@ export const ViewedStateSettings: React.FC<ViewedStateSettingsProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end space-x-3 p-4 border-t bg-gray-50">
+        <div className="flex items-center justify-end space-x-3 p-4 border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
           <button
             onClick={handleCancel}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 dark:bg-blue-600 rounded-md hover:bg-blue-700 dark:hover:bg-blue-500"
           >
             Save Settings
           </button>

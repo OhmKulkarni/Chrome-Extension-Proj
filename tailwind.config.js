@@ -3,6 +3,7 @@
 // It specifies the content paths, theme extensions, and custom animations.
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class', // Enable class-based dark mode
   content: [
     "./src/**/*.{js,ts,jsx,tsx,html}",
   ],

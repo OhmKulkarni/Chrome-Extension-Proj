@@ -23,7 +23,7 @@ export const LazyStatisticsCard: React.FC<LazyStatisticsCardProps> = ({
 }) => {
   return (
     <Suspense fallback={
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8">
         <div className="flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           <span className="ml-3 text-gray-600">Loading statistics...</span>

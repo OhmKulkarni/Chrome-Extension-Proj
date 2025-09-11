@@ -484,7 +484,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   const queuedCompareEvents = events.filter(e => e.compareSlot === -1)
 
   return (
-    <div className="flex h-full bg-gray-50">
+    <div className="flex h-full bg-gray-50 dark:bg-gray-900">
       {/* Main Timeline Area */}
       <div className="flex-1 flex flex-col" ref={containerRef}>
         {/* Timeline Header with Sticky Date Indicators and Settings */}
@@ -494,7 +494,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
           {/* Settings Button - High z-index to ensure visibility */}
           <button
             onClick={() => setShowViewedSettings(true)}
-            className="absolute top-0 right-2 z-50 p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md shadow-md border border-blue-200 bg-white transition-all"
+            className="absolute top-0 right-2 z-50 p-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/50 rounded-md shadow-md border border-blue-200 dark:border-blue-700 bg-white dark:bg-gray-800 transition-all"
             title="Viewed State Settings"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

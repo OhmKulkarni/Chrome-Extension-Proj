@@ -547,11 +547,11 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Network Requests</h2>
-          <p className="text-xs text-gray-500 mt-1">Global requests from all tabs (Popup shows current tab only)</p>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-200">Network Requests</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Global requests from all tabs (Popup shows current tab only)</p>
         </div>
         <div className="flex items-center space-x-4">
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-gray-500 dark:text-gray-400">
             {totalFilteredRequests > 0 && (
               `Showing ${indexOfFirstRequest + 1}-${Math.min(indexOfLastRequest, totalFilteredRequests)} of ${totalFilteredRequests}`
             )}
@@ -560,7 +560,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
             )}
           </span>
           {totalPages > 1 && (
-            <span className="text-sm text-gray-500">Page {currentPage} of {totalPages}</span>
+            <span className="text-sm text-gray-500 dark:text-gray-400">Page {currentPage} of {totalPages}</span>
           )}
         </div>
       </div>
@@ -578,7 +578,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
             <input
               type="text"
               placeholder="Search by URL or method..."
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 focus:outline-none focus:placeholder-gray-400 dark:focus:placeholder-gray-500 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
             />
@@ -587,11 +587,11 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
 
         {/* Method Filter */}
         <div className="flex items-center space-x-3">
-          <label className="text-sm font-medium text-gray-700">Method:</label>
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Method:</label>
           <select
             value={filterMethod}
             onChange={(e) => onMethodFilterChange(e.target.value)}
-            className="block pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+            className="block pl-3 pr-10 py-2 text-base border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
           >
             <option value="all">All Methods</option>
             <option value="GET">GET</option>
@@ -605,7 +605,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
         {(searchTerm || filterMethod !== 'all') && (
           <button
             onClick={clearFilters}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             Clear Filters
           </button>
@@ -616,11 +616,11 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
       {requests.length > 0 ? (
         <div className="overflow-hidden">
           <div className="overflow-x-auto min-w-0">
-            <table className="w-full table-fixed divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
+            <table className="w-full table-fixed divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-800">
+                <tr className="border-b border-gray-200 dark:border-gray-700">
                   <th
-                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-20"
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 w-20"
                     onClick={() => onSort('method')}
                   >
                     <div className="flex items-center">
@@ -633,7 +633,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                     </div>
                   </th>
                   <th
-                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-1/3"
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 w-1/3"
                     onClick={() => onSort('url')}
                   >
                     <div className="flex items-center">
@@ -713,7 +713,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                 {requests.map((request, index) => {
                   const isSelected = isRequestSelected(request);
                   // Create a more unique key to prevent React key conflicts with duplicates
@@ -723,25 +723,25 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                       key={uniqueKey}
                       className={`cursor-pointer transition-all duration-200 ${
                         isSelected
-                          ? 'bg-blue-50 border-l-4 border-blue-500 hover:bg-blue-100 shadow-sm'
-                          : 'hover:bg-gray-50'
+                          ? 'bg-blue-50 dark:bg-blue-900 border-l-4 border-blue-500 hover:bg-blue-100 dark:hover:bg-blue-800 shadow-sm'
+                          : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                       }`}
                       onDoubleClick={() => onDetailClick(request)}
                       title={isSelected ? "Currently viewing in detail panel - Double-click to refresh" : "Double-click to view detailed information"}
                     >
                     <td className="px-3 py-3 whitespace-nowrap w-20">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        request.method === 'GET' ? 'bg-blue-100 text-blue-800' :
-                        request.method === 'POST' ? 'bg-green-100 text-green-800' :
-                        request.method === 'PUT' ? 'bg-yellow-100 text-yellow-800' :
-                        request.method === 'DELETE' ? 'bg-red-100 text-red-800' :
-                        'bg-gray-100 text-gray-800'
+                        request.method === 'GET' ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' :
+                        request.method === 'POST' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' :
+                        request.method === 'PUT' ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200' :
+                        request.method === 'DELETE' ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200' :
+                        'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
                       }`} title={getMethodTooltip(request)}>
                         {request.method}
                       </span>
                     </td>
                     <td className="px-3 py-3 w-1/3">
-                      <div className={`text-sm truncate max-w-sm flex items-center ${isSelected ? 'text-blue-900 font-medium' : 'text-gray-900'}`} title={request.url}>
+                      <div className={`text-sm truncate max-w-sm flex items-center ${isSelected ? 'text-blue-900 dark:text-blue-100 font-medium' : 'text-gray-900 dark:text-gray-300'}`} title={request.url}>
                         {isSelected && (
                           <div className="w-2 h-2 bg-blue-500 rounded-full mr-2 flex-shrink-0"></div>
                         )}
@@ -750,26 +750,26 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap w-16">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        request.status >= 200 && request.status < 300 ? 'bg-green-100 text-green-800' :
-                        request.status >= 300 && request.status < 400 ? 'bg-yellow-100 text-yellow-800' :
-                        request.status >= 400 ? 'bg-red-100 text-red-800' :
-                        'bg-gray-100 text-gray-800'
+                        request.status >= 200 && request.status < 300 ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' :
+                        request.status >= 300 && request.status < 400 ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200' :
+                        request.status >= 400 ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200' :
+                        'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
                       }`} title={`HTTP ${request.status} - ${new Date(request.timestamp).toLocaleString()}`}>
                         {request.status}
                       </span>
                     </td>
-                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-16" title={getSizeTooltip(request)}>
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 w-16" title={getSizeTooltip(request)}>
                       {getSizeDisplay(request)}
                     </td>
-                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-16" title="Size of data actually stored in our extension database">
-                      <span className="text-blue-600">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 w-16" title="Size of data actually stored in our extension database">
+                      <span className="text-blue-600 dark:text-blue-400">
                         {getStoredSizeDisplay(request)}
                       </span>
                     </td>
-                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-20">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 w-20">
                       {new Date(request.timestamp).toLocaleTimeString()}
                     </td>
-                    <td className="px-3 py-3 text-sm text-gray-500 w-1/4" title={getHeadersTooltip(request)}>
+                    <td className="px-3 py-3 text-sm text-gray-500 dark:text-gray-400 w-1/4" title={getHeadersTooltip(request)}>
                       <div className="truncate max-w-xs">
                         {getHeaderPreview(request)}
                       </div>
@@ -818,12 +818,12 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
           {totalPages > 1 && (
             <div className="mt-6 flex items-center justify-between">
               <div className="flex items-center">
-                <p className="text-sm text-gray-700">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
                   Showing <span className="font-medium">{indexOfFirstRequest + 1}</span> to{' '}
                   <span className="font-medium">{Math.min(indexOfLastRequest, totalFilteredRequests)}</span> of{' '}
                   <span className="font-medium">{totalFilteredRequests}</span> results
                   {totalRequests > 0 && totalFilteredRequests !== totalRequests && (
-                    <span className="text-gray-500"> (filtered from {totalRequests})</span>
+                    <span className="text-gray-500 dark:text-gray-400"> (filtered from {totalRequests})</span>
                   )}
                 </p>
               </div>
@@ -834,8 +834,8 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                   disabled={currentPage === 1}
                   className={`px-3 py-2 text-sm font-medium rounded-md ${
                     currentPage === 1
-                      ? 'text-gray-300 cursor-not-allowed bg-gray-100'
-                      : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
+                      ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed bg-gray-100 dark:bg-gray-700'
+                      : 'text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
                   }`}
                 >
                   Previous
@@ -851,8 +851,8 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                       pageNumber === currentPage
                         ? 'bg-blue-600 text-white'
                         : typeof pageNumber === 'string'
-                        ? 'text-gray-400 cursor-default'
-                        : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                        ? 'text-gray-400 dark:text-gray-600 cursor-default'
+                        : 'text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
                     }`}
                   >
                     {pageNumber}
@@ -865,8 +865,8 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                   disabled={currentPage === totalPages}
                   className={`px-3 py-2 text-sm font-medium rounded-md ${
                     currentPage === totalPages
-                      ? 'text-gray-300 cursor-not-allowed bg-gray-100'
-                      : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
+                      ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed bg-gray-100 dark:bg-gray-700'
+                      : 'text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
                   }`}
                 >
                   Next
@@ -880,8 +880,8 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
           <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No requests found</h3>
-          <p className="mt-1 text-sm text-gray-500">
+          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-200">No requests found</h3>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             {searchTerm || filterMethod !== 'all'
               ? 'Try adjusting your search criteria or filters'
               : 'Network requests will appear here when they are captured'

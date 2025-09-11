@@ -145,17 +145,17 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
     }
   }
   return (
-    <div ref={headerRef} className="flex items-center justify-between bg-white p-4 border-b border-gray-200 shadow-sm relative">
+    <div ref={headerRef} className="flex items-center justify-between bg-white dark:bg-gray-800 p-4 border-b border-gray-200 dark:border-gray-700 shadow-sm relative">
       {/* Time Selection Controls */}
       <div className="flex items-center space-x-4">
         {/* Mutually exclusive time selection buttons */}
-        <div className="flex bg-gray-100 rounded-lg p-1">
+        <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
           <button
             onClick={() => handleTimeSelectionModeChange('last')}
             className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
               timeSelectionMode === 'last'
-                ? 'bg-white text-blue-600 shadow-sm ring-1 ring-blue-200'
-                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-300 shadow-sm ring-1 ring-blue-200 dark:ring-blue-500'
+                : 'text-gray-600 dark:text-gray-200 hover:text-gray-800 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-600'
             }`}
           >
             Last
@@ -164,15 +164,15 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
             onClick={() => handleTimeSelectionModeChange('first')}
             className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
               timeSelectionMode === 'first'
-                ? 'bg-white text-blue-600 shadow-sm ring-1 ring-blue-200'
-                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-300 shadow-sm ring-1 ring-blue-200 dark:ring-blue-500'
+                : 'text-gray-600 dark:text-gray-200 hover:text-gray-800 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-600'
             }`}
           >
             First
           </button>
           <button
             onClick={() => onShowAllTimeModal()}
-            className="px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+            className="px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 text-gray-600 dark:text-gray-200 hover:text-gray-800 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-600"
           >
             All Time
           </button>
@@ -180,8 +180,8 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
             onClick={() => handleTimeSelectionModeChange('custom')}
             className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
               timeSelectionMode === 'custom'
-                ? 'bg-white text-blue-600 shadow-sm ring-1 ring-blue-200'
-                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-300 shadow-sm ring-1 ring-blue-200 dark:ring-blue-500'
+                : 'text-gray-600 dark:text-gray-200 hover:text-gray-800 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-600'
             }`}
           >
             Custom
@@ -192,8 +192,8 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
         <div className="flex items-center space-x-4">
           {/* Scope Display */}
           <div className="flex items-center space-x-2">
-            <div className="text-sm text-gray-500">Scope:</div>
-            <div className={`bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium transition-all duration-200 ${
+            <div className="text-sm text-gray-500 dark:text-gray-400">Scope:</div>
+            <div className={`bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300 px-3 py-1 rounded-full text-sm font-medium transition-all duration-200 ${
               isAnimating ? 'animate-pulse' : ''
             }`}>
               {timeSelectionMode === 'custom' && customLabel ? customLabel.split(' from ')[0] : currentScope}
@@ -202,8 +202,8 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
 
           {/* Current Viewport Time Display */}
           <div className="flex items-center space-x-2">
-            <div className="text-sm text-gray-500">Showing:</div>
-            <div className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm font-medium">
+            <div className="text-sm text-gray-500 dark:text-gray-400">Showing:</div>
+            <div className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 rounded-full text-sm font-medium">
               {(() => {
                 const startTime = new Date(viewport.startTime)
                 const endTime = new Date(viewport.endTime)
@@ -270,7 +270,7 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
 
         {/* Last Dropdown */}
         {timeSelectionMode === 'last' && showLastDropdown && (
-          <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[160px] max-h-64 overflow-y-auto">
+          <div className="absolute top-full left-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg z-50 min-w-[160px] max-h-64 overflow-y-auto">
             {lastOptions.map((option) => (
               <button
                 key={option.value}
@@ -278,7 +278,7 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
                   onJumpToPreset(option.value)
                   setShowLastDropdown(false)
                 }}
-                className="block w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg"
+                className="block w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 first:rounded-t-lg last:rounded-b-lg"
               >
                 {option.label}
               </button>
@@ -288,7 +288,7 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
 
         {/* First Dropdown */}
         {timeSelectionMode === 'first' && showFirstDropdown && (
-          <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[160px] max-h-64 overflow-y-auto">
+          <div className="absolute top-full left-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg z-50 min-w-[160px] max-h-64 overflow-y-auto">
             {firstOptions.map((option) => (
               <button
                 key={option.value}
@@ -296,7 +296,7 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
                   onJumpToPreset(option.value)
                   setShowFirstDropdown(false)
                 }}
-                className="block w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg"
+                className="block w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 first:rounded-t-lg last:rounded-b-lg"
               >
                 {option.label}
               </button>
@@ -306,16 +306,16 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
 
         {/* Custom Time Range Selector */}
         {timeSelectionMode === 'custom' && showTimeRangeSelector && (
-          <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-4 min-w-[400px]">
+          <div className="absolute top-full left-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg z-50 p-4 min-w-[400px]">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-gray-900">Custom Time Range</h3>
+                <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Custom Time Range</h3>
                 <button
                   onClick={() => {
                     setShowTimeRangeSelector(false)
                     setTimeSelectionMode('last')
                   }}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 dark:text-gray-300 hover:text-gray-600 dark:hover:text-gray-100"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -325,29 +325,29 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Start Date</label>
                   <input
                     type="date"
                     value={customStartDate}
                     onChange={(e) => setCustomStartDate(e.target.value)}
-                    className="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2 py-1 text-sm border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Start Time</label>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Start Time</label>
                   <input
                     type="time"
                     value={customStartTime}
                     onChange={(e) => setCustomStartTime(e.target.value)}
-                    className="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2 py-1 text-sm border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Time Scope</label>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Time Scope</label>
                   <select
                     value={customScope}
                     onChange={(e) => setCustomScope(e.target.value)}
-                    className="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 max-h-32"
+                    className="w-full px-2 py-1 text-sm border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 max-h-32 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   >
                     {timeIntervals.map(interval => (
                       <option key={interval.value} value={interval.value}>
@@ -359,7 +359,7 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
               </div>
 
               <div className="flex items-center justify-between pt-2">
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-gray-500 dark:text-gray-300">
                   Shows data from start time for the selected duration
                 </div>
                 <div className="flex space-x-2">
@@ -368,7 +368,7 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
                       setShowTimeRangeSelector(false)
                       setTimeSelectionMode('last')
                     }}
-                    className="px-3 py-1 text-xs text-gray-600 hover:text-gray-800"
+                    className="px-3 py-1 text-xs text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100"
                   >
                     Cancel
                   </button>
@@ -421,7 +421,7 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
 
                       setShowTimeRangeSelector(false)
                     }}
-                    className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
+                    className="px-3 py-1 text-xs bg-blue-500 dark:bg-blue-600 text-white rounded hover:bg-blue-600 dark:hover:bg-blue-500"
                   >
                     Apply
                   </button>
@@ -439,12 +439,12 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
           disabled={isAnimating}
           className={`p-2 rounded-lg transition-colors ${
             isAnimating
-              ? 'bg-gray-100 cursor-not-allowed opacity-50'
-              : 'hover:bg-gray-100'
+              ? 'bg-gray-100 dark:bg-gray-700 cursor-not-allowed opacity-50'
+              : 'hover:bg-gray-100 dark:hover:bg-gray-700'
           }`}
           title="Pan Left"
         >
-          <ChevronLeft className={`w-5 h-5 ${isAnimating ? 'text-gray-400' : 'text-gray-600'}`} />
+          <ChevronLeft className={`w-5 h-5 ${isAnimating ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-300'}`} />
         </button>
 
         <button
@@ -452,42 +452,42 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
           disabled={isAnimating}
           className={`p-2 rounded-lg transition-colors ${
             isAnimating
-              ? 'bg-gray-100 cursor-not-allowed opacity-50'
-              : 'hover:bg-gray-100'
+              ? 'bg-gray-100 dark:bg-gray-700 cursor-not-allowed opacity-50'
+              : 'hover:bg-gray-100 dark:hover:bg-gray-700'
           }`}
           title="Pan Right"
         >
-          <ChevronRight className={`w-5 h-5 ${isAnimating ? 'text-gray-400' : 'text-gray-600'}`} />
+          <ChevronRight className={`w-5 h-5 ${isAnimating ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-300'}`} />
         </button>
 
-        <div className="w-px h-6 bg-gray-300" />
+        <div className="w-px h-6 bg-gray-300 dark:bg-gray-600" />
 
         <button
           onClick={onZoomOut}
           disabled={!canZoomOut}
-          className="p-2 hover:bg-gray-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           title={canZoomOut ? "Zoom Out (Show density view)" : "Already at maximum zoom out"}
         >
-          <ZoomOut className="w-5 h-5 text-gray-600" />
+          <ZoomOut className="w-5 h-5 text-gray-600 dark:text-gray-300" />
         </button>
 
         <button
           onClick={onZoomIn}
           disabled={!canZoomIn}
-          className="p-2 hover:bg-gray-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           title={canZoomIn ? "Zoom In (Show individual cards)" : "Already at maximum zoom in"}
         >
-          <ZoomIn className="w-5 h-5 text-gray-600" />
+          <ZoomIn className="w-5 h-5 text-gray-600 dark:text-gray-300" />
         </button>
 
-        <div className="w-px h-6 bg-gray-300" />
+        <div className="w-px h-6 bg-gray-300 dark:bg-gray-600" />
 
         <button
           onClick={onRefresh}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           title="Refresh Timeline"
         >
-          <RotateCcw className="w-5 h-5 text-gray-600" />
+          <RotateCcw className="w-5 h-5 text-gray-600 dark:text-gray-300" />
         </button>
 
         {hasNewUpdates && (

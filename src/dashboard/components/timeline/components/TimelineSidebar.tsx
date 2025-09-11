@@ -70,18 +70,18 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
   // Get icon for event type
   const getEventTypeIcon = (eventType: string) => {
     switch (eventType) {
-      case 'network': return <Network className="w-3 h-3 text-blue-600" />
-      case 'console': return <AlertTriangle className="w-3 h-3 text-red-600" />
-      case 'token': return <Key className="w-3 h-3 text-green-600" />
+      case 'network': return <Network className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+      case 'console': return <AlertTriangle className="w-3 h-3 text-red-600 dark:text-red-400" />
+      case 'token': return <Key className="w-3 h-3 text-green-600 dark:text-green-400" />
       default: return null
     }
   }
 
   const renderEventCard = (event: TimelineEvent, type: 'bookmark' | 'compare' | 'queue') => {
     const typeConfig = {
-      network: { color: 'bg-blue-50 border-blue-200', icon: '🌐' },
-      console: { color: 'bg-red-50 border-red-200', icon: '⚠️' },
-      token: { color: 'bg-green-50 border-green-200', icon: '🔑' }
+      network: { color: 'bg-blue-50 dark:bg-blue-900 border-blue-200 dark:border-blue-700', icon: '🌐' },
+      console: { color: 'bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700', icon: '⚠️' },
+      token: { color: 'bg-green-50 dark:bg-green-900 border-green-200 dark:border-green-700', icon: '🔑' }
     }
 
     const config = typeConfig[event.type]
@@ -97,7 +97,7 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
           <div className="flex-1 min-w-0">
             <div className="flex items-center space-x-2">
               <span className="text-base">{config.icon}</span>
-              <span className="font-medium truncate">
+              <span className="font-medium truncate text-gray-900 dark:text-gray-100">
                 {event.type === 'network' && (event.data.url?.split('/').pop() || 'Request')}
                 {event.type === 'console' && (event.data.message?.substring(0, 40) || 'Error')}
                 {event.type === 'token' && (event.data.token_type || 'Token')}
@@ -106,12 +106,12 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
 
             {/* Domain information */}
             {getDomainFromEvent(event) && (
-              <div className="text-gray-400 mt-1 text-xs truncate">
+              <div className="text-gray-400 dark:text-gray-400 mt-1 text-xs truncate">
                 🌐 {getDomainFromEvent(event)}
               </div>
             )}
 
-            <div className="text-gray-500 mt-1 flex items-center justify-between">
+            <div className="text-gray-500 dark:text-gray-300 mt-1 flex items-center justify-between">
               <span>{new Date(event.timestamp).toLocaleTimeString()}</span>
             </div>
           </div>
@@ -124,7 +124,7 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
                 e.stopPropagation()
                 onNavigateToEvent?.(event)
               }}
-              className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+              className="p-1 text-gray-400 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
               title="Navigate to timeline position"
             >
               <Navigation className="w-3 h-3" />
@@ -136,7 +136,7 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
                 e.stopPropagation()
                 onEventClick?.(event)
               }}
-              className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+              className="p-1 text-gray-400 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded transition-colors"
               title="View details"
             >
               <Eye className="w-3 h-3" />
@@ -149,7 +149,7 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
                   e.stopPropagation()
                   onBookmarkRemove(event.id)
                 }}
-                className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                className="p-1 text-gray-400 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
                 title="Remove bookmark"
               >
                 ×
@@ -163,7 +163,7 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
                     e.stopPropagation()
                     onMoveToQueue?.(event)
                   }}
-                  className="p-1 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
+                  className="p-1 text-gray-400 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/30 rounded transition-colors"
                   title="Move to queue"
                 >
                   <ArrowDown className="w-3 h-3" />
@@ -175,7 +175,7 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
                     e.stopPropagation()
                     onCompareRemove(event.id)
                   }}
-                  className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                  className="p-1 text-gray-400 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
                   title="Remove from compare"
                 >
                   ×
@@ -188,7 +188,7 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
                   e.stopPropagation()
                   onMoveFromQueue(event)
                 }}
-                className="p-1 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+                className="p-1 text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
                 title="Move to compare"
               >
                 <ChevronRight className="w-3 h-3" />
@@ -214,18 +214,18 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
   }
 
   return (
-    <div className={`${collapsed ? 'w-12' : 'w-80'} bg-white border-l border-gray-200 flex flex-col h-full transition-all duration-300 ease-in-out`}>
+    <div className={`${collapsed ? 'w-12' : 'w-80'} bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-600 flex flex-col h-full transition-all duration-300 ease-in-out`}>
       {/* Toggle Button */}
-      <div className="p-2 border-b border-gray-200 flex justify-center">
+      <div className="p-2 border-b border-gray-200 dark:border-gray-600 flex justify-center bg-white dark:bg-gray-800">
         <button
           onClick={toggleCollapsed}
-          className="p-2 hover:bg-gray-100 rounded transition-colors"
+          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {collapsed ? (
-            <ChevronLeft className="w-4 h-4 text-gray-600" />
+            <ChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-300" />
           ) : (
-            <ChevronRight className="w-4 h-4 text-gray-600" />
+            <ChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-300" />
           )}
         </button>
       </div>
@@ -233,20 +233,20 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
       {!collapsed && (
         <>
           {/* Bookmarks Section - Fixed height */}
-          <div className="border-b border-gray-200 overflow-hidden flex flex-col" style={{ height: '280px' }}>
-            <div className="p-4 border-b border-gray-200 flex-shrink-0">
+          <div className="border-b border-gray-200 dark:border-gray-600 overflow-hidden flex flex-col bg-white dark:bg-gray-800" style={{ height: '280px' }}>
+            <div className="p-4 border-b border-gray-200 dark:border-gray-600 flex-shrink-0 bg-white dark:bg-gray-800">
               <div className="flex items-center space-x-2">
-                <Bookmark className="w-4 h-4 text-yellow-600" />
-                <h3 className="font-medium">Bookmarks ({bookmarkedEvents.length})</h3>
+                <Bookmark className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                <h3 className="font-medium text-gray-900 dark:text-gray-100">Bookmarks ({bookmarkedEvents.length})</h3>
               </div>
             </div>
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4 bg-white dark:bg-gray-800">
           {bookmarkedEvents.length > 0 ? (
             <div className="space-y-2">
               {bookmarkedEvents.map(event => renderEventCard(event, 'bookmark'))}
             </div>
           ) : (
-            <div className="text-center text-gray-500 text-sm py-8">
+            <div className="text-center text-gray-500 dark:text-gray-400 text-sm py-8">
               No bookmarked events
             </div>
           )}
@@ -254,28 +254,28 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
       </div>
 
       {/* Compare Section - Fixed height */}
-      <div className="overflow-hidden flex flex-col" style={{ height: '280px' }}>
-        <div className="p-4 border-b border-gray-200 flex-shrink-0">
+      <div className="overflow-hidden flex flex-col bg-white dark:bg-gray-800" style={{ height: '280px' }}>
+        <div className="p-4 border-b border-gray-200 dark:border-gray-600 flex-shrink-0 bg-white dark:bg-gray-800">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <GitCompare className="w-4 h-4 text-purple-600" />
-              <h3 className="font-medium">
+              <GitCompare className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+              <h3 className="font-medium text-gray-900 dark:text-gray-100">
                 Compare ({compareEvents.filter(e => e.type === selectedQueueType).length + queueEventsByType[selectedQueueType].length})
               </h3>
             </div>
             <div className="flex items-center space-x-1">
               {/* Queue Type Selector */}
               {(compareQueue.length > 0 || compareEvents.length > 0) && (
-                <div className="flex items-center bg-gray-100 rounded-lg p-1 mr-2">
+                <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1 mr-2">
                   {(['network', 'console', 'token'] as const).map(type => {
                     const queueCount = queueEventsByType[type].length
                     const compareCount = compareEvents.filter(e => e.type === type).length
                     const totalCount = queueCount + compareCount
                     const isSelected = selectedQueueType === type
                     const typeConfig = {
-                      network: { icon: <Network className="w-3 h-3" />, color: 'text-blue-600', label: 'Network' },
-                      console: { icon: <AlertTriangle className="w-3 h-3" />, color: 'text-red-600', label: 'Console' },
-                      token: { icon: <Key className="w-3 h-3" />, color: 'text-green-600', label: 'Token' }
+                      network: { icon: <Network className="w-3 h-3" />, color: 'text-blue-600 dark:text-blue-400', label: 'Network' },
+                      console: { icon: <AlertTriangle className="w-3 h-3" />, color: 'text-red-600 dark:text-red-400', label: 'Console' },
+                      token: { icon: <Key className="w-3 h-3" />, color: 'text-green-600 dark:text-green-400', label: 'Token' }
                     }
 
                     return (
@@ -284,8 +284,8 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
                         onClick={() => setSelectedQueueType(type)}
                         className={`relative flex items-center justify-center w-7 h-7 rounded transition-colors ${
                           isSelected
-                            ? 'bg-white shadow-sm border border-gray-200'
-                            : 'hover:bg-gray-200'
+                            ? 'bg-white dark:bg-gray-600 shadow-sm border border-gray-200 dark:border-gray-500'
+                            : 'hover:bg-gray-200 dark:hover:bg-gray-600'
                         } ${totalCount === 0 ? 'opacity-50' : ''}`}
                         disabled={totalCount === 0}
                         title={`${typeConfig[type].label} (${compareCount} slots, ${queueCount} queued)`}
@@ -306,7 +306,7 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
               {compareEvents.length > 0 && (
                 <button
                   onClick={onShowCompareView}
-                  className="p-1 hover:bg-gray-100 rounded transition-colors"
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-600 rounded transition-colors text-gray-600 dark:text-gray-300"
                   title="Show compare view"
                 >
                   <Grid2X2 className="w-4 h-4" />
@@ -316,7 +316,7 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4 bg-white dark:bg-gray-800">
           {(() => {
             // Filter compare events by selected type
             const filteredCompareEvents = compareEvents.filter(event => event.type === selectedQueueType)
@@ -367,47 +367,44 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
 
       {/* Collapsed State - Show counts only */}
       {collapsed && (
-        <div className="flex flex-col" style={{ height: '560px' }}>
+        <div className="flex flex-col bg-white dark:bg-gray-800" style={{ height: '560px' }}>
           {/* Bookmarks section placeholder - 280px */}
-          <div className="flex items-center justify-center border-b border-gray-200" style={{ height: '280px' }}>
+          <div className="flex items-center justify-center border-b border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800" style={{ height: '280px' }}>
             <div className="text-center">
-              <Bookmark className="w-5 h-5 text-yellow-600 mx-auto mb-1" />
-              <div className="text-xs font-medium text-gray-600">{bookmarkedEvents.length}</div>
+              <Bookmark className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mx-auto mb-1" />
+              <div className="text-xs font-medium text-gray-600 dark:text-gray-300">{bookmarkedEvents.length}</div>
             </div>
           </div>
 
           {/* Compare section placeholder - 280px */}
-          <div className="flex items-center justify-center" style={{ height: '280px' }}>
-            <div className="text-center space-y-2">
-              <GitCompare className="w-5 h-5 text-purple-600 mx-auto mb-1" />
-              <div className="text-xs font-medium text-gray-600">
-                {compareEvents.filter(e => e.type === selectedQueueType).length + queueEventsByType[selectedQueueType].length}
-              </div>
-              {(compareQueue.length > 0 || compareEvents.length > 0) && (
-                <div className="space-y-1">
-                  {/* Show selected queue type */}
-                  <div className="flex items-center justify-center space-x-1">
-                    {getEventTypeIcon(selectedQueueType)}
-                    <span className="text-xs text-gray-500 capitalize">{selectedQueueType}</span>
+          <div className="flex items-center justify-center bg-white dark:bg-gray-800" style={{ height: '280px' }}>
+            <div className="flex flex-col items-center space-y-3">
+              {/* Show each event type with slots/queue count */}
+              {(['network', 'console', 'token'] as const).map(eventType => {
+                const queueCount = queueEventsByType[eventType].length
+                const compareCount = compareEvents.filter(e => e.type === eventType).length
+                const typeConfig = {
+                  network: { icon: <Network className="w-4 h-4" />, color: 'text-blue-600 dark:text-blue-400' },
+                  console: { icon: <AlertTriangle className="w-4 h-4" />, color: 'text-red-600 dark:text-red-400' },
+                  token: { icon: <Key className="w-4 h-4" />, color: 'text-green-600 dark:text-green-400' }
+                }
+
+                return (
+                  <div key={eventType} className="flex flex-col items-center space-y-1">
+                    {/* Event type icon */}
+                    <div className={typeConfig[eventType].color}>
+                      {typeConfig[eventType].icon}
+                    </div>
+                    {/* Fraction (slots used out of 4) and queue count */}
+                    <div className="text-xs font-medium text-gray-600 dark:text-gray-300 text-center">
+                      <div>{compareCount}/4</div>
+                      {queueCount > 0 && (
+                        <div className="text-gray-500 dark:text-gray-400">+{queueCount}</div>
+                      )}
+                    </div>
                   </div>
-                  {/* Show other queue types with smaller indicators */}
-                  <div className="flex items-center justify-center space-x-2">
-                    {(['network', 'console', 'token'] as const).map(eventType => {
-                      if (eventType === selectedQueueType) return null
-                      const queueCount = queueEventsByType[eventType].length
-                      const compareCount = compareEvents.filter(e => e.type === eventType).length
-                      const totalCount = queueCount + compareCount
-                      if (totalCount === 0) return null
-                      return (
-                        <div key={eventType} className="flex items-center space-x-1 opacity-50">
-                          {getEventTypeIcon(eventType)}
-                          <span className="text-xs text-gray-400">{totalCount}</span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
+                )
+              })}
             </div>
           </div>
         </div>

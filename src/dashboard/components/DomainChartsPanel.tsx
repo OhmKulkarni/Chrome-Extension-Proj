@@ -367,26 +367,26 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
   };
 
   return (
-    <div className={`bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl shadow-lg ${className}`}>
+    <div className={`bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg ${className}`}>
       {/* Enhanced Header with Visual Indicators */}
-      <div className="border-b border-gray-200 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-xl">
+      <div className="border-b border-gray-200 dark:border-gray-700 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-800 rounded-t-xl">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Activity className="h-6 w-6 text-blue-600" />
+            <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+              <Activity className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-gray-900">Domain Analysis</h3>
-              <p className="text-sm text-gray-600 font-mono">{domain}</p>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">Domain Analysis</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 font-mono">{domain}</p>
             </div>
           </div>
 
           {/* Performance Badge with Safe Fallbacks */}
           <div className="flex items-center gap-2">
             <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
-              (chartData.successRate ?? 0) >= 95 ? 'bg-green-100 text-green-800' :
-              (chartData.successRate ?? 0) >= 85 ? 'bg-yellow-100 text-yellow-800' :
-              chartData.successRate !== undefined ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-600'
+              (chartData.successRate ?? 0) >= 95 ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' :
+              (chartData.successRate ?? 0) >= 85 ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200' :
+              chartData.successRate !== undefined ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
             }`}>
               {chartData.successRate !== undefined ? (
                 chartData.successRate >= 95 ? '✅ Excellent' :
@@ -398,28 +398,28 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
 
         {/* Quick Stats Cards */}
         <div className="grid grid-cols-3 gap-4">
-          <div className="bg-white/70 backdrop-blur-sm rounded-lg p-3 border border-white/50">
+          <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-lg p-3 border border-white/50 dark:border-gray-600/50">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-              <span className="text-sm font-medium text-gray-600">Requests</span>
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Requests</span>
             </div>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{domainData.requests.length}</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{domainData.requests.length}</p>
           </div>
 
-          <div className="bg-white/70 backdrop-blur-sm rounded-lg p-3 border border-white/50">
+          <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-lg p-3 border border-white/50 dark:border-gray-600/50">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-red-500"></div>
-              <span className="text-sm font-medium text-gray-600">Errors</span>
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Errors</span>
             </div>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{domainData.errors.length}</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{domainData.errors.length}</p>
           </div>
 
-          <div className="bg-white/70 backdrop-blur-sm rounded-lg p-3 border border-white/50">
+          <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-lg p-3 border border-white/50 dark:border-gray-600/50">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-              <span className="text-sm font-medium text-gray-600">Tokens</span>
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Tokens</span>
             </div>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{domainData.tokens.length}</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{domainData.tokens.length}</p>
           </div>
         </div>
       </div>
@@ -433,7 +433,7 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
             <div className="flex items-center gap-2">
               <Clock className="h-5 w-5 text-blue-600" />
               <h4 className="text-lg font-semibold text-gray-800">Activity Timeline</h4>
-              <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
+              <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 rounded-full font-medium">
                 All Records
               </span>
             </div>
@@ -533,10 +533,10 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* Status Code Distribution */}
-          <div className="bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-shadow p-4">
+          <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md transition-shadow p-4">
             <div className="flex items-center gap-2 mb-4">
-              <BarChart3 className="h-5 w-5 text-green-600" />
-              <h4 className="text-lg font-semibold text-gray-800">Status Codes</h4>
+              <BarChart3 className="h-5 w-5 text-green-600 dark:text-green-400" />
+              <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Status Codes</h4>
             </div>
             <div className="h-48">
               {chartData.status && chartData.status.length > 0 ? (
