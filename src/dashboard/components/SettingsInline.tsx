@@ -77,7 +77,7 @@ const SettingsInline: React.FC = () => {
     return result;
   };
 
-  // Load storage usage - connect to Chrome extension API
+  // Load storage usage - get actual IndexedDB size
   const loadStorageUsage = async () => {
     try {
       // Check if Chrome extension APIs are available
@@ -95,50 +95,86 @@ const SettingsInline: React.FC = () => {
         return;
       }
 
-      // Get table counts for storage estimation
-      const response = await chrome.runtime.sendMessage({
-        action: 'getTableCounts'
-      });
-
-      if (response && response.success && response.data) {
-        const tableCounts = response.data;
-        let estimatedBytes = 0;
-
-        // Calculate estimated size based on table counts
-        // Using the same estimation logic as the dashboard
-        if (tableCounts.apiCalls) {
-          estimatedBytes += tableCounts.apiCalls * 9500; // ~9.5KB average
+      // Try to get actual storage usage first
+      let actualBytes = 0;
+      try {
+        if ('storage' in navigator && 'estimate' in navigator.storage) {
+          const estimate = await navigator.storage.estimate();
+          if (estimate.usage) {
+            actualBytes = estimate.usage;
+            console.log('📊 Using actual storage estimate:', actualBytes, 'bytes');
+          }
         }
-        if (tableCounts.consoleErrors) {
-          estimatedBytes += tableCounts.consoleErrors * 3200; // ~3.2KB average
-        }
-        if (tableCounts.tokenEvents) {
-          estimatedBytes += tableCounts.tokenEvents * 1800; // ~1.8KB average
-        }
-        if (tableCounts.minifiedLibraries) {
-          estimatedBytes += tableCounts.minifiedLibraries * 15000; // ~15KB average
-        }
-
-        const STORAGE_LIMIT = 100 * 1024 * 1024; // 100MB limit
-        const percentage = (estimatedBytes / STORAGE_LIMIT) * 100;
-
-        setStorageUsage({
-          bytes: estimatedBytes,
-          percentage: Math.min(percentage, 100),
-          isLoading: false
-        });
-      } else {
-        throw new Error('Failed to get table counts from background script');
+      } catch (storageError) {
+        console.warn('Could not get storage estimate:', storageError);
       }
-    } catch (error) {
-      console.error('Failed to load storage usage:', error);
-      // Fallback to estimated data
-      const estimatedBytes = 1024 * 1024 * 5; // 5MB fallback
-      const STORAGE_LIMIT = 100 * 1024 * 1024;
-      const percentage = (estimatedBytes / STORAGE_LIMIT) * 100;
+
+      // If we couldn't get actual usage, fall back to estimation via backend
+      if (actualBytes === 0) {
+        console.log('📊 Falling back to backend storage estimation');
+
+        // Try the STORAGE_INFO action first (more accurate than table counts)
+        try {
+          const storageResponse = await chrome.runtime.sendMessage({
+            action: 'STORAGE_INFO'
+          });
+
+          if (storageResponse && storageResponse.success && storageResponse.data?.size) {
+            actualBytes = storageResponse.data.size;
+            console.log('📊 Using backend storage info:', actualBytes, 'bytes');
+          }
+        } catch (storageInfoError) {
+          console.warn('STORAGE_INFO failed, trying table counts:', storageInfoError);
+        }
+
+        // Final fallback to table count estimation
+        if (actualBytes === 0) {
+          const response = await chrome.runtime.sendMessage({
+            action: 'getTableCounts'
+          });
+
+          if (response && response.success && response.data) {
+            const tableCounts = response.data;
+
+            // More conservative estimation based on actual record analysis
+            if (tableCounts.apiCalls) {
+              actualBytes += tableCounts.apiCalls * 8000; // ~8KB average (more conservative)
+            }
+            if (tableCounts.consoleErrors) {
+              actualBytes += tableCounts.consoleErrors * 2500; // ~2.5KB average
+            }
+            if (tableCounts.tokenEvents) {
+              actualBytes += tableCounts.tokenEvents * 1500; // ~1.5KB average
+            }
+            if (tableCounts.minifiedLibraries) {
+              actualBytes += tableCounts.minifiedLibraries * 12000; // ~12KB average
+            }
+
+            console.log('📊 Using table count estimation:', actualBytes, 'bytes');
+          } else {
+            throw new Error('All storage estimation methods failed');
+          }
+        }
+      }
+
+      const STORAGE_LIMIT = 100 * 1024 * 1024; // 100MB limit
+      const percentage = (actualBytes / STORAGE_LIMIT) * 100;
 
       setStorageUsage({
-        bytes: estimatedBytes,
+        bytes: actualBytes,
+        percentage: Math.min(percentage, 100),
+        isLoading: false
+      });
+
+    } catch (error) {
+      console.error('Failed to load storage usage:', error);
+      // Fallback to conservative estimate
+      const fallbackBytes = 1024 * 1024 * 3; // 3MB conservative fallback
+      const STORAGE_LIMIT = 100 * 1024 * 1024;
+      const percentage = (fallbackBytes / STORAGE_LIMIT) * 100;
+
+      setStorageUsage({
+        bytes: fallbackBytes,
         percentage: Math.min(percentage, 100),
         isLoading: false
       });
