@@ -439,12 +439,12 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
           disabled={isAnimating}
           className={`p-2 rounded-lg transition-colors ${
             isAnimating
-              ? 'bg-gray-100 cursor-not-allowed opacity-50'
-              : 'hover:bg-gray-100'
+              ? 'bg-gray-100 dark:bg-gray-700 cursor-not-allowed opacity-50'
+              : 'hover:bg-gray-100 dark:hover:bg-gray-700'
           }`}
           title="Pan Left"
         >
-          <ChevronLeft className={`w-5 h-5 ${isAnimating ? 'text-gray-400' : 'text-gray-600'}`} />
+          <ChevronLeft className={`w-5 h-5 ${isAnimating ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-300'}`} />
         </button>
 
         <button
@@ -452,42 +452,42 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
           disabled={isAnimating}
           className={`p-2 rounded-lg transition-colors ${
             isAnimating
-              ? 'bg-gray-100 cursor-not-allowed opacity-50'
-              : 'hover:bg-gray-100'
+              ? 'bg-gray-100 dark:bg-gray-700 cursor-not-allowed opacity-50'
+              : 'hover:bg-gray-100 dark:hover:bg-gray-700'
           }`}
           title="Pan Right"
         >
-          <ChevronRight className={`w-5 h-5 ${isAnimating ? 'text-gray-400' : 'text-gray-600'}`} />
+          <ChevronRight className={`w-5 h-5 ${isAnimating ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-300'}`} />
         </button>
 
-        <div className="w-px h-6 bg-gray-300" />
+        <div className="w-px h-6 bg-gray-300 dark:bg-gray-600" />
 
         <button
           onClick={onZoomOut}
           disabled={!canZoomOut}
-          className="p-2 hover:bg-gray-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           title={canZoomOut ? "Zoom Out (Show density view)" : "Already at maximum zoom out"}
         >
-          <ZoomOut className="w-5 h-5 text-gray-600" />
+          <ZoomOut className="w-5 h-5 text-gray-600 dark:text-gray-300" />
         </button>
 
         <button
           onClick={onZoomIn}
           disabled={!canZoomIn}
-          className="p-2 hover:bg-gray-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           title={canZoomIn ? "Zoom In (Show individual cards)" : "Already at maximum zoom in"}
         >
-          <ZoomIn className="w-5 h-5 text-gray-600" />
+          <ZoomIn className="w-5 h-5 text-gray-600 dark:text-gray-300" />
         </button>
 
-        <div className="w-px h-6 bg-gray-300" />
+        <div className="w-px h-6 bg-gray-300 dark:bg-gray-600" />
 
         <button
           onClick={onRefresh}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           title="Refresh Timeline"
         >
-          <RotateCcw className="w-5 h-5 text-gray-600" />
+          <RotateCcw className="w-5 h-5 text-gray-600 dark:text-gray-300" />
         </button>
 
         {hasNewUpdates && (
