@@ -245,6 +245,10 @@ export class TokenTrackerModule {
           eventType = 'verified';
         } else if (status === 401 || status === 403) {
           eventType = 'expired';
+        } else if (status === 0) {
+          // Status 0 can indicate network error, CORS, or pending request - still log as verified attempt
+          eventType = 'verified';
+          console.log(`⚠️ TokenTrackerModule: Status 0 detected for API call, treating as verified attempt`);
         } else {
           return null;
         }
