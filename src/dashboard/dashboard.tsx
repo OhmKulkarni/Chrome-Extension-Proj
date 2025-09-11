@@ -1413,7 +1413,7 @@ const DecomposedDashboard: React.FC = () => {
           <div className="w-full transform transition-all duration-500 ease-in-out opacity-100 translate-y-0">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
               {/* Tab Navigation */}
-              <div className="border-b border-gray-200 dark:border-gray-700">
+              <div className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                 <nav className="flex space-x-8 px-6" aria-label="Tabs">
                   <button
                     onClick={() => setActiveTable('network')}
@@ -1458,7 +1458,7 @@ const DecomposedDashboard: React.FC = () => {
               </div>
 
               {/* Table Content */}
-              <div className="p-6">
+              <div className="p-6 bg-white dark:bg-gray-800">
                 {renderTableContent()}
               </div>
             </div>

@@ -2005,17 +2005,17 @@ const DecomposedDashboard: React.FC = () => {
       case 'dataTables':
         return (
           <div className="w-full transform transition-all duration-500 ease-in-out opacity-100 translate-y-0">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
               {/* Tab Navigation */}
-              <div className="border-b border-gray-200">
+              <div className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                 <div className="flex justify-between items-center px-6">
                   <nav className="flex space-x-8" aria-label="Tabs">
                   <button
                     onClick={() => setActiveTable('network')}
                     className={`${
                       activeTable === 'network'
-                        ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                     } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors duration-200`}
                   >
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2027,8 +2027,8 @@ const DecomposedDashboard: React.FC = () => {
                     onClick={() => setActiveTable('errors')}
                     className={`${
                       activeTable === 'errors'
-                        ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                     } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors duration-200`}
                   >
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2040,8 +2040,8 @@ const DecomposedDashboard: React.FC = () => {
                     onClick={() => setActiveTable('tokens')}
                     className={`${
                       activeTable === 'tokens'
-                        ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                     } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors duration-200`}
                   >
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2065,7 +2065,7 @@ const DecomposedDashboard: React.FC = () => {
               </div>
 
               {/* Table Content */}
-              <div className="p-6">
+              <div className="p-6 bg-white dark:bg-gray-800">
                 {renderTableContent()}
               </div>
             </div>
