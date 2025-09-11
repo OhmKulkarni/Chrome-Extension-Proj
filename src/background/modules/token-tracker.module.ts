@@ -50,7 +50,11 @@ export class TokenTrackerModule {
       '/services/', '/microservices/', '/endpoints/',
       // AI/ML API services
       '/models/', '/inference/', '/generate/', '/completions/',
-      '/embeddings/', '/chat/', '/datasets/'
+      '/embeddings/', '/chat/', '/datasets/',
+      // Google API services
+      '/promotion/', '/recommendation/', '/FetchRecommendation',
+      '/drive/v', '/gmail/v', '/calendar/v', '/youtube/v',
+      '/analytics/', '/ads/', '/maps/'
     ],
     // NEW: Service-to-service authentication
     service_auth: [
@@ -176,14 +180,15 @@ export class TokenTrackerModule {
       const isTokenValidation = this.isTokenEndpoint(url, 'token_validation');
       const isWebSocketAuth = this.isTokenEndpoint(url, 'websocket_auth');
 
-      // Check if request has authentication (any token-related headers/content)
+      // Check if request has authentication (any token-related headers/content/URL params)
       const hasAuthHeaders = this.hasAuthenticationHeaders(requestData.headers || {});
       const hasAuthContent = this.hasAuthenticationInBody(requestData.body);
+      const hasAuthInUrl = this.hasAuthenticationInUrl(url);
 
       // Determine if this is a token-related request
       const isTokenRelated = isAcquireEndpoint || isRefreshEndpoint || isServiceAuth ||
                            isTokenValidation || isWebSocketAuth ||
-                           (isApiCall && (hasAuthHeaders || hasAuthContent));
+                           (isApiCall && (hasAuthHeaders || hasAuthContent || hasAuthInUrl));
 
       if (!isTokenRelated) {
         return null;
@@ -539,6 +544,51 @@ export class TokenTrackerModule {
       ];
 
       return authParams.some(param => body.includes(param));
+    }
+  }
+
+  /**
+   * Check if URL contains API keys in parameters
+   */
+  private hasAuthenticationInUrl(url: string): boolean {
+    if (!url) return false;
+
+    try {
+      const urlObj = new URL(url);
+      const params = urlObj.searchParams;
+      
+      // Common API key parameter names
+      const apiKeyParams = [
+        'key', 'api_key', 'apikey', 'api-key',
+        'access_token', 'token', 'auth_token', 'auth-token',
+        'client_id', 'app_id', 'appid', 'app-id'
+      ];
+
+      // Check if any API key parameters exist and have values
+      for (const param of apiKeyParams) {
+        const value = params.get(param);
+        if (value && value.length > 10) { // API keys are typically longer than 10 chars
+          // Additional validation for Google API keys (starts with AIza)
+          if (param === 'key' && value.startsWith('AIza')) {
+            return true;
+          }
+          // Other API key patterns
+          if (value.length > 20) { // Most API keys are longer than 20 chars
+            return true;
+          }
+        }
+      }
+
+      return false;
+    } catch (error) {
+      // If URL parsing fails, fall back to string matching
+      const apiKeyPatterns = [
+        'key=AIza', // Google API keys
+        'api_key=', 'apikey=', 'access_token=',
+        'client_id=', 'app_id='
+      ];
+      
+      return apiKeyPatterns.some(pattern => url.includes(pattern));
     }
   }
 
