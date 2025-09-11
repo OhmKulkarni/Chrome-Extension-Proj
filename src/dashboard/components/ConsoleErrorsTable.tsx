@@ -149,8 +149,8 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Console Errors</h2>
-          <p className="text-xs text-gray-500 mt-1">JavaScript errors and console messages from all tabs</p>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Console Errors</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">JavaScript errors and console messages from all tabs</p>
         </div>
         <div className="flex items-center space-x-4">
           <span className="text-sm text-gray-500">
@@ -218,10 +218,10 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
         <div className="overflow-hidden">
           <div className="overflow-x-auto min-w-0">
             <table className="w-full table-fixed divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
                   <th
-                    className="w-24 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="w-24 px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                     onClick={() => onSort('severity')}
                   >
                     <div className="flex items-center">
@@ -277,7 +277,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                 {errors.map((error) => {
                   const isSelected = isErrorSelected(error);
                   return (
@@ -285,8 +285,8 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                       key={error.id}
                       className={`cursor-pointer transition-all duration-200 ${
                         isSelected
-                          ? 'bg-red-50 border-l-4 border-red-500 hover:bg-red-100 shadow-sm'
-                          : 'hover:bg-gray-50'
+                          ? 'bg-red-50 dark:bg-red-900 border-l-4 border-red-500 hover:bg-red-100 dark:hover:bg-red-800 shadow-sm'
+                          : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                       }`}
                       onDoubleClick={() => onDetailClick(error)}
                       title={isSelected ? "Currently viewing in detail panel - Double-click to refresh" : "Double-click to view detailed information"}
@@ -297,7 +297,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                       </span>
                     </td>
                     <td className="w-2/5 px-6 py-4">
-                      <div className={`text-sm truncate flex items-center ${isSelected ? 'text-red-900 font-medium' : 'text-gray-900'}`} title={error.message}>
+                      <div className={`text-sm truncate flex items-center ${isSelected ? 'text-red-900 dark:text-red-100 font-medium' : 'text-gray-900 dark:text-gray-100'}`} title={error.message}>
                         {isSelected && (
                           <div className="w-2 h-2 bg-red-500 rounded-full mr-2 flex-shrink-0"></div>
                         )}
