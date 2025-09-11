@@ -1953,7 +1953,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                             .filter(stat => stat.libraryCount > 0) // Only show domains with web resources
                             .map((stat) => (
                             <React.Fragment key={stat.domain}>
-                            <TableRow className="hover:bg-purple-50/50">
+                            <TableRow className="hover:bg-purple-50/50 dark:hover:bg-purple-900/20">
                               <TableCell className="font-medium">
                                 <div className="flex flex-col gap-1">
                                   <div className="flex items-center gap-2">
@@ -1988,7 +1988,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => toggleLibrarySourceDomains(stat.domain)}
-                                        className="h-6 px-2 text-xs hover:bg-purple-50"
+                                        className="h-6 px-2 text-xs hover:bg-purple-50 dark:hover:bg-purple-900/30"
                                         title={`Web resources from ${stat.librarySourceDomains.length} domains`}
                                       >
                                         <ChevronDown className={`h-3 w-3 transition-transform ${
