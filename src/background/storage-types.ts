@@ -34,7 +34,8 @@ export interface ConsoleError {
 
 export interface TokenEvent {
   id?: number
-  type: 'jwt_token' | 'session_token' | 'api_key' | 'oauth_token'
+  type: 'acquire' | 'refresh' | 'expired' | 'refresh_error' | 'verified'  // Event types for dashboard display
+  tokenType?: 'jwt_token' | 'session_token' | 'api_key' | 'oauth_token'  // Optional token classification
   valueHash: string // Hash of token value for privacy
   timestamp: number
   source_url: string

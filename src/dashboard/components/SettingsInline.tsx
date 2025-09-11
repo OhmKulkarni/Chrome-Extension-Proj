@@ -1,119 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from '../../utils/storage-service';
 
-// Interface definitions matching the full settings page
+// Essential settings interface - only core functionality
 interface SettingsData {
   networkInterception: {
     bodyCapture: {
-      mode: 'disabled' | 'partial' | 'full';
-      captureRequests: boolean;
-      captureResponses: boolean;
       maxBodySize: number;
-    };
-    privacy: {
-      noiseFilters: {
-        analytics: boolean;     // Google Analytics, Tag Manager
-        advertising: boolean;   // Ad networks, tracking
-        socialMedia: boolean;   // Facebook, Twitter pixels
-        telemetry: boolean;     // Health checks, telemetry
-        staticAssets: boolean;  // CSS, JS, images, fonts
-        preflight: boolean;     // HEAD, OPTIONS requests
-      };
-    };
-    urlPatterns: {
-      enabled: boolean;
-      patterns: Array<{
-        id: string;
-        pattern: string;
-        active: boolean;
-        description?: string;
-      }>;
-    };
-    tabSpecific: {
-      defaultState: 'active' | 'paused';
-    };
-  };
-  errorLogging: {
-    enabled: boolean;
-    severity: Array<'log' | 'info' | 'warn' | 'error' | 'debug' | 'trace'>;
-    severityFilter: {
-      enabled: boolean;
-      allowed: Array<'error' | 'warn' | 'info'>;
-    };
-    tabSpecific: {
-      defaultState: 'active' | 'paused';
-    };
-  };
-  tokenLogging: {
-    showFullHash: boolean;
-    tabSpecific: {
-      defaultState: 'active' | 'paused';
     };
   };
   chartSettings: {
     refreshMode: 'auto' | 'manual';
     refreshInterval: number; // seconds
-    enableSharedProcessing: boolean;
-    enableStalenessTracking: boolean; // Fixed: Changed from enableStalenessIndicators
   };
 }
 
-// Default settings matching the full settings page
+// Essential settings defaults - only core functionality
 const defaultSettings: SettingsData = {
   networkInterception: {
     bodyCapture: {
-      mode: 'partial',
-      captureRequests: false,
-      captureResponses: false,
       maxBodySize: 2000,
-    },
-    privacy: {
-      noiseFilters: {
-        analytics: true,     // Google Analytics, Tag Manager
-        advertising: true,   // Ad networks, tracking
-        socialMedia: true,   // Facebook, Twitter pixels
-        telemetry: true,     // Health checks, telemetry
-        staticAssets: true,  // CSS, JS, images, fonts
-        preflight: true,     // HEAD, OPTIONS requests
-      },
-    },
-    urlPatterns: {
-      enabled: false,
-      patterns: [
-        {
-          id: 'example-1',
-          pattern: 'https://example.com/*',
-          active: true,
-          description: 'Example pattern for example.com'
-        }
-      ]
-    },
-    tabSpecific: {
-      defaultState: 'active' // Changed from 'paused' to 'active' for better UX
-    }
-  },
-  errorLogging: {
-    enabled: true,
-    severity: ['error', 'warn'],
-    severityFilter: {
-      enabled: false,
-      allowed: ['error', 'warn', 'info']
-    },
-    tabSpecific: {
-      defaultState: 'paused'
-    }
-  },
-  tokenLogging: {
-    showFullHash: false,
-    tabSpecific: {
-      defaultState: 'paused'
     }
   },
   chartSettings: {
     refreshMode: 'manual',  // Conservative default - manual mode
     refreshInterval: 30,    // Slower refresh rate
-    enableSharedProcessing: false,  // Disabled for safety
-    enableStalenessTracking: false // Disabled for safety
   },
 };
 
@@ -167,7 +77,7 @@ const SettingsInline: React.FC = () => {
     return result;
   };
 
-  // Load storage usage - connect to Chrome extension API
+  // Load storage usage - get actual IndexedDB size
   const loadStorageUsage = async () => {
     try {
       // Check if Chrome extension APIs are available
@@ -185,50 +95,86 @@ const SettingsInline: React.FC = () => {
         return;
       }
 
-      // Get table counts for storage estimation
-      const response = await chrome.runtime.sendMessage({
-        action: 'getTableCounts'
-      });
-
-      if (response && response.success && response.data) {
-        const tableCounts = response.data;
-        let estimatedBytes = 0;
-
-        // Calculate estimated size based on table counts
-        // Using the same estimation logic as the dashboard
-        if (tableCounts.apiCalls) {
-          estimatedBytes += tableCounts.apiCalls * 9500; // ~9.5KB average
+      // Try to get actual storage usage first
+      let actualBytes = 0;
+      try {
+        if ('storage' in navigator && 'estimate' in navigator.storage) {
+          const estimate = await navigator.storage.estimate();
+          if (estimate.usage) {
+            actualBytes = estimate.usage;
+            console.log('📊 Using actual storage estimate:', actualBytes, 'bytes');
+          }
         }
-        if (tableCounts.consoleErrors) {
-          estimatedBytes += tableCounts.consoleErrors * 3200; // ~3.2KB average
-        }
-        if (tableCounts.tokenEvents) {
-          estimatedBytes += tableCounts.tokenEvents * 1800; // ~1.8KB average
-        }
-        if (tableCounts.minifiedLibraries) {
-          estimatedBytes += tableCounts.minifiedLibraries * 15000; // ~15KB average
-        }
-
-        const STORAGE_LIMIT = 100 * 1024 * 1024; // 100MB limit
-        const percentage = (estimatedBytes / STORAGE_LIMIT) * 100;
-
-        setStorageUsage({
-          bytes: estimatedBytes,
-          percentage: Math.min(percentage, 100),
-          isLoading: false
-        });
-      } else {
-        throw new Error('Failed to get table counts from background script');
+      } catch (storageError) {
+        console.warn('Could not get storage estimate:', storageError);
       }
-    } catch (error) {
-      console.error('Failed to load storage usage:', error);
-      // Fallback to estimated data
-      const estimatedBytes = 1024 * 1024 * 5; // 5MB fallback
-      const STORAGE_LIMIT = 100 * 1024 * 1024;
-      const percentage = (estimatedBytes / STORAGE_LIMIT) * 100;
+
+      // If we couldn't get actual usage, fall back to estimation via backend
+      if (actualBytes === 0) {
+        console.log('📊 Falling back to backend storage estimation');
+
+        // Try the STORAGE_INFO action first (more accurate than table counts)
+        try {
+          const storageResponse = await chrome.runtime.sendMessage({
+            action: 'STORAGE_INFO'
+          });
+
+          if (storageResponse && storageResponse.success && storageResponse.data?.size) {
+            actualBytes = storageResponse.data.size;
+            console.log('📊 Using backend storage info:', actualBytes, 'bytes');
+          }
+        } catch (storageInfoError) {
+          console.warn('STORAGE_INFO failed, trying table counts:', storageInfoError);
+        }
+
+        // Final fallback to table count estimation
+        if (actualBytes === 0) {
+          const response = await chrome.runtime.sendMessage({
+            action: 'getTableCounts'
+          });
+
+          if (response && response.success && response.data) {
+            const tableCounts = response.data;
+
+            // More conservative estimation based on actual record analysis
+            if (tableCounts.apiCalls) {
+              actualBytes += tableCounts.apiCalls * 8000; // ~8KB average (more conservative)
+            }
+            if (tableCounts.consoleErrors) {
+              actualBytes += tableCounts.consoleErrors * 2500; // ~2.5KB average
+            }
+            if (tableCounts.tokenEvents) {
+              actualBytes += tableCounts.tokenEvents * 1500; // ~1.5KB average
+            }
+            if (tableCounts.minifiedLibraries) {
+              actualBytes += tableCounts.minifiedLibraries * 12000; // ~12KB average
+            }
+
+            console.log('📊 Using table count estimation:', actualBytes, 'bytes');
+          } else {
+            throw new Error('All storage estimation methods failed');
+          }
+        }
+      }
+
+      const STORAGE_LIMIT = 100 * 1024 * 1024; // 100MB limit
+      const percentage = (actualBytes / STORAGE_LIMIT) * 100;
 
       setStorageUsage({
-        bytes: estimatedBytes,
+        bytes: actualBytes,
+        percentage: Math.min(percentage, 100),
+        isLoading: false
+      });
+
+    } catch (error) {
+      console.error('Failed to load storage usage:', error);
+      // Fallback to conservative estimate
+      const fallbackBytes = 1024 * 1024 * 3; // 3MB conservative fallback
+      const STORAGE_LIMIT = 100 * 1024 * 1024;
+      const percentage = (fallbackBytes / STORAGE_LIMIT) * 100;
+
+      setStorageUsage({
+        bytes: fallbackBytes,
         percentage: Math.min(percentage, 100),
         isLoading: false
       });
@@ -259,8 +205,6 @@ const SettingsInline: React.FC = () => {
         const backendSettings = localResult.settings;
         loadedSettings = {
           networkInterception: backendSettings.networkInterception || defaultSettings.networkInterception,
-          errorLogging: backendSettings.errorLogging || defaultSettings.errorLogging,
-          tokenLogging: backendSettings.tokenLogging || defaultSettings.tokenLogging,
           chartSettings: backendSettings.chartSettings || defaultSettings.chartSettings,
         };
       } else if (syncResult.extensionSettings) {
@@ -269,40 +213,11 @@ const SettingsInline: React.FC = () => {
         const syncSettings = syncResult.extensionSettings;
         loadedSettings = {
           networkInterception: syncSettings.networkInterception || defaultSettings.networkInterception,
-          errorLogging: syncSettings.errorLogging || defaultSettings.errorLogging,
-          tokenLogging: syncSettings.tokenLogging || defaultSettings.tokenLogging,
           chartSettings: syncSettings.chartSettings || defaultSettings.chartSettings,
         };
       }
 
-      // MIGRATION: Convert old filterNoise setting to new granular noiseFilters
-      if (loadedSettings.networkInterception?.privacy) {
-        const privacy = loadedSettings.networkInterception.privacy as any;
-
-        // If we have the old filterNoise setting but no new noiseFilters
-        if (privacy.filterNoise !== undefined && !privacy.noiseFilters) {
-          console.log('📋 Migrating old filterNoise setting to new granular filters');
-
-          // Migrate based on the old setting value
-          privacy.noiseFilters = {
-            analytics: privacy.filterNoise,
-            advertising: privacy.filterNoise,
-            socialMedia: privacy.filterNoise,
-            telemetry: privacy.filterNoise,
-            staticAssets: privacy.filterNoise,
-            preflight: privacy.filterNoise
-          };
-
-          // Remove the old setting
-          delete privacy.filterNoise;
-
-          // Save the migrated settings immediately
-          console.log('💾 Auto-saving migrated settings');
-          setTimeout(() => {
-            updateSetting('networkInterception', loadedSettings.networkInterception);
-          }, 100);
-        }
-      }
+      // Privacy settings migration removed - features not implemented
 
       setSettings(loadedSettings);
     } catch (error) {
@@ -326,8 +241,6 @@ const SettingsInline: React.FC = () => {
       // Background script expects chrome.storage.local with key 'settings'
       const backendSettings = {
         networkInterception: settings.networkInterception,
-        errorLogging: settings.errorLogging,
-        tokenLogging: settings.tokenLogging,
         chartSettings: settings.chartSettings,
       };
 
@@ -364,50 +277,7 @@ const SettingsInline: React.FC = () => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 
-  // Custom UI components matching the original settings page
-  const Switch: React.FC<{
-    checked: boolean;
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    label: string;
-    description: string;
-  }> = ({ checked, onChange, label, description }) => (
-    <div className="flex items-center justify-between">
-      <div>
-        <label className="font-medium text-gray-900">{label}</label>
-        <p className="text-sm text-gray-600">{description}</p>
-      </div>
-      <label className="relative inline-flex items-center cursor-pointer">
-        <input
-          type="checkbox"
-          className="sr-only"
-          checked={checked}
-          onChange={onChange}
-        />
-        <div className={`w-11 h-6 rounded-full transition-colors ${
-          checked ? 'bg-blue-600' : 'bg-gray-300'
-        }`}>
-          <div className={`w-5 h-5 bg-white rounded-full shadow transform transition-transform mt-0.5 ml-0.5 ${
-            checked ? 'translate-x-5' : 'translate-x-0'
-          }`}></div>
-        </div>
-      </label>
-    </div>
-  );
-
-  const Select: React.FC<{
-    value: string;
-    onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
-    children: React.ReactNode;
-    className?: string;
-  }> = ({ value, onChange, children, className = "" }) => (
-    <select
-      value={value}
-      onChange={onChange}
-      className={`px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${className}`}
-    >
-      {children}
-    </select>
-  );
+  // Custom UI components
 
   const Input: React.FC<{
     type?: string;
@@ -507,565 +377,61 @@ const SettingsInline: React.FC = () => {
       )}
 
       <div className="p-6 space-y-6 max-h-[600px] overflow-y-auto">
-        {/* Network Interception Settings Card */}
+        {/* Network Body Size Limit */}
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
           <div className="border-b border-gray-200 p-4">
-            <h3 className="text-xl font-semibold text-gray-900">Network Interception & Filtering</h3>
+            <h3 className="text-xl font-semibold text-gray-900">Network Body Size Limit</h3>
             <p className="text-sm text-gray-600 mt-1">
-              Configure network request monitoring and filtering
+              Configure memory safeguards for network request body capture
             </p>
           </div>
           <div className="p-6 space-y-6">
             <div className="space-y-4">
               <div className="grid gap-2">
-                <label className="text-sm font-medium text-gray-900">Body Capture Mode</label>
-                <Select
-                  value={settings.networkInterception?.bodyCapture?.mode || 'disabled'}
-                  onChange={(e) => {
-                    const newMode = e.target.value as 'disabled' | 'partial' | 'full';
-                    const updatedBodyCapture = { ...settings.networkInterception?.bodyCapture };
-
-                    // Reset dependent settings based on mode
-                    if (newMode === 'disabled') {
-                      updatedBodyCapture.mode = 'disabled';
-                      updatedBodyCapture.captureRequests = false;
-                      updatedBodyCapture.captureResponses = false;
-                    } else if (newMode === 'full') {
-                      updatedBodyCapture.mode = 'full';
-                      updatedBodyCapture.captureRequests = true;
-                      updatedBodyCapture.captureResponses = true;
-                      updatedBodyCapture.maxBodySize = 0;
-                    } else {
-                      updatedBodyCapture.mode = 'partial';
-                    }
-
-                    updateSetting('networkInterception', {
-                      ...settings.networkInterception,
-                      bodyCapture: updatedBodyCapture
-                    });
-                  }}
-                  className="max-w-xs"
-                >
-                  <option value="disabled">Disabled</option>
-                  <option value="partial">Partial</option>
-                  <option value="full">Full</option>
-                </Select>
-              </div>
-
-              {/* Only show additional options when mode is 'partial' */}
-              {settings.networkInterception?.bodyCapture?.mode === 'partial' && (
-                <>
-                  <div className="space-y-4">
-                    <Switch
-                      checked={settings.networkInterception?.bodyCapture?.captureRequests || false}
-                      onChange={(e) => updateSetting('networkInterception', {
-                        ...settings.networkInterception,
-                        bodyCapture: {
-                          ...settings.networkInterception?.bodyCapture,
-                          captureRequests: e.target.checked
-                        }
-                      })}
-                      label="Capture request bodies"
-                      description="Include request body content in logs"
-                    />
-
-                    <Switch
-                      checked={settings.networkInterception?.bodyCapture?.captureResponses || false}
-                      onChange={(e) => updateSetting('networkInterception', {
-                        ...settings.networkInterception,
-                        bodyCapture: {
-                          ...settings.networkInterception?.bodyCapture,
-                          captureResponses: e.target.checked
-                        }
-                      })}
-                      label="Capture response bodies"
-                      description="Include response body content in logs"
-                    />
-                  </div>
-
-                  <div className="grid gap-2">
-                    <label htmlFor="maxBodySize" className="text-sm font-medium text-gray-900">
-                      Max body size (characters, 0 = no limit)
-                    </label>
-                    <Input
-                      type="number"
-                      id="maxBodySize"
-                      min="0"
-                      value={settings.networkInterception?.bodyCapture?.maxBodySize || 2000}
-                      onChange={(e) => updateSetting('networkInterception', {
-                        ...settings.networkInterception,
-                        bodyCapture: {
-                          ...settings.networkInterception?.bodyCapture,
-                          maxBodySize: parseInt(e.target.value) || 0
-                        }
-                      })}
-                      className="max-w-xs"
-                    />
-                  </div>
-                </>
-              )}
-
-              {/* Show explanation for full mode */}
-              {settings.networkInterception?.bodyCapture?.mode === 'full' && (
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    <strong>Full mode:</strong> Captures all request and response bodies without size limits (up to 50KB safety limit).
-                  </p>
-                </div>
-              )}
-
-              {/* Show explanation for disabled mode */}
-              {settings.networkInterception?.bodyCapture?.mode === 'disabled' && (
-                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                  <p className="text-sm text-gray-600">
-                    <strong>Disabled mode:</strong> Network requests are logged without body content for better performance and privacy.
-                  </p>
-                </div>
-              )}
-
-              <div className="space-y-4">
-                <div>
-                  <h4 className="text-sm font-medium text-gray-900 mb-3">Request Filtering</h4>
-                  <p className="text-xs text-gray-600 mb-4">
-                    Choose which types of requests to filter out from logging. Uncheck categories you want to track.
-                  </p>
-
-                  <div className="space-y-3">
-                    <Switch
-                      checked={settings.networkInterception?.privacy?.noiseFilters?.analytics || true}
-                      onChange={(e) => updateSetting('networkInterception', {
-                        ...settings.networkInterception,
-                        privacy: {
-                          ...settings.networkInterception?.privacy,
-                          noiseFilters: {
-                            ...settings.networkInterception?.privacy?.noiseFilters,
-                            analytics: e.target.checked
-                          }
-                        }
-                      })}
-                      label="Analytics & Tracking"
-                      description="Google Analytics, Tag Manager, Mixpanel, Amplitude"
-                    />
-
-                    <Switch
-                      checked={settings.networkInterception?.privacy?.noiseFilters?.advertising || true}
-                      onChange={(e) => updateSetting('networkInterception', {
-                        ...settings.networkInterception,
-                        privacy: {
-                          ...settings.networkInterception?.privacy,
-                          noiseFilters: {
-                            ...settings.networkInterception?.privacy?.noiseFilters,
-                            advertising: e.target.checked
-                          }
-                        }
-                      })}
-                      label="Advertising Networks"
-                      description="DoubleClick, Google Ads, Amazon Ads, Facebook Pixel"
-                    />
-
-                    <Switch
-                      checked={settings.networkInterception?.privacy?.noiseFilters?.socialMedia || true}
-                      onChange={(e) => updateSetting('networkInterception', {
-                        ...settings.networkInterception,
-                        privacy: {
-                          ...settings.networkInterception?.privacy,
-                          noiseFilters: {
-                            ...settings.networkInterception?.privacy?.noiseFilters,
-                            socialMedia: e.target.checked
-                          }
-                        }
-                      })}
-                      label="Social Media Tracking"
-                      description="Facebook, Twitter analytics, social media pixels"
-                    />
-
-                    <Switch
-                      checked={settings.networkInterception?.privacy?.noiseFilters?.telemetry || true}
-                      onChange={(e) => updateSetting('networkInterception', {
-                        ...settings.networkInterception,
-                        privacy: {
-                          ...settings.networkInterception?.privacy,
-                          noiseFilters: {
-                            ...settings.networkInterception?.privacy?.noiseFilters,
-                            telemetry: e.target.checked
-                          }
-                        }
-                      })}
-                      label="Telemetry & Health Checks"
-                      description="/ping, /health, /telemetry, error reporting, GCP Privacy"
-                    />
-
-                    <Switch
-                      checked={settings.networkInterception?.privacy?.noiseFilters?.staticAssets || true}
-                      onChange={(e) => updateSetting('networkInterception', {
-                        ...settings.networkInterception,
-                        privacy: {
-                          ...settings.networkInterception?.privacy,
-                          noiseFilters: {
-                            ...settings.networkInterception?.privacy?.noiseFilters,
-                            staticAssets: e.target.checked
-                          }
-                        }
-                      })}
-                      label="Static Assets"
-                      description="CSS, JS, images, fonts, favicon.ico"
-                    />
-
-                    <Switch
-                      checked={settings.networkInterception?.privacy?.noiseFilters?.preflight || true}
-                      onChange={(e) => updateSetting('networkInterception', {
-                        ...settings.networkInterception,
-                        privacy: {
-                          ...settings.networkInterception?.privacy,
-                          noiseFilters: {
-                            ...settings.networkInterception?.privacy?.noiseFilters,
-                            preflight: e.target.checked
-                          }
-                        }
-                      })}
-                      label="Preflight Requests"
-                      description="HEAD and OPTIONS requests (CORS preflight)"
-                    />
+                <div className="flex items-center space-x-2">
+                  <label htmlFor="maxBodySize" className="text-sm font-medium text-gray-900">
+                    Max body size (characters, 0 = no limit)
+                  </label>
+                  <div
+                    className="relative group cursor-help"
+                    title="This setting prevents memory issues by limiting how much request/response body content is stored. Large payloads are truncated to this size. Set to 0 to disable truncation (not recommended for production use)."
+                  >
+                    <div className="w-4 h-4 rounded-full bg-blue-100 text-xs flex items-center justify-center text-blue-600 hover:bg-blue-200 transition-colors">
+                      ?
+                    </div>
                   </div>
                 </div>
-              </div>
-
-              <div className="space-y-4">
-                <Switch
-                  checked={settings.networkInterception?.urlPatterns?.enabled || false}
+                <Input
+                  type="number"
+                  id="maxBodySize"
+                  min="0"
+                  value={settings.networkInterception?.bodyCapture?.maxBodySize || 2000}
                   onChange={(e) => updateSetting('networkInterception', {
                     ...settings.networkInterception,
-                    urlPatterns: {
-                      ...settings.networkInterception?.urlPatterns,
-                      enabled: e.target.checked
+                    bodyCapture: {
+                      ...settings.networkInterception?.bodyCapture,
+                      maxBodySize: parseInt(e.target.value) || 0
                     }
                   })}
-                  label="Enable URL pattern filtering"
-                  description="Only capture requests matching specific URL patterns (e.g., https://api.example.com/*)"
+                  className="max-w-xs"
                 />
-
-                {settings.networkInterception?.urlPatterns?.enabled && (
-                  <div className="ml-4 mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <p className="text-sm font-medium mb-3">🎯 URL Pattern Configuration</p>
-                    <p className="text-xs text-gray-600 mb-3">
-                      Define URL patterns to capture. Use * for wildcards (e.g., https://api.example.com/*)
-                    </p>
-
-                    {settings.networkInterception?.urlPatterns?.patterns?.map((pattern, index) => (
-                      <div key={pattern.id} className="flex items-center space-x-3 mb-2 p-2 bg-white rounded border">
-                        <input
-                          type="checkbox"
-                          checked={pattern.active}
-                          onChange={(e) => {
-                            const updatedPatterns = [...(settings.networkInterception?.urlPatterns?.patterns || [])];
-                            updatedPatterns[index] = { ...pattern, active: e.target.checked };
-                            updateSetting('networkInterception', {
-                              ...settings.networkInterception,
-                              urlPatterns: {
-                                ...settings.networkInterception?.urlPatterns,
-                                patterns: updatedPatterns
-                              }
-                            });
-                          }}
-                          className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                        />
-                        <Input
-                          value={pattern.pattern}
-                          onChange={(e) => {
-                            const updatedPatterns = [...(settings.networkInterception?.urlPatterns?.patterns || [])];
-                            updatedPatterns[index] = { ...pattern, pattern: e.target.value };
-                            updateSetting('networkInterception', {
-                              ...settings.networkInterception,
-                              urlPatterns: {
-                                ...settings.networkInterception?.urlPatterns,
-                                patterns: updatedPatterns
-                              }
-                            });
-                          }}
-                          placeholder="https://api.example.com/*"
-                          className="flex-1"
-                        />
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const updatedPatterns = settings.networkInterception?.urlPatterns?.patterns?.filter((_, i) => i !== index) || [];
-                            updateSetting('networkInterception', {
-                              ...settings.networkInterception,
-                              urlPatterns: {
-                                ...settings.networkInterception?.urlPatterns,
-                                patterns: updatedPatterns
-                              }
-                            });
-                          }}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const newPattern = {
-                          id: `pattern-${Date.now()}`,
-                          pattern: '',
-                          active: true,
-                          description: ''
-                        };
-                        const updatedPatterns = [...(settings.networkInterception?.urlPatterns?.patterns || []), newPattern];
-                        updateSetting('networkInterception', {
-                          ...settings.networkInterception,
-                          urlPatterns: {
-                            ...settings.networkInterception?.urlPatterns,
-                            patterns: updatedPatterns
-                          }
-                        });
-                      }}
-                    >
-                      Add Pattern
-                    </Button>
-                  </div>
-                )}
               </div>
 
-              <div className="space-y-4">
-                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <p className="text-sm font-medium mb-3">🗂️ Tab-Specific Control Settings</p>
-
-                  <div className="grid gap-2">
-                    <label className="text-sm font-medium text-gray-900">Default state for new tabs</label>
-                    <Select
-                      value={settings.networkInterception?.tabSpecific?.defaultState || 'paused'}
-                      onChange={(e) => updateSetting('networkInterception', {
-                        ...settings.networkInterception,
-                        tabSpecific: {
-                          ...settings.networkInterception?.tabSpecific,
-                          defaultState: e.target.value as any
-                        }
-                      })}
-                      className="max-w-xs"
-                    >
-                      <option value="active">Active (monitoring enabled)</option>
-                      <option value="paused">Paused (monitoring disabled)</option>
-                    </Select>
-                    <p className="text-xs text-gray-600 mt-1">
-                      This determines whether new tabs start with network monitoring enabled or disabled
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Token Logging Settings Card */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-          <div className="border-b border-gray-200 p-4">
-            <h3 className="text-xl font-semibold text-gray-900">Token Display Settings</h3>
-            <p className="text-sm text-gray-600 mt-1">
-              Configure how authentication token hashes are displayed (token logging is controlled via the dashboard)
-            </p>
-          </div>
-          <div className="p-6 space-y-6">
-            <div className="space-y-4">
-              <Switch
-                checked={settings.tokenLogging?.showFullHash || false}
-                onChange={(e) => updateSetting('tokenLogging', {
-                  ...settings.tokenLogging,
-                  showFullHash: e.target.checked
-                })}
-                label="Show full token hash values"
-                description="Display complete token hashes instead of partially redacted versions"
-              />
-
-              {!settings.tokenLogging?.showFullHash && (
-                <div className="ml-4 mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <p className="text-sm font-medium mb-2">🔒 Token hashes are partially redacted</p>
-                  <p className="text-xs text-gray-600">
-                    Token hash values will be displayed as: <code className="bg-gray-100 px-1 rounded">abc***...***xyz</code> (showing first/last 3 characters)
-                  </p>
-                </div>
-              )}
-
-              {settings.tokenLogging?.showFullHash && (
-                <div className="ml-4 mt-3 p-3 bg-yellow-50 text-yellow-800 rounded-lg border border-yellow-200">
-                  <p className="text-sm font-medium mb-2">⚠️ Full token hashes visible</p>
-                  <p className="text-xs text-yellow-800">
-                    Complete token hash values will be displayed. Use caution when sharing screenshots or logs.
-                  </p>
-                </div>
-              )}
-
-              <div className="border-t pt-4">
-                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <p className="text-sm font-medium mb-3">🗂️ Tab-Specific Token Logging</p>
-
-                  <div className="grid gap-2">
-                    <label className="text-sm font-medium text-gray-900">Default state for new tabs</label>
-                    <Select
-                      value={settings.tokenLogging?.tabSpecific?.defaultState || 'paused'}
-                      onChange={(e) => updateSetting('tokenLogging', {
-                        ...settings.tokenLogging,
-                        tabSpecific: {
-                          ...settings.tokenLogging?.tabSpecific,
-                          defaultState: e.target.value as any
-                        }
-                      })}
-                      className="max-w-xs"
-                    >
-                      <option value="active">Active (token logging enabled)</option>
-                      <option value="paused">Paused (token logging disabled)</option>
-                    </Select>
-                    <p className="text-xs text-gray-600 mt-1">
-                      This determines whether new tabs start with token logging enabled or disabled
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Error Logging Settings Card */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-          <div className="border-b border-gray-200 p-4">
-            <h3 className="text-xl font-semibold text-gray-900">Console Error Logging</h3>
-            <p className="text-sm text-gray-600 mt-1">
-              Configure browser console error monitoring
-            </p>
-          </div>
-          <div className="p-6 space-y-6">
-            <div className="space-y-4">
-              {/* Main Error Logging Toggle */}
-              <Switch
-                checked={settings.errorLogging?.enabled || false}
-                onChange={(e) => updateSetting('errorLogging', {
-                  ...settings.errorLogging,
-                  enabled: e.target.checked
-                })}
-                label="Enable console error logging"
-                description="Capture and monitor browser console errors, warnings, and other messages"
-              />
-
-              {/* Severity Selection */}
-              {settings.errorLogging?.enabled && (
-                <div className="ml-4 space-y-4">
-                  <div>
-                    <p className="text-sm font-medium mb-3">🎯 Console Methods to Capture</p>
-                    <div className="space-y-2">
-                      {(['log', 'info', 'warn', 'error', 'debug', 'trace'] as const).map((method) => (
-                        <div key={method} className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            id={`console-${method}`}
-                            checked={settings.errorLogging?.severity?.includes(method) || false}
-                            onChange={(e) => {
-                              const currentSeverity = settings.errorLogging?.severity || [];
-                              const newSeverity = e.target.checked
-                                ? [...currentSeverity, method]
-                                : currentSeverity.filter(s => s !== method);
-                              updateSetting('errorLogging', {
-                                ...settings.errorLogging,
-                                severity: newSeverity
-                              });
-                            }}
-                            className="rounded border-gray-300"
-                          />
-                          <label htmlFor={`console-${method}`} className="text-sm">
-                            console.{method}()
-                          </label>
-                        </div>
-                      ))}
+              {/* Informational tooltip about the safeguard */}
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">
+                      <span className="text-blue-600 text-xs font-medium">ℹ</span>
                     </div>
                   </div>
-                </div>
-              )}
-
-              <div className="space-y-4">
-                <Switch
-                  checked={settings.errorLogging?.severityFilter?.enabled || false}
-                  onChange={(e) => updateSetting('errorLogging', {
-                    ...settings.errorLogging,
-                    severityFilter: {
-                      ...settings.errorLogging?.severityFilter,
-                      enabled: e.target.checked
-                    }
-                  })}
-                  label="Filter by severity (legacy)"
-                  description="Only capture specific error levels (deprecated - use console methods above)"
-                />
-
-                {settings.errorLogging?.severityFilter?.enabled && (
-                  <div className="ml-4 space-y-2">
-                    <p className="text-sm font-medium">Capture these severity levels:</p>
-                    <div className="space-y-2">
-                      {(['error', 'warn', 'info'] as const).map((severity) => (
-                        <label key={severity} className="flex items-center space-x-3">
-                          <input
-                            type="checkbox"
-                            checked={settings.errorLogging?.severityFilter?.allowed?.includes(severity) || false}
-                            onChange={(e) => {
-                              const currentAllowed = settings.errorLogging?.severityFilter?.allowed || [];
-                              const newAllowed = e.target.checked
-                                ? [...currentAllowed, severity]
-                                : currentAllowed.filter(s => s !== severity);
-
-                              updateSetting('errorLogging', {
-                                ...settings.errorLogging,
-                                severityFilter: {
-                                  ...settings.errorLogging?.severityFilter,
-                                  allowed: newAllowed as any
-                                }
-                              });
-                            }}
-                            className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                          />
-                          <span className="text-sm capitalize">
-                            {severity}
-                            <span className={`ml-2 px-2 py-1 text-xs rounded-full ${
-                              severity === 'error' ? 'bg-red-100 text-red-800' :
-                              severity === 'warn' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-blue-100 text-blue-800'
-                            }`}>
-                              {severity === 'error' ? 'console.error()' :
-                               severity === 'warn' ? 'console.warn()' :
-                               'console.info/log()'}
-                            </span>
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                    <p className="text-sm text-gray-600">
-                      Unselected severity levels will be ignored completely
-                    </p>
-                  </div>
-                )}
-
-                <div className="space-y-4">
-                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <p className="text-sm font-medium mb-3">🗂️ Tab-Specific Error Logging</p>
-
-                    <div className="grid gap-2">
-                      <label className="text-sm font-medium text-gray-900">Default state for new tabs</label>
-                      <Select
-                        value={settings.errorLogging?.tabSpecific?.defaultState || 'paused'}
-                        onChange={(e) => updateSetting('errorLogging', {
-                          ...settings.errorLogging,
-                          tabSpecific: {
-                            ...settings.errorLogging?.tabSpecific,
-                            defaultState: e.target.value as any
-                          }
-                        })}
-                        className="max-w-xs"
-                      >
-                        <option value="active">Active (error logging enabled)</option>
-                        <option value="paused">Paused (error logging disabled)</option>
-                      </Select>
-                      <p className="text-xs text-gray-600 mt-1">
-                        This determines whether new tabs start with error logging enabled or disabled
-                      </p>
+                  <div className="flex-1">
+                    <p className="text-sm text-blue-800 font-medium mb-2">Memory Protection Safeguard</p>
+                    <div className="text-xs text-blue-700 space-y-1">
+                      <p><strong>Purpose:</strong> Prevents browser crashes from large network payloads (images, files, API responses)</p>
+                      <p><strong>Default (2000 chars):</strong> Captures ~2KB of body content - enough for most API responses</p>
+                      <p><strong>Set to 0:</strong> No truncation but may cause memory issues with large files</p>
+                      <p><strong>Recommended:</strong> 1000-5000 characters for most use cases</p>
                     </div>
                   </div>
                 </div>
@@ -1073,6 +439,8 @@ const SettingsInline: React.FC = () => {
             </div>
           </div>
         </div>
+
+
 
         {/* Storage Usage Card */}
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
@@ -1151,7 +519,7 @@ const SettingsInline: React.FC = () => {
           <div className="border-b border-gray-200 p-4">
             <h3 className="text-xl font-semibold text-gray-900">Chart Performance Settings</h3>
             <p className="text-sm text-gray-600 mt-1">
-              Configure dashboard chart refresh behavior and performance optimizations
+              Configure dashboard chart refresh behavior
             </p>
           </div>
           <div className="p-6 space-y-6">
@@ -1224,39 +592,11 @@ const SettingsInline: React.FC = () => {
                 </div>
               )}
 
-              {/* Performance Optimizations */}
-              <div className="border-t pt-4">
-                <p className="text-sm font-medium mb-3">Performance Optimizations</p>
-
-                <div className="space-y-3">
-                  <Switch
-                    checked={settings.chartSettings?.enableSharedProcessing || true}
-                    onChange={(e) => updateSetting('chartSettings', {
-                      ...settings.chartSettings,
-                      enableSharedProcessing: e.target.checked
-                    })}
-                    label="Enable shared data processing"
-                    description="Process chart data once and share across charts (reduces CPU usage by ~60-80%)"
-                  />
-
-                  <Switch
-                    checked={settings.chartSettings?.enableStalenessTracking || true}
-                    onChange={(e) => updateSetting('chartSettings', {
-                      ...settings.chartSettings,
-                      enableStalenessTracking: e.target.checked
-                    })}
-                    label="Show data staleness indicators"
-                    description="Display visual indicators when chart data becomes outdated"
-                  />
-                </div>
-              </div>
-
-              {/* Performance Impact Info */}
+              {/* Performance optimizations removed - not implemented in backend */}
               <div className="p-3 bg-blue-50 text-blue-800 rounded-lg border border-blue-200">
                 <p className="text-sm font-medium mb-2">💡 Performance Impact</p>
                 <div className="text-xs space-y-1">
                   <p><strong>Manual mode:</strong> ~90% less CPU usage, charts update only when refreshed</p>
-                  <p><strong>Shared processing:</strong> ~60-80% less redundant calculations</p>
                   <p><strong>Longer intervals:</strong> Proportionally less CPU usage vs refresh frequency</p>
                 </div>
               </div>
@@ -1264,23 +604,7 @@ const SettingsInline: React.FC = () => {
           </div>
         </div>
 
-        {/* About Card */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-          <div className="border-b border-gray-200 p-4">
-            <h3 className="text-xl font-semibold text-gray-900">About</h3>
-            <p className="text-sm text-gray-600 mt-1">
-              Extension information and support
-            </p>
-          </div>
-          <div className="p-6">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><strong>Version:</strong> 1.0.0</div>
-              <div><strong>Build:</strong> 2024.1.0</div>
-              <div><strong>Manifest:</strong> V3</div>
-              <div><strong>Support:</strong> <a href="#" className="text-blue-600 hover:underline">Help Center</a></div>
-            </div>
-          </div>
-        </div>
+
       </div>
     </div>
   );

@@ -50,7 +50,11 @@ export class TokenTrackerModule {
       '/services/', '/microservices/', '/endpoints/',
       // AI/ML API services
       '/models/', '/inference/', '/generate/', '/completions/',
-      '/embeddings/', '/chat/', '/datasets/'
+      '/embeddings/', '/chat/', '/datasets/',
+      // Google API services
+      '/promotion/', '/recommendation/', '/FetchRecommendation',
+      '/drive/v', '/gmail/v', '/calendar/v', '/youtube/v',
+      '/analytics/', '/ads/', '/maps/'
     ],
     // NEW: Service-to-service authentication
     service_auth: [
@@ -145,8 +149,10 @@ export class TokenTrackerModule {
       if (tabId) {
         try {
           const isTabTokenLoggingActive = await this.storageManager.getTabTokenState(tabId);
+          console.log(`🔍 TokenTrackerModule: Tab ${tabId} token logging state: ${isTabTokenLoggingActive}`);
           if (!isTabTokenLoggingActive) {
             // Token logging is disabled for this tab, skip processing
+            console.log(`⚠️ TokenTrackerModule: Token logging disabled for tab ${tabId}, skipping ${url}`);
             return null;
           }
         } catch (error) {
@@ -159,9 +165,11 @@ export class TokenTrackerModule {
       try {
         const settings = await this.storageManager.getSettings();
         const tokenConfig = settings?.tokenLogging || {};
+        console.log(`🔍 TokenTrackerModule: Global token logging enabled: ${tokenConfig.enabled !== false}`);
 
         // If global token logging is disabled, skip
         if (tokenConfig.enabled === false) {
+          console.log(`⚠️ TokenTrackerModule: Global token logging disabled, skipping ${url}`);
           return null;
         }
       } catch (error) {
@@ -176,14 +184,35 @@ export class TokenTrackerModule {
       const isTokenValidation = this.isTokenEndpoint(url, 'token_validation');
       const isWebSocketAuth = this.isTokenEndpoint(url, 'websocket_auth');
 
-      // Check if request has authentication (any token-related headers/content)
+      // Debug which endpoint type was detected
+      if (isAcquireEndpoint || isRefreshEndpoint || isApiCall || isServiceAuth || isTokenValidation || isWebSocketAuth) {
+        console.log(`🔍 TokenTrackerModule: Endpoint detection for ${url}`);
+        console.log(`   - isAcquireEndpoint: ${isAcquireEndpoint}`);
+        console.log(`   - isRefreshEndpoint: ${isRefreshEndpoint}`);
+        console.log(`   - isApiCall: ${isApiCall}`);
+        console.log(`   - isServiceAuth: ${isServiceAuth}`);
+        console.log(`   - isTokenValidation: ${isTokenValidation}`);
+        console.log(`   - isWebSocketAuth: ${isWebSocketAuth}`);
+        console.log(`   - status: ${status}`);
+      }
+
+      // Check if request has authentication (any token-related headers/content/URL params)
       const hasAuthHeaders = this.hasAuthenticationHeaders(requestData.headers || {});
       const hasAuthContent = this.hasAuthenticationInBody(requestData.body);
+      const hasAuthInUrl = this.hasAuthenticationInUrl(url);
+
+      // Debug logging for API calls with potential authentication
+      if (isApiCall) {
+        console.log(`🔍 TokenTrackerModule: API call detected for ${url}`);
+        console.log(`   - hasAuthHeaders: ${hasAuthHeaders}`);
+        console.log(`   - hasAuthContent: ${hasAuthContent}`);
+        console.log(`   - hasAuthInUrl: ${hasAuthInUrl}`);
+      }
 
       // Determine if this is a token-related request
       const isTokenRelated = isAcquireEndpoint || isRefreshEndpoint || isServiceAuth ||
                            isTokenValidation || isWebSocketAuth ||
-                           (isApiCall && (hasAuthHeaders || hasAuthContent));
+                           (isApiCall && (hasAuthHeaders || hasAuthContent || hasAuthInUrl));
 
       if (!isTokenRelated) {
         return null;
@@ -192,42 +221,63 @@ export class TokenTrackerModule {
       // Determine token event type based on endpoint and response status
       let eventType: TokenEvent['type'];
 
+      // Ensure status is a number for proper comparison
+      const statusCode = typeof status === 'string' ? parseInt(status, 10) : status;
+      console.log(`🔍 TokenTrackerModule: Original status: ${status} (${typeof status}), converted: ${statusCode} (${typeof statusCode})`);
+
       if (isRefreshEndpoint) {
-        if (status >= 200 && status < 300) {
+        console.log(`🔍 TokenTrackerModule: Taking REFRESH path for status ${statusCode}`);
+        if (statusCode >= 200 && statusCode < 300) {
           eventType = 'refresh';
-        } else if (status === 401 || status === 403) {
+        } else if (statusCode === 401 || statusCode === 403) {
           eventType = 'refresh_error';
         } else {
           eventType = 'expired';
         }
       } else if (isAcquireEndpoint || isServiceAuth) {
-        if (status >= 200 && status < 300) {
+        console.log(`🔍 TokenTrackerModule: Taking ACQUIRE path for status ${statusCode} (original: ${status})`);
+        console.log(`🔍 TokenTrackerModule: URL: ${url}`);
+        console.log(`🔍 TokenTrackerModule: Method: ${method}`);
+        if (statusCode >= 200 && statusCode < 300) {
           eventType = 'acquire';
-        } else if (status === 401 || status === 403) {
-          eventType = 'validation_failed';
+          console.log(`🔍 TokenTrackerModule: Setting eventType to 'acquire' (success) - condition: ${statusCode} >= 200 && ${statusCode} < 300`);
+        } else if (statusCode === 401 || statusCode === 403) {
+          eventType = 'expired';
+          console.log(`🔍 TokenTrackerModule: Setting eventType to 'expired' (401/403)`);
+        } else if (statusCode === 400) {
+          eventType = 'expired'; // Bad request often means invalid credentials
+          console.log(`🔍 TokenTrackerModule: Setting eventType to 'expired' (400)`);
         } else {
-          return null; // Don't track failed acquisition attempts as token events
+          console.log(`🔍 TokenTrackerModule: Rejecting status ${statusCode} for acquire endpoint - no condition matched`);
+          return null; // Don't track other failed acquisition attempts (5xx errors, etc.)
         }
       } else if (isTokenValidation) {
-        if (status >= 200 && status < 300) {
+        if (statusCode >= 200 && statusCode < 300) {
           eventType = 'verified';
-        } else if (status === 401 || status === 403) {
-          eventType = 'validation_failed';
+        } else if (statusCode === 401 || statusCode === 403) {
+          eventType = 'expired';
+        } else if (statusCode === 400) {
+          eventType = 'expired'; // Bad request often means invalid token format
+          console.log(`🔍 TokenTrackerModule: Status 400 on validation endpoint, treating as expired`);
         } else {
           return null;
         }
       } else if (isWebSocketAuth) {
-        if (status >= 200 && status < 300) {
+        if (statusCode >= 200 && statusCode < 300) {
           eventType = 'acquire'; // WebSocket auth success treated as token acquisition
         } else {
-          eventType = 'validation_failed';
-        }
-      } else if (isApiCall && (hasAuthHeaders || hasAuthContent)) {
-        // API calls with authentication - treat as token usage verification
-        if (status >= 200 && status < 300) {
-          eventType = 'verified';
-        } else if (status === 401 || status === 403) {
           eventType = 'expired';
+        }
+      } else if (isApiCall && (hasAuthHeaders || hasAuthContent || hasAuthInUrl)) {
+        // API calls with authentication - treat as token usage verification
+        if (statusCode >= 200 && statusCode < 300) {
+          eventType = 'verified';
+        } else if (statusCode === 401 || statusCode === 403) {
+          eventType = 'expired';
+        } else if (statusCode === 0) {
+          // Status 0 can indicate network error, CORS, or pending request - still log as verified attempt
+          eventType = 'verified';
+          console.log(`⚠️ TokenTrackerModule: Status 0 detected for API call, treating as verified attempt`);
         } else {
           return null;
         }
@@ -240,6 +290,8 @@ export class TokenTrackerModule {
 
       // Generate token hash for identification
       const valueHash = await this.generateTokenHash(url, timestamp, eventType, method);
+
+      console.log(`🔍 TokenTrackerModule: FINAL CHECK - About to create token event with eventType: "${eventType}" for status ${statusCode}`);
 
       const tokenEvent: TokenEvent = {
         type: eventType,
@@ -265,7 +317,8 @@ export class TokenTrackerModule {
         const mainDomain = tabUrl ? this.extractDomain(tabUrl) : this.extractDomain(url);
 
         const tokenEventData = {
-          type: tokenType as 'jwt_token' | 'session_token' | 'api_key' | 'oauth_token',
+          type: eventType,  // Store the event type (acquire, expired, etc.) for dashboard display
+          tokenType: tokenType as 'jwt_token' | 'session_token' | 'api_key' | 'oauth_token',  // Store the token classification for analysis
           valueHash,
           timestamp: timestamp ? new Date(timestamp).getTime() : Date.now(),
           source_url: requestData.source_url || url,
@@ -277,6 +330,8 @@ export class TokenTrackerModule {
           tab_url: tabUrl,
           main_domain: mainDomain
         };
+
+        console.log(`🔍 TokenTrackerModule: STORAGE CHECK - About to store tokenEventData with type: "${tokenEventData.type}" for status ${statusCode}`);
 
         // Use IndexedDB storage with race condition protection
         if (this.config.enableRaceConditionProtection) {
@@ -543,6 +598,67 @@ export class TokenTrackerModule {
   }
 
   /**
+   * Check if URL contains API keys in parameters
+   */
+  private hasAuthenticationInUrl(url: string): boolean {
+    if (!url) return false;
+
+    try {
+      const urlObj = new URL(url);
+      const params = urlObj.searchParams;
+
+      // Common API key parameter names
+      const apiKeyParams = [
+        'key', 'api_key', 'apikey', 'api-key',
+        'access_token', 'token', 'auth_token', 'auth-token',
+        'client_id', 'app_id', 'appid', 'app-id',
+        'authuser' // Check but filter out if it's just a user ID
+      ];
+
+      // Check if any API key parameters exist and have values
+      for (const param of apiKeyParams) {
+        const value = params.get(param);
+        if (value && value.length > 10) { // API keys are typically longer than 10 chars
+          console.log(`🔍 TokenTrackerModule: Found URL param ${param}=${value.substring(0, 10)}... (length: ${value.length})`);
+
+          // Skip authuser parameter - it's a user ID, not a token
+          if (param === 'authuser' || (param.includes('user') && /^\d+$/.test(value))) {
+            console.log(`⚠️ TokenTrackerModule: Skipping ${param} - appears to be user ID, not token`);
+            continue;
+          }
+
+          // Additional validation for Google API keys (starts with AIza)
+          if (param === 'key' && value.startsWith('AIza')) {
+            console.log(`✅ TokenTrackerModule: Google API key detected in URL`);
+            return true;
+          }
+          // Other API key patterns
+          if (value.length > 20) { // Most API keys are longer than 20 chars
+            console.log(`✅ TokenTrackerModule: Long API key detected in URL`);
+            return true;
+          }
+        }
+      }
+
+      return false;
+    } catch (error) {
+      console.log(`🔍 TokenTrackerModule: URL parsing failed, using fallback for ${url}`);
+      // If URL parsing fails, fall back to string matching
+      const apiKeyPatterns = [
+        'key=AIza', // Google API keys
+        'api_key=', 'apikey=', 'access_token=',
+        'client_id=', 'app_id='
+      ];
+
+      const hasPattern = apiKeyPatterns.some(pattern => url.includes(pattern));
+      if (hasPattern) {
+        console.log(`✅ TokenTrackerModule: API key pattern detected in URL via fallback`);
+      }
+      return hasPattern;
+    }
+  }
+
+  /**
    * Check if token is a JWT (3 parts separated by dots)
    */
   private isJwt(token: string): boolean {
@@ -709,12 +825,9 @@ export class TokenTrackerModule {
       case 'verified':
         return 'api_key'; // Verified tokens are often API keys or access tokens
       case 'expired':
-      case 'validation_failed':
         return 'session_token'; // Failed validations often involve session tokens
       case 'refresh_error':
         return 'jwt_token'; // Refresh errors typically involve JWT refresh tokens
-      case 'revoked':
-        return 'oauth_token'; // Revocation typically applies to OAuth tokens
       default:
         return 'api_key'; // Safe default for unknown cases
     }
@@ -754,23 +867,7 @@ export class TokenTrackerModule {
 
   // ===== DATA RETRIEVAL =====
 
-  /**
-   * Map IndexedDB token type back to event type
-   */
-  private mapTokenTypeToEventType(tokenType: string): 'acquire' | 'refresh' | 'expired' | 'refresh_error' | 'verified' | 'validation_failed' | 'revoked' {
-    switch (tokenType) {
-      case 'jwt_token':
-        return 'acquire';
-      case 'session_token':
-        return 'expired';
-      case 'api_key':
-        return 'acquire';
-      case 'oauth_token':
-        return 'refresh';
-      default:
-        return 'acquire';
-    }
-  }
+
 
   /**
    * Get token events with pagination (from IndexedDB)
@@ -779,18 +876,35 @@ export class TokenTrackerModule {
     return this.executeWithSafety('getTokenEvents', async () => {
       // Get data from IndexedDB instead of Chrome storage
       const tokenEvents = await this.indexedDbStorage.getTokenEvents(limit, offset);
+      console.log('🚨 TOKEN TRACKER: Retrieved from IndexedDB:', tokenEvents);
 
       // Transform IndexedDB TokenEvent format to module TokenEvent format for compatibility
-      return tokenEvents.map(event => ({
-        type: this.mapTokenTypeToEventType(event.type),
-        url: event.url || '',
-        method: event.method || '',
-        status: event.status || 0,
-        timestamp: new Date(event.timestamp).toISOString(),
-        source_url: event.source_url || event.url || '',
-        expiry: event.expiry ? new Date(event.expiry).getTime() : undefined,
-        value_hash: event.valueHash
-      }));
+      const transformedEvents = tokenEvents.map(event => {
+        console.log('🚨 TOKEN TRACKER: Processing event:', {
+          originalType: event.type,
+          tokenType: event.tokenType,
+          status: event.status
+        });
+
+        // ✅ FIX: Use the event.type directly since we're storing it correctly now
+        // No more incorrect mapping based on tokenType!
+        const transformedEvent = {
+          type: event.type as 'acquire' | 'refresh' | 'expired' | 'refresh_error' | 'verified', // Use stored type directly
+          url: event.url || '',
+          method: event.method || '',
+          status: event.status || 0,
+          timestamp: new Date(event.timestamp).toISOString(),
+          source_url: event.source_url || event.url || '',
+          expiry: event.expiry ? new Date(event.expiry).getTime() : undefined,
+          value_hash: event.valueHash
+        };
+
+        console.log('🚨 TOKEN TRACKER: Final transformed event:', transformedEvent);
+        return transformedEvent;
+      });
+
+      console.log('🚨 TOKEN TRACKER: Returning transformed events:', transformedEvents);
+      return transformedEvents;
     });
   }
 

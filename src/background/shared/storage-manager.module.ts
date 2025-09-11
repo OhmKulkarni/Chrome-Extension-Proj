@@ -285,7 +285,7 @@ export class StorageManagerModule {
       try {
         // Convert background TokenEvent to storage TokenEvent format
         const storageTokenEvent = {
-          type: this.mapTokenEventType(tokenEvent.type),
+          type: tokenEvent.type,  // Store event type directly now
           valueHash: tokenEvent.valueHash || '',
           timestamp: new Date(tokenEvent.timestamp).getTime(),
           source_url: tokenEvent.source_url,
@@ -320,39 +320,20 @@ export class StorageManagerModule {
   }
 
   /**
-   * Map background token event types to storage token event types
-   */
-  private mapTokenEventType(type: string): 'jwt_token' | 'session_token' | 'api_key' | 'oauth_token' {
-    // Simple mapping - could be improved based on actual token detection logic
-    switch (type) {
-      case 'acquire':
-      case 'refresh':
-      case 'verified':
-        return 'jwt_token';
-      case 'expired':
-      case 'refresh_error':
-        return 'session_token';
-      case 'validation_failed':
-        return 'api_key';
-      case 'revoked':
-        return 'oauth_token';
-      default:
-        return 'jwt_token';
-    }
-  }
-
-  /**
    * Get paginated token events - Uses IndexedDB
    */
   async getTokenEvents(limit = 50, offset = 0): Promise<TokenEvent[]> {
+    console.log(`� CRITICAL DEBUG: getTokenEvents called with limit=${limit}, offset=${offset}`);
     return this.executeWithSafety('getTokenEvents', async () => {
       // Try IndexedDB first
       try {
+        console.log(`� CRITICAL DEBUG: Attempting to retrieve from IndexedDB...`);
         const storageTokenEvents = await this.indexedDbStorage.getTokenEvents(limit, offset);
+        console.log(`� CRITICAL DEBUG: Retrieved ${storageTokenEvents.length} events from IndexedDB:`, storageTokenEvents);
 
         // Convert storage TokenEvent format back to background TokenEvent format
-        return storageTokenEvents.map(event => ({
-          type: this.mapStorageTokenEventType(event.type),
+        const convertedEvents = storageTokenEvents.map(event => ({
+          type: event.type,  // Event type is stored directly now
           url: event.url || '',
           method: event.method || 'GET',
           status: event.status || 0,
@@ -361,34 +342,19 @@ export class StorageManagerModule {
           expiry: event.expiry,
           valueHash: event.valueHash
         } as TokenEvent));
+
+        console.log(`� CRITICAL DEBUG: Returning converted events:`, convertedEvents);
+        return convertedEvents;
       } catch (error) {
-        console.warn('StorageManagerModule: Failed to get token events from IndexedDB, falling back to Chrome storage:', error);
+        console.warn('🚨 CRITICAL DEBUG: Failed to get token events from IndexedDB, falling back to Chrome storage:', error);
 
         // Fallback to Chrome storage
         const result = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.TOKEN_EVENTS);
         const events = result[this.STORAGE_KEYS.TOKEN_EVENTS] || [];
+        console.log(`� CRITICAL DEBUG: Using Chrome storage fallback - found ${events.length} events:`, events);
         return events.slice(offset, offset + limit);
       }
     });
-  }
-
-  /**
-   * Map storage token event types back to background token event types
-   */
-  private mapStorageTokenEventType(type: 'jwt_token' | 'session_token' | 'api_key' | 'oauth_token'): string {
-    // Simple reverse mapping
-    switch (type) {
-      case 'jwt_token':
-        return 'acquire';
-      case 'session_token':
-        return 'expired';
-      case 'api_key':
-        return 'validation_failed';
-      case 'oauth_token':
-        return 'revoked';
-      default:
-        return 'acquire';
-    }
   }
 
   // ===== TAB STATE MANAGEMENT =====

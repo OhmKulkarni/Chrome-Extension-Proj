@@ -18,8 +18,8 @@ export interface ChartSettings {
 const DEFAULT_CHART_SETTINGS: ChartSettings = {
   refreshMode: 'manual',  // Default to manual for better performance
   refreshInterval: 30,    // Slower refresh rate (30 seconds)
-  enableSharedProcessing: false,  // Disabled by default for safety
-  enableStalenessTracking: false // Disabled by default
+  enableSharedProcessing: false,  // Not implemented - disabled
+  enableStalenessTracking: false // Not implemented - disabled
 };
 
 // Storage service singleton to prevent recreation on every render
