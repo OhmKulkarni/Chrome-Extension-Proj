@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from '../../utils/storage-service';
 
-// Interface definitions matching the full settings page
+// Essential settings interface - only core functionality
 interface SettingsData {
   networkInterception: {
     bodyCapture: {
@@ -10,36 +10,14 @@ interface SettingsData {
       captureResponses: boolean;
       maxBodySize: number;
     };
-    tabSpecific: {
-      defaultState: 'active' | 'paused';
-    };
-  };
-  errorLogging: {
-    enabled: boolean;
-    severity: Array<'log' | 'info' | 'warn' | 'error' | 'debug' | 'trace'>;
-    severityFilter: {
-      enabled: boolean;
-      allowed: Array<'error' | 'warn' | 'info'>;
-    };
-    tabSpecific: {
-      defaultState: 'active' | 'paused';
-    };
-  };
-  tokenLogging: {
-    showFullHash: boolean;
-    tabSpecific: {
-      defaultState: 'active' | 'paused';
-    };
   };
   chartSettings: {
     refreshMode: 'auto' | 'manual';
     refreshInterval: number; // seconds
-    enableSharedProcessing: boolean;
-    enableStalenessTracking: boolean; // Fixed: Changed from enableStalenessIndicators
   };
 }
 
-// Default settings matching the full settings page
+// Essential settings defaults - only core functionality
 const defaultSettings: SettingsData = {
   networkInterception: {
     bodyCapture: {
@@ -47,33 +25,11 @@ const defaultSettings: SettingsData = {
       captureRequests: false,
       captureResponses: false,
       maxBodySize: 2000,
-    },
-    tabSpecific: {
-      defaultState: 'active' // Changed from 'paused' to 'active' for better UX
-    }
-  },
-  errorLogging: {
-    enabled: true,
-    severity: ['error', 'warn'],
-    severityFilter: {
-      enabled: false,
-      allowed: ['error', 'warn', 'info']
-    },
-    tabSpecific: {
-      defaultState: 'paused'
-    }
-  },
-  tokenLogging: {
-    showFullHash: false,
-    tabSpecific: {
-      defaultState: 'paused'
     }
   },
   chartSettings: {
     refreshMode: 'manual',  // Conservative default - manual mode
     refreshInterval: 30,    // Slower refresh rate
-    enableSharedProcessing: false,  // Not implemented - disabled
-    enableStalenessTracking: false // Not implemented - disabled
   },
 };
 
@@ -219,8 +175,6 @@ const SettingsInline: React.FC = () => {
         const backendSettings = localResult.settings;
         loadedSettings = {
           networkInterception: backendSettings.networkInterception || defaultSettings.networkInterception,
-          errorLogging: backendSettings.errorLogging || defaultSettings.errorLogging,
-          tokenLogging: backendSettings.tokenLogging || defaultSettings.tokenLogging,
           chartSettings: backendSettings.chartSettings || defaultSettings.chartSettings,
         };
       } else if (syncResult.extensionSettings) {
@@ -229,8 +183,6 @@ const SettingsInline: React.FC = () => {
         const syncSettings = syncResult.extensionSettings;
         loadedSettings = {
           networkInterception: syncSettings.networkInterception || defaultSettings.networkInterception,
-          errorLogging: syncSettings.errorLogging || defaultSettings.errorLogging,
-          tokenLogging: syncSettings.tokenLogging || defaultSettings.tokenLogging,
           chartSettings: syncSettings.chartSettings || defaultSettings.chartSettings,
         };
       }
@@ -259,8 +211,6 @@ const SettingsInline: React.FC = () => {
       // Background script expects chrome.storage.local with key 'settings'
       const backendSettings = {
         networkInterception: settings.networkInterception,
-        errorLogging: settings.errorLogging,
-        tokenLogging: settings.tokenLogging,
         chartSettings: settings.chartSettings,
       };
 
@@ -556,251 +506,12 @@ const SettingsInline: React.FC = () => {
                 </div>
               )}
 
-              {/* Request filtering and URL patterns removed - not implemented in backend */}
 
-              <div className="space-y-4">
-                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <p className="text-sm font-medium mb-3">🗂️ Tab-Specific Control Settings</p>
-
-                  <div className="grid gap-2">
-                    <label className="text-sm font-medium text-gray-900">Default state for new tabs</label>
-                    <Select
-                      value={settings.networkInterception?.tabSpecific?.defaultState || 'paused'}
-                      onChange={(e) => updateSetting('networkInterception', {
-                        ...settings.networkInterception,
-                        tabSpecific: {
-                          ...settings.networkInterception?.tabSpecific,
-                          defaultState: e.target.value as any
-                        }
-                      })}
-                      className="max-w-xs"
-                    >
-                      <option value="active">Active (monitoring enabled)</option>
-                      <option value="paused">Paused (monitoring disabled)</option>
-                    </Select>
-                    <p className="text-xs text-gray-600 mt-1">
-                      This determines whether new tabs start with network monitoring enabled or disabled
-                    </p>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
 
-        {/* Token Logging Settings Card */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-          <div className="border-b border-gray-200 p-4">
-            <h3 className="text-xl font-semibold text-gray-900">Token Display Settings</h3>
-            <p className="text-sm text-gray-600 mt-1">
-              Configure how authentication token hashes are displayed (token logging is controlled via the dashboard)
-            </p>
-          </div>
-          <div className="p-6 space-y-6">
-            <div className="space-y-4">
-              <Switch
-                checked={settings.tokenLogging?.showFullHash || false}
-                onChange={(e) => updateSetting('tokenLogging', {
-                  ...settings.tokenLogging,
-                  showFullHash: e.target.checked
-                })}
-                label="Show full token hash values"
-                description="Display complete token hashes instead of partially redacted versions"
-              />
 
-              {!settings.tokenLogging?.showFullHash && (
-                <div className="ml-4 mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <p className="text-sm font-medium mb-2">🔒 Token hashes are partially redacted</p>
-                  <p className="text-xs text-gray-600">
-                    Token hash values will be displayed as: <code className="bg-gray-100 px-1 rounded">abc***...***xyz</code> (showing first/last 3 characters)
-                  </p>
-                </div>
-              )}
-
-              {settings.tokenLogging?.showFullHash && (
-                <div className="ml-4 mt-3 p-3 bg-yellow-50 text-yellow-800 rounded-lg border border-yellow-200">
-                  <p className="text-sm font-medium mb-2">⚠️ Full token hashes visible</p>
-                  <p className="text-xs text-yellow-800">
-                    Complete token hash values will be displayed. Use caution when sharing screenshots or logs.
-                  </p>
-                </div>
-              )}
-
-              <div className="border-t pt-4">
-                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <p className="text-sm font-medium mb-3">🗂️ Tab-Specific Token Logging</p>
-
-                  <div className="grid gap-2">
-                    <label className="text-sm font-medium text-gray-900">Default state for new tabs</label>
-                    <Select
-                      value={settings.tokenLogging?.tabSpecific?.defaultState || 'paused'}
-                      onChange={(e) => updateSetting('tokenLogging', {
-                        ...settings.tokenLogging,
-                        tabSpecific: {
-                          ...settings.tokenLogging?.tabSpecific,
-                          defaultState: e.target.value as any
-                        }
-                      })}
-                      className="max-w-xs"
-                    >
-                      <option value="active">Active (token logging enabled)</option>
-                      <option value="paused">Paused (token logging disabled)</option>
-                    </Select>
-                    <p className="text-xs text-gray-600 mt-1">
-                      This determines whether new tabs start with token logging enabled or disabled
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Error Logging Settings Card */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-          <div className="border-b border-gray-200 p-4">
-            <h3 className="text-xl font-semibold text-gray-900">Console Error Logging</h3>
-            <p className="text-sm text-gray-600 mt-1">
-              Configure browser console error monitoring
-            </p>
-          </div>
-          <div className="p-6 space-y-6">
-            <div className="space-y-4">
-              {/* Main Error Logging Toggle */}
-              <Switch
-                checked={settings.errorLogging?.enabled || false}
-                onChange={(e) => updateSetting('errorLogging', {
-                  ...settings.errorLogging,
-                  enabled: e.target.checked
-                })}
-                label="Enable console error logging"
-                description="Capture and monitor browser console errors, warnings, and other messages"
-              />
-
-              {/* Severity Selection */}
-              {settings.errorLogging?.enabled && (
-                <div className="ml-4 space-y-4">
-                  <div>
-                    <p className="text-sm font-medium mb-3">🎯 Console Methods to Capture</p>
-                    <div className="space-y-2">
-                      {(['log', 'info', 'warn', 'error', 'debug', 'trace'] as const).map((method) => (
-                        <div key={method} className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            id={`console-${method}`}
-                            checked={settings.errorLogging?.severity?.includes(method) || false}
-                            onChange={(e) => {
-                              const currentSeverity = settings.errorLogging?.severity || [];
-                              const newSeverity = e.target.checked
-                                ? [...currentSeverity, method]
-                                : currentSeverity.filter(s => s !== method);
-                              updateSetting('errorLogging', {
-                                ...settings.errorLogging,
-                                severity: newSeverity
-                              });
-                            }}
-                            className="rounded border-gray-300"
-                          />
-                          <label htmlFor={`console-${method}`} className="text-sm">
-                            console.{method}()
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-4">
-                <Switch
-                  checked={settings.errorLogging?.severityFilter?.enabled || false}
-                  onChange={(e) => updateSetting('errorLogging', {
-                    ...settings.errorLogging,
-                    severityFilter: {
-                      ...settings.errorLogging?.severityFilter,
-                      enabled: e.target.checked
-                    }
-                  })}
-                  label="Filter by severity (legacy)"
-                  description="Only capture specific error levels (deprecated - use console methods above)"
-                />
-
-                {settings.errorLogging?.severityFilter?.enabled && (
-                  <div className="ml-4 space-y-2">
-                    <p className="text-sm font-medium">Capture these severity levels:</p>
-                    <div className="space-y-2">
-                      {(['error', 'warn', 'info'] as const).map((severity) => (
-                        <label key={severity} className="flex items-center space-x-3">
-                          <input
-                            type="checkbox"
-                            checked={settings.errorLogging?.severityFilter?.allowed?.includes(severity) || false}
-                            onChange={(e) => {
-                              const currentAllowed = settings.errorLogging?.severityFilter?.allowed || [];
-                              const newAllowed = e.target.checked
-                                ? [...currentAllowed, severity]
-                                : currentAllowed.filter(s => s !== severity);
-
-                              updateSetting('errorLogging', {
-                                ...settings.errorLogging,
-                                severityFilter: {
-                                  ...settings.errorLogging?.severityFilter,
-                                  allowed: newAllowed as any
-                                }
-                              });
-                            }}
-                            className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                          />
-                          <span className="text-sm capitalize">
-                            {severity}
-                            <span className={`ml-2 px-2 py-1 text-xs rounded-full ${
-                              severity === 'error' ? 'bg-red-100 text-red-800' :
-                              severity === 'warn' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-blue-100 text-blue-800'
-                            }`}>
-                              {severity === 'error' ? 'console.error()' :
-                               severity === 'warn' ? 'console.warn()' :
-                               'console.info/log()'}
-                            </span>
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                    <p className="text-sm text-gray-600">
-                      Unselected severity levels will be ignored completely
-                    </p>
-                  </div>
-                )}
-
-                <div className="space-y-4">
-                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <p className="text-sm font-medium mb-3">🗂️ Tab-Specific Error Logging</p>
-
-                    <div className="grid gap-2">
-                      <label className="text-sm font-medium text-gray-900">Default state for new tabs</label>
-                      <Select
-                        value={settings.errorLogging?.tabSpecific?.defaultState || 'paused'}
-                        onChange={(e) => updateSetting('errorLogging', {
-                          ...settings.errorLogging,
-                          tabSpecific: {
-                            ...settings.errorLogging?.tabSpecific,
-                            defaultState: e.target.value as any
-                          }
-                        })}
-                        className="max-w-xs"
-                      >
-                        <option value="active">Active (error logging enabled)</option>
-                        <option value="paused">Paused (error logging disabled)</option>
-                      </Select>
-                      <p className="text-xs text-gray-600 mt-1">
-                        This determines whether new tabs start with error logging enabled or disabled
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
 
         {/* Storage Usage Card */}
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
@@ -964,23 +675,7 @@ const SettingsInline: React.FC = () => {
           </div>
         </div>
 
-        {/* About Card */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-          <div className="border-b border-gray-200 p-4">
-            <h3 className="text-xl font-semibold text-gray-900">About</h3>
-            <p className="text-sm text-gray-600 mt-1">
-              Extension information and support
-            </p>
-          </div>
-          <div className="p-6">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><strong>Version:</strong> 1.0.0</div>
-              <div><strong>Build:</strong> 2024.1.0</div>
-              <div><strong>Manifest:</strong> V3</div>
-              <div><strong>Support:</strong> <a href="#" className="text-blue-600 hover:underline">Help Center</a></div>
-            </div>
-          </div>
-        </div>
+
       </div>
     </div>
   );
