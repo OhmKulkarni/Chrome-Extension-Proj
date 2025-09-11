@@ -289,7 +289,7 @@ const ResourceStatsSection: React.FC<ResourceStatsSectionProps> = ({ resources, 
 
               {/* Category content */}
               {!isCollapsed && (
-                <div className="max-h-96 overflow-y-auto">
+                <div className="max-h-96 overflow-y-auto bg-white dark:bg-gray-800">
                   <div className="p-4 space-y-4">
                     {Object.entries(detailedTypes).map(([detailedType, typeResources]) => (
                       <div key={detailedType} className="space-y-2">
@@ -313,7 +313,7 @@ const ResourceStatsSection: React.FC<ResourceStatsSectionProps> = ({ resources, 
                                     {resource.name}
                                   </span>
                                   {resource.version && (
-                                    <Badge variant="outline" className="text-xs px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700">
+                                    <Badge variant="outline" className="text-xs px-2 py-0.5 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600">
                                       v{resource.version}
                                     </Badge>
                                   )}
