@@ -745,7 +745,7 @@ export const RequestDetailContent: React.FC<{
         {requestBody && (
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-gray-900">Request Body</h3>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Request Body</h3>
               <div className="flex space-x-2">
                 <button
                   onClick={() => copyToClipboard(typeof requestBody === 'string' ? prettyPrintIfJson(requestBody) : formatJSON(requestBody))}
@@ -767,7 +767,7 @@ export const RequestDetailContent: React.FC<{
           <div>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-2">
-                <h3 className="text-sm font-semibold text-gray-900">Response Body</h3>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Response Body</h3>
                 {isStatusOnlyResponse(responseBody) && (
                   <div className="relative group">
                     <div className="w-4 h-4 bg-yellow-100 dark:bg-yellow-800 border border-yellow-300 dark:border-yellow-600 rounded-full flex items-center justify-center cursor-help">
@@ -896,7 +896,7 @@ export const RequestDetailContent: React.FC<{
       <div className="space-y-6">
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-gray-900">Performance Timing Breakdown</h3>
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Performance Timing Breakdown</h3>
             <button
               onClick={() => copyToClipboard(formatJSON(metrics))}
               className="copy-button text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
@@ -930,7 +930,7 @@ export const RequestDetailContent: React.FC<{
         </div>
 
         <div>
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">Transfer Information</h3>
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Transfer Information</h3>
           <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-4">
 
             {/* Size Breakdown Explanation */}
@@ -950,7 +950,7 @@ export const RequestDetailContent: React.FC<{
               <div className="space-y-2">
                 <span className="text-sm font-medium text-gray-700">Transfer Size:</span>
                 <div className="flex items-center space-x-2">
-                  <p className="text-sm text-gray-900">{formatSize(metrics.transferSize)}</p>
+                  <p className="text-sm text-gray-900 dark:text-gray-100">{formatSize(metrics.transferSize)}</p>
                   <span className="text-xs text-gray-500">(headers + body)</span>
                 </div>
                 {metrics.transferSize > 0 && metrics.encodedBodySize >= 0 && (
@@ -963,7 +963,7 @@ export const RequestDetailContent: React.FC<{
               <div className="space-y-2">
                 <span className="text-sm font-medium text-gray-700">Encoded Body Size:</span>
                 <div className="flex items-center space-x-2">
-                  <p className="text-sm text-gray-900">{formatSize(metrics.encodedBodySize)}</p>
+                  <p className="text-sm text-gray-900 dark:text-gray-100">{formatSize(metrics.encodedBodySize)}</p>
                   <span className="text-xs text-gray-500">(compressed)</span>
                 </div>
               </div>
@@ -971,7 +971,7 @@ export const RequestDetailContent: React.FC<{
               <div className="space-y-2">
                 <span className="text-sm font-medium text-gray-700">Decoded Body Size:</span>
                 <div className="flex items-center space-x-2">
-                  <p className="text-sm text-gray-900">{formatSize(metrics.decodedBodySize)}</p>
+                  <p className="text-sm text-gray-900 dark:text-gray-100">{formatSize(metrics.decodedBodySize)}</p>
                   <span className="text-xs text-gray-500">(uncompressed)</span>
                 </div>
               </div>
@@ -1055,7 +1055,7 @@ export const RequestDetailContent: React.FC<{
 
             return (
               <div className="space-y-4">
-                <h4 className="text-sm font-semibold text-gray-900">Size Metrics Comparison</h4>
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Size Metrics Comparison</h4>
                 <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-3">
                   {/* Application-level sizes */}
                   {payloadSize > 0 && (
@@ -1151,7 +1151,7 @@ export const RequestDetailContent: React.FC<{
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-900">Response Data</h3>
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Response Data</h3>
           <button
             onClick={() => copyToClipboard(responseBody || 'No response body')}
             className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
@@ -1206,7 +1206,7 @@ export const RequestDetailContent: React.FC<{
         {/* Response Body */}
         {responseBody && (
           <div>
-            <h4 className="text-sm font-medium text-gray-900 mb-2">Response Body</h4>
+            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Response Body</h4>
             <div className="bg-gray-900 rounded-lg p-3">
               <pre className="text-xs text-green-400 whitespace-pre-wrap overflow-auto max-h-64">
                 {(() => {
@@ -1238,7 +1238,7 @@ export const RequestDetailContent: React.FC<{
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-900">Timing Information</h3>
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Timing Information</h3>
           <button
             onClick={() => copyToClipboard(JSON.stringify({
               response_time: request.response_time,
@@ -1319,7 +1319,7 @@ export const RequestDetailContent: React.FC<{
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-900">Raw JSON Data</h3>
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Raw JSON Data</h3>
           <button
             onClick={() => copyToClipboard(formatJSON(request))}
             className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
@@ -1973,7 +1973,7 @@ export const TokenDetailContent: React.FC<{
       <div className="space-y-4">
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-300">Token Event Details</h3>
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Token Event Details</h3>
             <button
               onClick={() => copyToClipboard(formatTokenEventDetailsOnly(tokenEvent))}
               className="text-xs bg-blue-500 dark:bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-600 dark:hover:bg-blue-700"
@@ -2037,7 +2037,7 @@ export const TokenDetailContent: React.FC<{
           return matchingRequest ? (
             <div>
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-300">🔗 Related Network Request</h3>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">🔗 Related Network Request</h3>
                 <div className="flex items-center space-x-2">
                   <div className="flex items-center space-x-1">
                     <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
@@ -2090,7 +2090,7 @@ export const TokenDetailContent: React.FC<{
             </div>
           ) : (
             <div>
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-300 mb-3">🔗 Related Network Request</h3>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">🔗 Related Network Request</h3>
               <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4">
                 <div className="flex items-center space-x-2 mb-2">
                   <span className="inline-block w-2 h-2 bg-yellow-500 rounded-full"></span>
@@ -2128,7 +2128,7 @@ export const TokenDetailContent: React.FC<{
         {Object.keys(headers).length > 0 ? (
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-300">Headers ({Object.keys(headers).length})</h3>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Headers ({Object.keys(headers).length})</h3>
               <button
                 onClick={() => copyToClipboard(JSON.stringify(headers, null, 2))}
                 className="copy-button text-xs bg-blue-500 dark:bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-600 dark:hover:bg-blue-700"
@@ -2184,7 +2184,7 @@ export const TokenDetailContent: React.FC<{
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-300">Raw Token Event Data</h3>
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Raw Token Event Data</h3>
           <button
             onClick={() => copyToClipboard(formatJSON(tokenEvent))}
             className="text-xs bg-blue-500 dark:bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-600 dark:hover:bg-blue-700"

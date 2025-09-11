@@ -67,11 +67,11 @@ export const CompareView: React.FC<CompareViewProps> = ({
   const getIcon = (event: TimelineEvent) => {
     switch (event.type) {
       case 'network':
-        return <Network className="w-4 h-4 text-blue-600" />
+        return <Network className="w-4 h-4 text-blue-600 dark:text-blue-400" />
       case 'console':
-        return <AlertTriangle className="w-4 h-4 text-red-600" />
+        return <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400" />
       case 'token':
-        return <Key className="w-4 h-4 text-green-600" />
+        return <Key className="w-4 h-4 text-green-600 dark:text-green-400" />
       default:
         return null
     }
@@ -195,14 +195,14 @@ export const CompareView: React.FC<CompareViewProps> = ({
             <div className="flex items-center space-x-1">
               <button
                 onClick={() => copyToClipboard(JSON.stringify(event.data, null, 2))}
-                className="p-1 rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                className="p-1 rounded text-gray-400 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
                 title="Copy event data"
               >
                 <Copy className="w-3 h-3" />
               </button>
               <button
                 onClick={() => onRemoveFromCompare(event.id)}
-                className="p-1 rounded text-gray-400 hover:bg-gray-100 hover:text-red-600 transition-colors"
+                className="p-1 rounded text-gray-400 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                 title="Remove from compare"
               >
                 <X className="w-3 h-3" />
@@ -211,10 +211,10 @@ export const CompareView: React.FC<CompareViewProps> = ({
           </div>
 
           <div className="mb-1">
-            <h3 className="text-xs font-medium text-gray-900 truncate" title={getTitle(event)}>
+            <h3 className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate" title={getTitle(event)}>
               {getTitle(event)}
             </h3>
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-gray-500 dark:text-gray-300">
               {new Date(event.timestamp).toLocaleString()}
             </div>
           </div>
@@ -283,7 +283,7 @@ export const CompareView: React.FC<CompareViewProps> = ({
                     {eventType === 'console' && <AlertTriangle className="w-4 h-4" />}
                     {eventType === 'token' && <Key className="w-4 h-4" />}
                     <span className="capitalize">{eventType}</span>
-                    <span className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">
+                    <span className="text-xs bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 px-1.5 py-0.5 rounded-full">
                       {eventsByType[eventType].length}
                     </span>
                   </button>
@@ -295,8 +295,8 @@ export const CompareView: React.FC<CompareViewProps> = ({
                   onClick={() => setSyncScroll(!syncScroll)}
                   className={`flex items-center space-x-2 px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${
                     syncScroll
-                      ? 'bg-blue-100 text-blue-700 shadow-sm'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 shadow-sm'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                   }`}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -308,8 +308,8 @@ export const CompareView: React.FC<CompareViewProps> = ({
                   onClick={() => setSyncSelect(!syncSelect)}
                   className={`flex items-center space-x-2 px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${
                     syncSelect
-                      ? 'bg-green-100 text-green-700 shadow-sm'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 shadow-sm'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                   }`}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -317,14 +317,14 @@ export const CompareView: React.FC<CompareViewProps> = ({
                   </svg>
                   <span>Sync Select</span>
                 </button>
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-gray-500 dark:text-gray-300">
                   {currentEvents.length} of 4 slots filled
                 </div>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-400 hover:text-gray-600"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-xl transition-colors text-gray-400 dark:text-gray-300 hover:text-gray-600 dark:hover:text-gray-200"
             >
               <X className="w-5 h-5" />
             </button>
@@ -332,7 +332,7 @@ export const CompareView: React.FC<CompareViewProps> = ({
         </div>
 
         {/* Grid */}
-        <div className="flex-1 grid grid-cols-2 grid-rows-2 gap-2 p-2 bg-gray-100 min-h-0">
+        <div className="flex-1 grid grid-cols-2 grid-rows-2 gap-2 p-2 bg-gray-100 dark:bg-gray-700 min-h-0">
           {Array.from({ length: 4 }, (_, index) => {
             const event = currentEvents[index]
             if (event) {
