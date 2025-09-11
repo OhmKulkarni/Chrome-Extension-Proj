@@ -147,7 +147,6 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
   const getEventTypeColor = (type: string) => {
     switch (type.toLowerCase()) {
       case 'acquire': return 'bg-green-100 text-green-800';
-      case 'use': return 'bg-blue-100 text-blue-800';
       case 'refresh': return 'bg-yellow-100 text-yellow-800';
       case 'expire':
       case 'expired': return 'bg-red-100 text-red-800';
@@ -266,21 +265,9 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                       )}
                     </div>
                   </th>
+
                   <th
-                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-24"
-                    onClick={() => onSort('tokenType')}
-                  >
-                    <div className="flex items-center">
-                      Token Type
-                      {sortConfig.key === 'tokenType' && (
-                        <span className="ml-1">
-                          {sortConfig.direction === 'asc' ? '↑' : '↓'}
-                        </span>
-                      )}
-                    </div>
-                  </th>
-                  <th
-                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-1/3"
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-2/5"
                     onClick={() => onSort('url')}
                   >
                     <div className="flex items-center">
@@ -335,11 +322,8 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                         {event.type.toUpperCase()}
                       </span>
                     </td>
-                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-900 w-24">
-                      {event.tokenType || 'Unknown'}
-                    </td>
-                    <td className="px-3 py-3 w-1/3">
-                      <div className={`text-sm truncate max-w-sm flex items-center ${isSelected ? 'text-yellow-900 font-medium' : 'text-gray-900'}`} title={event.url}>
+                    <td className="px-3 py-3 w-2/5">
+                      <div className={`text-sm truncate max-w-lg flex items-center ${isSelected ? 'text-yellow-900 font-medium' : 'text-gray-900'}`} title={event.url}>
                         {isSelected && (
                           <div className="w-2 h-2 bg-yellow-500 rounded-full mr-2 flex-shrink-0"></div>
                         )}
