@@ -222,14 +222,20 @@ export class TokenTrackerModule {
           eventType = 'acquire';
         } else if (status === 401 || status === 403) {
           eventType = 'validation_failed';
+        } else if (status === 400) {
+          eventType = 'validation_failed'; // Bad request often means invalid credentials
+          console.log(`🔍 TokenTrackerModule: Status 400 on login endpoint, treating as validation_failed`);
         } else {
-          return null; // Don't track failed acquisition attempts as token events
+          return null; // Don't track other failed acquisition attempts (5xx errors, etc.)
         }
       } else if (isTokenValidation) {
         if (status >= 200 && status < 300) {
           eventType = 'verified';
         } else if (status === 401 || status === 403) {
           eventType = 'validation_failed';
+        } else if (status === 400) {
+          eventType = 'validation_failed'; // Bad request often means invalid token format
+          console.log(`🔍 TokenTrackerModule: Status 400 on validation endpoint, treating as validation_failed`);
         } else {
           return null;
         }
