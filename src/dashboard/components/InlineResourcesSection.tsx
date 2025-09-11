@@ -180,13 +180,13 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
   const filteredResources = Object.values(groupedResources).flat().length;
 
   return (
-    <div className={`bg-gray-50 border rounded-lg w-full ${className}`}>
+    <div className={`bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg w-full ${className}`}>
       <div className="p-4 space-y-4 w-full">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Library className="h-5 w-5 text-purple-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Libraries for {domain}</h3>
+            <Library className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Libraries for {domain}</h3>
             <Badge variant="outline" className="ml-2">
               {totalResources} total
             </Badge>
@@ -195,18 +195,18 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
 
         {/* Search */}
         <div className="relative w-full px-2">
-          <Search className="absolute left-5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
           <input
             type="text"
             placeholder="Search libraries..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="w-full pl-12 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
           />
         </div>
 
         {searchTerm && filteredResources !== totalResources && (
-          <div className="text-sm text-gray-600 px-2">
+          <div className="text-sm text-gray-600 dark:text-gray-400 px-2">
             Showing {filteredResources} of {totalResources} web resources
           </div>
         )}
@@ -214,34 +214,34 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
         {/* Library Categories */}
         <div className="space-y-3 max-h-96 overflow-y-auto w-full px-2">
           {Object.entries(groupedResources).map(([primaryType, resourceList]) => (
-            <div key={primaryType} className="border border-gray-200 rounded-lg bg-white w-full">
+            <div key={primaryType} className="border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 w-full">
               <button
                 onClick={() => toggleSection(primaryType)}
-                className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50"
+                className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 dark:hover:bg-gray-600"
               >
                 <div className="flex items-center gap-2">
                   {getPrimaryCategoryIcon(primaryType)}
-                  <span className="font-medium text-gray-900 capitalize">
+                  <span className="font-medium text-gray-900 dark:text-gray-100 capitalize">
                     {primaryType} ({resourceList.length})
                   </span>
                 </div>
                 <ChevronDown
-                  className={`h-4 w-4 text-gray-500 transition-transform ${
+                  className={`h-4 w-4 text-gray-500 dark:text-gray-400 transition-transform ${
                     collapsedSections.has(primaryType) ? '' : 'rotate-180'
                   }`}
                 />
               </button>
 
               {!collapsedSections.has(primaryType) && (
-                <div className="px-3 pb-3 space-y-2 border-t border-gray-100">
+                <div className="px-3 pb-3 space-y-2 border-t border-gray-100 dark:border-gray-600">
                   {resourceList.map((lib, index) => (
                     <div
                       key={`${lib.name}-${index}`}
-                      className="flex flex-col p-3 bg-gray-50 rounded-md w-full"
+                      className="flex flex-col p-3 bg-gray-50 dark:bg-gray-600 rounded-md w-full"
                     >
                       <div className="w-full">
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          <span className="font-medium text-gray-900 break-words">{lib.name}</span>
+                          <span className="font-medium text-gray-900 dark:text-gray-100 break-words">{lib.name}</span>
                           {lib.version && lib.version !== 'unknown' && (
                             <Badge variant="outline" className="text-xs flex-shrink-0">
                               v{lib.version}
@@ -261,10 +261,10 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
                         </div>
 
                         {lib.url && (
-                          <div className="flex items-start gap-2 text-xs text-gray-600">
+                          <div className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-400">
                             <div className="flex-1">
                               {/* Truncated URL display */}
-                              <div className="font-mono text-xs text-gray-500 truncate max-w-xs" title={lib.url}>
+                              <div className="font-mono text-xs text-gray-500 dark:text-gray-400 truncate max-w-xs" title={lib.url}>
                                 {(() => {
                                   try {
                                     const url = new URL(lib.url);
@@ -286,22 +286,22 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
                                     if (lib.cdnProvider) {
                                       return (
                                         <>
-                                          <Globe className="h-3 w-3 text-blue-600" />
-                                          <span className="text-xs text-blue-600 font-medium">{lib.cdnProvider}</span>
+                                          <Globe className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                                          <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">{lib.cdnProvider}</span>
                                         </>
                                       );
                                     } else if (lib.url.includes(lib.domain)) {
                                       return (
                                         <>
-                                          <Server className="h-3 w-3 text-green-600" />
-                                          <span className="text-xs text-green-600">Self-hosted</span>
+                                          <Server className="h-3 w-3 text-green-600 dark:text-green-400" />
+                                          <span className="text-xs text-green-600 dark:text-green-400">Self-hosted</span>
                                         </>
                                       );
                                     } else {
                                       return (
                                         <>
-                                          <Package className="h-3 w-3 text-orange-600" />
-                                          <span className="text-xs text-orange-600">External</span>
+                                          <Package className="h-3 w-3 text-orange-600 dark:text-orange-400" />
+                                          <span className="text-xs text-orange-600 dark:text-orange-400">External</span>
                                         </>
                                       );
                                     }
@@ -314,22 +314,22 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
                                     if (lib.confidence >= 0.8) {
                                       return (
                                         <>
-                                          <CheckCircle className="h-3 w-3 text-green-600" />
-                                          <span className="text-xs text-green-600">High</span>
+                                          <CheckCircle className="h-3 w-3 text-green-600 dark:text-green-400" />
+                                          <span className="text-xs text-green-600 dark:text-green-400">High</span>
                                         </>
                                       );
                                     } else if (lib.confidence >= 0.6) {
                                       return (
                                         <>
-                                          <HelpCircle className="h-3 w-3 text-yellow-600" />
-                                          <span className="text-xs text-yellow-600">Medium</span>
+                                          <HelpCircle className="h-3 w-3 text-yellow-600 dark:text-yellow-400" />
+                                          <span className="text-xs text-yellow-600 dark:text-yellow-400">Medium</span>
                                         </>
                                       );
                                     } else {
                                       return (
                                         <>
-                                          <Search className="h-3 w-3 text-red-600" />
-                                          <span className="text-xs text-red-600">Low</span>
+                                          <Search className="h-3 w-3 text-red-600 dark:text-red-400" />
+                                          <span className="text-xs text-red-600 dark:text-red-400">Low</span>
                                         </>
                                       );
                                     }
@@ -342,21 +342,21 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
                             <div className="flex items-start pt-1 gap-1">
                               <button
                                 onClick={() => copyToClipboard(lib.url!)}
-                                className="p-1 hover:bg-purple-100 hover:text-purple-600 transition-colors rounded border border-gray-300"
+                                className="p-1 hover:bg-purple-100 dark:hover:bg-purple-900 hover:text-purple-600 dark:hover:text-purple-400 transition-colors rounded border border-gray-300 dark:border-gray-500"
                                 title="Copy full URL"
                               >
                                 {copiedUrl === lib.url ? (
-                                  <CheckCircle className="h-4 w-4 text-green-600" />
+                                  <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
                                 ) : (
-                                  <Copy className="h-4 w-4 text-gray-600" />
+                                  <Copy className="h-4 w-4 text-gray-600 dark:text-gray-400" />
                                 )}
                               </button>
                               <button
                                 onClick={() => window.open(lib.url, '_blank')}
-                                className="p-1 hover:bg-blue-100 hover:text-blue-600 transition-colors rounded border border-gray-300"
+                                className="p-1 hover:bg-blue-100 dark:hover:bg-blue-900 hover:text-blue-600 dark:hover:text-blue-400 transition-colors rounded border border-gray-300 dark:border-gray-500"
                                 title="Open URL in new tab"
                               >
-                                <ExternalLink className="h-4 w-4 text-gray-600" />
+                                <ExternalLink className="h-4 w-4 text-gray-600 dark:text-gray-400" />
                               </button>
                             </div>
                           </div>
@@ -371,7 +371,7 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
         </div>
 
         {Object.keys(groupedResources).length === 0 && (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
             {searchTerm ? 'No libraries match your search.' : 'No libraries detected for this domain.'}
           </div>
         )}
