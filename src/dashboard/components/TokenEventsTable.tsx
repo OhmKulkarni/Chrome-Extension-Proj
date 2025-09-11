@@ -150,10 +150,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
       case 'refresh': return 'bg-yellow-100 text-yellow-800';
       case 'expire':
       case 'expired': return 'bg-red-100 text-red-800';
-      case 'refresh_error': return 'bg-red-100 text-red-800';
       case 'verified': return 'bg-emerald-100 text-emerald-800';
-      case 'validation_failed': return 'bg-orange-100 text-orange-800';
-      case 'revoked': return 'bg-purple-100 text-purple-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -220,9 +217,6 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
             <option value="refresh">Refresh</option>
             <option value="expired">Expired</option>
             <option value="verified">Verified</option>
-            <option value="validation_failed">Validation Failed</option>
-            <option value="revoked">Revoked</option>
-            <option value="refresh_error">Refresh Error</option>
           </select>
         </div>
 
