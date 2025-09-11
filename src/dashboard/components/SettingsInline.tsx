@@ -447,13 +447,13 @@ const SettingsInline: React.FC = () => {
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="flex items-start space-x-3">
                   <div className="flex-shrink-0">
-                    <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">
-                      <span className="text-blue-600 text-xs font-medium">ℹ</span>
+                    <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                      <span className="text-blue-600 dark:text-blue-300 text-xs font-medium">ℹ</span>
                     </div>
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm text-blue-800 font-medium mb-2">Memory Protection Safeguard</p>
-                    <div className="text-xs text-blue-700 space-y-1">
+                    <p className="text-sm text-blue-800 dark:text-blue-200 font-medium mb-2">Memory Protection Safeguard</p>
+                    <div className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
                       <p><strong>Purpose:</strong> Prevents browser crashes from large network payloads (images, files, API responses)</p>
                       <p><strong>Default (2000 chars):</strong> Captures ~2KB of body content - enough for most API responses</p>
                       <p><strong>Set to 0:</strong> No truncation but may cause memory issues with large files</p>
@@ -527,7 +527,7 @@ const SettingsInline: React.FC = () => {
                   </div>
 
                   {storageUsage.percentage > 80 && (
-                    <div className="mt-3 p-3 bg-yellow-50 text-yellow-800 rounded-lg border border-yellow-200">
+                    <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 rounded-lg border border-yellow-200 dark:border-yellow-700">
                       <p className="text-sm font-medium">⚠️ High storage usage detected</p>
                       <p className="text-xs mt-1">
                         Storage is {storageUsage.percentage.toFixed(1)}% full. Automatic pruning will begin when the limit is exceeded.
