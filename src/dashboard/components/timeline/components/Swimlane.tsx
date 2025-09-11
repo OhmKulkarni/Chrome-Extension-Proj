@@ -428,9 +428,9 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
               )}
             </div>
 
-            {/* Scroll Controls - Maximum z-index to stay above all minicards */}
+            {/* Scroll Controls - Stay above minicards but below modals */}
             {showScrollControls && !shouldCluster && (
-              <div className="absolute right-1 top-1/2 transform -translate-y-1/2 flex flex-col space-y-1" style={{ zIndex: 1001 }}>
+              <div className="absolute right-1 top-1/2 transform -translate-y-1/2 flex flex-col space-y-1 z-40">
                 <button
                   onClick={() => handleScroll('up')}
                   className="p-1.5 bg-white dark:bg-gray-800 border-2 border-gray-400 dark:border-gray-600 rounded shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-xl transition-all text-xs font-semibold text-gray-700 dark:text-gray-300"
