@@ -185,6 +185,14 @@ export class TokenTrackerModule {
       const hasAuthContent = this.hasAuthenticationInBody(requestData.body);
       const hasAuthInUrl = this.hasAuthenticationInUrl(url);
 
+      // Debug logging for API calls with potential authentication
+      if (isApiCall) {
+        console.log(`🔍 TokenTrackerModule: API call detected for ${url}`);
+        console.log(`   - hasAuthHeaders: ${hasAuthHeaders}`);
+        console.log(`   - hasAuthContent: ${hasAuthContent}`);
+        console.log(`   - hasAuthInUrl: ${hasAuthInUrl}`);
+      }
+
       // Determine if this is a token-related request
       const isTokenRelated = isAcquireEndpoint || isRefreshEndpoint || isServiceAuth ||
                            isTokenValidation || isWebSocketAuth ||
@@ -227,7 +235,7 @@ export class TokenTrackerModule {
         } else {
           eventType = 'validation_failed';
         }
-      } else if (isApiCall && (hasAuthHeaders || hasAuthContent)) {
+      } else if (isApiCall && (hasAuthHeaders || hasAuthContent || hasAuthInUrl)) {
         // API calls with authentication - treat as token usage verification
         if (status >= 200 && status < 300) {
           eventType = 'verified';
@@ -568,12 +576,16 @@ export class TokenTrackerModule {
       for (const param of apiKeyParams) {
         const value = params.get(param);
         if (value && value.length > 10) { // API keys are typically longer than 10 chars
+          console.log(`🔍 TokenTrackerModule: Found URL param ${param}=${value.substring(0, 10)}... (length: ${value.length})`);
+          
           // Additional validation for Google API keys (starts with AIza)
           if (param === 'key' && value.startsWith('AIza')) {
+            console.log(`✅ TokenTrackerModule: Google API key detected in URL`);
             return true;
           }
           // Other API key patterns
           if (value.length > 20) { // Most API keys are longer than 20 chars
+            console.log(`✅ TokenTrackerModule: Long API key detected in URL`);
             return true;
           }
         }
@@ -581,6 +593,7 @@ export class TokenTrackerModule {
 
       return false;
     } catch (error) {
+      console.log(`🔍 TokenTrackerModule: URL parsing failed, using fallback for ${url}`);
       // If URL parsing fails, fall back to string matching
       const apiKeyPatterns = [
         'key=AIza', // Google API keys
@@ -588,7 +601,11 @@ export class TokenTrackerModule {
         'client_id=', 'app_id='
       ];
       
-      return apiKeyPatterns.some(pattern => url.includes(pattern));
+      const hasPattern = apiKeyPatterns.some(pattern => url.includes(pattern));
+      if (hasPattern) {
+        console.log(`✅ TokenTrackerModule: API key pattern detected in URL via fallback`);
+      }
+      return hasPattern;
     }
   }
 
