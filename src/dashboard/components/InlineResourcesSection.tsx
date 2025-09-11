@@ -212,7 +212,7 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
           <div className="flex items-center gap-2">
             <Library className="h-5 w-5 text-purple-600 dark:text-purple-400" />
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Libraries for {domain}</h3>
-            <Badge variant="outline" className="ml-2">
+            <Badge variant="outline" className="ml-2 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600">
               {totalResources} total
             </Badge>
           </div>
@@ -237,7 +237,7 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
         )}
 
         {/* Library Categories */}
-        <div className="space-y-3 max-h-96 overflow-y-auto w-full px-2">
+        <div className="space-y-3 max-h-96 overflow-y-auto w-full px-2 bg-transparent">
           {Object.entries(groupedResources).map(([primaryType, resourceList]) => (
             <div key={primaryType} className="border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 w-full">
               <button
@@ -268,7 +268,7 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
                           <span className="font-medium text-gray-900 dark:text-gray-100 break-words">{lib.name}</span>
                           {lib.version && lib.version !== 'unknown' && (
-                            <Badge variant="outline" className="text-xs flex-shrink-0">
+                            <Badge variant="outline" className="text-xs flex-shrink-0 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600">
                               v{lib.version}
                             </Badge>
                           )}
