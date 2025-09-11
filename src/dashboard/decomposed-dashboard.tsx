@@ -9,8 +9,18 @@ import LeftSidebar from './components/LeftSidebar';
 import SettingsInline from './components/SettingsInline';
 import { TimelineVisualization } from './components/timeline/TimelineVisualization';
 import { RequestDetailContent, ErrorDetailContent, TokenDetailContent } from './shared/components/DetailedViews';
+import { ExportModal } from './components/ExportModal';
 import { StorageService } from '../utils/storage-service';
 import { ChromeSyncService } from '../services/chrome-sync-service';
+import {
+  ExportOptions,
+  generateCombinedCSV,
+  downloadCSVFile,
+  generateExportFilename,
+  NetworkRequest,
+  ConsoleError,
+  TokenEvent
+} from './utils/export-utils';
 
 // Chrome data clearing function
 const clearChromeData = async (): Promise<void> => {
@@ -146,6 +156,9 @@ const DecomposedDashboard: React.FC = () => {
   const [networkSortMode, setNetworkSortMode] = useState(false);
   const [errorSortMode, setErrorSortMode] = useState(false);
   const [tokenSortMode, setTokenSortMode] = useState(false);
+
+  // Export modal state
+  const [exportModalOpen, setExportModalOpen] = useState(false);
 
   // MEMORY-OPTIMIZED: Load all data with memory limits and cleanup
   const loadAllNetworkRequests = useCallback(async () => {
@@ -711,6 +724,227 @@ const DecomposedDashboard: React.FC = () => {
       }
     }
   };
+
+  // Export data handler - Collect and export data based on user selections
+  const handleExportData = useCallback(async (options: ExportOptions): Promise<void> => {
+    console.log('🔄 Starting data export with options:', options);
+
+    try {
+      const exportData: {
+        network?: NetworkRequest[];
+        errors?: ConsoleError[];
+        tokens?: TokenEvent[];
+      } = {};
+
+      // Collect data for each selected table
+      for (const table of options.tables) {
+        console.log(`🔄 Collecting data for table: ${table}`);
+
+        let tableData: any[] = [];
+
+        if (options.pageSelection === 'all') {
+          // Load all data for the table
+          switch (table) {
+            case 'network':
+              if (fullNetworkData.length > 0) {
+                tableData = fullNetworkData;
+              } else {
+                tableData = await loadAllNetworkRequests() || [];
+              }
+              break;
+            case 'errors':
+              if (fullErrorData.length > 0) {
+                tableData = fullErrorData;
+              } else {
+                tableData = await loadAllConsoleErrors() || [];
+              }
+              break;
+            case 'tokens':
+              if (fullTokenData.length > 0) {
+                tableData = fullTokenData;
+              } else {
+                tableData = await loadAllTokenEvents() || [];
+              }
+              break;
+          }
+
+          // Apply current filters to the full dataset
+          tableData = applyFiltersToData(tableData, table);
+
+        } else if (options.pageSelection === 'current') {
+          // Use current page data (already filtered)
+          switch (table) {
+            case 'network':
+              tableData = data.networkRequests;
+              break;
+            case 'errors':
+              tableData = data.consoleErrors;
+              break;
+            case 'tokens':
+              tableData = data.tokenEvents;
+              break;
+          }
+        } else if (options.pageSelection === 'range' && options.pageRanges) {
+          // Load specific page range
+          const range = options.pageRanges[table];
+          if (range) {
+            const pages = [];
+            for (let i = range.from; i <= range.to; i++) {
+              pages.push(i);
+            }
+            tableData = await loadCustomPagesData(table, pages);
+            // Apply current filters
+            tableData = applyFiltersToData(tableData, table);
+          }
+        }
+
+        exportData[table] = tableData;
+        console.log(`✅ Collected ${tableData.length} records for ${table}`);
+      }
+
+      // Generate export file based on format
+      if (options.format === 'csv') {
+        const csvContent = generateCombinedCSV(exportData, options.includeDetails);
+        const filename = generateExportFilename(options.tables, 'csv');
+        downloadCSVFile(csvContent, filename);
+
+        console.log(`✅ CSV export completed: ${filename}`);
+
+        // Show success notification
+        const totalRecords = Object.values(exportData).reduce((sum, data) => sum + (data?.length || 0), 0);
+        alert(`✅ Export completed successfully!\n\nExported ${totalRecords.toLocaleString()} records to ${filename}`);
+      } else {
+        throw new Error(`Export format '${options.format}' is not yet supported.`);
+      }
+
+    } catch (error) {
+      console.error('❌ Export failed:', error);
+      throw error; // Re-throw to be handled by modal
+    }
+  }, [
+    fullNetworkData,
+    fullErrorData,
+    fullTokenData,
+    loadAllNetworkRequests,
+    loadAllConsoleErrors,
+    loadAllTokenEvents,
+    data.networkRequests,
+    data.consoleErrors,
+    data.tokenEvents
+  ]);
+
+  // Helper function to apply current filters to data
+  const applyFiltersToData = useCallback((data: any[], table: 'network' | 'errors' | 'tokens'): any[] => {
+    return data.filter((item: any) => {
+      switch (table) {
+        case 'network':
+          // Apply network filters
+          if (networkSearchTerm && networkSearchTerm.trim()) {
+            const searchLower = networkSearchTerm.toLowerCase();
+            const matchesSearch =
+              item.url?.toLowerCase().includes(searchLower) ||
+              item.method?.toLowerCase().includes(searchLower) ||
+              item.status?.toString().includes(searchLower) ||
+              item.domain?.toLowerCase().includes(searchLower);
+            if (!matchesSearch) return false;
+          }
+          if (networkFilterMethod && networkFilterMethod !== 'all') {
+            if (item.method?.toLowerCase() !== networkFilterMethod.toLowerCase()) {
+              return false;
+            }
+          }
+          return true;
+
+        case 'errors':
+          // Apply error filters
+          if (errorSearchTerm && errorSearchTerm.trim()) {
+            const searchLower = errorSearchTerm.toLowerCase();
+            const matchesSearch =
+              item.message?.toLowerCase().includes(searchLower) ||
+              item.source?.toLowerCase().includes(searchLower) ||
+              item.url?.toLowerCase().includes(searchLower);
+            if (!matchesSearch) return false;
+          }
+          if (errorFilterSeverity && errorFilterSeverity !== 'all') {
+            if (item.severity?.toLowerCase() !== errorFilterSeverity.toLowerCase()) {
+              return false;
+            }
+          }
+          return true;
+
+        case 'tokens':
+          // Apply token filters
+          if (tokenSearchTerm && tokenSearchTerm.trim()) {
+            const searchLower = tokenSearchTerm.toLowerCase();
+            const matchesSearch =
+              item.valueHash?.toLowerCase().includes(searchLower) ||
+              item.value_hash?.toLowerCase().includes(searchLower) ||
+              item.url?.toLowerCase().includes(searchLower) ||
+              item.type?.toLowerCase().includes(searchLower);
+            if (!matchesSearch) return false;
+          }
+          if (tokenFilterType && tokenFilterType !== 'all') {
+            if (item.type?.toLowerCase() !== tokenFilterType.toLowerCase()) {
+              return false;
+            }
+          }
+          return true;
+
+        default:
+          return true;
+      }
+    });
+  }, [networkSearchTerm, networkFilterMethod, errorSearchTerm, errorFilterSeverity, tokenSearchTerm, tokenFilterType]);
+
+  // Helper function to load custom pages data
+  const loadCustomPagesData = useCallback(async (table: 'network' | 'errors' | 'tokens', pages: number[]): Promise<any[]> => {
+    const allData: any[] = [];
+    const recordsPerPage = 10; // Standard pagination size
+
+    for (const page of pages) {
+      const offset = (page - 1) * recordsPerPage;
+
+      try {
+        let response;
+        switch (table) {
+          case 'network':
+            response = await sendChromeMessage({
+              action: 'getNetworkRequests',
+              limit: recordsPerPage,
+              offset
+            });
+            if (response?.success && response?.requests) {
+              allData.push(...response.requests);
+            }
+            break;
+          case 'errors':
+            response = await sendChromeMessage({
+              action: 'getConsoleErrors',
+              limit: recordsPerPage,
+              offset
+            });
+            if (response?.success && response?.errors) {
+              allData.push(...response.errors);
+            }
+            break;
+          case 'tokens':
+            response = await sendChromeMessage({
+              action: 'getTokenEvents',
+              limit: recordsPerPage,
+              offset
+            });
+            if (response?.success && response?.events) {
+              allData.push(...response.events);
+            }
+            break;
+        }
+      } catch (error) {
+        console.error(`Failed to load page ${page} for ${table}:`, error);
+      }
+    }
+
+    return allData;
+  }, []);
 
   // Handle sorting - Enhanced to work across all records
   const handleNetworkSort = useCallback(async (key: string) => {
@@ -1773,7 +2007,8 @@ const DecomposedDashboard: React.FC = () => {
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
               {/* Tab Navigation */}
               <div className="border-b border-gray-200">
-                <nav className="flex space-x-8 px-6" aria-label="Tabs">
+                <div className="flex justify-between items-center px-6">
+                  <nav className="flex space-x-8" aria-label="Tabs">
                   <button
                     onClick={() => setActiveTable('network')}
                     className={`${
@@ -1813,7 +2048,19 @@ const DecomposedDashboard: React.FC = () => {
                     </svg>
                     Token Events
                   </button>
-                </nav>
+                  </nav>
+
+                  {/* Export Button */}
+                  <button
+                    onClick={() => setExportModalOpen(true)}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                  >
+                    <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Export Data
+                  </button>
+                </div>
               </div>
 
               {/* Table Content */}
@@ -1997,6 +2244,39 @@ const DecomposedDashboard: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        onExport={handleExportData}
+        availableTables={['network', 'errors', 'tokens']}
+        tableStats={{
+          network: {
+            total: data.totalRequests,
+            filtered: filteredNetworkCount,
+            currentPage: currentPage,
+            totalPages: networkTotalPages
+          },
+          errors: {
+            total: data.totalErrors,
+            filtered: filteredErrorCount,
+            currentPage: currentErrorPage,
+            totalPages: errorsTotalPages
+          },
+          tokens: {
+            total: data.totalTokenEvents,
+            filtered: filteredTokenCount,
+            currentPage: currentTokenPage,
+            totalPages: tokensTotalPages
+          }
+        }}
+        activeFilters={{
+          network: { search: networkSearchTerm, method: networkFilterMethod },
+          errors: { search: errorSearchTerm, severity: errorFilterSeverity },
+          tokens: { search: tokenSearchTerm, type: tokenFilterType }
+        }}
+      />
     </div>
   );
 };
