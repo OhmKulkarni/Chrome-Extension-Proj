@@ -5,9 +5,6 @@ import { StorageService } from '../../utils/storage-service';
 interface SettingsData {
   networkInterception: {
     bodyCapture: {
-      mode: 'disabled' | 'partial' | 'full';
-      captureRequests: boolean;
-      captureResponses: boolean;
       maxBodySize: number;
     };
   };
@@ -21,9 +18,6 @@ interface SettingsData {
 const defaultSettings: SettingsData = {
   networkInterception: {
     bodyCapture: {
-      mode: 'partial',
-      captureRequests: false,
-      captureResponses: false,
       maxBodySize: 2000,
     }
   },
@@ -247,50 +241,7 @@ const SettingsInline: React.FC = () => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 
-  // Custom UI components matching the original settings page
-  const Switch: React.FC<{
-    checked: boolean;
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    label: string;
-    description: string;
-  }> = ({ checked, onChange, label, description }) => (
-    <div className="flex items-center justify-between">
-      <div>
-        <label className="font-medium text-gray-900">{label}</label>
-        <p className="text-sm text-gray-600">{description}</p>
-      </div>
-      <label className="relative inline-flex items-center cursor-pointer">
-        <input
-          type="checkbox"
-          className="sr-only"
-          checked={checked}
-          onChange={onChange}
-        />
-        <div className={`w-11 h-6 rounded-full transition-colors ${
-          checked ? 'bg-blue-600' : 'bg-gray-300'
-        }`}>
-          <div className={`w-5 h-5 bg-white rounded-full shadow transform transition-transform mt-0.5 ml-0.5 ${
-            checked ? 'translate-x-5' : 'translate-x-0'
-          }`}></div>
-        </div>
-      </label>
-    </div>
-  );
-
-  const Select: React.FC<{
-    value: string;
-    onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
-    children: React.ReactNode;
-    className?: string;
-  }> = ({ value, onChange, children, className = "" }) => (
-    <select
-      value={value}
-      onChange={onChange}
-      className={`px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${className}`}
-    >
-      {children}
-    </select>
-  );
+  // Custom UI components
 
   const Input: React.FC<{
     type?: string;
@@ -390,123 +341,65 @@ const SettingsInline: React.FC = () => {
       )}
 
       <div className="p-6 space-y-6 max-h-[600px] overflow-y-auto">
-        {/* Network Interception Settings Card */}
+        {/* Network Body Size Limit */}
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
           <div className="border-b border-gray-200 p-4">
-            <h3 className="text-xl font-semibold text-gray-900">Network Interception & Filtering</h3>
+            <h3 className="text-xl font-semibold text-gray-900">Network Body Size Limit</h3>
             <p className="text-sm text-gray-600 mt-1">
-              Configure network request monitoring and filtering
+              Configure memory safeguards for network request body capture
             </p>
           </div>
           <div className="p-6 space-y-6">
             <div className="space-y-4">
               <div className="grid gap-2">
-                <label className="text-sm font-medium text-gray-900">Body Capture Mode</label>
-                <Select
-                  value={settings.networkInterception?.bodyCapture?.mode || 'disabled'}
-                  onChange={(e) => {
-                    const newMode = e.target.value as 'disabled' | 'partial' | 'full';
-                    const updatedBodyCapture = { ...settings.networkInterception?.bodyCapture };
-
-                    // Reset dependent settings based on mode
-                    if (newMode === 'disabled') {
-                      updatedBodyCapture.mode = 'disabled';
-                      updatedBodyCapture.captureRequests = false;
-                      updatedBodyCapture.captureResponses = false;
-                    } else if (newMode === 'full') {
-                      updatedBodyCapture.mode = 'full';
-                      updatedBodyCapture.captureRequests = true;
-                      updatedBodyCapture.captureResponses = true;
-                      updatedBodyCapture.maxBodySize = 0;
-                    } else {
-                      updatedBodyCapture.mode = 'partial';
+                <div className="flex items-center space-x-2">
+                  <label htmlFor="maxBodySize" className="text-sm font-medium text-gray-900">
+                    Max body size (characters, 0 = no limit)
+                  </label>
+                  <div
+                    className="relative group cursor-help"
+                    title="This setting prevents memory issues by limiting how much request/response body content is stored. Large payloads are truncated to this size. Set to 0 to disable truncation (not recommended for production use)."
+                  >
+                    <div className="w-4 h-4 rounded-full bg-blue-100 text-xs flex items-center justify-center text-blue-600 hover:bg-blue-200 transition-colors">
+                      ?
+                    </div>
+                  </div>
+                </div>
+                <Input
+                  type="number"
+                  id="maxBodySize"
+                  min="0"
+                  value={settings.networkInterception?.bodyCapture?.maxBodySize || 2000}
+                  onChange={(e) => updateSetting('networkInterception', {
+                    ...settings.networkInterception,
+                    bodyCapture: {
+                      ...settings.networkInterception?.bodyCapture,
+                      maxBodySize: parseInt(e.target.value) || 0
                     }
-
-                    updateSetting('networkInterception', {
-                      ...settings.networkInterception,
-                      bodyCapture: updatedBodyCapture
-                    });
-                  }}
+                  })}
                   className="max-w-xs"
-                >
-                  <option value="disabled">Disabled</option>
-                  <option value="partial">Partial</option>
-                  <option value="full">Full</option>
-                </Select>
+                />
               </div>
 
-              {/* Only show additional options when mode is 'partial' */}
-              {settings.networkInterception?.bodyCapture?.mode === 'partial' && (
-                <>
-                  <div className="space-y-4">
-                    <Switch
-                      checked={settings.networkInterception?.bodyCapture?.captureRequests || false}
-                      onChange={(e) => updateSetting('networkInterception', {
-                        ...settings.networkInterception,
-                        bodyCapture: {
-                          ...settings.networkInterception?.bodyCapture,
-                          captureRequests: e.target.checked
-                        }
-                      })}
-                      label="Capture request bodies"
-                      description="Include request body content in logs"
-                    />
-
-                    <Switch
-                      checked={settings.networkInterception?.bodyCapture?.captureResponses || false}
-                      onChange={(e) => updateSetting('networkInterception', {
-                        ...settings.networkInterception,
-                        bodyCapture: {
-                          ...settings.networkInterception?.bodyCapture,
-                          captureResponses: e.target.checked
-                        }
-                      })}
-                      label="Capture response bodies"
-                      description="Include response body content in logs"
-                    />
+              {/* Informational tooltip about the safeguard */}
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">
+                      <span className="text-blue-600 text-xs font-medium">ℹ</span>
+                    </div>
                   </div>
-
-                  <div className="grid gap-2">
-                    <label htmlFor="maxBodySize" className="text-sm font-medium text-gray-900">
-                      Max body size (characters, 0 = no limit)
-                    </label>
-                    <Input
-                      type="number"
-                      id="maxBodySize"
-                      min="0"
-                      value={settings.networkInterception?.bodyCapture?.maxBodySize || 2000}
-                      onChange={(e) => updateSetting('networkInterception', {
-                        ...settings.networkInterception,
-                        bodyCapture: {
-                          ...settings.networkInterception?.bodyCapture,
-                          maxBodySize: parseInt(e.target.value) || 0
-                        }
-                      })}
-                      className="max-w-xs"
-                    />
+                  <div className="flex-1">
+                    <p className="text-sm text-blue-800 font-medium mb-2">Memory Protection Safeguard</p>
+                    <div className="text-xs text-blue-700 space-y-1">
+                      <p><strong>Purpose:</strong> Prevents browser crashes from large network payloads (images, files, API responses)</p>
+                      <p><strong>Default (2000 chars):</strong> Captures ~2KB of body content - enough for most API responses</p>
+                      <p><strong>Set to 0:</strong> No truncation but may cause memory issues with large files</p>
+                      <p><strong>Recommended:</strong> 1000-5000 characters for most use cases</p>
+                    </div>
                   </div>
-                </>
-              )}
-
-              {/* Show explanation for full mode */}
-              {settings.networkInterception?.bodyCapture?.mode === 'full' && (
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    <strong>Full mode:</strong> Captures all request and response bodies without size limits (up to 50KB safety limit).
-                  </p>
                 </div>
-              )}
-
-              {/* Show explanation for disabled mode */}
-              {settings.networkInterception?.bodyCapture?.mode === 'disabled' && (
-                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                  <p className="text-sm text-gray-600">
-                    <strong>Disabled mode:</strong> Network requests are logged without body content for better performance and privacy.
-                  </p>
-                </div>
-              )}
-
-
+              </div>
             </div>
           </div>
         </div>
