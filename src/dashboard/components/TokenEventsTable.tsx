@@ -166,8 +166,8 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Token Events</h2>
-          <p className="text-xs text-gray-500 mt-1">Authentication token lifecycle events from all tabs</p>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Token Events</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Authentication token lifecycle events from all tabs</p>
         </div>
         <div className="flex items-center space-x-4">
           <span className="text-sm text-gray-500">
@@ -243,11 +243,11 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
       {events.length > 0 ? (
         <div className="overflow-hidden">
           <div className="overflow-x-auto min-w-0">
-            <table className="w-full table-fixed divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="w-full table-fixed divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
                   <th
-                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-24"
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 w-24"
                     onClick={() => onSort('type')}
                   >
                     <div className="flex items-center">
@@ -297,7 +297,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                 {events.map((event, index) => {
                   const isSelected = isTokenSelected(event);
                   return (
@@ -305,8 +305,8 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                       key={index}
                       className={`cursor-pointer transition-all duration-200 ${
                         isSelected
-                          ? 'bg-yellow-50 border-l-4 border-yellow-500 hover:bg-yellow-100 shadow-sm'
-                          : 'hover:bg-gray-50'
+                          ? 'bg-yellow-50 dark:bg-yellow-900 border-l-4 border-yellow-500 hover:bg-yellow-100 dark:hover:bg-yellow-800 shadow-sm'
+                          : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                       }`}
                       onDoubleClick={() => onDetailClick(event)}
                       title={isSelected ? "Currently viewing in detail panel - Double-click to refresh" : "Double-click to view detailed information"}
@@ -317,7 +317,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                       </span>
                     </td>
                     <td className="px-3 py-3 w-2/5">
-                      <div className={`text-sm truncate max-w-lg flex items-center ${isSelected ? 'text-yellow-900 font-medium' : 'text-gray-900'}`} title={event.url}>
+                      <div className={`text-sm truncate max-w-lg flex items-center ${isSelected ? 'text-yellow-900 dark:text-yellow-100 font-medium' : 'text-gray-900 dark:text-gray-100'}`} title={event.url}>
                         {isSelected && (
                           <div className="w-2 h-2 bg-yellow-500 rounded-full mr-2 flex-shrink-0"></div>
                         )}

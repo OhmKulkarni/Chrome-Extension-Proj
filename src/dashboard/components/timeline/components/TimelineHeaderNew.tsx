@@ -145,17 +145,17 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
     }
   }
   return (
-    <div ref={headerRef} className="flex items-center justify-between bg-white p-4 border-b border-gray-200 shadow-sm relative">
+    <div ref={headerRef} className="flex items-center justify-between bg-white dark:bg-gray-800 p-4 border-b border-gray-200 dark:border-gray-700 shadow-sm relative">
       {/* Time Selection Controls */}
       <div className="flex items-center space-x-4">
         {/* Mutually exclusive time selection buttons */}
-        <div className="flex bg-gray-100 rounded-lg p-1">
+        <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
           <button
             onClick={() => handleTimeSelectionModeChange('last')}
             className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
               timeSelectionMode === 'last'
-                ? 'bg-white text-blue-600 shadow-sm ring-1 ring-blue-200'
-                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm ring-1 ring-blue-200 dark:ring-blue-500'
+                : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-600'
             }`}
           >
             Last

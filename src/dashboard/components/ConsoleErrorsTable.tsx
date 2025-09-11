@@ -234,7 +234,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                     </div>
                   </th>
                   <th
-                    className="w-2/5 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="w-2/5 px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                     onClick={() => onSort('message')}
                   >
                     <div className="flex items-center">
@@ -247,7 +247,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                     </div>
                   </th>
                   <th
-                    className="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                     onClick={() => onSort('url')}
                   >
                     <div className="flex items-center">
@@ -260,7 +260,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                     </div>
                   </th>
                   <th
-                    className="w-24 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="w-24 px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                     onClick={() => onSort('timestamp')}
                   >
                     <div className="flex items-center">
@@ -272,7 +272,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
                       )}
                     </div>
                   </th>
-                  <th className="w-24 px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="w-24 px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>

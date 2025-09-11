@@ -92,8 +92,8 @@ export const StatusCodeBreakdownChart: React.FC<ChartProps> = ({ networkRequests
 
   if (!networkRequests || networkRequests.length === 0) {
     return (
-      <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
-        <div className="text-center text-gray-400">
+      <div className="h-96 bg-gray-50 dark:bg-gray-800 rounded flex items-center justify-center">
+        <div className="text-center text-gray-400 dark:text-gray-500">
           <p>No network requests data available</p>
         </div>
       </div>
@@ -157,8 +157,8 @@ export const StatusCodeBreakdownChart: React.FC<ChartProps> = ({ networkRequests
 
   if (chartData.length === 0) {
     return (
-      <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
-        <div className="text-center text-gray-400">
+      <div className="h-96 bg-gray-50 dark:bg-gray-800 rounded flex items-center justify-center">
+        <div className="text-center text-gray-400 dark:text-gray-500">
           <p>No status code data to display</p>
         </div>
       </div>
@@ -253,8 +253,8 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
 
   if (!networkRequests || networkRequests.length === 0) {
     return (
-      <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
-        <div className="text-center text-gray-400">
+      <div className="h-96 bg-gray-50 dark:bg-gray-800 rounded flex items-center justify-center">
+        <div className="text-center text-gray-400 dark:text-gray-500">
           <p>No network requests data available</p>
         </div>
       </div>
@@ -402,8 +402,8 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
 
   if (chartData.length === 0) {
     return (
-      <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
-        <div className="text-center text-gray-400">
+      <div className="h-96 bg-gray-50 dark:bg-gray-800 rounded flex items-center justify-center">
+        <div className="text-center text-gray-400 dark:text-gray-500">
           <p>No response time data available</p>
           <p className="text-xs mt-2">Network requests may not have response_time field</p>
         </div>
@@ -417,7 +417,7 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
   return (
     <div className="space-y-4">
       {/* Chart Info */}
-      <div className="flex justify-between items-center text-sm text-gray-600">
+      <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
         <div>
           <span className="font-medium">Response Times by {viewMode === 'routes' ? 'Routes' : 'Domains'}:</span> Top {chartData.length} of {allChartData.length}
         </div>
@@ -429,18 +429,18 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
       </div>
 
       {/* Chart Info and Controls */}
-      <div className="flex justify-between items-center text-sm text-gray-600">
+      <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
         <div className="flex gap-4 items-center">
           {/* View Mode Toggle */}
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">View:</label>
-            <div className="flex border border-gray-300 rounded">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">View:</label>
+            <div className="flex border border-gray-300 dark:border-gray-600 rounded">
               <button
                 onClick={() => setViewMode('routes')}
                 className={`px-3 py-1 text-sm rounded-l ${
                   viewMode === 'routes'
                     ? 'bg-blue-500 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                    : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
                 }`}
               >
                 Routes
@@ -450,7 +450,7 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
                 className={`px-3 py-1 text-sm rounded-r ${
                   viewMode === 'domains'
                     ? 'bg-blue-500 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                    : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
                 }`}
               >
                 Domains
@@ -460,11 +460,11 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
 
           {/* Top N Selector */}
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">Show Top:</label>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Show Top:</label>
             <select
               value={topN}
               onChange={(e) => setTopN(Number(e.target.value))}
-              className="px-2 py-1 border border-gray-300 rounded text-sm"
+              className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             >
               {topNOptions.map(option => (
                 <option key={option} value={option}>{option}</option>
@@ -506,11 +506,11 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
               if (active && payload && payload.length > 0) {
                 const data = payload[0].payload;
                 return (
-                  <div className="bg-white p-3 border border-gray-200 rounded shadow-lg text-sm">
-                    <p className="font-medium text-gray-900">{viewMode === 'routes' ? 'Route' : 'Domain'}: {data.route}</p>
-                    <p className="text-blue-600 font-semibold">Average: {data.avgTime}ms</p>
-                    <p className="text-xs text-gray-500">Requests: {data.requests}</p>
-                    <p className="text-xs text-gray-500">Range: {data.minTime}ms - {data.maxTime}ms</p>
+                  <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-600 rounded shadow-lg text-sm">
+                    <p className="font-medium text-gray-900 dark:text-gray-100">{viewMode === 'routes' ? 'Route' : 'Domain'}: {data.route}</p>
+                    <p className="text-blue-600 dark:text-blue-400 font-semibold">Average: {data.avgTime}ms</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Requests: {data.requests}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Range: {data.minTime}ms - {data.maxTime}ms</p>
                   </div>
                 );
               }
@@ -530,7 +530,7 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
 
       {/* Alternative View - Lollipop Chart */}
       <div className="pt-4 border-t">
-        <h4 className="text-sm font-medium text-gray-700 mb-2">Response Time Distribution (Lollipop View)</h4>
+        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Response Time Distribution (Lollipop View)</h4>
         <ResponsiveContainer width="100%" height={300}>
           <ComposedChart
             data={chartData}
@@ -744,10 +744,10 @@ export const TopFrequentErrorsChart: React.FC<ChartProps> = ({ consoleErrors }) 
               if (active && payload && payload.length > 0) {
                 const data = payload[0].payload;
                 return (
-                  <div className="bg-white p-3 border border-gray-200 rounded shadow-lg text-sm max-w-md">
-                    <p className="font-medium text-gray-900">Error Type: {data.errorType}</p>
-                    <p className="text-red-600 font-semibold">{data.count} occurrences</p>
-                    <p className="text-xs text-gray-500 capitalize">Severity: {data.severity}</p>
+                  <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-600 rounded shadow-lg text-sm max-w-md">
+                    <p className="font-medium text-gray-900 dark:text-gray-100">Error Type: {data.errorType}</p>
+                    <p className="text-red-600 dark:text-red-400 font-semibold">{data.count} occurrences</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">Severity: {data.severity}</p>
                     <div className="mt-2 max-h-20 overflow-y-auto">
                       <p className="text-xs text-gray-500">Sample messages:</p>
                       {data.fullMessages.slice(0, 3).map((msg: string, i: number) => (
@@ -2878,7 +2878,7 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
                 className={`px-2 py-1 text-xs rounded-r ${
                   viewMode === 'timeline'
                     ? 'bg-blue-500 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                    : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
                 }`}
               >
                 Timeline
@@ -2886,7 +2886,7 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
             </div>
           </div>
 
-          <div className="flex gap-3 text-xs">
+          <div className="flex gap-3 text-xs text-gray-600 dark:text-gray-400">
             <span><strong>Min:</strong> {formatBytes(minSize)}</span>
             <span><strong>Med:</strong> {formatBytes(median)}</span>
             <span><strong>Max:</strong> {formatBytes(maxSize)}</span>
@@ -2896,8 +2896,8 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
       {viewMode === 'histogram' && (
         <>
           {/* Main Histogram */}
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-lg font-semibold mb-4">Payload Size Distribution - Histogram</h3>
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Payload Size Distribution - Histogram</h3>
             <ResponsiveContainer width="100%" height={400}>
               <BarChart
                 data={bins}
@@ -3020,8 +3020,8 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
 
       {/* Timeline View */}
       {viewMode === 'timeline' && (
-        <div className="bg-white p-4 rounded-lg shadow">
-          <h3 className="text-lg font-semibold mb-4">Payload Size Distribution Over Time</h3>
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Payload Size Distribution Over Time</h3>
           {timelineData.length > 0 ? (
             <ResponsiveContainer width="100%" height={400}>
               <AreaChart
