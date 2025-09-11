@@ -192,7 +192,7 @@ export const ViewedStateSettings: React.FC<ViewedStateSettingsProps> = ({
               {/* Opacity Slider */}
               {localSettings.showIndicators && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-200">
                     Viewed Card Opacity: {Math.round(localSettings.viewedOpacity * 100)}%
                   </label>
                   <input
@@ -205,9 +205,9 @@ export const ViewedStateSettings: React.FC<ViewedStateSettingsProps> = ({
                       ...localSettings,
                       viewedOpacity: parseFloat(e.target.value)
                     })}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer"
                   />
-                  <div className="flex justify-between text-xs text-gray-500">
+                  <div className="flex justify-between text-xs text-gray-500 dark:text-gray-300">
                     <span>Faded</span>
                     <span>Visible</span>
                   </div>
@@ -242,7 +242,7 @@ export const ViewedStateSettings: React.FC<ViewedStateSettingsProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end space-x-3 p-4 border-t bg-gray-50">
+        <div className="flex items-center justify-end space-x-3 p-4 border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
           <button
             onClick={handleCancel}
             className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
@@ -251,7 +251,7 @@ export const ViewedStateSettings: React.FC<ViewedStateSettingsProps> = ({
           </button>
           <button
             onClick={handleSave}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 dark:bg-blue-600 rounded-md hover:bg-blue-700 dark:hover:bg-blue-500"
           >
             Save Settings
           </button>
