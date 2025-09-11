@@ -444,7 +444,7 @@ const SettingsInline: React.FC = () => {
               </div>
 
               {/* Informational tooltip about the safeguard */}
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg">
                 <div className="flex items-start space-x-3">
                   <div className="flex-shrink-0">
                     <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
