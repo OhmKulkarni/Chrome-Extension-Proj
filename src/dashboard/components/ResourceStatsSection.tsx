@@ -289,7 +289,7 @@ const ResourceStatsSection: React.FC<ResourceStatsSectionProps> = ({ resources, 
 
               {/* Category content */}
               {!isCollapsed && (
-                <div className="max-h-96 overflow-y-auto bg-white dark:bg-gray-800">
+                <div className="max-h-96 overflow-y-auto bg-gray-50 dark:bg-gray-900">
                   <div className="p-4 space-y-4 bg-transparent">
                     {Object.entries(detailedTypes).map(([detailedType, typeResources]) => (
                       <div key={detailedType} className="space-y-2 bg-transparent">
@@ -305,15 +305,15 @@ const ResourceStatsSection: React.FC<ResourceStatsSectionProps> = ({ resources, 
                         <div className="space-y-2 bg-transparent">
                           {typeResources.map((resource, index) => (
                             <div key={`${resource.name}-${index}`}
-                                 className="flex items-center justify-between p-3 bg-white dark:bg-gray-800
-                                          border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
+                                 className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900
+                                          border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center space-x-2 mb-1">
                                   <span className="font-medium text-gray-900 dark:text-gray-100 truncate">
                                     {resource.name}
                                   </span>
                                   {resource.version && (
-                                    <Badge variant="outline" className="text-xs px-2 py-0.5 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600">
+                                    <Badge variant="outline" className="text-xs px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-700">
                                       v{resource.version}
                                     </Badge>
                                   )}
