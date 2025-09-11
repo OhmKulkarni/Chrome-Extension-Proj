@@ -1991,6 +1991,7 @@ const DecomposedDashboard: React.FC = () => {
                 selectedField={selectedField}
                 showFullTokenHash={showFullTokenHash}
                 settings={settings}
+                networkRequests={fullNetworkData.length > 0 ? fullNetworkData : data.networkRequests}
               />
             )}
           </div>
