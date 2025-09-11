@@ -378,36 +378,33 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
 
           {/* Compare section placeholder - 280px */}
           <div className="flex items-center justify-center bg-white dark:bg-gray-800" style={{ height: '280px' }}>
-            <div className="text-center space-y-2">
-              <GitCompare className="w-5 h-5 text-purple-600 dark:text-purple-400 mx-auto mb-1" />
-              <div className="text-xs font-medium text-gray-600 dark:text-gray-300">
-                {compareEvents.filter(e => e.type === selectedQueueType).length + queueEventsByType[selectedQueueType].length}
-              </div>
-              {(compareQueue.length > 0 || compareEvents.length > 0) && (
-                <div className="space-y-1">
-                  {/* Show selected queue type */}
-                  <div className="flex items-center justify-center space-x-1">
-                    {getEventTypeIcon(selectedQueueType)}
-                    <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">{selectedQueueType}</span>
+            <div className="flex flex-col items-center space-y-3">
+              {/* Show each event type with slots/queue count */}
+              {(['network', 'console', 'token'] as const).map(eventType => {
+                const queueCount = queueEventsByType[eventType].length
+                const compareCount = compareEvents.filter(e => e.type === eventType).length
+                const typeConfig = {
+                  network: { icon: <Network className="w-4 h-4" />, color: 'text-blue-600 dark:text-blue-400' },
+                  console: { icon: <AlertTriangle className="w-4 h-4" />, color: 'text-red-600 dark:text-red-400' },
+                  token: { icon: <Key className="w-4 h-4" />, color: 'text-green-600 dark:text-green-400' }
+                }
+
+                return (
+                  <div key={eventType} className="flex flex-col items-center space-y-1">
+                    {/* Event type icon */}
+                    <div className={typeConfig[eventType].color}>
+                      {typeConfig[eventType].icon}
+                    </div>
+                    {/* Fraction (slots used out of 4) and queue count */}
+                    <div className="text-xs font-medium text-gray-600 dark:text-gray-300 text-center">
+                      <div>{compareCount}/4</div>
+                      {queueCount > 0 && (
+                        <div className="text-gray-500 dark:text-gray-400">+{queueCount}</div>
+                      )}
+                    </div>
                   </div>
-                  {/* Show other queue types with smaller indicators */}
-                  <div className="flex items-center justify-center space-x-2">
-                    {(['network', 'console', 'token'] as const).map(eventType => {
-                      if (eventType === selectedQueueType) return null
-                      const queueCount = queueEventsByType[eventType].length
-                      const compareCount = compareEvents.filter(e => e.type === eventType).length
-                      const totalCount = queueCount + compareCount
-                      if (totalCount === 0) return null
-                      return (
-                        <div key={eventType} className="flex items-center space-x-1 opacity-50">
-                          {getEventTypeIcon(eventType)}
-                          <span className="text-xs text-gray-400">{totalCount}</span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
+                )
+              })}
             </div>
           </div>
         </div>
