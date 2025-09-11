@@ -547,11 +547,11 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Network Requests</h2>
-          <p className="text-xs text-gray-500 mt-1">Global requests from all tabs (Popup shows current tab only)</p>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Network Requests</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Global requests from all tabs (Popup shows current tab only)</p>
         </div>
         <div className="flex items-center space-x-4">
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-gray-500 dark:text-gray-400">
             {totalFilteredRequests > 0 && (
               `Showing ${indexOfFirstRequest + 1}-${Math.min(indexOfLastRequest, totalFilteredRequests)} of ${totalFilteredRequests}`
             )}
@@ -560,7 +560,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
             )}
           </span>
           {totalPages > 1 && (
-            <span className="text-sm text-gray-500">Page {currentPage} of {totalPages}</span>
+            <span className="text-sm text-gray-500 dark:text-gray-400">Page {currentPage} of {totalPages}</span>
           )}
         </div>
       </div>
@@ -616,11 +616,11 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
       {requests.length > 0 ? (
         <div className="overflow-hidden">
           <div className="overflow-x-auto min-w-0">
-            <table className="w-full table-fixed divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="w-full table-fixed divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
                   <th
-                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-20"
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 w-20"
                     onClick={() => onSort('method')}
                   >
                     <div className="flex items-center">
@@ -633,7 +633,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                     </div>
                   </th>
                   <th
-                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-1/3"
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 w-1/3"
                     onClick={() => onSort('url')}
                   >
                     <div className="flex items-center">
@@ -713,7 +713,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                 {requests.map((request, index) => {
                   const isSelected = isRequestSelected(request);
                   // Create a more unique key to prevent React key conflicts with duplicates
@@ -723,8 +723,8 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                       key={uniqueKey}
                       className={`cursor-pointer transition-all duration-200 ${
                         isSelected
-                          ? 'bg-blue-50 border-l-4 border-blue-500 hover:bg-blue-100 shadow-sm'
-                          : 'hover:bg-gray-50'
+                          ? 'bg-blue-50 dark:bg-blue-900 border-l-4 border-blue-500 hover:bg-blue-100 dark:hover:bg-blue-800 shadow-sm'
+                          : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                       }`}
                       onDoubleClick={() => onDetailClick(request)}
                       title={isSelected ? "Currently viewing in detail panel - Double-click to refresh" : "Double-click to view detailed information"}
@@ -741,7 +741,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                       </span>
                     </td>
                     <td className="px-3 py-3 w-1/3">
-                      <div className={`text-sm truncate max-w-sm flex items-center ${isSelected ? 'text-blue-900 font-medium' : 'text-gray-900'}`} title={request.url}>
+                      <div className={`text-sm truncate max-w-sm flex items-center ${isSelected ? 'text-blue-900 dark:text-blue-100 font-medium' : 'text-gray-900 dark:text-gray-100'}`} title={request.url}>
                         {isSelected && (
                           <div className="w-2 h-2 bg-blue-500 rounded-full mr-2 flex-shrink-0"></div>
                         )}
@@ -761,15 +761,15 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
                     <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-16" title={getSizeTooltip(request)}>
                       {getSizeDisplay(request)}
                     </td>
-                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-16" title="Size of data actually stored in our extension database">
-                      <span className="text-blue-600">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 w-16" title="Size of data actually stored in our extension database">
+                      <span className="text-blue-600 dark:text-blue-400">
                         {getStoredSizeDisplay(request)}
                       </span>
                     </td>
-                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 w-20">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 w-20">
                       {new Date(request.timestamp).toLocaleTimeString()}
                     </td>
-                    <td className="px-3 py-3 text-sm text-gray-500 w-1/4" title={getHeadersTooltip(request)}>
+                    <td className="px-3 py-3 text-sm text-gray-500 dark:text-gray-400 w-1/4" title={getHeadersTooltip(request)}>
                       <div className="truncate max-w-xs">
                         {getHeaderPreview(request)}
                       </div>
@@ -880,8 +880,8 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
           <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No requests found</h3>
-          <p className="mt-1 text-sm text-gray-500">
+          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">No requests found</h3>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             {searchTerm || filterMethod !== 'all'
               ? 'Try adjusting your search criteria or filters'
               : 'Network requests will appear here when they are captured'
