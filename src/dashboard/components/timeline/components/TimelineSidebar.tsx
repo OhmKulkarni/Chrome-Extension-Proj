@@ -79,9 +79,9 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
 
   const renderEventCard = (event: TimelineEvent, type: 'bookmark' | 'compare' | 'queue') => {
     const typeConfig = {
-      network: { color: 'bg-blue-50 dark:bg-blue-900/80 border-blue-200 dark:border-blue-700', icon: '🌐' },
-      console: { color: 'bg-red-50 dark:bg-red-900/80 border-red-200 dark:border-red-700', icon: '⚠️' },
-      token: { color: 'bg-green-50 dark:bg-green-900/80 border-green-200 dark:border-green-700', icon: '🔑' }
+      network: { color: 'bg-blue-50 dark:bg-blue-900 border-blue-200 dark:border-blue-700', icon: '🌐' },
+      console: { color: 'bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700', icon: '⚠️' },
+      token: { color: 'bg-green-50 dark:bg-green-900 border-green-200 dark:border-green-700', icon: '🔑' }
     }
 
     const config = typeConfig[event.type]

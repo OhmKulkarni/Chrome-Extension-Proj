@@ -117,9 +117,9 @@ export const EventCard: React.FC<EventCardProps> = ({
   const isCompact = cardDimensions.height < 60 || zoomLevel > 5
 
   const cardColors = {
-    network: 'bg-blue-50 dark:bg-blue-900/80 border-blue-200 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-800/90 hover:border-blue-300 dark:hover:border-blue-600',
-    console: 'bg-red-50 dark:bg-red-900/80 border-red-200 dark:border-red-700 hover:bg-red-100 dark:hover:bg-red-800/90 hover:border-red-300 dark:hover:border-red-600',
-    token: 'bg-green-50 dark:bg-green-900/80 border-green-200 dark:border-green-700 hover:bg-green-100 dark:hover:bg-green-800/90 hover:border-green-300 dark:hover:border-green-600'
+    network: 'bg-blue-50 dark:bg-blue-900 border-blue-200 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-800 hover:border-blue-300 dark:hover:border-blue-600',
+    console: 'bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700 hover:bg-red-100 dark:hover:bg-red-800 hover:border-red-300 dark:hover:border-red-600',
+    token: 'bg-green-50 dark:bg-green-900 border-green-200 dark:border-green-700 hover:bg-green-100 dark:hover:bg-green-800 hover:border-green-300 dark:hover:border-green-600'
   }
 
   const iconColors = {
