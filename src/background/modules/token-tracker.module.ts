@@ -235,7 +235,9 @@ export class TokenTrackerModule {
           eventType = 'expired';
         }
       } else if (isAcquireEndpoint || isServiceAuth) {
-        console.log(`🔍 TokenTrackerModule: Taking ACQUIRE path for status ${statusCode}`);
+        console.log(`🔍 TokenTrackerModule: Taking ACQUIRE path for status ${statusCode} (original: ${status})`);
+        console.log(`🔍 TokenTrackerModule: URL: ${url}`);
+        console.log(`🔍 TokenTrackerModule: Method: ${method}`);
         if (statusCode >= 200 && statusCode < 300) {
           eventType = 'acquire';
           console.log(`🔍 TokenTrackerModule: Setting eventType to 'acquire' (success) - condition: ${statusCode} >= 200 && ${statusCode} < 300`);
