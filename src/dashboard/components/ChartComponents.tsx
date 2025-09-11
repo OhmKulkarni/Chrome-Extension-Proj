@@ -712,7 +712,7 @@ export const TopFrequentErrorsChart: React.FC<ChartProps> = ({ consoleErrors }) 
   return (
     <div className="space-y-4">
       {/* Chart Info */}
-      <div className="flex justify-between items-center text-sm text-gray-600">
+      <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
         <div>
           <span className="font-medium">Top 5 Frequent Errors:</span> {chartData.length} error types
         </div>
@@ -974,7 +974,7 @@ export const RequestsOverTimeChart: React.FC<ChartProps> = ({ networkRequests })
   return (
     <div className="space-y-4">
       {/* Chart Controls/Info */}
-      <div className="flex justify-between items-center text-sm text-gray-600">
+      <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
         <div>
           <span className="font-medium">Time Range:</span> {interval === 'minute' ? 'By Minute' : interval === 'hour' ? 'By Hour' : 'By Day'}
         </div>
@@ -1205,7 +1205,7 @@ export const ErrorFrequencyOverTimeChart: React.FC<ChartProps> = ({ consoleError
   return (
     <div className="space-y-4">
       {/* Chart Info */}
-      <div className="flex justify-between items-center text-sm text-gray-600">
+      <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
         <div>
           <span className="font-medium">Error Timeline:</span> {interval === 'minute' ? 'By Minute' : interval === 'hour' ? 'By Hour' : 'By Day'}
         </div>
@@ -1974,8 +1974,8 @@ export const TrafficByEndpointChartTreemap: React.FC<ChartProps> = ({ networkReq
       </div>
 
       {/* Vertical Bar Chart */}
-      <div className="bg-white p-4 rounded border">
-        <div className="text-xs text-gray-400 mb-2">
+      <div className="bg-white dark:bg-gray-800 p-4 rounded border border-gray-200 dark:border-gray-700">
+        <div className="text-xs text-gray-400 dark:text-gray-500 mb-2">
           Displaying {chartData.length} endpoints as vertical bars
         </div>
         <ResponsiveContainer width="100%" height={400}>
@@ -2000,10 +2000,10 @@ export const TrafficByEndpointChartTreemap: React.FC<ChartProps> = ({ networkReq
                 if (active && payload && payload.length > 0) {
                   const data = payload[0].payload;
                   return (
-                    <div className="bg-white p-3 border border-gray-200 rounded shadow-lg text-sm">
-                      <p className="font-medium text-gray-900">#{data.rank} {data.fullName}</p>
-                      <p className="text-blue-600 font-semibold">{data.count} requests</p>
-                      <p className="text-xs text-gray-500">Method: {data.method}</p>
+                    <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-600 rounded shadow-lg text-sm">
+                      <p className="font-medium text-gray-900 dark:text-gray-100">#{data.rank} {data.fullName}</p>
+                      <p className="text-blue-600 dark:text-blue-400 font-semibold">{data.count} requests</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Method: {data.method}</p>
                     </div>
                   );
                 }

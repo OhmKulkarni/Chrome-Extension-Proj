@@ -258,7 +258,7 @@ export const CompareView: React.FC<CompareViewProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-2">
-      <div className="bg-white rounded-2xl shadow-2xl w-[98%] h-[95%] flex flex-col max-w-none border border-gray-200">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-[98%] h-[95%] flex flex-col max-w-none border border-gray-200 dark:border-gray-700">
         {/* Header */}
         <div className="flex-shrink-0 p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-white rounded-t-2xl">
           <div className="flex items-center justify-between">
@@ -266,7 +266,7 @@ export const CompareView: React.FC<CompareViewProps> = ({
               <h2 className="text-lg font-bold text-gray-900">Compare Events</h2>
 
               {/* Event Type Selector */}
-              <div className="flex items-center space-x-2 bg-white rounded-xl p-1 border border-gray-200 shadow-sm">
+              <div className="flex items-center space-x-2 bg-white dark:bg-gray-700 rounded-xl p-1 border border-gray-200 dark:border-gray-600 shadow-sm">
                 {(['network', 'console', 'token'] as EventType[]).map((eventType) => (
                   <button
                     key={eventType}
@@ -337,7 +337,7 @@ export const CompareView: React.FC<CompareViewProps> = ({
             const event = currentEvents[index]
             if (event) {
               return (
-                <div key={event.id} className="rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-white min-h-0 h-full">
+                <div key={event.id} className="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-800 min-h-0 h-full">
                   {renderEventPanel(event, index)}
                 </div>
               )

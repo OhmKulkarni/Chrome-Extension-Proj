@@ -598,8 +598,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       if (!chartData.networkRequests) {
         console.warn('Chart rendering skipped - no network requests data');
         return (
-          <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
-            <div className="text-center text-gray-400">
+          <div className="h-96 bg-gray-50 dark:bg-gray-800 rounded flex items-center justify-center">
+            <div className="text-center text-gray-400 dark:text-gray-500">
               <p>No data available for chart</p>
               <p className="text-xs mt-2">Network requests data is missing</p>
             </div>
@@ -692,8 +692,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
           );
         default:
           return (
-            <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
-              <div className="text-center text-gray-400">
+            <div className="h-96 bg-gray-50 dark:bg-gray-800 rounded flex items-center justify-center">
+              <div className="text-center text-gray-400 dark:text-gray-500">
                 <BarChart3 className="h-16 w-16 mx-auto mb-4" />
                 <p className="text-lg font-medium">Chart Implementation Pending</p>
                 <p className="text-sm">
@@ -1346,11 +1346,11 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                           initial={{ opacity: 0, scale: 0.95 }}
                           animate={{ opacity: 1, scale: 1 }}
                           transition={{ duration: 0.3, delay: 0.1 * filteredCharts.findIndex(([k]) => k === chartKey) }}
-                          className="bg-white border rounded-lg p-4 hover:shadow-md transition-shadow"
+                          className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow"
                         >
-                          <h3 className="font-semibold text-lg mb-2">{chart.name}</h3>
-                          <p className="text-sm text-gray-600 mb-4">{chart.description}</p>
-                          <div className="bg-white rounded">
+                          <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100 mb-2">{chart.name}</h3>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{chart.description}</p>
+                          <div className="bg-white dark:bg-gray-800 rounded">
                             {renderChart(chartKey)}
                           </div>
                         </motion.div>
@@ -1365,12 +1365,12 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -20 }}
                           transition={{ duration: 0.4 }}
-                          className="bg-white border-2 border-blue-200 rounded-lg p-6 mb-6"
+                          className="bg-white dark:bg-gray-800 border-2 border-blue-200 dark:border-blue-700 rounded-lg p-6 mb-6"
                         >
                           <div className="flex items-center justify-between mb-4">
                             <div>
-                              <h2 className="text-xl font-semibold">{chartDefinitions[selectedChart].name}</h2>
-                              <p className="text-gray-600">{chartDefinitions[selectedChart].description}</p>
+                              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{chartDefinitions[selectedChart].name}</h2>
+                              <p className="text-gray-600 dark:text-gray-400">{chartDefinitions[selectedChart].description}</p>
                             </div>
                             <Button
                               variant="outline"
@@ -1380,7 +1380,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                               Close
                             </Button>
                           </div>
-                          <div className="bg-white rounded">
+                          <div className="bg-white dark:bg-gray-800 rounded">
                             {renderChart(selectedChart)}
                           </div>
                         </motion.div>
