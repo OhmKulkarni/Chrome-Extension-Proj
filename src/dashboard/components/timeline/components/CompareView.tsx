@@ -176,11 +176,11 @@ export const CompareView: React.FC<CompareViewProps> = ({
     return (
       <div className="h-full flex flex-col min-h-0">
         {/* Event Header */}
-        <div className="flex-shrink-0 p-2 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+        <div className="flex-shrink-0 p-2 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 dark:from-gray-800 to-white dark:to-gray-700">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center space-x-2">
               {getIcon(event)}
-              <span className="text-xs font-medium text-gray-900">
+              <span className="text-xs font-medium text-gray-900 dark:text-gray-300">
                 Slot {(() => {
                   // Convert actual slot number to display slot number (1-4 for each type)
                   if (event.compareSlot !== undefined) {
@@ -224,8 +224,8 @@ export const CompareView: React.FC<CompareViewProps> = ({
         {/* Event Content - Similar to EventDetailModal */}
         <div className="flex flex-1 overflow-hidden">
           {/* Left Sidebar - Field Selection */}
-          <div className="w-32 bg-gray-50 border-r border-gray-200 p-2 flex flex-col flex-shrink-0">
-            <h5 className="text-xs font-medium text-gray-900 mb-2 flex-shrink-0">Sections</h5>
+          <div className="w-32 bg-gray-50 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 p-2 flex flex-col flex-shrink-0">
+            <h5 className="text-xs font-medium text-gray-900 dark:text-gray-300 mb-2 flex-shrink-0">Sections</h5>
             <nav className="flex-1 overflow-y-auto space-y-1 min-h-0">
               {availableFields.map((field) => (
                 <button
@@ -233,8 +233,8 @@ export const CompareView: React.FC<CompareViewProps> = ({
                   onClick={() => handleFieldSelection(selectedEventType, index, field)}
                   className={`w-full text-left px-2 py-1.5 text-xs rounded transition-colors ${
                     selectedField === field
-                      ? 'bg-blue-100 text-blue-700 font-medium'
-                      : 'text-gray-700 hover:bg-gray-100'
+                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-medium'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 >
                   {getFieldDisplayName(field)}
@@ -260,10 +260,10 @@ export const CompareView: React.FC<CompareViewProps> = ({
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-2">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-[98%] h-[95%] flex flex-col max-w-none border border-gray-200 dark:border-gray-700">
         {/* Header */}
-        <div className="flex-shrink-0 p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-white rounded-t-2xl">
+        <div className="flex-shrink-0 p-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 dark:from-blue-900/30 to-white dark:to-gray-800 rounded-t-2xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <h2 className="text-lg font-bold text-gray-900">Compare Events</h2>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-200">Compare Events</h2>
 
               {/* Event Type Selector */}
               <div className="flex items-center space-x-2 bg-white dark:bg-gray-700 rounded-xl p-1 border border-gray-200 dark:border-gray-600 shadow-sm">
@@ -273,10 +273,10 @@ export const CompareView: React.FC<CompareViewProps> = ({
                     onClick={() => setSelectedEventType(eventType)}
                     className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                       selectedEventType === eventType
-                        ? eventType === 'network' ? 'bg-blue-100 text-blue-700'
-                        : eventType === 'console' ? 'bg-red-100 text-red-700'
-                        : 'bg-green-100 text-green-700'
-                        : 'text-gray-600 hover:bg-gray-100'
+                        ? eventType === 'network' ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+                        : eventType === 'console' ? 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'
+                        : 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
+                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600'
                     }`}
                   >
                     {eventType === 'network' && <Network className="w-4 h-4" />}
@@ -343,7 +343,7 @@ export const CompareView: React.FC<CompareViewProps> = ({
               )
             } else {
               return (
-                <div key={`empty-${selectedEventType}-${index}`} className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center min-h-0 h-full">
+                <div key={`empty-${selectedEventType}-${index}`} className="rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 flex items-center justify-center min-h-0 h-full">
                   <div className="text-center text-gray-400">
                     <div className="text-sm font-medium">Slot {index + 1}</div>
                     <div className="text-xs">

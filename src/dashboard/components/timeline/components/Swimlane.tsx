@@ -303,18 +303,18 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
   return (
     <div
       ref={containerRef}
-      className="relative border-b border-gray-200"
+      className="relative border-b border-gray-200 dark:border-gray-700"
       style={{ height: `${height}%` }}
     >
       {/* Header */}
-      <div className="absolute top-0 left-0 right-0 h-8 bg-white border-b border-gray-200 flex items-center justify-between px-4 z-10">
+      <div className="absolute top-0 left-0 right-0 h-8 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-4 z-10">
         <div className="flex items-center space-x-2">
           <div
             className="w-3 h-3 rounded-full"
             style={{ backgroundColor: config.color }}
           />
-          <span className="text-sm font-medium text-gray-700">{config.label}</span>
-          <span className="text-xs text-gray-500">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{config.label}</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">
             ({shouldCluster ? clusters.length : events.length})
           </span>
         </div>
@@ -355,7 +355,7 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
                 className="absolute bottom-2"
                 style={{ left: `${marker.position}%` }}
               >
-                <div className="transform -translate-x-1/2 bg-white px-1 py-0.5 text-xs text-gray-600 border rounded shadow-sm opacity-80">
+                <div className="transform -translate-x-1/2 bg-white dark:bg-gray-800 px-1 py-0.5 text-xs text-gray-600 dark:text-gray-300 border dark:border-gray-600 rounded shadow-sm opacity-80">
                   {marker.label}
                 </div>
               </div>
@@ -433,7 +433,7 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
               <div className="absolute right-1 top-1/2 transform -translate-y-1/2 flex flex-col space-y-1" style={{ zIndex: 1001 }}>
                 <button
                   onClick={() => handleScroll('up')}
-                  className="p-1.5 bg-white border-2 border-gray-400 rounded shadow-lg hover:bg-gray-50 hover:shadow-xl transition-all text-xs font-semibold text-gray-700"
+                  className="p-1.5 bg-white dark:bg-gray-800 border-2 border-gray-400 dark:border-gray-600 rounded shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-xl transition-all text-xs font-semibold text-gray-700 dark:text-gray-300"
                   title="Scroll up"
                   style={{ backdropFilter: 'blur(2px)' }}
                 >
@@ -441,7 +441,7 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
                 </button>
                 <button
                   onClick={() => handleScroll('down')}
-                  className="p-1.5 bg-white border-2 border-gray-400 rounded shadow-lg hover:bg-gray-50 hover:shadow-xl transition-all text-xs font-semibold text-gray-700"
+                  className="p-1.5 bg-white dark:bg-gray-800 border-2 border-gray-400 dark:border-gray-600 rounded shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-xl transition-all text-xs font-semibold text-gray-700 dark:text-gray-300"
                   title="Scroll down"
                   style={{ backdropFilter: 'blur(2px)' }}
                 >

@@ -141,13 +141,13 @@ export const AllTimeModal: React.FC<AllTimeModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center space-x-3">
             <Calendar className="w-6 h-6 text-blue-600" />
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">All Time Overview</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-200">All Time Overview</h2>
               <p className="text-sm text-gray-500">
                 Complete timeline spanning {dataSpanDays} days with {totalEvents.toLocaleString()} events
               </p>
@@ -172,7 +172,7 @@ export const AllTimeModal: React.FC<AllTimeModalProps> = ({
             <>
               {/* Stats Overview */}
               <div className="grid grid-cols-4 gap-4 mb-6">
-                <div className="bg-blue-50 p-4 rounded-lg">
+                <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg">
                   <div className="flex items-center space-x-2">
                     <Activity className="w-4 h-4 text-blue-600" />
                     <span className="text-sm font-medium text-blue-900">Total Events</span>
@@ -181,7 +181,7 @@ export const AllTimeModal: React.FC<AllTimeModalProps> = ({
                     {totalEvents.toLocaleString()}
                   </div>
                 </div>
-                <div className="bg-green-50 p-4 rounded-lg">
+                <div className="bg-green-50 dark:bg-green-900/30 p-4 rounded-lg">
                   <div className="flex items-center space-x-2">
                     <TrendingUp className="w-4 h-4 text-green-600" />
                     <span className="text-sm font-medium text-green-900">Time Span</span>
@@ -212,7 +212,7 @@ export const AllTimeModal: React.FC<AllTimeModalProps> = ({
 
               {/* Time Clusters Visualization */}
               <div className="space-y-4">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-200 mb-4">
                   Activity Timeline - Click to Jump to Period
                 </h3>
 
@@ -235,7 +235,7 @@ export const AllTimeModal: React.FC<AllTimeModalProps> = ({
                           {cluster.scope}
                         </span>
                       </div>
-                      <div className="font-medium text-gray-900 mb-1">
+                      <div className="font-medium text-gray-900 dark:text-gray-200 mb-1">
                         {cluster.label}
                       </div>
                       <div className="text-sm text-gray-600">
@@ -253,7 +253,7 @@ export const AllTimeModal: React.FC<AllTimeModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
           <p className="text-sm text-gray-600">
             💡 Click on any time period above to jump to that section in the main timeline view
           </p>
