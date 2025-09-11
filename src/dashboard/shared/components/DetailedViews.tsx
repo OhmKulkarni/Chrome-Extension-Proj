@@ -1370,7 +1370,7 @@ export const ErrorDetailContent: React.FC<{
       ...(error.severity) && { severity: error.severity },
       timestamp: new Date(error.timestamp).toLocaleString()
     };
-    
+
     return JSON.stringify(details, null, 2);
   };
 
@@ -1801,6 +1801,8 @@ export const TokenDetailContent: React.FC<{
   settings?: any;
   networkRequests?: any[];
 }> = ({ tokenEvent, selectedField, showFullTokenHash = false, settings, networkRequests = [] }) => {
+  const [activeNetworkView, setActiveNetworkView] = useState<string>('details');
+  
   const copyToClipboard = (text: string) => {
     // Use settings-based limit for tokens
     const maxClipboardSize = settings?.networkInterception?.bodyCapture?.maxBodySize || 10000;
@@ -1868,47 +1870,105 @@ export const TokenDetailContent: React.FC<{
   const formatTokenEventDetailsOnly = (tokenEvent: any) => {
     const details = {
       ...(tokenEvent.url) && { url: tokenEvent.url },
-      ...(tokenEvent.method || tokenEvent.request_method) && { 
-        method: tokenEvent.method || tokenEvent.request_method 
+      ...(tokenEvent.method || tokenEvent.request_method) && {
+        method: tokenEvent.method || tokenEvent.request_method
       },
-      ...(tokenEvent.status || tokenEvent.response_status) && { 
-        status: tokenEvent.status || tokenEvent.response_status 
+      ...(tokenEvent.status || tokenEvent.response_status) && {
+        status: tokenEvent.status || tokenEvent.response_status
       },
-      ...(tokenEvent.valueHash || tokenEvent.value_hash) && { 
-        valueHash: tokenEvent.valueHash || tokenEvent.value_hash 
+      ...(tokenEvent.valueHash || tokenEvent.value_hash) && {
+        valueHash: tokenEvent.valueHash || tokenEvent.value_hash
       },
-      ...(tokenEvent.timestamp) && { 
-        timestamp: new Date(tokenEvent.timestamp).toLocaleString() 
+      ...(tokenEvent.timestamp) && {
+        timestamp: new Date(tokenEvent.timestamp).toLocaleString()
       }
     };
-    
+
     return JSON.stringify(details, null, 2);
   };
 
-  // Find matching network request for this token event
+  // Enhanced matching logic for finding related network request
   const findMatchingNetworkRequest = (tokenEvent: any) => {
     if (!networkRequests || networkRequests.length === 0) return null;
     
     const tokenUrl = tokenEvent.url;
-    const tokenMethod = tokenEvent.method || tokenEvent.request_method;
+    const tokenMethod = (tokenEvent.method || tokenEvent.request_method || '').toUpperCase();
+    const tokenStatus = tokenEvent.status || tokenEvent.response_status;
     const tokenTimestamp = new Date(tokenEvent.timestamp).getTime();
-    const toleranceMs = 5000; // 5 second tolerance for matching
     
-    // Find network request with matching URL, method, and close timestamp
-    const match = networkRequests.find(req => {
+    // Enhanced matching with multiple strategies
+    const candidates = networkRequests.filter(req => {
+      // Must have same URL (exact match)
       if (req.url !== tokenUrl) return false;
-      if (req.method !== tokenMethod) return false;
       
-      const reqTimestamp = new Date(req.timestamp).getTime();
-      const timeDiff = Math.abs(reqTimestamp - tokenTimestamp);
+      // Must have same method (case-insensitive)
+      const reqMethod = (req.method || '').toUpperCase();
+      if (reqMethod !== tokenMethod) return false;
       
-      return timeDiff <= toleranceMs;
+      return true;
     });
     
-    return match || null;
-  };
-
-  if (selectedField === 'details') {
+    if (candidates.length === 0) return null;
+    
+    // Strategy 1: Find exact timestamp + status match (within 2 seconds)
+    let match = candidates.find(req => {
+      const reqTimestamp = new Date(req.timestamp).getTime();
+      const timeDiff = Math.abs(reqTimestamp - tokenTimestamp);
+      const statusMatch = req.status === tokenStatus || req.response_status === tokenStatus;
+      
+      return timeDiff <= 2000 && statusMatch; // 2 second tolerance + status match
+    });
+    
+    if (match) return match;
+    
+    // Strategy 2: Find closest timestamp match (within 10 seconds)
+    const closeMatches = candidates.filter(req => {
+      const reqTimestamp = new Date(req.timestamp).getTime();
+      const timeDiff = Math.abs(reqTimestamp - tokenTimestamp);
+      return timeDiff <= 10000; // 10 second tolerance
+    });
+    
+    if (closeMatches.length === 1) return closeMatches[0];
+    
+    // Strategy 3: Find best timestamp match with status preference
+    if (closeMatches.length > 1) {
+      // Prefer status matches
+      const statusMatches = closeMatches.filter(req => 
+        req.status === tokenStatus || req.response_status === tokenStatus
+      );
+      
+      if (statusMatches.length > 0) {
+        // Return closest timestamp among status matches
+        return statusMatches.reduce((closest, req) => {
+          const reqTime = new Date(req.timestamp).getTime();
+          const closestTime = new Date(closest.timestamp).getTime();
+          const reqDiff = Math.abs(reqTime - tokenTimestamp);
+          const closestDiff = Math.abs(closestTime - tokenTimestamp);
+          
+          return reqDiff < closestDiff ? req : closest;
+        });
+      }
+      
+      // No status matches, return closest by time
+      return closeMatches.reduce((closest, req) => {
+        const reqTime = new Date(req.timestamp).getTime();
+        const closestTime = new Date(closest.timestamp).getTime();
+        const reqDiff = Math.abs(reqTime - tokenTimestamp);
+        const closestDiff = Math.abs(closestTime - tokenTimestamp);
+        
+        return reqDiff < closestDiff ? req : closest;
+      });
+    }
+    
+    // Strategy 4: Last resort - any URL/method match (expand tolerance to 30 seconds)
+    const anyMatch = candidates.find(req => {
+      const reqTimestamp = new Date(req.timestamp).getTime();
+      const timeDiff = Math.abs(reqTimestamp - tokenTimestamp);
+      return timeDiff <= 30000; // 30 second tolerance
+    });
+    
+    return anyMatch || null;
+  };  if (selectedField === 'details') {
     return (
       <div className="space-y-4">
         <div>
@@ -1971,68 +2031,60 @@ export const TokenDetailContent: React.FC<{
           </div>
         </div>
 
-        {/* Related Network Request Section */}
+        {/* Enhanced Related Network Request Section */}
         {(() => {
           const matchingRequest = findMatchingNetworkRequest(tokenEvent);
           return matchingRequest ? (
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-gray-900">🔗 Related Network Request</h3>
-                <button
-                  onClick={() => copyToClipboard(JSON.stringify(matchingRequest, null, 2))}
-                  className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
-                >
-                  Copy Network Data
-                </button>
-              </div>
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-3">
-                <div className="flex items-center space-x-2 mb-2">
-                  <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
-                  <span className="text-sm font-medium text-green-800">Found matching network request</span>
+                <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-1">
+                    <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
+                    <span className="text-xs font-medium text-green-800">Match found</span>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(JSON.stringify(matchingRequest, null, 2))}
+                    className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
+                  >
+                    Copy Full Data
+                  </button>
                 </div>
-                
-                {matchingRequest.response_body && (
-                  <div>
-                    <span className="text-sm font-medium text-gray-700">Response Body:</span>
-                    <div className="mt-1 bg-white border rounded p-2 max-h-32 overflow-y-auto">
-                      <pre className="text-xs text-gray-900 whitespace-pre-wrap">
-                        {typeof matchingRequest.response_body === 'string' ? 
-                          matchingRequest.response_body.substring(0, 500) + (matchingRequest.response_body.length > 500 ? '...' : '') :
-                          JSON.stringify(matchingRequest.response_body, null, 2).substring(0, 500)
-                        }
-                      </pre>
-                    </div>
+              </div>
+
+              {/* Network Request Detail Tabs */}
+              <div className="bg-green-50 border border-green-200 rounded-lg">
+                {/* Tab Navigation */}
+                <div className="flex border-b border-green-200">
+                  {['details', 'headers', 'request', 'response', 'raw'].map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveNetworkView(tab)}
+                      className={`px-4 py-2 text-sm font-medium capitalize ${
+                        activeNetworkView === tab
+                          ? 'text-green-800 bg-green-100 border-b-2 border-green-500'
+                          : 'text-green-600 hover:text-green-800 hover:bg-green-50'
+                      }`}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Tab Content */}
+                <div className="p-4">
+                  <RequestDetailContent
+                    request={matchingRequest}
+                    selectedField={activeNetworkView}
+                    settings={settings}
+                  />
+                </div>
+
+                <div className="px-4 pb-3">
+                  <div className="text-xs text-green-700 italic bg-green-100 rounded p-2">
+                    💡 <strong>Complete Network Request Details:</strong> This shows the full network request data
+                    that corresponds to this token event, including all headers, request/response bodies, and metadata.
                   </div>
-                )}
-                
-                {matchingRequest.headers && Object.keys(matchingRequest.headers).length > 0 && (
-                  <div>
-                    <span className="text-sm font-medium text-gray-700">Headers ({Object.keys(matchingRequest.headers).length}):</span>
-                    <div className="mt-1 bg-white border rounded p-2 max-h-24 overflow-y-auto">
-                      <div className="space-y-1">
-                        {Object.entries(matchingRequest.headers).slice(0, 5).map(([key, value]) => (
-                          <div key={key} className="text-xs">
-                            <span className="font-medium text-gray-600">{key}:</span>
-                            <span className="text-gray-900 ml-1">{String(value).substring(0, 100)}</span>
-                          </div>
-                        ))}
-                        {Object.keys(matchingRequest.headers).length > 5 && (
-                          <div className="text-xs text-gray-500 italic">... and {Object.keys(matchingRequest.headers).length - 5} more headers</div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {matchingRequest.content_type && (
-                  <div>
-                    <span className="text-sm font-medium text-gray-700">Content Type:</span>
-                    <p className="text-sm text-gray-900 mt-1">{matchingRequest.content_type}</p>
-                  </div>
-                )}
-                
-                <div className="text-xs text-gray-500 italic">
-                  💡 This shows the complete network request data for this token event
                 </div>
               </div>
             </div>
@@ -2051,7 +2103,11 @@ export const TokenDetailContent: React.FC<{
                   <li>• The request was processed before network interception was enabled</li>
                   <li>• The network request has been cleaned up from storage</li>
                   <li>• There's a timing mismatch between token and network data</li>
+                  <li>• The enhanced matching algorithm couldn't find a suitable match</li>
                 </ul>
+                <div className="mt-3 p-2 bg-yellow-100 rounded text-xs text-yellow-800">
+                  <strong>Enhanced Matching:</strong> URL + Method + Status + Timestamp with multi-strategy fallback
+                </div>
               </div>
             </div>
           );
