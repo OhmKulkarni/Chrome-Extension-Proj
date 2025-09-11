@@ -79,9 +79,9 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
 
   const renderEventCard = (event: TimelineEvent, type: 'bookmark' | 'compare' | 'queue') => {
     const typeConfig = {
-      network: { color: 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700', icon: '🌐' },
-      console: { color: 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700', icon: '⚠️' },
-      token: { color: 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700', icon: '🔑' }
+      network: { color: 'bg-blue-50 dark:bg-blue-900/80 border-blue-200 dark:border-blue-700', icon: '🌐' },
+      console: { color: 'bg-red-50 dark:bg-red-900/80 border-red-200 dark:border-red-700', icon: '⚠️' },
+      token: { color: 'bg-green-50 dark:bg-green-900/80 border-green-200 dark:border-green-700', icon: '🔑' }
     }
 
     const config = typeConfig[event.type]
@@ -214,12 +214,12 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
   }
 
   return (
-    <div className={`${collapsed ? 'w-12' : 'w-80'} bg-white border-l border-gray-200 flex flex-col h-full transition-all duration-300 ease-in-out`}>
+    <div className={`${collapsed ? 'w-12' : 'w-80'} bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-600 flex flex-col h-full transition-all duration-300 ease-in-out`}>
       {/* Toggle Button */}
-      <div className="p-2 border-b border-gray-200 flex justify-center">
+      <div className="p-2 border-b border-gray-200 dark:border-gray-600 flex justify-center bg-white dark:bg-gray-800">
         <button
           onClick={toggleCollapsed}
-          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded transition-colors"
+          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {collapsed ? (
@@ -233,14 +233,14 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
       {!collapsed && (
         <>
           {/* Bookmarks Section - Fixed height */}
-          <div className="border-b border-gray-200 dark:border-gray-600 overflow-hidden flex flex-col" style={{ height: '280px' }}>
-            <div className="p-4 border-b border-gray-200 dark:border-gray-600 flex-shrink-0">
+          <div className="border-b border-gray-200 dark:border-gray-600 overflow-hidden flex flex-col bg-white dark:bg-gray-800" style={{ height: '280px' }}>
+            <div className="p-4 border-b border-gray-200 dark:border-gray-600 flex-shrink-0 bg-white dark:bg-gray-800">
               <div className="flex items-center space-x-2">
                 <Bookmark className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
                 <h3 className="font-medium text-gray-900 dark:text-gray-100">Bookmarks ({bookmarkedEvents.length})</h3>
               </div>
             </div>
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4 bg-white dark:bg-gray-800">
           {bookmarkedEvents.length > 0 ? (
             <div className="space-y-2">
               {bookmarkedEvents.map(event => renderEventCard(event, 'bookmark'))}
@@ -254,8 +254,8 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
       </div>
 
       {/* Compare Section - Fixed height */}
-      <div className="overflow-hidden flex flex-col" style={{ height: '280px' }}>
-        <div className="p-4 border-b border-gray-200 dark:border-gray-600 flex-shrink-0">
+      <div className="overflow-hidden flex flex-col bg-white dark:bg-gray-800" style={{ height: '280px' }}>
+        <div className="p-4 border-b border-gray-200 dark:border-gray-600 flex-shrink-0 bg-white dark:bg-gray-800">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <GitCompare className="w-4 h-4 text-purple-600 dark:text-purple-400" />
@@ -316,7 +316,7 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4 bg-white dark:bg-gray-800">
           {(() => {
             // Filter compare events by selected type
             const filteredCompareEvents = compareEvents.filter(event => event.type === selectedQueueType)
@@ -367,17 +367,17 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
 
       {/* Collapsed State - Show counts only */}
       {collapsed && (
-        <div className="flex flex-col" style={{ height: '560px' }}>
+        <div className="flex flex-col bg-white dark:bg-gray-800" style={{ height: '560px' }}>
           {/* Bookmarks section placeholder - 280px */}
-          <div className="flex items-center justify-center border-b border-gray-200" style={{ height: '280px' }}>
+          <div className="flex items-center justify-center border-b border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800" style={{ height: '280px' }}>
             <div className="text-center">
-              <Bookmark className="w-5 h-5 text-yellow-600 mx-auto mb-1" />
-              <div className="text-xs font-medium text-gray-600">{bookmarkedEvents.length}</div>
+              <Bookmark className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mx-auto mb-1" />
+              <div className="text-xs font-medium text-gray-600 dark:text-gray-300">{bookmarkedEvents.length}</div>
             </div>
           </div>
 
           {/* Compare section placeholder - 280px */}
-          <div className="flex items-center justify-center" style={{ height: '280px' }}>
+          <div className="flex items-center justify-center bg-white dark:bg-gray-800" style={{ height: '280px' }}>
             <div className="text-center space-y-2">
               <GitCompare className="w-5 h-5 text-purple-600 dark:text-purple-400 mx-auto mb-1" />
               <div className="text-xs font-medium text-gray-600 dark:text-gray-300">
