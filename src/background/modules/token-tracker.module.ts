@@ -220,7 +220,7 @@ export class TokenTrackerModule {
 
       // Determine token event type based on endpoint and response status
       let eventType: TokenEvent['type'];
-      
+
       // Ensure status is a number for proper comparison
       const statusCode = typeof status === 'string' ? parseInt(status, 10) : status;
       console.log(`🔍 TokenTrackerModule: Original status: ${status} (${typeof status}), converted: ${statusCode} (${typeof statusCode})`);
@@ -240,11 +240,11 @@ export class TokenTrackerModule {
           eventType = 'acquire';
           console.log(`🔍 TokenTrackerModule: Setting eventType to 'acquire' (success) - condition: ${statusCode} >= 200 && ${statusCode} < 300`);
         } else if (statusCode === 401 || statusCode === 403) {
-          eventType = 'validation_failed';
-          console.log(`🔍 TokenTrackerModule: Setting eventType to 'validation_failed' (401/403)`);
+          eventType = 'expired';
+          console.log(`🔍 TokenTrackerModule: Setting eventType to 'expired' (401/403)`);
         } else if (statusCode === 400) {
-          eventType = 'validation_failed'; // Bad request often means invalid credentials
-          console.log(`🔍 TokenTrackerModule: Setting eventType to 'validation_failed' (400)`);
+          eventType = 'expired'; // Bad request often means invalid credentials
+          console.log(`🔍 TokenTrackerModule: Setting eventType to 'expired' (400)`);
         } else {
           console.log(`🔍 TokenTrackerModule: Rejecting status ${statusCode} for acquire endpoint - no condition matched`);
           return null; // Don't track other failed acquisition attempts (5xx errors, etc.)
@@ -253,10 +253,10 @@ export class TokenTrackerModule {
         if (statusCode >= 200 && statusCode < 300) {
           eventType = 'verified';
         } else if (statusCode === 401 || statusCode === 403) {
-          eventType = 'validation_failed';
+          eventType = 'expired';
         } else if (statusCode === 400) {
-          eventType = 'validation_failed'; // Bad request often means invalid token format
-          console.log(`🔍 TokenTrackerModule: Status 400 on validation endpoint, treating as validation_failed`);
+          eventType = 'expired'; // Bad request often means invalid token format
+          console.log(`🔍 TokenTrackerModule: Status 400 on validation endpoint, treating as expired`);
         } else {
           return null;
         }
@@ -264,7 +264,7 @@ export class TokenTrackerModule {
         if (statusCode >= 200 && statusCode < 300) {
           eventType = 'acquire'; // WebSocket auth success treated as token acquisition
         } else {
-          eventType = 'validation_failed';
+          eventType = 'expired';
         }
       } else if (isApiCall && (hasAuthHeaders || hasAuthContent || hasAuthInUrl)) {
         // API calls with authentication - treat as token usage verification
