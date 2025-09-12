@@ -48,7 +48,7 @@ export class StorageManagerModule {
     };
 
     this.abortController = new AbortController();
-    console.log('🗄️ StorageManagerModule: Initialized with batch processing and IndexedDB storage');
+    // console.log('🗄️ StorageManagerModule: Initialized with batch processing and IndexedDB storage');
   }
 
   /**
@@ -56,7 +56,7 @@ export class StorageManagerModule {
    */
   async initialize(): Promise<void> {
     if (this.isInitialized) {
-      console.warn('StorageManagerModule: Already initialized');
+      // console.warn('StorageManagerModule: Already initialized');
       return;
     }
 
@@ -70,9 +70,9 @@ export class StorageManagerModule {
       this.startBatchProcessor();
 
       this.isInitialized = true;
-      console.log('✅ StorageManagerModule: Successfully initialized');
+      // console.log('✅ StorageManagerModule: Successfully initialized');
     } catch (error) {
-      console.error('❌ StorageManagerModule: Initialization failed:', error);
+      // console.error('❌ StorageManagerModule: Initialization failed:', error);
       throw error;
     }
   }
@@ -92,7 +92,7 @@ export class StorageManagerModule {
 
     this.batchQueue = {};
     this.isInitialized = false;
-    console.log('🧹 StorageManagerModule: Cleanup completed');
+    // console.log('🧹 StorageManagerModule: Cleanup completed');
   }
 
   // ===== NETWORK REQUEST STORAGE =====
@@ -124,9 +124,9 @@ export class StorageManagerModule {
         };
 
         await this.indexedDbStorage.insertApiCall(apiCallData);
-        console.log('✅ StorageManagerModule: Network request stored in IndexedDB');
+        // console.log('✅ StorageManagerModule: Network request stored in IndexedDB');
       } catch (error) {
-        console.warn('StorageManagerModule: Failed to store network request in IndexedDB, falling back to Chrome storage:', error);
+        // console.warn('StorageManagerModule: Failed to store network request in IndexedDB, falling back to Chrome storage:', error);
 
         // Fallback to Chrome storage for backward compatibility
         const existing = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.NETWORK_REQUESTS);
@@ -179,7 +179,7 @@ export class StorageManagerModule {
           response_headers: typeof apiCall.headers === 'string' && apiCall.headers ? JSON.parse(apiCall.headers).response : undefined
         } as NetworkRequestData));
       } catch (error) {
-        console.warn('StorageManagerModule: Failed to get network requests from IndexedDB, falling back to Chrome storage:', error);
+        // console.warn('StorageManagerModule: Failed to get network requests from IndexedDB, falling back to Chrome storage:', error);
 
         // Fallback to Chrome storage
         const result = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.NETWORK_REQUESTS);
@@ -216,9 +216,9 @@ export class StorageManagerModule {
         };
 
         await this.indexedDbStorage.insertConsoleError(consoleErrorData);
-        console.log('✅ StorageManagerModule: Console error stored in IndexedDB');
+        // console.log('✅ StorageManagerModule: Console error stored in IndexedDB');
       } catch (error) {
-        console.warn('StorageManagerModule: Failed to store console error in IndexedDB, falling back to Chrome storage:', error);
+        // console.warn('StorageManagerModule: Failed to store console error in IndexedDB, falling back to Chrome storage:', error);
 
         // Fallback to Chrome storage for backward compatibility
         const existing = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.CONSOLE_ERRORS);
@@ -259,7 +259,7 @@ export class StorageManagerModule {
           tabId: error.tab_id
         } as ConsoleErrorData));
       } catch (error) {
-        console.warn('StorageManagerModule: Failed to get console errors from IndexedDB, falling back to Chrome storage:', error);
+        // console.warn('StorageManagerModule: Failed to get console errors from IndexedDB, falling back to Chrome storage:', error);
 
         // Fallback to Chrome storage
         const result = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.CONSOLE_ERRORS);
@@ -297,9 +297,9 @@ export class StorageManagerModule {
         };
 
         await this.indexedDbStorage.insertTokenEvent(storageTokenEvent);
-        console.log('✅ StorageManagerModule: Token event stored in IndexedDB');
+        // console.log('✅ StorageManagerModule: Token event stored in IndexedDB');
       } catch (error) {
-        console.warn('StorageManagerModule: Failed to store token event in IndexedDB, falling back to Chrome storage:', error);
+        // console.warn('StorageManagerModule: Failed to store token event in IndexedDB, falling back to Chrome storage:', error);
 
         // Fallback to Chrome storage for backward compatibility
         const existing = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.TOKEN_EVENTS);
@@ -323,13 +323,13 @@ export class StorageManagerModule {
    * Get paginated token events - Uses IndexedDB
    */
   async getTokenEvents(limit = 50, offset = 0): Promise<TokenEvent[]> {
-    console.log(`� CRITICAL DEBUG: getTokenEvents called with limit=${limit}, offset=${offset}`);
+    // console.log(`� CRITICAL DEBUG: getTokenEvents called with limit=${limit}, offset=${offset}`);
     return this.executeWithSafety('getTokenEvents', async () => {
       // Try IndexedDB first
       try {
-        console.log(`� CRITICAL DEBUG: Attempting to retrieve from IndexedDB...`);
+        // console.log(`� CRITICAL DEBUG: Attempting to retrieve from IndexedDB...`);
         const storageTokenEvents = await this.indexedDbStorage.getTokenEvents(limit, offset);
-        console.log(`� CRITICAL DEBUG: Retrieved ${storageTokenEvents.length} events from IndexedDB:`, storageTokenEvents);
+        // console.log(`� CRITICAL DEBUG: Retrieved ${storageTokenEvents.length} events from IndexedDB:`, storageTokenEvents);
 
         // Convert storage TokenEvent format back to background TokenEvent format
         const convertedEvents = storageTokenEvents.map(event => ({
@@ -343,15 +343,15 @@ export class StorageManagerModule {
           valueHash: event.valueHash
         } as TokenEvent));
 
-        console.log(`� CRITICAL DEBUG: Returning converted events:`, convertedEvents);
+        // console.log(`� CRITICAL DEBUG: Returning converted events:`, convertedEvents);
         return convertedEvents;
       } catch (error) {
-        console.warn('🚨 CRITICAL DEBUG: Failed to get token events from IndexedDB, falling back to Chrome storage:', error);
+        // console.warn('🚨 CRITICAL DEBUG: Failed to get token events from IndexedDB, falling back to Chrome storage:', error);
 
         // Fallback to Chrome storage
         const result = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.TOKEN_EVENTS);
         const events = result[this.STORAGE_KEYS.TOKEN_EVENTS] || [];
-        console.log(`� CRITICAL DEBUG: Using Chrome storage fallback - found ${events.length} events:`, events);
+        // console.log(`� CRITICAL DEBUG: Using Chrome storage fallback - found ${events.length} events:`, events);
         return events.slice(offset, offset + limit);
       }
     });
@@ -503,7 +503,7 @@ export class StorageManagerModule {
           return migratedSettings;
         }
       } catch (error) {
-        console.warn('StorageManagerModule: Failed to get settings from IndexedDB, falling back to Chrome storage:', error);
+        // console.warn('StorageManagerModule: Failed to get settings from IndexedDB, falling back to Chrome storage:', error);
       }
 
       // Fallback to Chrome storage for backward compatibility
@@ -544,7 +544,7 @@ export class StorageManagerModule {
 
     // Check if migration needed (old filterNoise boolean exists but no noiseFilters object)
     if (typeof settings.filterNoise === 'boolean' && !settings.noiseFilters) {
-      console.log('StorageManagerModule: Migrating settings from filterNoise to noiseFilters');
+      // console.log('StorageManagerModule: Migrating settings from filterNoise to noiseFilters');
 
       const migratedSettings = {
         ...settings,
@@ -685,7 +685,7 @@ export class StorageManagerModule {
       await this.processBatch();
     }, 1000); // Process batches every second
 
-    console.log('🔄 StorageManagerModule: Batch processor started');
+    // console.log('🔄 StorageManagerModule: Batch processor started');
   }
 
   /**
@@ -723,7 +723,7 @@ export class StorageManagerModule {
         }
       }
     } catch (error) {
-      console.error('StorageManagerModule: Batch processing failed:', error);
+      // console.error('StorageManagerModule: Batch processing failed:', error);
     }
   }
 
@@ -756,7 +756,7 @@ export class StorageManagerModule {
         // Log performance for slow operations
         const duration = Date.now() - startTime;
         if (duration > 1000) { // Log operations taking more than 1 second
-          console.warn(`🐌 StorageManagerModule: ${operation} took ${duration}ms`);
+          // console.warn(`🐌 StorageManagerModule: ${operation} took ${duration}ms`);
         }
 
         return result;
@@ -764,11 +764,11 @@ export class StorageManagerModule {
         lastError = error instanceof Error ? error : new Error(String(error));
 
         if (attempt === this.config.maxRetries) {
-          console.error(`❌ StorageManagerModule: ${operation} failed after ${this.config.maxRetries} retries:`, lastError);
+          // console.error(`❌ StorageManagerModule: ${operation} failed after ${this.config.maxRetries} retries:`, lastError);
           break;
         }
 
-        console.warn(`⚠️ StorageManagerModule: ${operation} failed, retrying (${attempt + 1}/${this.config.maxRetries}):`, lastError);
+        // console.warn(`⚠️ StorageManagerModule: ${operation} failed, retrying (${attempt + 1}/${this.config.maxRetries}):`, lastError);
       }
     }
 
@@ -808,7 +808,7 @@ export class StorageManagerModule {
         tabStates: tabStatesCount
       };
     } catch (error) {
-      console.error('StorageManagerModule: Error getting storage info:', error);
+      // console.error('StorageManagerModule: Error getting storage info:', error);
       return {
         networkRequests: 0,
         consoleErrors: 0,

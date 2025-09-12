@@ -54,7 +54,7 @@ export class BackgroundController {
   private startTime = Date.now();
 
   constructor() {
-    console.log('🚀 BackgroundController: Starting modular architecture initialization');
+    // console.log('🚀 BackgroundController: Starting modular architecture initialization');
 
     // Initialize Chrome API module first (foundation for all other modules)
     this.chromeApi = new ChromeApiModule(this.config);
@@ -106,7 +106,7 @@ export class BackgroundController {
       this.config
     );
 
-    console.log('🔧 BackgroundController: All modules instantiated with IndexedDB storage');
+    // console.log('🔧 BackgroundController: All modules instantiated with IndexedDB storage');
   }
 
   /**
@@ -131,54 +131,50 @@ export class BackgroundController {
    * Perform the actual initialization with comprehensive error handling
    */
   private async performInitialization(): Promise<void> {
-    const initStartTime = Date.now();
-
     try {
-      console.log('🔧 BackgroundController: Starting module initialization sequence');
+      // console.log('🔧 BackgroundController: Starting module initialization sequence');
 
       // Phase 1: Initialize foundational modules
-      console.log('📋 Phase 1: Foundation modules');
+      // console.log('📋 Phase 1: Foundation modules');
       await this.chromeApi.initialize();
-      console.log('  ✅ Chrome API module initialized');
+      // console.log('  ✅ Chrome API module initialized');
 
       await this.storageManager.initialize();
-      console.log('  ✅ Storage manager initialized');
+      // console.log('  ✅ Storage manager initialized');
 
       // Phase 2: Initialize legacy compatibility
-      console.log('📋 Phase 2: Legacy compatibility');
+      // console.log('📋 Phase 2: Legacy compatibility');
       await this.initializeLegacyCompatibility();
-      console.log('  ✅ Legacy compatibility initialized');
+      // console.log('  ✅ Legacy compatibility initialized');
 
       // Phase 3: Initialize specialized modules
-      console.log('📋 Phase 3: Specialized modules');
+      // console.log('📋 Phase 3: Specialized modules');
       await this.tokenTracker.initialize();
-      console.log('  ✅ Token tracker initialized');
+      // console.log('  ✅ Token tracker initialized');
 
       await this.networkProcessor.initialize();
-      console.log('  ✅ Network processor initialized');
+      // console.log('  ✅ Network processor initialized');
 
       await this.consoleHandler.initialize();
-      console.log('  ✅ Console handler initialized');
+      // console.log('  ✅ Console handler initialized');
 
       await this.extensionState.initialize();
-      console.log('  ✅ Extension state initialized');
+      // console.log('  ✅ Extension state initialized');
 
       await this.unifiedPermissionService.initialize();
-      console.log('  ✅ Unified permission service initialized');
+      // console.log('  ✅ Unified permission service initialized');
 
       // Phase 4: Initialize message router (must be last)
-      console.log('📋 Phase 4: Message router');
+      // console.log('📋 Phase 4: Message router');
       await this.messageRouter.initialize();
-      console.log('  ✅ Message router initialized');
+      // console.log('  ✅ Message router initialized');
 
       // Initialization complete
       this.isInitialized = true;
-      const initDuration = Date.now() - initStartTime;
-      const totalStartupTime = Date.now() - this.startTime;
 
-      console.log(`🎉 BackgroundController: Modular architecture fully initialized!`);
-      console.log(`⏱️  Initialization time: ${initDuration}ms`);
-      console.log(`⏱️  Total startup time: ${totalStartupTime}ms`);
+      // console.log(`🎉 BackgroundController: Modular architecture fully initialized!`);
+      // console.log(`⏱️  Initialization time: ${Date.now() - initStartTime}ms`);
+      // console.log(`⏱️  Total startup time: ${Date.now() - this.startTime}ms`);
 
       // Log memory usage
       this.logMemoryUsage();

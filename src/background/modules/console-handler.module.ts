@@ -46,7 +46,7 @@ export class ConsoleHandlerModule {
     };
 
     this.abortController = new AbortController();
-    console.log('🔥 ConsoleHandlerModule: Initialized with error processing');
+    // console.log('🔥 ConsoleHandlerModule: Initialized with error processing');
   }
 
   /**
@@ -65,7 +65,7 @@ export class ConsoleHandlerModule {
       }
 
       this.isInitialized = true;
-      console.log('✅ ConsoleHandlerModule: Successfully initialized');
+      // console.log('✅ ConsoleHandlerModule: Successfully initialized');
     } catch (error) {
       console.error('❌ ConsoleHandlerModule: Initialization failed:', error);
       throw error;

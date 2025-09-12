@@ -16,7 +16,7 @@ export class DomainGroupingMigration {
     migrated: number;
     errors: number;
   }> {
-    console.log('🔄 Starting domain grouping migration...');
+    // console.log('🔄 Starting domain grouping migration...');
 
     let processed = 0;
     let migrated = 0;
@@ -34,7 +34,7 @@ export class DomainGroupingMigration {
       }
 
       const networkRequests = response.data || [];
-      console.log(`📊 Found ${networkRequests.length} network requests to process`);
+      // console.log(`📊 Found ${networkRequests.length} network requests to process`);
 
       for (const request of networkRequests) {
         processed++;
@@ -51,27 +51,27 @@ export class DomainGroupingMigration {
               await this.updateRequestMainDomain(request.id, correctedMainDomain);
               migrated++;
 
-              console.log(`✅ Migrated request ${request.id}: ${request.main_domain} → ${correctedMainDomain}`);
+              // console.log(`✅ Migrated request ${request.id}: ${request.main_domain} → ${correctedMainDomain}`);
             }
           }
 
           // Log progress every 100 requests
           if (processed % 100 === 0) {
-            console.log(`📊 Progress: ${processed}/${networkRequests.length} processed, ${migrated} migrated`);
+            // console.log(`📊 Progress: ${processed}/${networkRequests.length} processed, ${migrated} migrated`);
           }
 
         } catch (error) {
           errors++;
-          console.error(`❌ Error processing request ${request.id}:`, error);
+          // console.error(`❌ Error processing request ${request.id}:`, error);
         }
       }
 
-      console.log(`🎉 Migration complete! Processed: ${processed}, Migrated: ${migrated}, Errors: ${errors}`);
+      // console.log(`🎉 Migration complete! Processed: ${processed}, Migrated: ${migrated}, Errors: ${errors}`);
 
       return { processed, migrated, errors };
 
     } catch (error) {
-      console.error('❌ Migration failed:', error);
+      // console.error('❌ Migration failed:', error);
       throw error;
     }
   }
@@ -132,7 +132,7 @@ export class DomainGroupingMigration {
 
       return withoutWww;
     } catch (error) {
-      console.warn('Failed to extract domain from URL:', url, error);
+      // console.warn('Failed to extract domain from URL:', url, error);
       return 'unknown';
     }
   }
@@ -140,10 +140,10 @@ export class DomainGroupingMigration {
   /**
    * Update a request's main_domain in the database
    */
-  private static async updateRequestMainDomain(requestId: number, newMainDomain: string): Promise<void> {
+  private static async updateRequestMainDomain(_requestId: number, _newMainDomain: string): Promise<void> {
     // Note: This would require adding an update method to the background script
     // For now, we'll just log what would be updated
-    console.log(`Would update request ${requestId} main_domain to: ${newMainDomain}`);
+    // console.log(`Would update request ${requestId} main_domain to: ${newMainDomain}`);
 
     // TODO: Implement actual database update when update API is available
     // await chrome.runtime.sendMessage({

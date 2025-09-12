@@ -90,7 +90,7 @@ export class UnifiedPermissionManager {
     }
 
     if (this.state) {
-      console.log('✅ UnifiedPermissionManager: Already initialized');
+      // console.log('✅ UnifiedPermissionManager: Already initialized');
       return;
     }
 
@@ -108,9 +108,9 @@ export class UnifiedPermissionManager {
   private async performInitialization(): Promise<void> {
     try {
       await this.loadState();
-      console.log('✅ UnifiedPermissionManager: Initialized successfully');
+      // console.log('✅ UnifiedPermissionManager: Initialized successfully');
     } catch (error) {
-      console.error('❌ UnifiedPermissionManager: Initialization failed:', error);
+      // console.error('❌ UnifiedPermissionManager: Initialization failed:', error);
       await this.resetToDefaults();
     }
   }
@@ -139,7 +139,7 @@ export class UnifiedPermissionManager {
         await this.resetToDefaults();
       }
     } catch (error) {
-      console.error('UnifiedPermissionManager: Failed to load state:', error);
+      // console.error('UnifiedPermissionManager: Failed to load state:', error);
       await this.resetToDefaults();
     }
   }
@@ -162,7 +162,7 @@ export class UnifiedPermissionManager {
       await this.ensureState();
       return this.state !== null;
     } catch (error) {
-      console.warn('UnifiedPermissionManager: Readiness check failed:', error);
+      // console.warn('UnifiedPermissionManager: Readiness check failed:', error);
       return false;
     }
   }
@@ -177,7 +177,7 @@ export class UnifiedPermissionManager {
       this.state.lastUpdated = Date.now();
       await chrome.storage.local.set({ [this.STORAGE_KEY]: this.state });
     } catch (error) {
-      console.error('UnifiedPermissionManager: Failed to save state:', error);
+      // console.error('UnifiedPermissionManager: Failed to save state:', error);
       throw error;
     }
   }
@@ -198,7 +198,7 @@ export class UnifiedPermissionManager {
                           this.state.featureDefaults.tokens === true;
 
     if (needsMigration) {
-      console.log('🔄 UnifiedPermissionManager: Migrating permission defaults to secure values');
+      // console.log('🔄 UnifiedPermissionManager: Migrating permission defaults to secure values');
 
       // Fix defaults to match expected behavior - ALWAYS FORCE CONSOLE TO FALSE
       this.state.featureDefaults = {
@@ -214,7 +214,7 @@ export class UnifiedPermissionManager {
       // Save migrated state
       await this.saveState();
 
-      console.log('✅ UnifiedPermissionManager: Console logging forced to FALSE - migration completed');
+      // console.log('✅ UnifiedPermissionManager: Console logging forced to FALSE - migration completed');
     }
   }  /**
    * Reset to safe defaults
@@ -234,7 +234,7 @@ export class UnifiedPermissionManager {
     };
 
     await this.saveState();
-    console.log('🔄 UnifiedPermissionManager: Reset to secure defaults (console logging disabled by default)');
+    // console.log('🔄 UnifiedPermissionManager: Reset to secure defaults (console logging disabled by default)');
   }
 
   // ===== GLOBAL PERMISSION METHODS =====
@@ -265,7 +265,7 @@ export class UnifiedPermissionManager {
       data: { enabled, wasEnabled }
     });
 
-    console.log(`🔌 UnifiedPermissionManager: Global extension ${enabled ? 'enabled' : 'disabled'}`);
+    // console.log(`🔌 UnifiedPermissionManager: Global extension ${enabled ? 'enabled' : 'disabled'}`);
   }
 
   // ===== SITE-SPECIFIC PERMISSION METHODS =====
@@ -304,7 +304,7 @@ export class UnifiedPermissionManager {
       data: { domain, enabled, wasEnabled }
     });
 
-    console.log(`🌐 UnifiedPermissionManager: Site ${domain} ${enabled ? 'enabled' : 'disabled'}`);
+    // console.log(`🌐 UnifiedPermissionManager: Site ${domain} ${enabled ? 'enabled' : 'disabled'}`);
   }
 
   /**
@@ -327,7 +327,7 @@ export class UnifiedPermissionManager {
     if (!this.state) {
       // SECURITY FIX: During initialization, default to FALSE to prevent unwanted data collection
       // This prevents library detection and logging during Chrome startup until permissions are loaded
-      console.warn(`⚠️ UnifiedPermissionManager: State not initialized, defaulting ${feature} to FALSE for tab ${tabId}`);
+      // console.warn(`⚠️ UnifiedPermissionManager: State not initialized, defaulting ${feature} to FALSE for tab ${tabId}`);
       return false;
     }
 
@@ -357,7 +357,7 @@ export class UnifiedPermissionManager {
     }
 
     try {
-      console.log(`🔄 UnifiedPermissionManager: Initializing tab ${tabId} with fresh defaults`);
+      // console.log(`🔄 UnifiedPermissionManager: Initializing tab ${tabId} with fresh defaults`);
 
       const domain = this.extractDomain(tabUrl);
 
@@ -367,7 +367,7 @@ export class UnifiedPermissionManager {
       const consoleEnabled = this.state.featureDefaults.console;
       const tokensEnabled = this.state.featureDefaults.tokens;
 
-      console.log(`🔄 UnifiedPermissionManager: Tab ${tabId} starting fresh with defaults for ${domain}`);
+      // console.log(`🔄 UnifiedPermissionManager: Tab ${tabId} starting fresh with defaults for ${domain}`);
 
       // Initialize tab control with fresh default preferences
       this.state.tabControls[tabId] = {
@@ -379,14 +379,14 @@ export class UnifiedPermissionManager {
         lastUpdated: Date.now()
       };      await this.saveState();
 
-      console.log(`✅ UnifiedPermissionManager: Initialized tab ${tabId} permissions:`, {
-        network: this.state.tabControls[tabId].network,
-        console: this.state.tabControls[tabId].console,
-        tokens: this.state.tabControls[tabId].tokens
-      });
+      // console.log(`✅ UnifiedPermissionManager: Initialized tab ${tabId} permissions:`, {
+      //   network: this.state.tabControls[tabId].network,
+      //   console: this.state.tabControls[tabId].console,
+      //   tokens: this.state.tabControls[tabId].tokens
+      // });
 
     } catch (error) {
-      console.error(`❌ UnifiedPermissionManager: Failed to initialize tab ${tabId}:`, error);
+      // console.error(`❌ UnifiedPermissionManager: Failed to initialize tab ${tabId}:`, error);
       // Fall back to defaults if initialization fails
     }
   }
@@ -428,7 +428,7 @@ export class UnifiedPermissionManager {
       data: { tabId, feature, enabled, wasEnabled }
     });
 
-    console.log(`🎛️ UnifiedPermissionManager: Tab ${tabId} ${feature} ${enabled ? 'enabled' : 'disabled'}`);
+    // console.log(`🎛️ UnifiedPermissionManager: Tab ${tabId} ${feature} ${enabled ? 'enabled' : 'disabled'}`);
   }
 
   /**
@@ -487,7 +487,7 @@ export class UnifiedPermissionManager {
       }
     });
 
-    console.log(`🌐 UnifiedPermissionManager: Tab ${tabId} all features ${enabled ? 'enabled' : 'disabled'} for ${domain}`);
+    // console.log(`🌐 UnifiedPermissionManager: Tab ${tabId} all features ${enabled ? 'enabled' : 'disabled'} for ${domain}`);
   }
 
   /**
@@ -587,7 +587,7 @@ export class UnifiedPermissionManager {
 
     if (cleaned > 0) {
       await this.saveState();
-      console.log(`🧹 UnifiedPermissionManager: Cleaned up ${cleaned} old tabs`);
+      // console.log(`🧹 UnifiedPermissionManager: Cleaned up ${cleaned} old tabs`);
     }
   }
 
@@ -596,7 +596,9 @@ export class UnifiedPermissionManager {
    */
   private startPeriodicCleanup(): void {
     this.cleanupTimer = setInterval(() => {
-      this.cleanupOldTabs().catch(console.error);
+      this.cleanupOldTabs().catch(_error => {
+        // console.error(error);
+      });
     }, this.CLEANUP_INTERVAL);
   }
 
@@ -606,7 +608,7 @@ export class UnifiedPermissionManager {
   addEventListener(listener: (event: PermissionEvent) => void): void {
     // Prevent listener accumulation
     if (this.eventListeners.length >= this.maxEventListeners) {
-      console.warn('UnifiedPermissionManager: Maximum event listeners reached, removing oldest');
+      // console.warn('UnifiedPermissionManager: Maximum event listeners reached, removing oldest');
       this.eventListeners.shift();
     }
 
@@ -628,7 +630,7 @@ export class UnifiedPermissionManager {
       try {
         listener(event);
       } catch (error) {
-        console.error('Error in permission event listener:', error);
+        // console.error('Error in permission event listener:', error);
       }
     });
   }
@@ -645,7 +647,7 @@ export class UnifiedPermissionManager {
     this.eventListeners = [];
     this.state = null;
 
-    console.log('🧹 UnifiedPermissionManager: Cleanup completed');
+    // console.log('🧹 UnifiedPermissionManager: Cleanup completed');
   }
 }
 

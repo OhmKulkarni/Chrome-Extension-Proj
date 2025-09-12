@@ -55,7 +55,7 @@ export const UnifiedPermissionDemo: React.FC<UnifiedPermissionDemoProps> = () =>
 
         setLoading(false);
       } catch (error) {
-        console.error('Error loading permission state:', error);
+        // console.error('Error loading permission state:', error);
         setLoading(false);
       }
     };
@@ -74,7 +74,7 @@ export const UnifiedPermissionDemo: React.FC<UnifiedPermissionDemoProps> = () =>
       const rawData = await chrome.storage.local.get(['unifiedPermissions']);
       setPermissionData(rawData.unifiedPermissions);
     } catch (error) {
-      console.error('Error toggling global state:', error);
+      // console.error('Error toggling global state:', error);
     }
   };
 
@@ -91,7 +91,7 @@ export const UnifiedPermissionDemo: React.FC<UnifiedPermissionDemoProps> = () =>
       const rawData = await chrome.storage.local.get(['unifiedPermissions']);
       setPermissionData(rawData.unifiedPermissions);
     } catch (error) {
-      console.error('Error toggling site state:', error);
+      // console.error('Error toggling site state:', error);
     }
   };
 
@@ -112,7 +112,7 @@ export const UnifiedPermissionDemo: React.FC<UnifiedPermissionDemoProps> = () =>
       const rawData = await chrome.storage.local.get(['unifiedPermissions']);
       setPermissionData(rawData.unifiedPermissions);
     } catch (error) {
-      console.error(`Error toggling ${feature} feature:`, error);
+      // console.error(`Error toggling ${feature} feature:`, error);
     }
   };
 

@@ -59,7 +59,7 @@ const UnifiedPopup: React.FC<UnifiedPopupProps> = ({ className }) => {
         domain: url.hostname,
       };
     } catch (error) {
-      console.error('Error getting current tab:', error);
+      // console.error('Error getting current tab:', error);
       return null;
     }
   }, []);
@@ -95,7 +95,7 @@ const UnifiedPopup: React.FC<UnifiedPopupProps> = ({ className }) => {
       await loadStats(tab.id);
 
     } catch (error) {
-      console.error('Error loading permissions:', error);
+      // console.error('Error loading permissions:', error);
     } finally {
       setLoading(false);
     }
@@ -118,7 +118,7 @@ const UnifiedPopup: React.FC<UnifiedPopupProps> = ({ className }) => {
         });
       }
     } catch (error) {
-      console.log('Could not load stats:', error);
+      // console.log('Could not load stats:', error);
     }
   }, []);
 
@@ -148,7 +148,7 @@ const UnifiedPopup: React.FC<UnifiedPopupProps> = ({ className }) => {
         await loadPermissions();
       }
     } catch (error) {
-      console.error('Error toggling global power:', error);
+      // console.error('Error toggling global power:', error);
       // Revert on error
       setPermissions(prev => ({ ...prev, globalEnabled: !newState }));
     }
@@ -205,11 +205,11 @@ const UnifiedPopup: React.FC<UnifiedPopupProps> = ({ className }) => {
           enabled: newState,
         });
       } catch (error) {
-        console.log('Could not notify content script:', error);
+        // console.log('Could not notify content script:', error);
       }
 
     } catch (error) {
-      console.error('Error toggling site enable:', error);
+      // console.error('Error toggling site enable:', error);
       // Revert on error
       setPermissions(prev => ({ ...prev, siteEnabled: !newState }));
     }
@@ -236,14 +236,14 @@ const UnifiedPopup: React.FC<UnifiedPopupProps> = ({ className }) => {
           enabled: newState,
         });
       } catch (error) {
-        console.log('Could not notify content script:', error);
+        // console.log('Could not notify content script:', error);
       }
 
       // Refresh stats after toggle
       await loadStats(currentTab.id);
 
     } catch (error) {
-      console.error(`Error toggling ${feature}:`, error);
+      // console.error(`Error toggling ${feature}:`, error);
       // Revert on error
       setPermissions(prev => ({ ...prev, [`${feature}Enabled`]: !newState }));
     }

@@ -52,7 +52,7 @@ export class NetworkProcessorModule {
     };
 
     this.abortController = new AbortController();
-    console.log('🌐 NetworkProcessorModule: Initialized with IndexedDB storage for all interceptions');
+    // console.log('🌐 NetworkProcessorModule: Initialized with IndexedDB storage for all interceptions');
   }
 
   /**
@@ -71,7 +71,7 @@ export class NetworkProcessorModule {
       }
 
       this.isInitialized = true;
-      console.log('✅ NetworkProcessorModule: Successfully initialized');
+      // console.log('✅ NetworkProcessorModule: Successfully initialized');
     } catch (error) {
       console.error('❌ NetworkProcessorModule: Initialization failed:', error);
       throw error;
@@ -142,32 +142,32 @@ export class NetworkProcessorModule {
         const contentScriptTabUrl = requestData.tabUrl;
         const senderTabUrl = sender?.tab?.url;
 
-        if (shouldDebugUrl) {
-          console.log('🔍 RAW REQUEST DATA DEBUG:', {
-            requestDataKeys: Object.keys(requestData),
-            requestDataUrl: requestData.url,
-            requestDataTabUrl: requestData.tabUrl,
-            requestDataType: requestData.type,
-            requestDataMethod: requestData.method,
-            hasTabUrlProperty: 'tabUrl' in requestData,
-            tabUrlType: typeof requestData.tabUrl,
-            tabUrlValue: requestData.tabUrl,
-            allRequestData: requestData
-          });
+        // if (shouldDebugUrl) {
+        //   console.log('🔍 RAW REQUEST DATA DEBUG:', {
+        //     requestDataKeys: Object.keys(requestData),
+        //     requestDataUrl: requestData.url,
+        //     requestDataTabUrl: requestData.tabUrl,
+        //     requestDataType: requestData.type,
+        //     requestDataMethod: requestData.method,
+        //     hasTabUrlProperty: 'tabUrl' in requestData,
+        //     tabUrlType: typeof requestData.tabUrl,
+        //     tabUrlValue: requestData.tabUrl,
+        //     allRequestData: requestData
+        //   });
 
-          console.log(`🔍 IFRAME DEBUG - Before URL selection:`, {
-            requestUrl: url.substring(0, 100),
-            contentScriptTabUrl: contentScriptTabUrl || 'MISSING',
-            senderTabUrl: senderTabUrl || 'MISSING',
-            senderAvailable: !!sender?.tab,
-            tabIdFromSender: sender?.tab?.id,
-            frameId: sender?.frameId,
-            isMainFrame: sender?.frameId === 0,
-            hasContentScriptUrl: !!contentScriptTabUrl,
-            hasSenderTabUrl: !!senderTabUrl,
-            willEnterSmartSelection: !!(senderTabUrl && contentScriptTabUrl)
-          });
-        }
+        //   console.log(`🔍 IFRAME DEBUG - Before URL selection:`, {
+        //     requestUrl: url.substring(0, 100),
+        //     contentScriptTabUrl: contentScriptTabUrl || 'MISSING',
+        //     senderTabUrl: senderTabUrl || 'MISSING',
+        //     senderAvailable: !!sender?.tab,
+        //     tabIdFromSender: sender?.tab?.id,
+        //     frameId: sender?.frameId,
+        //     isMainFrame: sender?.frameId === 0,
+        //     hasContentScriptUrl: !!contentScriptTabUrl,
+        //     hasSenderTabUrl: !!senderTabUrl,
+        //     willEnterSmartSelection: !!(senderTabUrl && contentScriptTabUrl)
+        //   });
+        // }
 
         if (senderTabUrl && contentScriptTabUrl) {
           // If content script tabUrl is a data URI or cross-origin, prefer sender tab URL
@@ -175,48 +175,48 @@ export class NetworkProcessorModule {
           const isBlobUri = contentScriptTabUrl.startsWith('blob:');
           const sameOrigin = this.isSameOrigin(contentScriptTabUrl, senderTabUrl);
 
-          if (shouldDebugUrl) {
-            console.log(`🔍 IFRAME DEBUG - URL analysis:`, {
-              isDataUri,
-              isBlobUri,
-              sameOrigin,
-              contentDomain: this.extractMainDomain(contentScriptTabUrl),
-              senderDomain: this.extractMainDomain(senderTabUrl)
-            });
-          }
+          // if (shouldDebugUrl) {
+          //   console.log(`🔍 IFRAME DEBUG - URL analysis:`, {
+          //     isDataUri,
+          //     isBlobUri,
+          //     sameOrigin,
+          //     contentDomain: this.extractMainDomain(contentScriptTabUrl),
+          //     senderDomain: this.extractMainDomain(senderTabUrl)
+          //   });
+          // }
 
           // ENHANCED: Smart domain grouping for third-party embeds
           if (isDataUri || isBlobUri || !sameOrigin) {
             // This is likely a cross-origin iframe/embed
             tabUrl = senderTabUrl; // Use the parent page URL for domain grouping
 
-            if (shouldDebugUrl) {
-              console.log(`🎯 IFRAME GROUPING - Cross-origin detected:`, {
-                parentDomain: this.extractMainDomain(senderTabUrl),
-                embedDomain: this.extractMainDomain(contentScriptTabUrl),
-                willGroupUnder: this.extractMainDomain(senderTabUrl),
-                reason: 'cross-origin iframe detected'
-              });
-              console.log(`✅ IFRAME DEBUG - Using sender tab URL for grouping: ${senderTabUrl.substring(0, 100)}`);
-            }
+            // if (shouldDebugUrl) {
+            //   console.log(`🎯 IFRAME GROUPING - Cross-origin detected:`, {
+            //     parentDomain: this.extractMainDomain(senderTabUrl),
+            //     embedDomain: this.extractMainDomain(contentScriptTabUrl),
+            //     willGroupUnder: this.extractMainDomain(senderTabUrl),
+            //     reason: 'cross-origin iframe detected'
+            //   });
+            //   console.log(`✅ IFRAME DEBUG - Using sender tab URL for grouping: ${senderTabUrl.substring(0, 100)}`);
+            // }
           } else {
             tabUrl = contentScriptTabUrl;
-            if (shouldDebugUrl) {
-              console.log(`✅ IFRAME DEBUG - Using content script tab URL: ${contentScriptTabUrl.substring(0, 100)}`);
-            }
+            // if (shouldDebugUrl) {
+            //   console.log(`✅ IFRAME DEBUG - Using content script tab URL: ${contentScriptTabUrl.substring(0, 100)}`);
+            // }
           }
         } else {
           tabUrl = senderTabUrl || contentScriptTabUrl || requestData.url;
-          if (shouldDebugUrl) {
-            console.log(`⚠️ IFRAME DEBUG - Fallback URL selection: ${tabUrl?.substring(0, 100) || 'NONE'}`);
-            console.log(`⚠️ IFRAME DEBUG - Fallback reason:`, {
-              senderTabUrlExists: !!senderTabUrl,
-              contentScriptTabUrlExists: !!contentScriptTabUrl,
-              senderTabUrlValue: senderTabUrl?.substring(0, 100),
-              contentScriptTabUrlValue: contentScriptTabUrl?.substring(0, 100),
-              bothExistButConditionFailed: !!(senderTabUrl && contentScriptTabUrl)
-            });
-          }
+          // if (shouldDebugUrl) {
+          //   console.log(`⚠️ IFRAME DEBUG - Fallback URL selection: ${tabUrl?.substring(0, 100) || 'NONE'}`);
+          //   console.log(`⚠️ IFRAME DEBUG - Fallback reason:`, {
+          //     senderTabUrlExists: !!senderTabUrl,
+          //     contentScriptTabUrlExists: !!contentScriptTabUrl,
+          //     senderTabUrlValue: senderTabUrl?.substring(0, 100),
+          //     contentScriptTabUrlValue: contentScriptTabUrl?.substring(0, 100),
+          //     bothExistButConditionFailed: !!(senderTabUrl && contentScriptTabUrl)
+          //   });
+          // }
         }
 
         // ADDITIONAL: Smart grouping based on URL patterns and known third-party domains
@@ -465,7 +465,7 @@ export class NetworkProcessorModule {
           );
         }
 
-        console.log(`🗄️ NetworkProcessorModule: Stored network request in IndexedDB`);
+        // console.log(`🗄️ NetworkProcessorModule: Stored network request in IndexedDB`);
 
         // Notify dashboard about new data
         this.sendDataUpdatedNotification('network_request');
@@ -485,7 +485,7 @@ export class NetworkProcessorModule {
 
       this.processedCount++;
 
-      console.log(`🌐 NetworkProcessorModule: Processed ${method} ${status} from ${mainDomain}`);
+      // console.log(`🌐 NetworkProcessorModule: Processed ${method} ${status} from ${mainDomain}`);
 
       return {
         success: true,

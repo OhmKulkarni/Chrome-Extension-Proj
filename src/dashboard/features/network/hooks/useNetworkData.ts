@@ -48,11 +48,11 @@ const checkMemoryPressure = (): { pressure: number; shouldThrottle: boolean } =>
   if (!performanceMemory?.usedJSHeapSize) {
     return { pressure: 0, shouldThrottle: false }
   }
-  
+
   const heapUsed = performanceMemory.usedJSHeapSize
   const heapLimit = performanceMemory.jsHeapSizeLimit
   const pressure = (heapUsed / heapLimit) * 100
-  
+
   return {
     pressure,
     shouldThrottle: pressure > 70
@@ -87,9 +87,9 @@ export const useNetworkData = (
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(initialPage)
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ 
-    key: 'timestamp', 
-    direction: 'desc' 
+  const [sortConfig, setSortConfig] = useState<SortConfig>({
+    key: 'timestamp',
+    direction: 'desc'
   })
   const [filters, setFiltersState] = useState({
     searchTerm: '',
@@ -99,29 +99,29 @@ export const useNetworkData = (
   // Load network requests with pagination
   const loadNetworkRequests = useCallback(async (page: number, limit: number = itemsPerPage) => {
     try {
-      console.log(`🔄 Loading network requests page ${page} with limit ${limit}`)
+      // console.log(`🔄 Loading network requests page ${page} with limit ${limit}`)
       setLoading(true)
       setError(null)
-      
+
       // Check memory pressure before loading
       const { shouldThrottle } = checkMemoryPressure()
       if (shouldThrottle) {
         console.warn('🚨 High memory pressure, reducing request load')
         limit = Math.min(limit, 5) // Reduce load under pressure
       }
-      
+
       const offset = (page - 1) * limit
-      const response = await sendChromeMessage({ 
-        action: 'getNetworkRequests', 
-        limit, 
-        offset 
+      const response = await sendChromeMessage({
+        action: 'getNetworkRequests',
+        limit,
+        offset
       })
-      
+
       if (response?.success && response?.requests) {
         // Clear previous data to prevent accumulation
         setRequests(response.requests)
         setTotalRequests(response.total || 0)
-        console.log(`✅ Loaded ${response.requests.length} network requests, total: ${response.total}`)
+        // console.log(`✅ Loaded ${response.requests.length} network requests, total: ${response.total}`)
       } else {
         setError('Failed to load network requests')
         console.warn('⚠️ Network requests response missing success/requests:', response)

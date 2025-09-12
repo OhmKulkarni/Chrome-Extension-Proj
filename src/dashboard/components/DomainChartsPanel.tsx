@@ -31,7 +31,7 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
   };
   // Filter data for this specific domain - IMPROVED FILTERING LOGIC
   const domainData = useMemo(() => {
-    console.log(`[DomainChartsPanel] Filtering data for domain: ${domain}`);
+    // console.log(`[DomainChartsPanel] Filtering data for domain: ${domain}`);
 
     const matchesDomain = (itemDomain: string) => {
       if (!itemDomain) return false;
@@ -66,7 +66,7 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
       return matchesDomain(tokenDomain);
     });
 
-    console.log(`[DomainChartsPanel] Filtered results - Requests: ${filteredRequests.length}, Errors: ${filteredErrors.length}, Tokens: ${filteredTokens.length}`);
+    // console.log(`[DomainChartsPanel] Filtered results - Requests: ${filteredRequests.length}, Errors: ${filteredErrors.length}, Tokens: ${filteredTokens.length}`);
 
     return {
       requests: filteredRequests,
@@ -323,27 +323,27 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
   // PERFORMANCE: Return early if no data with enhanced empty state
   if (domainData.requests.length === 0 && domainData.errors.length === 0) {
     return (
-      <div className={`bg-gradient-to-br from-gray-50 to-slate-100 border border-gray-200 rounded-xl shadow-lg ${className}`}>
+      <div className={`bg-gradient-to-br from-gray-50 to-slate-100 dark:from-gray-800 dark:to-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg ${className}`}>
         <div className="text-center py-16 px-6">
-          <div className="mx-auto w-24 h-24 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mb-6">
-            <BarChart3 className="h-12 w-12 text-blue-500" />
+          <div className="mx-auto w-24 h-24 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/50 dark:to-indigo-900/50 rounded-full flex items-center justify-center mb-6">
+            <BarChart3 className="h-12 w-12 text-blue-500 dark:text-blue-400" />
           </div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">No Data Available</h3>
-          <p className="text-gray-600 mb-1">No activity detected for <span className="font-mono font-semibold">{domain}</span></p>
-          <p className="text-sm text-gray-500">Charts will appear when domain activity is detected</p>
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No Data Available</h3>
+          <p className="text-gray-600 dark:text-gray-300 mb-1">No activity detected for <span className="font-mono font-semibold">{domain}</span></p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Charts will appear when domain activity is detected</p>
 
           <div className="mt-8 grid grid-cols-3 gap-4 max-w-sm mx-auto">
-            <div className="text-center p-3 bg-white/60 rounded-lg">
-              <div className="w-3 h-3 rounded-full bg-blue-300 mx-auto mb-1"></div>
-              <div className="text-xs text-gray-500">0 Requests</div>
+            <div className="text-center p-3 bg-white/60 dark:bg-gray-700/60 rounded-lg">
+              <div className="w-3 h-3 rounded-full bg-blue-300 dark:bg-blue-600 mx-auto mb-1"></div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">0 Requests</div>
             </div>
-            <div className="text-center p-3 bg-white/60 rounded-lg">
-              <div className="w-3 h-3 rounded-full bg-red-300 mx-auto mb-1"></div>
-              <div className="text-xs text-gray-500">0 Errors</div>
+            <div className="text-center p-3 bg-white/60 dark:bg-gray-700/60 rounded-lg">
+              <div className="w-3 h-3 rounded-full bg-red-300 dark:bg-red-600 mx-auto mb-1"></div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">0 Errors</div>
             </div>
-            <div className="text-center p-3 bg-white/60 rounded-lg">
-              <div className="w-3 h-3 rounded-full bg-amber-300 mx-auto mb-1"></div>
-              <div className="text-xs text-gray-500">0 Tokens</div>
+            <div className="text-center p-3 bg-white/60 dark:bg-gray-700/60 rounded-lg">
+              <div className="w-3 h-3 rounded-full bg-amber-300 dark:bg-amber-600 mx-auto mb-1"></div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">0 Tokens</div>
             </div>
           </div>
         </div>
@@ -428,20 +428,20 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
       <div className="p-6 space-y-6">
 
         {/* Primary Chart - Activity Timeline (Full Width) */}
-        <div className="bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-shadow p-4">
+        <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md transition-shadow p-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-blue-600" />
-              <h4 className="text-lg font-semibold text-gray-800">Activity Timeline</h4>
+              <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Activity Timeline</h4>
               <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 rounded-full font-medium">
                 All Records
               </span>
             </div>
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-gray-500 dark:text-gray-400">
               Showing {chartData.timeline.length} time periods
             </div>
           </div>
-          <div className="h-48 bg-gradient-to-br from-gray-50 to-white rounded-lg p-2">
+          <div className="h-48 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-700 rounded-lg p-2">
             {chartData.timeline && chartData.timeline.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData.timeline}>
@@ -520,7 +520,7 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex flex-col items-center justify-center h-full text-gray-500">
+              <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">
                 <Clock className="h-8 w-8 mb-2 opacity-50" />
                 <div className="text-sm font-medium">No Activity Timeline</div>
                 <div className="text-xs mt-1">No temporal data available</div>
@@ -587,7 +587,7 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+                <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400 text-sm">
                   No status data
                 </div>
               )}
@@ -595,18 +595,18 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
           </div>
 
           {/* Response Time Distribution */}
-          <div className="bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-shadow p-4">
+          <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md transition-shadow p-4">
             <div className="flex items-center gap-2 mb-2">
-              <Clock className="h-5 w-5 text-purple-600" />
-              <h4 className="text-lg font-semibold text-gray-800">Response Times</h4>
+              <Clock className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+              <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Response Times</h4>
             </div>
             {chartData.responseTimeStats && chartData.responseTimeStats.total > 0 && (
               <div className="grid grid-cols-2 gap-2 mb-4 text-xs">
-                <div className="bg-purple-50 rounded p-2">
-                  <span className="text-purple-600 font-medium">Avg:</span> {chartData.responseTimeStats.average}ms
+                <div className="bg-purple-50 dark:bg-purple-900/30 rounded p-2">
+                  <span className="text-purple-600 dark:text-purple-400 font-medium">Avg:</span> {chartData.responseTimeStats.average}ms
                 </div>
-                <div className="bg-gray-50 rounded p-2">
-                  <span className="text-gray-600 font-medium">Total:</span> {chartData.responseTimeStats.total}
+                <div className="bg-gray-50 dark:bg-gray-700 rounded p-2">
+                  <span className="text-gray-600 dark:text-gray-300 font-medium">Total:</span> {chartData.responseTimeStats.total}
                 </div>
               </div>
             )}
@@ -660,7 +660,7 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">
                   <Clock className="h-8 w-8 mb-2 opacity-50" />
                   <div className="text-sm font-medium">No Response Time Data</div>
                   <div className="text-xs mt-1 text-center">
@@ -675,10 +675,10 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
           </div>
 
           {/* Top URL Paths/Endpoints */}
-          <div className="bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-shadow p-4">
+          <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md transition-shadow p-4">
             <div className="flex items-center gap-2 mb-4">
-              <BarChart3 className="h-5 w-5 text-orange-600" />
-              <h4 className="text-lg font-semibold text-gray-800">Top URL Paths</h4>
+              <BarChart3 className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+              <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Top URL Paths</h4>
             </div>
             <div className="h-48">
               {chartData.endpoints && chartData.endpoints.length > 0 ? (
@@ -727,7 +727,7 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">
                   <BarChart3 className="h-8 w-8 mb-2 opacity-50" />
                   <div className="text-sm font-medium">No URL Path Data</div>
                   <div className="text-xs mt-1 text-center">
@@ -744,35 +744,35 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
       </div>
 
       {/* Enhanced Footer with Key Metrics */}
-      <div className="border-t border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50 rounded-b-xl">
+      <div className="border-t border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-slate-50 dark:from-gray-800 dark:to-gray-900 rounded-b-xl">
         <div className="px-6 py-4">
-          <h5 className="text-sm font-semibold text-gray-700 mb-3">Performance Summary</h5>
+          <h5 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Performance Summary</h5>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white/80 rounded-lg p-3 text-center">
-              <div className="text-2xl font-bold text-blue-600">{chartData.avgResponseTime}ms</div>
-              <div className="text-xs text-gray-600 font-medium">Avg Response Time</div>
+            <div className="bg-white/80 dark:bg-gray-700/80 rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{chartData.avgResponseTime}ms</div>
+              <div className="text-xs text-gray-600 dark:text-gray-300 font-medium">Avg Response Time</div>
             </div>
 
-            <div className="bg-white/80 rounded-lg p-3 text-center">
-              <div className={`text-2xl font-bold ${chartData.successRate >= 95 ? 'text-green-600' : chartData.successRate >= 85 ? 'text-yellow-600' : 'text-red-600'}`}>
+            <div className="bg-white/80 dark:bg-gray-700/80 rounded-lg p-3 text-center">
+              <div className={`text-2xl font-bold ${chartData.successRate >= 95 ? 'text-green-600 dark:text-green-400' : chartData.successRate >= 85 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}`}>
                 {chartData.successRate}%
               </div>
-              <div className="text-xs text-gray-600 font-medium">Success Rate</div>
+              <div className="text-xs text-gray-600 dark:text-gray-300 font-medium">Success Rate</div>
             </div>
 
-            <div className="bg-white/80 rounded-lg p-3 text-center">
-              <div className="text-2xl font-bold text-purple-600">
+            <div className="bg-white/80 dark:bg-gray-700/80 rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
                 {domainData.requests.length + domainData.errors.length + domainData.tokens.length}
               </div>
-              <div className="text-xs text-gray-600 font-medium">Total Events</div>
+              <div className="text-xs text-gray-600 dark:text-gray-300 font-medium">Total Events</div>
             </div>
 
-            <div className="bg-white/80 rounded-lg p-3 text-center">
-              <div className="text-2xl font-bold text-orange-600">
+            <div className="bg-white/80 dark:bg-gray-700/80 rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
                 {chartData.endpoints?.length || 0}
               </div>
-              <div className="text-xs text-gray-600 font-medium">Unique URL Paths</div>
-              <div className="text-xs text-gray-400 mt-1">
+              <div className="text-xs text-gray-600 dark:text-gray-300 font-medium">Unique URL Paths</div>
+              <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                 (endpoints on this domain)
               </div>
             </div>

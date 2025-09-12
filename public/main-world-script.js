@@ -1,9 +1,9 @@
 ﻿// Main world injection script - runs in the same context as the page
-console.log('MAIN-WORLD: Script injected into main world');
+// console.log('MAIN-WORLD: Script injected into main world');
 
 // Prevent duplicate injection
 if (typeof window._extensionInjected !== 'undefined') {
-  console.log('MAIN-WORLD: Already injected, skipping...');
+  // console.log('MAIN-WORLD: Already injected, skipping...');
 } else {
   // Mark as injected and continue initialization
   window._extensionInjected = true;
@@ -1188,11 +1188,11 @@ window.generateTestConsoleMessages = () => {
 
   // These should be captured by our console interception
   setTimeout(() => {
-    console.error('Test console.error() message - should appear in dashboard');
+    // console.error('Test console.error() message - should appear in dashboard');
   }, 100);
 
   setTimeout(() => {
-    console.warn('Test console.warn() message - should appear in dashboard');
+    // console.warn('Test console.warn() message - should appear in dashboard');
   }, 200);
 
   setTimeout(() => {
@@ -1200,7 +1200,7 @@ window.generateTestConsoleMessages = () => {
   }, 300);
 
   setTimeout(() => {
-    console.log('Test console.log() message - should appear in dashboard');
+    // console.log('Test console.log() message - should appear in dashboard');
   }, 400);
 };
 

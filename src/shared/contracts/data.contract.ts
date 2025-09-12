@@ -145,7 +145,7 @@ export class DataAdapters {
         };
       }
     } catch (error) {
-      console.warn('Failed to parse headers:', error);
+      // console.warn('Failed to parse headers:', error);
     }
 
     // Handle different storage schemas
@@ -192,7 +192,7 @@ export class DataAdapters {
         headers = data.headers;
       }
     } catch (error) {
-      console.warn('Failed to parse token headers:', error);
+      // console.warn('Failed to parse token headers:', error);
     }
 
     return {
@@ -311,7 +311,7 @@ export class SafeTransformers {
         item = null;
         return transformed;
       } catch (error) {
-        console.warn('Failed to transform network request:', error);
+        // console.warn('Failed to transform network request:', error);
         return null;
       }
     }).filter((item): item is NetworkRequestV1 => item !== null);
@@ -327,7 +327,7 @@ export class SafeTransformers {
         item = null;
         return transformed;
       } catch (error) {
-        console.warn('Failed to transform console error:', error);
+        // console.warn('Failed to transform console error:', error);
         return null;
       }
     }).filter((item): item is ConsoleErrorV1 => item !== null);
@@ -343,7 +343,7 @@ export class SafeTransformers {
         item = null;
         return transformed;
       } catch (error) {
-        console.warn('Failed to transform token event:', error);
+        // console.warn('Failed to transform token event:', error);
         return null;
       }
     }).filter((item): item is TokenEventV1 => item !== null);

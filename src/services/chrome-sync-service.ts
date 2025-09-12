@@ -61,7 +61,7 @@ export class ChromeSyncService {
         };
       }
     } catch (error) {
-      console.warn('ChromeSyncService: Failed to get tab preferences, using defaults:', error);
+      // console.warn('ChromeSyncService: Failed to get tab preferences, using defaults:', error);
       // MAJOR FIX: Return safe hardcoded defaults
       return {
         network: false,
@@ -99,9 +99,9 @@ export class ChromeSyncService {
 
       await chrome.storage.sync.set({ tabPreferences: tabPrefs });
 
-      console.log(`✅ ChromeSyncService: Updated tab preferences for domain ${domain}`, preferences);
+      // console.log(`✅ ChromeSyncService: Updated tab preferences for domain ${domain}`, preferences);
     } catch (error) {
-      console.error('ChromeSyncService: Failed to set tab preferences:', error);
+      // console.error('ChromeSyncService: Failed to set tab preferences:', error);
       throw error;
     }
   }
@@ -144,9 +144,9 @@ export class ChromeSyncService {
 
       await chrome.storage.sync.set({ tabPreferences: tabPrefs });
 
-      console.log('✅ ChromeSyncService: Updated tab defaults', defaults);
+      // console.log('✅ ChromeSyncService: Updated tab defaults', defaults);
     } catch (error) {
-      console.error('ChromeSyncService: Failed to set tab defaults:', error);
+      // console.error('ChromeSyncService: Failed to set tab defaults:', error);
       throw error;
     }
   }
@@ -159,7 +159,7 @@ export class ChromeSyncService {
       const result = await chrome.storage.sync.get(['userPreferences']);
       return result.userPreferences || DEFAULT_USER_PREFERENCES;
     } catch (error) {
-      console.warn('ChromeSyncService: Failed to get user preferences, using defaults:', error);
+      // console.warn('ChromeSyncService: Failed to get user preferences, using defaults:', error);
       return DEFAULT_USER_PREFERENCES;
     }
   }
@@ -179,9 +179,9 @@ export class ChromeSyncService {
 
       await chrome.storage.sync.set({ userPreferences: updated });
 
-      console.log('✅ ChromeSyncService: Updated user preferences', preferences);
+      // console.log('✅ ChromeSyncService: Updated user preferences', preferences);
     } catch (error) {
-      console.error('ChromeSyncService: Failed to set user preferences:', error);
+      // console.error('ChromeSyncService: Failed to set user preferences:', error);
       throw error;
     }
   }
@@ -199,7 +199,7 @@ export class ChromeSyncService {
         syncMetadata: result.syncMetadata || DEFAULT_SYNC_STORAGE.syncMetadata
       };
     } catch (error) {
-      console.warn('ChromeSyncService: Failed to get all sync data, using defaults:', error);
+      // console.warn('ChromeSyncService: Failed to get all sync data, using defaults:', error);
       return DEFAULT_SYNC_STORAGE;
     }
   }
@@ -230,12 +230,12 @@ export class ChromeSyncService {
 
       if (Object.keys(updates).length > 0) {
         await chrome.storage.sync.set(updates);
-        console.log('✅ ChromeSyncService: Initialized sync storage with defaults');
+        // console.log('✅ ChromeSyncService: Initialized sync storage with defaults');
       } else {
-        console.log('✅ ChromeSyncService: Sync storage already initialized');
+        // console.log('✅ ChromeSyncService: Sync storage already initialized');
       }
     } catch (error) {
-      console.error('ChromeSyncService: Failed to initialize sync storage:', error);
+      // console.error('ChromeSyncService: Failed to initialize sync storage:', error);
     }
   }
 
@@ -260,7 +260,7 @@ export class ChromeSyncService {
         percentage: (bytesUsed / quota) * 100
       };
     } catch (error) {
-      console.warn('ChromeSyncService: Failed to get storage usage:', error);
+      // console.warn('ChromeSyncService: Failed to get storage usage:', error);
       return { used: 0, quota: 102400, percentage: 0 };
     }
   }
@@ -271,9 +271,9 @@ export class ChromeSyncService {
   async clearAllSyncStorage(): Promise<void> {
     try {
       await chrome.storage.sync.clear();
-      console.log('🗑️ ChromeSyncService: Cleared all sync storage');
+      // console.log('🗑️ ChromeSyncService: Cleared all sync storage');
     } catch (error) {
-      console.error('ChromeSyncService: Failed to clear sync storage:', error);
+      // console.error('ChromeSyncService: Failed to clear sync storage:', error);
       throw error;
     }
   }

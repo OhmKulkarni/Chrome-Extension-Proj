@@ -94,7 +94,7 @@ export class TokenTrackerModule {
     };
 
     this.abortController = new AbortController();
-    console.log('🔐 TokenTrackerModule: Initialized with IndexedDB storage for token events');
+    // console.log('🔐 TokenTrackerModule: Initialized with IndexedDB storage for token events');
   }
 
   /**
@@ -113,7 +113,7 @@ export class TokenTrackerModule {
       }
 
       this.isInitialized = true;
-      console.log('✅ TokenTrackerModule: Successfully initialized');
+      // console.log('✅ TokenTrackerModule: Successfully initialized');
     } catch (error) {
       console.error('❌ TokenTrackerModule: Initialization failed:', error);
       throw error;
@@ -185,16 +185,16 @@ export class TokenTrackerModule {
       const isWebSocketAuth = this.isTokenEndpoint(url, 'websocket_auth');
 
       // Debug which endpoint type was detected
-      if (isAcquireEndpoint || isRefreshEndpoint || isApiCall || isServiceAuth || isTokenValidation || isWebSocketAuth) {
-        console.log(`🔍 TokenTrackerModule: Endpoint detection for ${url}`);
-        console.log(`   - isAcquireEndpoint: ${isAcquireEndpoint}`);
-        console.log(`   - isRefreshEndpoint: ${isRefreshEndpoint}`);
-        console.log(`   - isApiCall: ${isApiCall}`);
-        console.log(`   - isServiceAuth: ${isServiceAuth}`);
-        console.log(`   - isTokenValidation: ${isTokenValidation}`);
-        console.log(`   - isWebSocketAuth: ${isWebSocketAuth}`);
-        console.log(`   - status: ${status}`);
-      }
+      // if (isAcquireEndpoint || isRefreshEndpoint || isApiCall || isServiceAuth || isTokenValidation || isWebSocketAuth) {
+      //   console.log(`🔍 TokenTrackerModule: Endpoint detection for ${url}`);
+      //   console.log(`   - isAcquireEndpoint: ${isAcquireEndpoint}`);
+      //   console.log(`   - isRefreshEndpoint: ${isRefreshEndpoint}`);
+      //   console.log(`   - isApiCall: ${isApiCall}`);
+      //   console.log(`   - isServiceAuth: ${isServiceAuth}`);
+      //   console.log(`   - isTokenValidation: ${isTokenValidation}`);
+      //   console.log(`   - isWebSocketAuth: ${isWebSocketAuth}`);
+      //   console.log(`   - status: ${status}`);
+      // }
 
       // Check if request has authentication (any token-related headers/content/URL params)
       const hasAuthHeaders = this.hasAuthenticationHeaders(requestData.headers || {});
@@ -202,12 +202,12 @@ export class TokenTrackerModule {
       const hasAuthInUrl = this.hasAuthenticationInUrl(url);
 
       // Debug logging for API calls with potential authentication
-      if (isApiCall) {
-        console.log(`🔍 TokenTrackerModule: API call detected for ${url}`);
-        console.log(`   - hasAuthHeaders: ${hasAuthHeaders}`);
-        console.log(`   - hasAuthContent: ${hasAuthContent}`);
-        console.log(`   - hasAuthInUrl: ${hasAuthInUrl}`);
-      }
+      // if (isApiCall) {
+      //   console.log(`🔍 TokenTrackerModule: API call detected for ${url}`);
+      //   console.log(`   - hasAuthHeaders: ${hasAuthHeaders}`);
+      //   console.log(`   - hasAuthContent: ${hasAuthContent}`);
+      //   console.log(`   - hasAuthInUrl: ${hasAuthInUrl}`);
+      // }
 
       // Determine if this is a token-related request
       const isTokenRelated = isAcquireEndpoint || isRefreshEndpoint || isServiceAuth ||
@@ -223,10 +223,10 @@ export class TokenTrackerModule {
 
       // Ensure status is a number for proper comparison
       const statusCode = typeof status === 'string' ? parseInt(status, 10) : status;
-      console.log(`🔍 TokenTrackerModule: Original status: ${status} (${typeof status}), converted: ${statusCode} (${typeof statusCode})`);
+      // console.log(`🔍 TokenTrackerModule: Original status: ${status} (${typeof status}), converted: ${statusCode} (${typeof statusCode})`);
 
       if (isRefreshEndpoint) {
-        console.log(`🔍 TokenTrackerModule: Taking REFRESH path for status ${statusCode}`);
+        // console.log(`🔍 TokenTrackerModule: Taking REFRESH path for status ${statusCode}`);
         if (statusCode >= 200 && statusCode < 300) {
           eventType = 'refresh';
         } else if (statusCode === 401 || statusCode === 403) {
@@ -235,9 +235,9 @@ export class TokenTrackerModule {
           eventType = 'expired';
         }
       } else if (isAcquireEndpoint || isServiceAuth) {
-        console.log(`🔍 TokenTrackerModule: Taking ACQUIRE path for status ${statusCode} (original: ${status})`);
-        console.log(`🔍 TokenTrackerModule: URL: ${url}`);
-        console.log(`🔍 TokenTrackerModule: Method: ${method}`);
+        // console.log(`🔍 TokenTrackerModule: Taking ACQUIRE path for status ${statusCode} (original: ${status})`);
+        // console.log(`🔍 TokenTrackerModule: URL: ${url}`);
+        // console.log(`🔍 TokenTrackerModule: Method: ${method}`);
         if (statusCode >= 200 && statusCode < 300) {
           eventType = 'acquire';
           console.log(`🔍 TokenTrackerModule: Setting eventType to 'acquire' (success) - condition: ${statusCode} >= 200 && ${statusCode} < 300`);

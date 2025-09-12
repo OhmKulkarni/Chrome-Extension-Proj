@@ -293,28 +293,28 @@ export class LibraryDetector {
    * Main detection method that analyzes a request for library usage
    */
   static detectFromRequest(url: string, headers: Record<string, any> = {}, responseBody?: string): LibraryInfo[] {
-    console.log('🔧 DEBUG: detectFromRequest called with URL:', url);
-    console.log('[LibraryDetector] Analyzing request:', { url, hasHeaders: Object.keys(headers).length > 0, hasBody: !!responseBody });
+    // console.log('🔧 DEBUG: detectFromRequest called with URL:', url);
+    // console.log('[LibraryDetector] Analyzing request:', { url, hasHeaders: Object.keys(headers).length > 0, hasBody: !!responseBody });
 
     const libraries: LibraryInfo[] = [];
     const domain = new URL(url).hostname;
 
     // Detect from URL patterns
     const urlLibraries = this.detectFromUrl(url);
-    console.log('[LibraryDetector] URL pattern detection:', { url, found: urlLibraries.length, libraries: urlLibraries });
+    // console.log('[LibraryDetector] URL pattern detection:', { url, found: urlLibraries.length, libraries: urlLibraries });
     libraries.push(...urlLibraries);
 
     // Detect from headers if available
     if (Object.keys(headers).length > 0) {
       const headerLibraries = this.detectFromHeaders(headers, url);
-      console.log('[LibraryDetector] Header detection:', { url, found: headerLibraries.length, libraries: headerLibraries });
+      // console.log('[LibraryDetector] Header detection:', { url, found: headerLibraries.length, libraries: headerLibraries });
       libraries.push(...headerLibraries);
     }
 
     // Detect from response content if available
     if (responseBody) {
       const contentLibraries = this.detectFromContent(responseBody, url);
-      console.log('[LibraryDetector] Content detection:', { url, found: contentLibraries.length, libraries: contentLibraries });
+      // console.log('[LibraryDetector] Content detection:', { url, found: contentLibraries.length, libraries: contentLibraries });
       libraries.push(...contentLibraries);
     }
 
@@ -324,7 +324,7 @@ export class LibraryDetector {
       lib.domain = domain;
     });
 
-    console.log('[LibraryDetector] Final detection results:', { url, detectedCount: uniqueLibraries.length, libraries: uniqueLibraries });
+    // console.log('[LibraryDetector] Final detection results:', { url, detectedCount: uniqueLibraries.length, libraries: uniqueLibraries });
     return uniqueLibraries;
   }
 
@@ -335,14 +335,14 @@ export class LibraryDetector {
     const libraries: LibraryInfo[] = [];
     const urlLower = url.toLowerCase();
 
-    console.log('[LibraryDetector] detectFromUrl starting:', { url, urlLower });
+    // console.log('[LibraryDetector] detectFromUrl starting:', { url, urlLower });
 
     // 🚨 PRIORITY CHECK: Build artifacts (source maps) should be detected FIRST
     // This prevents them from being misclassified as API endpoints or other types
     const filename = url.split('/').pop() || '';
     const buildArtifactInfo = this.detectBuildArtifact(url, filename);
     if (buildArtifactInfo) {
-      console.log('[LibraryDetector] Build artifact detected early:', buildArtifactInfo);
+      // console.log('[LibraryDetector] Build artifact detected early:', buildArtifactInfo);
       return [buildArtifactInfo]; // Return immediately - no need for further processing
     }
 
@@ -351,7 +351,7 @@ export class LibraryDetector {
       for (const pattern of config.patterns) {
         const match = urlLower.match(pattern);
         if (match) {
-          console.log('[LibraryDetector] Pattern match found:', { libraryName, pattern: pattern.source, url });
+          // console.log('[LibraryDetector] Pattern match found:', { libraryName, pattern: pattern.source, url });
           const version = match[1] || undefined;
           const cdnProvider = this.detectCdnProvider(url);
 
@@ -372,7 +372,7 @@ export class LibraryDetector {
 
     // Only try generic library detection if no known patterns matched
     if (libraries.length === 0) {
-      console.log('[LibraryDetector] No pattern matches found, attempting generic detection for:', url);
+      // console.log('[LibraryDetector] No pattern matches found, attempting generic detection for:', url);
       const genericLibrary = this.detectGenericLibrary(url);
       if (genericLibrary) {
         // CRITICAL FIX: Override generic detection for known libraries
@@ -380,7 +380,7 @@ export class LibraryDetector {
         const toolName = filename.replace(/\.(?:min\.)?js(\?.*)?$/i, '').replace(/\?.*$/, '').toLowerCase();
 
         if (/^(d3|vue|react|jquery)$/i.test(toolName)) {
-          console.log('[LibraryDetector] Overriding generic detection for known library:', toolName);
+          // console.log('[LibraryDetector] Overriding generic detection for known library:', toolName);
           genericLibrary.type = 'framework';
           genericLibrary.description = toolName === 'd3' ? 'Data visualization library (D3.js)' :
                                      toolName === 'vue' ? 'Vue.js framework library' :
@@ -390,16 +390,16 @@ export class LibraryDetector {
           genericLibrary.confidence = 0.9; // High confidence for known libraries
         }
 
-        console.log('[LibraryDetector] Generic detection success:', genericLibrary);
+        // console.log('[LibraryDetector] Generic detection success:', genericLibrary);
         libraries.push(genericLibrary);
       } else {
-        console.log('[LibraryDetector] Generic detection failed for:', url);
+        // console.log('[LibraryDetector] Generic detection failed for:', url);
       }
     } else {
-      console.log('[LibraryDetector] Skipping generic detection due to existing pattern matches:', libraries.length);
+      // console.log('[LibraryDetector] Skipping generic detection due to existing pattern matches:', libraries.length);
     }
 
-    console.log('[LibraryDetector] detectFromUrl finished:', { url, foundCount: libraries.length, libraries });
+    // console.log('[LibraryDetector] detectFromUrl finished:', { url, foundCount: libraries.length, libraries });
     return libraries;
   }
 
@@ -462,7 +462,7 @@ export class LibraryDetector {
       return null;
     }
 
-    console.log('[LibraryDetector] Generic detection for:', { url, filename, toolName });
+    // console.log('[LibraryDetector] Generic detection for:', { url, filename, toolName });
 
     // Intelligent categorization based on patterns
     const categorization = this.categorizeWebTool(toolName, url);
@@ -636,13 +636,13 @@ export class LibraryDetector {
     const matchesUrlPattern = urlBuildPatterns.some(pattern => pattern.test(urlLower));
 
     if (matchesBuildPattern || (hasContentHash && (isCompressed || matchesUrlPattern))) {
-      console.log('[LibraryDetector] Build artifact detected:', {
-        filename: filenameLower,
-        hasContentHash,
-        isCompressed,
-        matchesBuildPattern,
-        matchesUrlPattern
-      });
+      // console.log('[LibraryDetector] Build artifact detected:', {
+      //   filename: filenameLower,
+      //   hasContentHash,
+      //   isCompressed,
+      //   matchesBuildPattern,
+      //   matchesUrlPattern
+      // });
 
       // Extract meaningful name from build artifact
       let displayName = filename;
@@ -1122,7 +1122,7 @@ export class LibraryDetector {
         for (const signature of config.globalSignatures) {
           // Skip native browser APIs
           if (NATIVE_BROWSER_APIS.has(signature)) {
-            console.log(`🚫 [LibraryDetector] Skipping native API: ${signature}`);
+            // console.log(`🚫 [LibraryDetector] Skipping native API: ${signature}`);
             continue;
           }
 
@@ -1147,7 +1147,7 @@ export class LibraryDetector {
               detectionMethod: 'dom-global'
             });
 
-            console.log(`🌍 [LibraryDetector] Detected ${libraryName} from global:`, signature, version ? `v${version}` : 'unknown version');
+            // console.log(`🌍 [LibraryDetector] Detected ${libraryName} from global:`, signature, version ? `v${version}` : 'unknown version');
             break; // Found one signature, don't need to check others
           }
         }
@@ -1155,7 +1155,7 @@ export class LibraryDetector {
     }
 
     // ENHANCED: Also check for custom/unknown libraries with version properties
-    console.log('🔍 [LibraryDetector] Scanning for custom libraries with version properties...');
+    // console.log('🔍 [LibraryDetector] Scanning for custom libraries with version properties...');
 
     // Look for objects on window that have version properties (common library pattern)
     const customLibraryNames = [
@@ -1164,23 +1164,23 @@ export class LibraryDetector {
     ];
 
     // DEBUG: Log what's actually on the window object
-    console.log('🔍 [LibraryDetector] Window object inspection:', {
-      MyCustomFramework: !!windowObj.MyCustomFramework,
-      AnalyticsSDK: !!windowObj.AnalyticsSDK,
-      UIComponents: !!windowObj.UIComponents,
-      React: !!windowObj.React,
-      _: !!windowObj._,
-      jQuery: !!windowObj.jQuery,
-      $: !!windowObj.$
-    });
+    // console.log('🔍 [LibraryDetector] Window object inspection:', {
+    //   MyCustomFramework: !!windowObj.MyCustomFramework,
+    //   AnalyticsSDK: !!windowObj.AnalyticsSDK,
+    //   UIComponents: !!windowObj.UIComponents,
+    //   React: !!windowObj.React,
+    //   _: !!windowObj._,
+    //   jQuery: !!windowObj.jQuery,
+    //   $: !!windowObj.$
+    // });
 
     for (const libName of customLibraryNames) {
-      console.log(`🔍 [LibraryDetector] Checking ${libName}:`, {
-        exists: !!windowObj[libName],
-        type: typeof windowObj[libName],
-        hasVersion: windowObj[libName]?.version,
-        hasVERSION: windowObj[libName]?.VERSION
-      });
+      // console.log(`🔍 [LibraryDetector] Checking ${libName}:`, {
+      //   exists: !!windowObj[libName],
+      //   type: typeof windowObj[libName],
+      //   hasVersion: windowObj[libName]?.version,
+      //   hasVERSION: windowObj[libName]?.VERSION
+      // });
 
       if (windowObj[libName] && typeof windowObj[libName] === 'object') {
         const libObj = windowObj[libName];
@@ -1204,7 +1204,7 @@ export class LibraryDetector {
             detectionMethod: 'dom-global'
           });
 
-          console.log(`🌟 [LibraryDetector] Detected custom library ${libName} v${version}`);
+          // console.log(`🌟 [LibraryDetector] Detected custom library ${libName} v${version}`);
         }
       }
     }
@@ -1255,7 +1255,7 @@ export class LibraryDetector {
             detectionMethod: 'dom-global'
           });
 
-          console.log(`🎨 [LibraryDetector] Detected ${libraryName} from DOM structure:`, `${foundSignatures}/${config.domSignatures.length} signatures found`);
+          // console.log(`🎨 [LibraryDetector] Detected ${libraryName} from DOM structure:`, `${foundSignatures}/${config.domSignatures.length} signatures found`);
         }
       }
     }
@@ -1302,11 +1302,11 @@ export class LibraryDetector {
             detectionMethod: 'script-analysis'
           });
 
-          console.log(`📦 [LibraryDetector] Detected ${libraryName} from bundle analysis:`, {
-            url: scriptUrl.substring(0, 80),
-            signatures: detectedSignatures,
-            confidence: confidence.toFixed(2)
-          });
+          // console.log(`📦 [LibraryDetector] Detected ${libraryName} from bundle analysis:`, {
+          //   url: scriptUrl.substring(0, 80),
+          //   signatures: detectedSignatures,
+          //   confidence: confidence.toFixed(2)
+          // });
         }
       }
     }
@@ -1346,10 +1346,10 @@ export class LibraryDetector {
                 detectionMethod: 'source-map'
               });
 
-              console.log(`🗺️ [LibraryDetector] Detected ${libraryName} from source map:`, {
-                source,
-                version: versionMatch ? versionMatch[1] : 'unknown'
-              });
+              // console.log(`🗺️ [LibraryDetector] Detected ${libraryName} from source map:`, {
+              //   source,
+              //   version: versionMatch ? versionMatch[1] : 'unknown'
+              // });
 
               break;
             }
@@ -1373,11 +1373,11 @@ export class LibraryDetector {
 
       // Validate that we have a proper domain
       if (!sourceDomain || sourceDomain === 'localhost' || sourceDomain.length < 3) {
-        console.warn('[LibraryDetector] Invalid source domain for library:', { url: library.url, domain: sourceDomain });
+        // console.warn('[LibraryDetector] Invalid source domain for library:', { url: library.url, domain: sourceDomain });
         sourceDomain = 'unknown';
       }
     } catch (error) {
-      console.warn('[LibraryDetector] Failed to parse library URL:', { url: library.url, error: String(error) });
+      // console.warn('[LibraryDetector] Failed to parse library URL:', { url: library.url, error: String(error) });
       sourceDomain = 'unknown';
     }
 
