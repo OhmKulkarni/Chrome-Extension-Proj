@@ -49,13 +49,13 @@ export const getFeatureFlags = (): FeatureFlags => {
       const override = localStorage.getItem('chartOptimizationFlags');
       if (override) {
         const flags = JSON.parse(override);
-        console.log('🚩 Using override feature flags:', flags);
+        // console.log('🚩 Using override feature flags:', flags);
         flagCache = { ...DEFAULT_FEATURE_FLAGS, ...flags };
         cacheExpiry = now + CACHE_DURATION;
         return flagCache as FeatureFlags;
       }
     } catch (error) {
-      console.warn('Invalid feature flags in localStorage:', error);
+      // console.warn('Invalid feature flags in localStorage:', error);
     }
   }
 
@@ -66,7 +66,7 @@ export const getFeatureFlags = (): FeatureFlags => {
     ? { ...DEFAULT_FEATURE_FLAGS, ...DEV_FEATURE_FLAGS }
     : DEFAULT_FEATURE_FLAGS;
 
-  console.log('🚩 Feature flags active:', flags);
+  // console.log('🚩 Feature flags active:', flags);
 
   // Cache the flags
   flagCache = flags;
@@ -84,12 +84,12 @@ export const setFeatureFlagOverride = (flags: Partial<FeatureFlags>): void => {
       const currentFlags = getFeatureFlags();
       const newFlags = { ...currentFlags, ...flags };
       localStorage.setItem('chartOptimizationFlags', JSON.stringify(newFlags));
-      console.log('🚩 Feature flags override set:', newFlags);
+      // console.log('🚩 Feature flags override set:', newFlags);
 
       // Trigger reload to apply changes
       window.location.reload();
     } catch (error) {
-      console.error('Failed to set feature flag override:', error);
+      // console.error('Failed to set feature flag override:', error);
     }
   }
 };
@@ -100,7 +100,7 @@ export const setFeatureFlagOverride = (flags: Partial<FeatureFlags>): void => {
 export const clearFeatureFlagOverrides = (): void => {
   if (typeof window !== 'undefined' && window.localStorage) {
     localStorage.removeItem('chartOptimizationFlags');
-    console.log('🚩 Feature flag overrides cleared');
+    // console.log('🚩 Feature flag overrides cleared');
     window.location.reload();
   }
 };
@@ -118,7 +118,7 @@ export const isFeatureEnabled = (feature: keyof FeatureFlags): boolean => {
  * Only active when enablePerformanceMonitoring is true
  */
 export const withPerformanceMonitoring = <T extends (...args: any[]) => any>(
-  name: string,
+  _name: string,
   fn: T
 ): T => {
   if (!isFeatureEnabled('enablePerformanceMonitoring')) {
@@ -132,13 +132,13 @@ export const withPerformanceMonitoring = <T extends (...args: any[]) => any>(
     if (result && typeof result.then === 'function') {
       // Handle async functions
       return result.finally(() => {
-        const duration = performance.now() - start;
-        console.log(`⏱️ ${name}: ${duration.toFixed(2)}ms`);
+        const _duration = performance.now() - start;
+        // console.log(`⏱️ ${name}: ${_duration.toFixed(2)}ms`);
       });
     } else {
       // Handle sync functions
-      const duration = performance.now() - start;
-      console.log(`⏱️ ${name}: ${duration.toFixed(2)}ms`);
+      const _duration = performance.now() - start;
+      // console.log(`⏱️ ${name}: ${_duration.toFixed(2)}ms`);
       return result;
     }
   }) as T;
