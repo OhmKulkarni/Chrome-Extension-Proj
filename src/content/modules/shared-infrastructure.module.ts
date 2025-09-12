@@ -106,9 +106,9 @@ export class SharedInfrastructureModule {
         }
 
         localStorage.setItem(this.localStorageBackup.key, JSON.stringify(existing))
-        console.log('SharedInfrastructureModule: Data backed up to localStorage')
+        // console.log('SharedInfrastructureModule: Data backed up to localStorage')
       } catch (error) {
-        console.warn('SharedInfrastructureModule: Failed to backup to localStorage:', error)
+        // console.warn('SharedInfrastructureModule: Failed to backup to localStorage:', error)
       }
     },
 
@@ -117,7 +117,7 @@ export class SharedInfrastructureModule {
         const data = JSON.parse(localStorage.getItem(this.localStorageBackup.key) || '[]')
         return data
       } catch (error) {
-        console.warn('SharedInfrastructureModule: Failed to retrieve from localStorage:', error)
+        // console.warn('SharedInfrastructureModule: Failed to retrieve from localStorage:', error)
         return []
       }
     },
@@ -125,9 +125,9 @@ export class SharedInfrastructureModule {
     clear: () => {
       try {
         localStorage.removeItem(this.localStorageBackup.key)
-        console.log('SharedInfrastructureModule: localStorage backup cleared')
+        // console.log('SharedInfrastructureModule: localStorage backup cleared')
       } catch (error) {
-        console.warn('SharedInfrastructureModule: Failed to clear localStorage:', error)
+        // console.warn('SharedInfrastructureModule: Failed to clear localStorage:', error)
       }
     }
   }
@@ -173,12 +173,12 @@ export class SharedInfrastructureModule {
   public async initialize(): Promise<void> {
     // Prevent concurrent initialization attempts
     if (this.initializationPromise) {
-      console.warn('SharedInfrastructureModule: Initialization already in progress, waiting...')
+      // console.warn('SharedInfrastructureModule: Initialization already in progress, waiting...')
       return this.initializationPromise
     }
 
     if (this.isInitialized) {
-      console.warn('SharedInfrastructureModule: Already initialized')
+      // console.warn('SharedInfrastructureModule: Already initialized')
       return
     }
 
@@ -201,7 +201,7 @@ export class SharedInfrastructureModule {
    * Perform actual initialization - MEMORY LEAK SAFE
    */
   private async performInitialization(): Promise<void> {
-    console.log('SharedInfrastructureModule: Initializing...')
+    // console.log('SharedInfrastructureModule: Initializing...')
 
     // Check extension context
     if (!this.isExtensionContextValid()) {
@@ -243,7 +243,7 @@ export class SharedInfrastructureModule {
       // this.setupEventListeners() // This was calling initializeCommunication again!
 
       this.isInitialized = true
-      console.log('SharedInfrastructureModule: Initialization complete')
+      // console.log('SharedInfrastructureModule: Initialization complete')
 
       // ADDED: Set up periodic context recovery check
       this.startPeriodicRecoveryCheck()
@@ -309,7 +309,7 @@ export class SharedInfrastructureModule {
   private handleConsoleEvent(event: ConsoleEvent): void {
     // Only log errors and warnings for console events
     if (event.level === 'error' || event.level === 'warn') {
-      console.log('Console', event.level + ':', event.message.substring(0, 100))
+      // console.log('Console', event.level + ':', event.message.substring(0, 100))
     }
 
     // Always add to pending batch - context will be checked during flush
@@ -345,7 +345,7 @@ export class SharedInfrastructureModule {
   private async flushPendingData(): Promise<void> {
     // Prevent concurrent flush operations
     if (this.isFlushInProgress) {
-      console.log('SharedInfrastructureModule: Flush already in progress, queueing...')
+      // console.log('SharedInfrastructureModule: Flush already in progress, queueing...')
       return new Promise<void>((resolve) => {
         this.flushQueue.push(resolve)
       })
@@ -367,7 +367,7 @@ export class SharedInfrastructureModule {
       // Only log when there's significant data to flush
       const totalItems = this.pendingData.networkRequests.length + this.pendingData.consoleEvents.length
       if (totalItems >= 5) {
-        console.log(`🚀 Flushing ${totalItems} items (Network: ${this.pendingData.networkRequests.length}, Console: ${this.pendingData.consoleEvents.length})`)
+        // console.log(`🚀 Flushing ${totalItems} items (Network: ${this.pendingData.networkRequests.length}, Console: ${this.pendingData.consoleEvents.length})`)
       }
 
       const batch = { ...this.pendingData }
@@ -382,11 +382,11 @@ export class SharedInfrastructureModule {
       // Send network requests
       for (const request of batch.networkRequests) {
         if (this.isDestroying) break
-        console.log('🚀 SharedInfrastructure: Sending network request to background:', request.url)
-        const response = await this.sendToBackground('storeNetworkRequest', request)
-        if (request.url.includes('httpbin.org')) {
-          console.log('🔍 CONTENT DEBUG: Network request response:', response)
-        }
+        // console.log('🚀 SharedInfrastructure: Sending network request to background:', request.url)
+        await this.sendToBackground('storeNetworkRequest', request)
+        // if (request.url.includes('httpbin.org')) {
+        //   console.log('🔍 CONTENT DEBUG: Network request response:', response)
+        // }
       }
 
       // Send console events
@@ -404,7 +404,7 @@ export class SharedInfrastructureModule {
         }
         // Only log error/warning console events
         if (event.level === 'error' || event.level === 'warn') {
-          console.log('🚀 Sending console', event.level + ':', consoleData.message.substring(0, 80))
+          // console.log('🚀 Sending console', event.level + ':', consoleData.message.substring(0, 80))
         }
         await this.sendToBackground('CONSOLE_ERROR', consoleData)
       }
