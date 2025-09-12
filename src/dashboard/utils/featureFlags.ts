@@ -126,19 +126,22 @@ export const withPerformanceMonitoring = <T extends (...args: any[]) => any>(
   }
 
   return ((...args: any[]) => {
-    const start = performance.now();
+    // Performance monitoring disabled
+    // const start = performance.now();
     const result = fn(...args);
 
     if (result && typeof result.then === 'function') {
       // Handle async functions
       return result.finally(() => {
-        const _duration = performance.now() - start;
-        // console.log(`⏱️ ${name}: ${_duration.toFixed(2)}ms`);
+        // Performance monitoring disabled
+        // const duration = performance.now() - start;
+        // console.log(`⏱️ ${name}: ${duration.toFixed(2)}ms`);
       });
     } else {
       // Handle sync functions
-      const _duration = performance.now() - start;
-      // console.log(`⏱️ ${name}: ${_duration.toFixed(2)}ms`);
+      // Performance monitoring disabled
+      // const duration = performance.now() - start;
+      // console.log(`⏱️ ${name}: ${duration.toFixed(2)}ms`);
       return result;
     }
   }) as T;

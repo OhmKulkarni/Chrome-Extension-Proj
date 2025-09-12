@@ -1,9 +1,9 @@
 /**
  * PHASE 3: Token Feature Isolation
- * 
+ *
  * This file isolates all token-related functionality to prevent it from breaking
  * other features when changes are made to token detection and analysis.
- * 
+ *
  * SAFETY: Changes to token handling won't affect network or console features
  */
 
@@ -62,15 +62,15 @@ export class TokenDataProvider {
     this.cleanupListener = TokenMessageBus.listen(async (message) => {
       try {
         await this.handleTokenMessage(message);
-        return { 
+        return {
           success: true,
           timestamp: new Date().toISOString(),
           messageId: message.id || 'unknown'
         };
       } catch (error) {
         // console.error('Token message handler error:', error);
-        return { 
-          success: false, 
+        return {
+          success: false,
           error: error instanceof Error ? error.message : 'Token handler error',
           timestamp: new Date().toISOString(),
           messageId: message.id || 'unknown'
@@ -90,21 +90,21 @@ export class TokenDataProvider {
   private async handleTokenMessage(message: any): Promise<void> {
     // Transform raw message data to V1 contract
     const tokenEvent = DataAdapters.tokenEventToV1(message.data);
-    
+
     // Update cache
     const cacheKey = `tab_${tokenEvent.tabId || 'global'}`;
     if (!this.cache.has(cacheKey)) {
       this.cache.set(cacheKey, []);
     }
-    
+
     const tabTokens = this.cache.get(cacheKey)!;
     tabTokens.unshift(tokenEvent); // Add to beginning for recency
-    
+
     // Limit cache size to prevent memory leaks (keep last 100 token events per tab)
     if (tabTokens.length > 100) {
       tabTokens.splice(100);
     }
-    
+
     // Notify listeners
     this.notifyListeners(cacheKey);
   }
@@ -151,7 +151,7 @@ export class TokenDataProvider {
       // Apply pagination
       const start = options.offset || 0;
       const end = start + (options.limit || 50);
-      
+
       return tokens.slice(start, end);
     } catch (error) {
       // console.error('Failed to get token events:', error);
@@ -161,7 +161,7 @@ export class TokenDataProvider {
 
   // Apply filters to token events
   private applyFilters(
-    tokens: TokenEventV1[], 
+    tokens: TokenEventV1[],
     filters: {
       type?: TokenEventV1['type'];
       token_type?: string;
@@ -196,7 +196,7 @@ export class TokenDataProvider {
         const tokenTime = new Date(token.timestamp);
         const startTime = new Date(filters.timeRange.start);
         const endTime = new Date(filters.timeRange.end);
-        
+
         if (tokenTime < startTime || tokenTime > endTime) {
           return false;
         }
@@ -234,12 +234,12 @@ export class TokenDataProvider {
           this.cache.clear();
           this.analysisCache.clear();
         }
-        
+
         // Notify listeners
         this.notifyAllListeners();
         return true;
       }
-      
+
       return false;
     } catch (error) {
       // console.error('Failed to clear token events:', error);
@@ -256,7 +256,7 @@ export class TokenDataProvider {
     }
 
     const analysis = await this.performTokenAnalysis(tokenEvent);
-    
+
     // Cache result (limit cache size)
     if (this.analysisCache.size > 100) {
       const firstKey = this.analysisCache.keys().next().value;
@@ -265,7 +265,7 @@ export class TokenDataProvider {
       }
     }
     this.analysisCache.set(cacheKey, analysis);
-    
+
     return analysis;
   }
 
@@ -281,18 +281,18 @@ export class TokenDataProvider {
       // Check if it's a JWT token
       if (tokenEvent.token_type.toLowerCase().includes('jwt') || tokenEvent.token_type.toLowerCase().includes('bearer')) {
         analysis.isJwt = true;
-        
+
         // For JWT analysis, we'd need the actual token value, not just the hash
         // Since we only have the hash, we can make educated guesses based on other data
-        
+
         // Analyze expiration
         if (tokenEvent.expiry) {
           const expiryDate = new Date(tokenEvent.expiry);
           const now = new Date();
           const timeToExpiry = expiryDate.getTime() - now.getTime();
-          
+
           analysis.expiresAt = tokenEvent.expiry;
-          
+
           if (timeToExpiry < 0) {
             analysis.recommendations.push('Token has expired');
             analysis.securityScore -= 20;
@@ -301,7 +301,7 @@ export class TokenDataProvider {
             analysis.securityScore -= 10;
           }
         }
-        
+
         // Analyze URL patterns for issuer hints
         const url = tokenEvent.url.toLowerCase();
         if (url.includes('auth0')) {
@@ -368,7 +368,7 @@ export class TokenDataProvider {
   // Subscribe to token data updates
   subscribe(listener: (data: TokenEventV1[]) => void): () => void {
     this.listeners.add(listener);
-    
+
     // Return unsubscribe function
     return () => {
       this.listeners.delete(listener);
@@ -427,7 +427,7 @@ export class TokenDataProvider {
 
     // Calculate statistics
     const totalTokenEvents = tokens.length;
-    
+
     // Events by type
     const eventsByType: Record<string, number> = {};
     tokens.forEach(t => {
@@ -445,7 +445,7 @@ export class TokenDataProvider {
     tokens.forEach(t => {
       domainCounts[t.mainDomain] = (domainCounts[t.mainDomain] || 0) + 1;
     });
-    
+
     const topDomains = Object.entries(domainCounts)
       .map(([domain, count]) => ({ domain, count }))
       .sort((a, b) => b.count - a.count)
@@ -455,7 +455,7 @@ export class TokenDataProvider {
     const recentTokens = tokens.slice(0, 20); // Last 20 tokens
     let totalSecurityScore = 0;
     let analyzedCount = 0;
-    
+
     for (const token of recentTokens) {
       const cacheKey = `${token.value_hash}_${token.token_type}`;
       if (this.analysisCache.has(cacheKey)) {
@@ -463,14 +463,14 @@ export class TokenDataProvider {
         analyzedCount++;
       }
     }
-    
+
     const securityScore = analyzedCount > 0 ? Math.round(totalSecurityScore / analyzedCount) : 50;
 
     // Active vs expired tokens
     const now = new Date();
     let activeTokens = 0;
     let expiredTokens = 0;
-    
+
     tokens.forEach(t => {
       if (t.expiry) {
         const expiryDate = new Date(t.expiry);
@@ -539,39 +539,39 @@ export class TokenUtils {
     if (bearerMatch) {
       return bearerMatch[1];
     }
-    
+
     const basicMatch = authHeader.match(/^Basic\s+(.+)$/i);
     if (basicMatch) {
       return basicMatch[1];
     }
-    
+
     return null;
   }
 
   // Detect token type from context
   static detectTokenType(url: string, headers: Record<string, string> = {}): string {
     const authHeader = headers['authorization'] || headers['Authorization'] || '';
-    
+
     if (authHeader.toLowerCase().startsWith('bearer')) {
       return 'jwt_token';
     }
-    
+
     if (authHeader.toLowerCase().startsWith('basic')) {
       return 'basic_auth';
     }
-    
+
     if (headers['x-api-key'] || headers['X-API-Key']) {
       return 'api_key';
     }
-    
+
     if (url.includes('oauth') || url.includes('auth')) {
       return 'oauth_token';
     }
-    
+
     if (headers['cookie'] || headers['Cookie']) {
       return 'session_token';
     }
-    
+
     return 'unknown_token';
   }
 
@@ -580,18 +580,18 @@ export class TokenUtils {
     if (!this.isJwtFormat(tokenValue)) {
       return null;
     }
-    
+
     try {
       const [, payload] = tokenValue.split('.');
       const decodedPayload = JSON.parse(atob(payload));
-      
+
       if (decodedPayload.exp) {
         return new Date(decodedPayload.exp * 1000).toISOString();
       }
     } catch (error) {
       // console.warn('Failed to decode JWT payload:', error);
     }
-    
+
     return null;
   }
 
@@ -600,7 +600,7 @@ export class TokenUtils {
     if (!settings.enabled) {
       return false;
     }
-    
+
     // Check event type filter
     const eventType = tokenEvent.type || 'acquire';
     return settings.eventTypes[eventType] !== false;

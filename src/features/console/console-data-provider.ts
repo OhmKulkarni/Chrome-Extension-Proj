@@ -1,9 +1,9 @@
 /**
  * PHASE 3: Console Feature Isolation
- * 
+ *
  * This file isolates all console-related functionality to prevent it from breaking
  * other features when changes are made to console error handling.
- * 
+ *
  * SAFETY: Changes to console handling won't affect network or token features
  */
 
@@ -42,15 +42,15 @@ export class ConsoleDataProvider {
     this.cleanupListener = ConsoleMessageBus.listen(async (message) => {
       try {
         await this.handleConsoleMessage(message);
-        return { 
+        return {
           success: true,
           timestamp: new Date().toISOString(),
           messageId: message.id || 'unknown'
         };
       } catch (error) {
         // console.error('Console message handler error:', error);
-        return { 
-          success: false, 
+        return {
+          success: false,
           error: error instanceof Error ? error.message : 'Console handler error',
           timestamp: new Date().toISOString(),
           messageId: message.id || 'unknown'
@@ -70,21 +70,21 @@ export class ConsoleDataProvider {
   private async handleConsoleMessage(message: any): Promise<void> {
     // Transform raw message data to V1 contract
     const consoleError = DataAdapters.consoleErrorToV1(message.data);
-    
+
     // Update cache
     const cacheKey = `tab_${consoleError.tabId || 'global'}`;
     if (!this.cache.has(cacheKey)) {
       this.cache.set(cacheKey, []);
     }
-    
+
     const tabErrors = this.cache.get(cacheKey)!;
     tabErrors.unshift(consoleError); // Add to beginning for recency
-    
+
     // Limit cache size to prevent memory leaks (keep last 50 errors per tab)
     if (tabErrors.length > 50) {
       tabErrors.splice(50);
     }
-    
+
     // Notify listeners
     this.notifyListeners(cacheKey);
   }
@@ -130,7 +130,7 @@ export class ConsoleDataProvider {
       // Apply pagination
       const start = options.offset || 0;
       const end = start + (options.limit || 50);
-      
+
       return errors.slice(start, end);
     } catch (error) {
       // console.error('Failed to get console errors:', error);
@@ -140,7 +140,7 @@ export class ConsoleDataProvider {
 
   // Apply filters to console errors
   private applyFilters(
-    errors: ConsoleErrorV1[], 
+    errors: ConsoleErrorV1[],
     filters: {
       level?: 'error' | 'warn' | 'info' | 'log';
       source?: string;
@@ -169,7 +169,7 @@ export class ConsoleDataProvider {
         const errorTime = new Date(error.timestamp);
         const startTime = new Date(filters.timeRange.start);
         const endTime = new Date(filters.timeRange.end);
-        
+
         if (errorTime < startTime || errorTime > endTime) {
           return false;
         }
@@ -205,12 +205,12 @@ export class ConsoleDataProvider {
         } else {
           this.cache.clear();
         }
-        
+
         // Notify listeners
         this.notifyAllListeners();
         return true;
       }
-      
+
       return false;
     } catch (error) {
       // console.error('Failed to clear console errors:', error);
@@ -221,7 +221,7 @@ export class ConsoleDataProvider {
   // Subscribe to console data updates
   subscribe(listener: (data: ConsoleErrorV1[]) => void): () => void {
     this.listeners.add(listener);
-    
+
     // Return unsubscribe function
     return () => {
       this.listeners.delete(listener);
@@ -278,7 +278,7 @@ export class ConsoleDataProvider {
 
     // Calculate statistics
     const totalErrors = errors.length;
-    
+
     // Errors by level
     const errorsByLevel: Record<string, number> = {};
     errors.forEach(e => {
@@ -290,7 +290,7 @@ export class ConsoleDataProvider {
     errors.forEach(e => {
       sourceCounts[e.source] = (sourceCounts[e.source] || 0) + 1;
     });
-    
+
     const topSources = Object.entries(sourceCounts)
       .map(([source, count]) => ({ source, count }))
       .sort((a, b) => b.count - a.count)
@@ -353,15 +353,15 @@ export class ConsoleUtils {
     column: number;
   }> {
     if (!stack) return [];
-    
+
     const lines = stack.split('\n');
     const parsed: Array<{ function: string; file: string; line: number; column: number }> = [];
-    
+
     for (const line of lines) {
       // Parse different stack trace formats
       const match = line.match(/at\s+([^(]+)\s+\(([^:]+):(\d+):(\d+)\)/) ||
                    line.match(/([^@]+)@([^:]+):(\d+):(\d+)/);
-      
+
       if (match) {
         parsed.push({
           function: (match[1] || 'anonymous').trim(),
@@ -371,7 +371,7 @@ export class ConsoleUtils {
         });
       }
     }
-    
+
     return parsed.slice(0, 10); // Limit to 10 stack frames
   }
 
@@ -381,17 +381,17 @@ export class ConsoleUtils {
     if (error.level === 'error' && error.stack) {
       return 'critical';
     }
-    
+
     // High: Any error level
     if (error.level === 'error') {
       return 'high';
     }
-    
+
     // Medium: Warnings
     if (error.level === 'warn') {
       return 'medium';
     }
-    
+
     // Low: Info and log
     return 'low';
   }
@@ -401,7 +401,7 @@ export class ConsoleUtils {
     if (!settings.enabled) {
       return false;
     }
-    
+
     // Check severity filter
     const level = error.level || 'log';
     return settings.severityFilter[level] !== false;

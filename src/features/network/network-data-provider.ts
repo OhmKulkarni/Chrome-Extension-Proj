@@ -1,9 +1,9 @@
 /**
  * PHASE 3: Network Feature Isolation
- * 
+ *
  * This file isolates all network-related functionality to prevent it from breaking
  * other features when changes are made to network interception logic.
- * 
+ *
  * SAFETY: Changes to network handling won't affect console or token features
  */
 
@@ -41,15 +41,15 @@ export class NetworkDataProvider {
     this.cleanupListener = NetworkMessageBus.listen(async (message) => {
       try {
         await this.handleNetworkMessage(message);
-        return { 
+        return {
           success: true,
           timestamp: new Date().toISOString(),
           messageId: message.id || 'unknown'
         };
       } catch (error) {
         // console.error('Network message handler error:', error);
-        return { 
-          success: false, 
+        return {
+          success: false,
           error: error instanceof Error ? error.message : 'Network handler error',
           timestamp: new Date().toISOString(),
           messageId: message.id || 'unknown'
@@ -69,21 +69,21 @@ export class NetworkDataProvider {
   private async handleNetworkMessage(message: any): Promise<void> {
     // Transform raw message data to V1 contract
     const networkRequest = DataAdapters.networkRequestToV1(message.data);
-    
+
     // Update cache
     const cacheKey = `tab_${networkRequest.tabId || 'global'}`;
     if (!this.cache.has(cacheKey)) {
       this.cache.set(cacheKey, []);
     }
-    
+
     const tabRequests = this.cache.get(cacheKey)!;
     tabRequests.unshift(networkRequest); // Add to beginning for recency
-    
+
     // Limit cache size to prevent memory leaks (keep last 100 requests per tab)
     if (tabRequests.length > 100) {
       tabRequests.splice(100);
     }
-    
+
     // Notify listeners
     this.notifyListeners(cacheKey);
   }
@@ -129,7 +129,7 @@ export class NetworkDataProvider {
       // Apply pagination
       const start = options.offset || 0;
       const end = start + (options.limit || 50);
-      
+
       return requests.slice(start, end);
     } catch (error) {
       // console.error('Failed to get network requests:', error);
@@ -139,7 +139,7 @@ export class NetworkDataProvider {
 
   // Apply filters to network requests
   private applyFilters(
-    requests: NetworkRequestV1[], 
+    requests: NetworkRequestV1[],
     filters: {
       domain?: string;
       method?: string;
@@ -168,7 +168,7 @@ export class NetworkDataProvider {
         const requestTime = new Date(request.timestamp);
         const startTime = new Date(filters.timeRange.start);
         const endTime = new Date(filters.timeRange.end);
-        
+
         if (requestTime < startTime || requestTime > endTime) {
           return false;
         }
@@ -204,12 +204,12 @@ export class NetworkDataProvider {
         } else {
           this.cache.clear();
         }
-        
+
         // Notify listeners
         this.notifyAllListeners();
         return true;
       }
-      
+
       return false;
     } catch (error) {
       // console.error('Failed to clear network requests:', error);
@@ -220,7 +220,7 @@ export class NetworkDataProvider {
   // Subscribe to network data updates
   subscribe(listener: (data: NetworkRequestV1[]) => void): () => void {
     this.listeners.add(listener);
-    
+
     // Return unsubscribe function
     return () => {
       this.listeners.delete(listener);
@@ -298,7 +298,7 @@ export class NetworkDataProvider {
     requests.forEach(r => {
       domainCounts[r.mainDomain] = (domainCounts[r.mainDomain] || 0) + 1;
     });
-    
+
     const topDomains = Object.entries(domainCounts)
       .map(([domain, count]) => ({ domain, count }))
       .sort((a, b) => b.count - a.count)
@@ -371,7 +371,7 @@ export class NetworkUtils {
   static shouldInterceptUrl(url: string, settings: NetworkSettings): boolean {
     try {
       const { hostname, protocol } = new URL(url);
-      
+
       // Skip non-HTTP(S) protocols
       if (!protocol.startsWith('http')) {
         return false;
@@ -396,19 +396,19 @@ export class NetworkUtils {
   // Sanitize request body for storage
   static sanitizeRequestBody(body: string | undefined, maxSize: number): string | undefined {
     if (!body) return undefined;
-    
+
     // Truncate if too large
     if (body.length > maxSize) {
       return body.substring(0, maxSize) + '\n[Truncated - exceeded size limit]';
     }
-    
+
     return body;
   }
 
   // Parse headers safely
   static parseHeaders(headers: any): { request: Record<string, string>; response: Record<string, string> } {
     const defaultHeaders = { request: {}, response: {} };
-    
+
     try {
       if (typeof headers === 'string') {
         return JSON.parse(headers);
@@ -421,7 +421,7 @@ export class NetworkUtils {
     } catch (error) {
       // console.warn('Failed to parse headers:', error);
     }
-    
+
     return defaultHeaders;
   }
 }
