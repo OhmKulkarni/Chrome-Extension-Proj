@@ -39,7 +39,7 @@ export const extractMainDomain = (url: string): string => {
 
     return withoutWww;
   } catch (error) {
-    console.warn('Failed to extract main domain from URL:', url, error);
+    // console.warn('Failed to extract main domain from URL:', url, error);
     return 'unknown';
   }
 };
@@ -50,16 +50,16 @@ export const groupDataByDomain = (
   consoleErrors: ConsoleErrorV1[],
   tokenEvents: TokenEventV1[]
 ): DomainGroup[] => {
-  console.log('🔧 Starting domain grouping with data contract transformation...');
+  // console.log('🔧 Starting domain grouping with data contract transformation...');
 
   // Log raw data first
-  console.log('📥 Raw data sample (first 3 requests):', networkRequests.slice(0, 3).map(req => ({
-    url: req.url?.substring(0, 60),
-    rawMainDomain: req.mainDomain,
-    rawMain_domain: (req as any).main_domain,
-    hasMainDomainField: 'mainDomain' in req,
-    hasMain_domainField: 'main_domain' in req
-  })));
+  // console.log('📥 Raw data sample (first 3 requests):', networkRequests.slice(0, 3).map(req => ({
+  //   url: req.url?.substring(0, 60),
+  //   rawMainDomain: req.mainDomain,
+  //   rawMain_domain: (req as any).main_domain,
+  //   hasMainDomainField: 'mainDomain' in req,
+  //   hasMain_domainField: 'main_domain' in req
+  // })));
 
   // Transform raw data to ensure proper field mapping (main_domain -> mainDomain)
   const transformedRequests = networkRequests.map(req => DataAdapters.networkRequestToV1(req));
@@ -67,18 +67,18 @@ export const groupDataByDomain = (
   const transformedTokens = tokenEvents.map(token => DataAdapters.tokenEventToV1(token));
 
   // Log transformed data
-  console.log('📤 Transformed data sample (first 3 requests):', transformedRequests.slice(0, 3).map(req => ({
-    url: req.url?.substring(0, 60),
-    transformedMainDomain: req.mainDomain,
-    extractedFromUrl: extractMainDomain(req.url),
-    wasTransformed: req.mainDomain !== extractMainDomain(req.url)
-  })));
+  // console.log('📤 Transformed data sample (first 3 requests):', transformedRequests.slice(0, 3).map(req => ({
+  //   url: req.url?.substring(0, 60),
+  //   transformedMainDomain: req.mainDomain,
+  //   extractedFromUrl: extractMainDomain(req.url),
+  //   wasTransformed: req.mainDomain !== extractMainDomain(req.url)
+  // })));
 
-  console.log('📊 Transformed data counts:', {
-    requests: transformedRequests.length,
-    errors: transformedErrors.length,
-    tokens: transformedTokens.length
-  });
+  // console.log('📊 Transformed data counts:', {
+  //   requests: transformedRequests.length,
+  //   errors: transformedErrors.length,
+  //   tokens: transformedTokens.length
+  // });
 
   const domainMap = new Map<string, DomainGroup>();
 
@@ -88,13 +88,13 @@ export const groupDataByDomain = (
 
     // DEBUG: Log domain grouping decisions
     if (request.mainDomain !== extractMainDomain(request.url)) {
-      console.log('🎯 Dashboard Domain Grouping:', {
-        originalUrl: request.url?.substring(0, 60),
-        extractedFromUrl: extractMainDomain(request.url),
-        mainDomainField: request.mainDomain,
-        finalDomain: domain,
-        wasSmartGrouped: !!request.mainDomain
-      });
+      // console.log('🎯 Dashboard Domain Grouping:', {
+      //   originalUrl: request.url?.substring(0, 60),
+      //   extractedFromUrl: extractMainDomain(request.url),
+      //   mainDomainField: request.mainDomain,
+      //   finalDomain: domain,
+      //   wasSmartGrouped: !!request.mainDomain
+      // });
     }
 
     if (!domainMap.has(domain)) {
