@@ -31,26 +31,26 @@ const sendChromeMessage = async (message: any): Promise<any> => {
     return result
   } catch (error) {
     if (error instanceof Error && error.message.includes('Could not establish connection')) {
-      console.warn('Background script not ready yet, retrying...', error.message)
+      // console.warn('Background script not ready yet, retrying...', error.message)
 
       // Try to ping the background script first
       try {
         const pingResponse = await chrome.runtime.sendMessage({ action: 'ping' })
         if (pingResponse && pingResponse.initializing) {
-          console.log('Background script is initializing, waiting...')
+          // console.log('Background script is initializing, waiting...')
           // Wait a bit longer for initialization
           await delay(1000)
           try {
             const retryResponse = await chrome.runtime.sendMessage(message)
             return retryResponse ? { ...retryResponse } : null
           } catch (finalError) {
-            console.error('Chrome message failed after initialization wait:', finalError)
+            // console.error('Chrome message failed after initialization wait:', finalError)
             return { error: 'Background script still initializing' }
           }
         }
       } catch (pingError) {
         // Ping failed, background script might be completely unavailable
-        console.error('Background script ping failed:', pingError)
+        // console.error('Background script ping failed:', pingError)
       }
 
       // Original retry logic as fallback
@@ -59,11 +59,11 @@ const sendChromeMessage = async (message: any): Promise<any> => {
         const response = await chrome.runtime.sendMessage(message)
         return response ? { ...response } : null
       } catch (retryError) {
-        console.error('Chrome message failed after retry:', retryError)
+        // console.error('Chrome message failed after retry:', retryError)
         return { error: 'Could not establish connection with background script' }
       }
     } else {
-      console.error('Chrome message failed:', error)
+      // console.error('Chrome message failed:', error)
       return null
     }
   }
@@ -74,18 +74,18 @@ const getChromeTabInfo = async (): Promise<any> => {
   try {
     const response = await chrome.runtime.sendMessage({ action: 'getTabInfo' })
     if (response && !response.error) {
-      console.log('Tab info received:', response)
+      // console.log('Tab info received:', response)
       return response
     } else if (response && response.loading) {
-      console.log('Background script still loading:', response)
+      // console.log('Background script still loading:', response)
       return response // Return the loading state
     } else {
-      console.warn('Invalid response for tab info:', response)
+      // console.warn('Invalid response for tab info:', response)
       return { title: 'Unknown', url: 'Unknown' }
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    console.warn('Error getting tab info (background script may not be ready):', errorMessage)
+    // console.warn('Error getting tab info (background script may not be ready):', errorMessage)
 
     // Check if it's a connection error and provide better feedback
     if (errorMessage.includes('Could not establish connection')) {
@@ -166,8 +166,8 @@ const Popup: React.FC = () => {
         // MEMORY LEAK FIX: Use pre-allocated function instead of direct chrome.runtime.sendMessage
         getChromeTabInfo().then(response => {
           setTabInfo(response)
-        }).catch(error => {
-          console.error('Failed to get tab info:', error)
+        }).catch(_error => {
+          // console.error('Failed to get tab info:', _error)
           setTabInfo({ title: 'Error', url: 'Failed to get tab info' })
         })
 
@@ -221,7 +221,7 @@ const Popup: React.FC = () => {
 
         setLoading(false);
       } catch (error) {
-        console.error('Failed to load settings:', error);
+        // console.error('Failed to load settings:', error);
         setLoading(false);
       }
     };
@@ -244,22 +244,22 @@ const Popup: React.FC = () => {
           try {
             const result = await chrome.storage.local.get(['extensionEnabled']);
             setGlobalPowerEnabled(result.extensionEnabled ?? true);
-            console.log('✅ Popup: Loaded extensionEnabled from chrome.storage.local:', result.extensionEnabled);
+            // console.log('✅ Popup: Loaded extensionEnabled from chrome.storage.local:', result.extensionEnabled);
           } catch (error) {
-            console.error('❌ Popup: Failed to load from chrome.storage.local:', error);
+            // console.error('❌ Popup: Failed to load from chrome.storage.local:', error);
             setGlobalPowerEnabled(true);
           }
         }
 
       } catch (error) {
-        console.error('Error loading extension state:', error);
+        // console.error('Error loading extension state:', error);
         // CRITICAL FIX: Fallback to chrome.storage.local instead of StorageService
         try {
           const result = await chrome.storage.local.get(['extensionEnabled']);
           setGlobalPowerEnabled(result.extensionEnabled ?? true);
-          console.log('✅ Popup: Fallback loaded extensionEnabled from chrome.storage.local:', result.extensionEnabled);
+          // console.log('✅ Popup: Fallback loaded extensionEnabled from chrome.storage.local:', result.extensionEnabled);
         } catch (storageError) {
-          console.error('❌ Popup: Failed to load from chrome.storage.local in fallback:', storageError);
+          // console.error('❌ Popup: Failed to load from chrome.storage.local in fallback:', storageError);
           setGlobalPowerEnabled(true);
         }
         // Site-specific state will be loaded in loadTabStates
@@ -289,12 +289,12 @@ const Popup: React.FC = () => {
             setTabErrorLoggingActive(errors);
             setTabTokenLoggingActive(tokens);
 
-            const allEnabled = network && errors && tokens;
-            console.log(`🔄 Atomic state loaded - Network: ${network}, Error: ${errors}, Token: ${tokens}, Site: ${allEnabled ? 'on' : (network || errors || tokens) ? 'mixed' : 'off'}`);
+            // const allEnabled = network && errors && tokens;
+            // console.log(`🔄 Atomic state loaded - Network: ${network}, Error: ${errors}, Token: ${tokens}, Site: ${allEnabled ? 'on' : (network || errors || tokens) ? 'mixed' : 'off'}`);
             return; // Success - exit early
           }
         } catch (atomicError) {
-          console.log('Atomic state loading failed, falling back to individual calls:', atomicError);
+          // console.log('Atomic state loading failed, falling back to individual calls:', atomicError);
         }
 
         // Fallback: Use individual calls if atomic operation fails
@@ -323,12 +323,12 @@ const Popup: React.FC = () => {
 
         // BIDIRECTIONAL: Site toggle state is now computed automatically from individual toggles
         // No need to manually set it - siteToggleState is derived reactively
-        const allEnabled = networkActive && errorActive && tokenActive;
+        // const allEnabled = networkActive && errorActive && tokenActive;
 
-        console.log(`🔄 Initial state loaded - Network: ${networkActive}, Error: ${errorActive}, Token: ${tokenActive}, Site: ${allEnabled ? 'on' : (networkActive || errorActive || tokenActive) ? 'mixed' : 'off'}`);
+        // console.log(`🔄 Initial state loaded - Network: ${networkActive}, Error: ${errorActive}, Token: ${tokenActive}, Site: ${allEnabled ? 'on' : (networkActive || errorActive || tokenActive) ? 'mixed' : 'off'}`);
 
       } catch (error) {
-        console.error('Error loading tab states:', error);
+        // console.error('Error loading tab states:', error);
 
         // Fallback to sync defaults if everything fails
         try {
