@@ -82,7 +82,7 @@ const SettingsInline: React.FC = () => {
     try {
       // Check if Chrome extension APIs are available
       if (typeof chrome === 'undefined' || !chrome.runtime) {
-        console.warn('Chrome extension APIs not available, using mock storage data');
+        // console.warn('Chrome extension APIs not available, using mock storage data');
         const estimatedBytes = 1024 * 1024 * 5; // 5MB mock
         const STORAGE_LIMIT = 100 * 1024 * 1024; // 100MB limit
         const percentage = (estimatedBytes / STORAGE_LIMIT) * 100;
@@ -102,16 +102,16 @@ const SettingsInline: React.FC = () => {
           const estimate = await navigator.storage.estimate();
           if (estimate.usage) {
             actualBytes = estimate.usage;
-            console.log('📊 Using actual storage estimate:', actualBytes, 'bytes');
+            // console.log('📊 Using actual storage estimate:', actualBytes, 'bytes');
           }
         }
       } catch (storageError) {
-        console.warn('Could not get storage estimate:', storageError);
+        // console.warn('Could not get storage estimate:', storageError);
       }
 
       // If we couldn't get actual usage, fall back to estimation via backend
       if (actualBytes === 0) {
-        console.log('📊 Falling back to backend storage estimation');
+        // console.log('📊 Falling back to backend storage estimation');
 
         // Try the STORAGE_INFO action first (more accurate than table counts)
         try {
@@ -121,10 +121,10 @@ const SettingsInline: React.FC = () => {
 
           if (storageResponse && storageResponse.success && storageResponse.data?.size) {
             actualBytes = storageResponse.data.size;
-            console.log('📊 Using backend storage info:', actualBytes, 'bytes');
+            // console.log('📊 Using backend storage info:', actualBytes, 'bytes');
           }
         } catch (storageInfoError) {
-          console.warn('STORAGE_INFO failed, trying table counts:', storageInfoError);
+          // console.warn('STORAGE_INFO failed, trying table counts:', storageInfoError);
         }
 
         // Final fallback to table count estimation
@@ -150,7 +150,7 @@ const SettingsInline: React.FC = () => {
               actualBytes += tableCounts.minifiedLibraries * 12000; // ~12KB average
             }
 
-            console.log('📊 Using table count estimation:', actualBytes, 'bytes');
+            // console.log('📊 Using table count estimation:', actualBytes, 'bytes');
           } else {
             throw new Error('All storage estimation methods failed');
           }
@@ -185,7 +185,7 @@ const SettingsInline: React.FC = () => {
     try {
       // Check if Chrome extension APIs are available
       if (typeof chrome === 'undefined' || !chrome.storage) {
-        console.warn('Chrome extension APIs not available, using default settings');
+        // console.warn('Chrome extension APIs not available, using default settings');
         setSettings(defaultSettings);
         setIsLoading(false);
         return;

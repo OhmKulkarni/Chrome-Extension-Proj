@@ -119,7 +119,7 @@ export class BackgroundController {
     }
 
     if (this.isInitialized) {
-      console.log('✅ BackgroundController: Already initialized');
+      // console.log('✅ BackgroundController: Already initialized');
       return;
     }
 
@@ -201,18 +201,18 @@ export class BackgroundController {
    */
   private async initializeLegacyCompatibility(): Promise<void> {
     try {
-      console.log('🔗 BackgroundController: Initializing legacy compatibility...');
+      // console.log('🔗 BackgroundController: Initializing legacy compatibility...');
 
       // Initialize legacy storage manager
       await this.legacyStorageManager.init();
-      console.log('  ✅ Legacy storage manager initialized');
+      // console.log('  ✅ Legacy storage manager initialized');
 
       // Initialize legacy extension state controller
       await this.legacyExtensionStateController.init();
-      console.log('  ✅ Legacy extension state controller initialized');
+      // console.log('  ✅ Legacy extension state controller initialized');
 
     } catch (error) {
-      console.warn('⚠️ BackgroundController: Legacy compatibility initialization failed:', error);
+      // console.warn('⚠️ BackgroundController: Legacy compatibility initialization failed:', error);
       // Don't fail the entire initialization for legacy compatibility issues
     }
   }
@@ -234,7 +234,7 @@ export class BackgroundController {
       }
     }, 30000);
 
-    console.log('🔍 BackgroundController: Health monitoring started');
+    // console.log('🔍 BackgroundController: Health monitoring started');
   }
 
   /**
@@ -265,13 +265,13 @@ export class BackgroundController {
       .map(([name]) => name);
 
     if (unhealthyModules.length > 0) {
-      console.warn('⚠️ BackgroundController: Unhealthy modules detected:', unhealthyModules);
+      // console.warn('⚠️ BackgroundController: Unhealthy modules detected:', unhealthyModules);
     }
 
     // Log memory usage if it's high
     const memoryUsage = this.chromeApi.getMemoryUsage();
     if (memoryUsage.percentage > 80) {
-      console.warn(`🧠 BackgroundController: High memory usage: ${memoryUsage.percentage.toFixed(1)}%`);
+      // console.warn(`🧠 BackgroundController: High memory usage: ${memoryUsage.percentage.toFixed(1)}%`);
     }
   }
 
