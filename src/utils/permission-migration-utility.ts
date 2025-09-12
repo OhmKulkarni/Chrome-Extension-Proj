@@ -49,19 +49,19 @@ export class PermissionMigrationUtility {
 
     try {
       // Step 1: Migrate global state
-      const globalState = await this.migrateGlobalState();
+      const _globalState = await this.migrateGlobalState();
       migrated.global = globalState;
 
       // Step 2: Migrate site-specific permissions
-      const sitePermissions = await this.migrateSitePermissions();
+      const _sitePermissions = await this.migrateSitePermissions();
       migrated.sites = sitePermissions;
 
       // Step 3: Migrate tab controls
-      const tabControls = await this.migrateTabControls();
+      const _tabControls = await this.migrateTabControls();
       migrated.tabs = tabControls;
 
       // Step 4: Migrate feature defaults
-      const featureDefaults = await this.migrateFeatureDefaults();
+      const _featureDefaults = await this.migrateFeatureDefaults();
       migrated.defaults = featureDefaults;
 
       // Step 5: Apply migrated data to unified manager
@@ -89,14 +89,14 @@ export class PermissionMigrationUtility {
   private async migrateGlobalState(): Promise<boolean> {
     try {
       // Check chrome.storage.local first
-      const localResult = await chrome.storage.local.get(['extensionEnabled']);
+      const _localResult = await chrome.storage.local.get(['extensionEnabled']);
       if (localResult.extensionEnabled !== undefined) {
         // console.log('📥 Found global state in chrome.storage.local:', localResult.extensionEnabled);
         return localResult.extensionEnabled;
       }
 
       // Check old ExtensionState system
-      const stateResult = await chrome.storage.local.get(['extensionState']);
+      const _stateResult = await chrome.storage.local.get(['extensionState']);
       if (stateResult.extensionState?.enabled !== undefined) {
         // console.log('📥 Found global state in extensionState:', stateResult.extensionState.enabled);
         return stateResult.extensionState.enabled;
@@ -119,9 +119,9 @@ export class PermissionMigrationUtility {
 
     try {
       // Check ExtensionState for site-specific data
-      const stateResult = await chrome.storage.local.get(['extensionState']);
+      const _stateResult = await chrome.storage.local.get(['extensionState']);
       if (stateResult.extensionState?.siteSpecificState) {
-        const siteState = stateResult.extensionState.siteSpecificState;
+        const _siteState = stateResult.extensionState.siteSpecificState;
 
         for (const [domain, enabled] of Object.entries(siteState)) {
           sitePermissions[domain] = {
@@ -148,20 +148,20 @@ export class PermissionMigrationUtility {
 
     try {
       // Get all chrome.storage.local data to find tab-specific keys
-      const allData = await chrome.storage.local.get(null);
+      const _allData = await chrome.storage.local.get(null);
 
       // Find tab logging keys
-      const networkTabs = this.findTabKeys(allData, 'tabLogging_');
-      const errorTabs = this.findTabKeys(allData, 'tabErrorLogging_');
-      const tokenTabs = this.findTabKeys(allData, 'tabTokenLogging_');
+      const _networkTabs = this.findTabKeys(allData, 'tabLogging_');
+      const _errorTabs = this.findTabKeys(allData, 'tabErrorLogging_');
+      const _tokenTabs = this.findTabKeys(allData, 'tabTokenLogging_');
 
       // Combine all tab IDs
-      const allTabIds = new Set([...networkTabs.keys(), ...errorTabs.keys(), ...tokenTabs.keys()]);
+      const _allTabIds = new Set([...networkTabs.keys(), ...errorTabs.keys(), ...tokenTabs.keys()]);
 
       for (const tabId of allTabIds) {
-        const networkData = networkTabs.get(tabId);
-        const errorData = errorTabs.get(tabId);
-        const tokenData = tokenTabs.get(tabId);
+        const _networkData = networkTabs.get(tabId);
+        const _errorData = errorTabs.get(tabId);
+        const _tokenData = tokenTabs.get(tabId);
 
         tabControls[tabId] = {
           network: networkData?.active ?? false,
@@ -191,7 +191,7 @@ export class PermissionMigrationUtility {
    * Step 4: Migrate feature defaults from IndexedDB settings
    */
   private async migrateFeatureDefaults(): Promise<{ network: boolean; console: boolean; tokens: boolean }> {
-    const defaults = {
+    const _defaults = {
       network: false, // Safe defaults - start disabled
       console: false,
       tokens: false
@@ -199,8 +199,8 @@ export class PermissionMigrationUtility {
 
     try {
       // Try to get settings from IndexedDB via StorageService
-      const settingsResult = await this.storageService.get(['settings']);
-      const settings = settingsResult?.settings;
+      const _settingsResult = await this.storageService.get(['settings']);
+      const _settings = settingsResult?.settings;
 
       if (settings) {
         // Extract defaults from settings
@@ -252,7 +252,7 @@ export class PermissionMigrationUtility {
     // Set tab controls
     if (migrated.tabs) {
       for (const [tabIdStr, tabData] of Object.entries(migrated.tabs as Record<string, any>)) {
-        const tabId = parseInt(tabIdStr);
+        const _tabId = parseInt(tabIdStr);
 
         // Set each feature individually
         await this.unifiedManager.setFeatureEnabled(tabId, 'network', tabData?.network ?? false);
@@ -272,13 +272,13 @@ export class PermissionMigrationUtility {
 
     try {
       // Check if unified manager is working
-      const globalEnabled = await this.unifiedManager.isGlobalEnabled();
+      const _globalEnabled = await this.unifiedManager.isGlobalEnabled();
       if (typeof globalEnabled !== 'boolean') {
         issues.push('Global state not properly migrated');
       }
 
       // Check if unified permission storage exists
-      const result = await chrome.storage.local.get(['unifiedPermissions']);
+      const _result = await chrome.storage.local.get(['unifiedPermissions']);
       if (!result.unifiedPermissions) {
         issues.push('Unified permissions not found in storage');
       }
@@ -300,8 +300,8 @@ export class PermissionMigrationUtility {
       // console.log('💾 Creating backup of current permission system...');
 
       // Backup chrome.storage.local permission-related data
-      const allLocal = await chrome.storage.local.get(null);
-      const permissionKeys = Object.keys(allLocal).filter(key =>
+      const _allLocal = await chrome.storage.local.get(null);
+      const _permissionKeys = Object.keys(allLocal).filter(key =>
         key === 'extensionEnabled' ||
         key === 'extensionState' ||
         key.startsWith('tabLogging_') ||
@@ -315,15 +315,15 @@ export class PermissionMigrationUtility {
       });
 
       // Backup IndexedDB settings
-      let indexedDbBackup = null;
+      let _indexedDbBackup = null;
       try {
-        const settingsResult = await this.storageService.get(['settings']);
+        const _settingsResult = await this.storageService.get(['settings']);
         indexedDbBackup = settingsResult?.settings;
       } catch (error) {
         // console.warn('Could not backup IndexedDB settings:', error);
       }
 
-      const backup = {
+      const _backup = {
         timestamp: Date.now(),
         chromeStorageLocal: localBackup,
         indexedDbSettings: indexedDbBackup,
@@ -347,8 +347,8 @@ export class PermissionMigrationUtility {
    */
   async restoreFromBackup(): Promise<{ success: boolean; error?: string }> {
     try {
-      const result = await chrome.storage.local.get(['permissionSystemBackup']);
-      const backup = result.permissionSystemBackup;
+      const _result = await chrome.storage.local.get(['permissionSystemBackup']);
+      const _backup = result.permissionSystemBackup;
 
       if (!backup) {
         throw new Error('No backup found');
@@ -377,12 +377,12 @@ export class PermissionMigrationUtility {
    * Find tab-specific keys in storage data
    */
   private findTabKeys(allData: any, prefix: string): Map<number, any> {
-    const tabKeys = new Map<number, any>();
+    const _tabKeys = new Map<number, any>();
 
     for (const [key, value] of Object.entries(allData)) {
       if (key.startsWith(prefix)) {
-        const tabIdStr = key.replace(prefix, '');
-        const tabId = parseInt(tabIdStr);
+        const _tabIdStr = key.replace(prefix, '');
+        const _tabId = parseInt(tabIdStr);
 
         if (!isNaN(tabId)) {
           tabKeys.set(tabId, value);
@@ -398,7 +398,7 @@ export class PermissionMigrationUtility {
    */
   private extractDomain(url: string): string {
     try {
-      const urlObj = new URL(url);
+      const _urlObj = new URL(url);
       return urlObj.hostname;
     } catch {
       return 'unknown';
@@ -407,4 +407,4 @@ export class PermissionMigrationUtility {
 }
 
 // Export singleton instance
-export const permissionMigrationUtility = new PermissionMigrationUtility();
+export const _permissionMigrationUtility = new PermissionMigrationUtility();

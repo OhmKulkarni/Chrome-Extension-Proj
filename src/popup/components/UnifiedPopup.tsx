@@ -7,7 +7,7 @@ import { Switch } from './ui/switch';
 import { UnifiedPermissionManager } from '../../utils/unified-permission-manager';
 
 // Get unified permission manager singleton
-const unifiedPermissionManager = UnifiedPermissionManager.getInstance();
+const _unifiedPermissionManager = UnifiedPermissionManager.getInstance();
 
 interface TabInfo {
   id: number;
@@ -45,14 +45,14 @@ const UnifiedPopup: React.FC<UnifiedPopupProps> = ({ className }) => {
   });
 
   // Get current tab information
-  const getCurrentTab = useCallback(async (): Promise<TabInfo | null> => {
+  const _getCurrentTab = useCallback(async (): Promise<TabInfo | null> => {
     try {
-      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-      const tab = tabs[0];
+      const _tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      const _tab = tabs[0];
 
       if (!tab?.id || !tab?.url) return null;
 
-      const url = new URL(tab.url);
+      const _url = new URL(tab.url);
       return {
         id: tab.id,
         url: tab.url,
@@ -65,11 +65,11 @@ const UnifiedPopup: React.FC<UnifiedPopupProps> = ({ className }) => {
   }, []);
 
   // Load all permission states
-  const loadPermissions = useCallback(async () => {
+  const _loadPermissions = useCallback(async () => {
     try {
       setLoading(true);
 
-      const tab = await getCurrentTab();
+      const _tab = await getCurrentTab();
       if (!tab) return;
 
       setCurrentTab(tab);
@@ -102,10 +102,10 @@ const UnifiedPopup: React.FC<UnifiedPopupProps> = ({ className }) => {
   }, [getCurrentTab]);
 
   // Load statistics for current tab
-  const loadStats = useCallback(async (tabId: number) => {
+  const _loadStats = useCallback(async (tabId: number) => {
     try {
       // Send message to background to get current stats
-      const response = await chrome.runtime.sendMessage({
+      const _response = await chrome.runtime.sendMessage({
         action: 'getTabStats',
         tabId,
       });
@@ -123,10 +123,10 @@ const UnifiedPopup: React.FC<UnifiedPopupProps> = ({ className }) => {
   }, []);
 
   // Toggle global power
-  const toggleGlobalPower = useCallback(async () => {
+  const _toggleGlobalPower = useCallback(async () => {
     if (!currentTab) return;
 
-    const newState = !permissions.globalEnabled;
+    const _newState = !permissions.globalEnabled;
 
     // Update state immediately for responsive UI
     setPermissions(prev => ({ ...prev, globalEnabled: newState }));
@@ -155,10 +155,10 @@ const UnifiedPopup: React.FC<UnifiedPopupProps> = ({ className }) => {
   }, [currentTab, permissions.globalEnabled, loadPermissions]);
 
   // Toggle site-specific enable
-  const toggleSiteEnable = useCallback(async () => {
+  const _toggleSiteEnable = useCallback(async () => {
     if (!currentTab) return;
 
-    const newState = !permissions.siteEnabled;
+    const _newState = !permissions.siteEnabled;
 
     // Update state immediately for responsive UI
     setPermissions(prev => ({ ...prev, siteEnabled: newState }));
@@ -216,11 +216,11 @@ const UnifiedPopup: React.FC<UnifiedPopupProps> = ({ className }) => {
   }, [currentTab, permissions.siteEnabled]);
 
   // Toggle individual features
-  const toggleFeature = useCallback(async (feature: 'network' | 'console' | 'tokens') => {
+  const _toggleFeature = useCallback(async (feature: 'network' | 'console' | 'tokens') => {
     if (!currentTab) return;
 
-    const currentState = permissions[`${feature}Enabled` as keyof PermissionState] as boolean;
-    const newState = !currentState;
+    const _currentState = permissions[`${ feature }Enabled` as keyof PermissionState] as boolean;
+    const _newState = !currentState;
 
     // Update state immediately for responsive UI
     setPermissions(prev => ({ ...prev, [`${feature}Enabled`]: newState }));
@@ -251,9 +251,9 @@ const UnifiedPopup: React.FC<UnifiedPopupProps> = ({ className }) => {
 
   // Initialize on mount
   useEffect(() => {
-    let mounted = true;
+    let _mounted = true;
 
-    const loadInitialData = async () => {
+    const _loadInitialData = async () => {
       if (mounted) {
         await loadPermissions();
       }
@@ -262,7 +262,7 @@ const UnifiedPopup: React.FC<UnifiedPopupProps> = ({ className }) => {
     loadInitialData();
 
     // Set up permission change listener
-    const handlePermissionChange = () => {
+    const _handlePermissionChange = () => {
       if (mounted) {
         loadPermissions();
       }
@@ -280,8 +280,8 @@ const UnifiedPopup: React.FC<UnifiedPopupProps> = ({ className }) => {
   useEffect(() => {
     if (!currentTab) return;
 
-    let mounted = true;
-    const interval = setInterval(() => {
+    let _mounted = true;
+    const _interval = setInterval(() => {
       if (mounted && currentTab) {
         loadStats(currentTab.id);
       }
@@ -320,11 +320,11 @@ const UnifiedPopup: React.FC<UnifiedPopupProps> = ({ className }) => {
   }
 
   // Calculate effective states (hierarchical logic)
-  const effectiveGlobalEnabled = permissions.globalEnabled;
-  const effectiveSiteEnabled = effectiveGlobalEnabled && permissions.siteEnabled;
-  const effectiveNetworkEnabled = effectiveSiteEnabled && permissions.networkEnabled;
-  const effectiveConsoleEnabled = effectiveSiteEnabled && permissions.consoleEnabled;
-  const effectiveTokensEnabled = effectiveSiteEnabled && permissions.tokensEnabled;
+  const _effectiveGlobalEnabled = permissions.globalEnabled;
+  const _effectiveSiteEnabled = effectiveGlobalEnabled && permissions.siteEnabled;
+  const _effectiveNetworkEnabled = effectiveSiteEnabled && permissions.networkEnabled;
+  const _effectiveConsoleEnabled = effectiveSiteEnabled && permissions.consoleEnabled;
+  const _effectiveTokensEnabled = effectiveSiteEnabled && permissions.tokensEnabled;
 
   return (
     <div className={`w-80 ${className}`}>

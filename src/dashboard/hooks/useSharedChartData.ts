@@ -55,9 +55,9 @@ export interface AnalysisData {
  * Shared data processing hook
  * Processes raw analysis data once and provides it to all charts
  */
-export const useSharedChartData = (analysisData: AnalysisData): ProcessedChartData => {
+export const _useSharedChartData = (analysisData: AnalysisData): ProcessedChartData => {
   return useMemo(() => {
-    const startTime = performance.now();
+    const _startTime = performance.now();
     console.log('🔄 Processing shared chart data...', {
       networkRequests: analysisData.networkRequests?.length || 0,
       consoleErrors: analysisData.consoleErrors?.length || 0,
@@ -66,13 +66,13 @@ export const useSharedChartData = (analysisData: AnalysisData): ProcessedChartDa
     });
 
     // Process network requests
-    const networkMetrics = processNetworkMetrics(analysisData.networkRequests || []);
+    const _networkMetrics = processNetworkMetrics(analysisData.networkRequests || []);
 
     // Process console errors
-    const errorMetrics = processErrorMetrics(analysisData.consoleErrors || []);
+    const _errorMetrics = processErrorMetrics(analysisData.consoleErrors || []);
 
     // Process token events
-    const tokenMetrics = processTokenMetrics(analysisData.tokenEvents || []);
+    const _tokenMetrics = processTokenMetrics(analysisData.tokenEvents || []);
 
     const processed: ProcessedChartData = {
       networkMetrics,
@@ -81,7 +81,7 @@ export const useSharedChartData = (analysisData: AnalysisData): ProcessedChartDa
       lastProcessed: Date.now()
     };
 
-    const endTime = performance.now();
+    const _endTime = performance.now();
     console.log('✅ Shared chart data processed:', {
       duration: `${(endTime - startTime).toFixed(2)}ms`,
       networkMetrics: Object.keys(networkMetrics).length,
@@ -103,17 +103,17 @@ function processNetworkMetrics(networkRequests: any[]): NetworkMetrics {
   const endpoints: Record<string, number> = {};
   const responseTimes: number[] = [];
   const sizes: number[] = [];
-  let successCount = 0;
+  let _successCount = 0;
 
   networkRequests.forEach(req => {
     // Method counting
-    const method = req.method || req.request_method || 'GET';
+    const _method = req.method || req.request_method || 'GET';
     methodCounts[method] = (methodCounts[method] || 0) + 1;
 
     // Status code counting
-    const status = req.status ?? req.response_status ?? req.response?.status ?? req.statusCode ?? 0;
+    const _status = req.status ?? req.response_status ?? req.response?.status ?? req.statusCode ?? 0;
     if (status > 0) {
-      const statusRange = getStatusRange(status);
+      const _statusRange = getStatusRange(status);
       statusCodeCounts[statusRange] = (statusCodeCounts[statusRange] || 0) + 1;
 
       // Success rate (2xx and 3xx)
@@ -125,14 +125,14 @@ function processNetworkMetrics(networkRequests: any[]): NetworkMetrics {
     // Domain counting
     if (req.url) {
       try {
-        const url = new URL(req.url);
-        const domain = req.main_domain || url.hostname;
+        const _url = new URL(req.url);
+        const _domain = req.main_domain || url.hostname;
         if (domain && domain !== 'unknown') {
           domains[domain] = (domains[domain] || 0) + 1;
         }
 
         // Endpoint counting
-        const endpoint = url.pathname || '/';
+        const _endpoint = url.pathname || '/';
         endpoints[endpoint] = (endpoints[endpoint] || 0) + 1;
       } catch (e) {
         // Invalid URL, skip domain/endpoint extraction
@@ -140,28 +140,28 @@ function processNetworkMetrics(networkRequests: any[]): NetworkMetrics {
     }
 
     // Response time collection
-    const responseTime = req.response_time || req.responseTime || 0;
+    const _responseTime = req.response_time || req.responseTime || 0;
     if (responseTime > 0) {
       responseTimes.push(responseTime);
     }
 
     // Size collection (use existing size utilities logic)
-    const size = getRequestSize(req);
+    const _size = getRequestSize(req);
     if (size > 0) {
       sizes.push(size);
     }
   });
 
   // Calculate size distribution
-  const sizeDistribution = calculateSizeDistribution(sizes);
+  const _sizeDistribution = calculateSizeDistribution(sizes);
 
   // Calculate average response time
-  const avgResponseTime = responseTimes.length > 0
+  const _avgResponseTime = responseTimes.length > 0
     ? Math.round(responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length)
     : 0;
 
   // Calculate success rate
-  const successRate = networkRequests.length > 0
+  const _successRate = networkRequests.length > 0
     ? Math.round((successCount / networkRequests.length) * 100)
     : 0;
 
@@ -187,12 +187,12 @@ function processErrorMetrics(consoleErrors: any[]): ErrorMetrics {
 
   consoleErrors.forEach(error => {
     // Severity counting
-    const severity = (error.severity || error.level || 'error').toLowerCase();
+    const _severity = (error.severity || error.level || 'error').toLowerCase();
     severityCounts[severity] = (severityCounts[severity] || 0) + 1;
 
     // Timeline counting (group by hour)
-    const timestamp = error.timestamp ? new Date(error.timestamp) : new Date();
-    const timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(), timestamp.getHours()).getTime().toString();
+    const _timestamp = error.timestamp ? new Date(error.timestamp) : new Date();
+    const _timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(), timestamp.getHours()).getTime().toString();
 
     if (!timelineCounts[timeKey]) {
       timelineCounts[timeKey] = {
@@ -205,14 +205,14 @@ function processErrorMetrics(consoleErrors: any[]): ErrorMetrics {
     timelineCounts[timeKey].severity[severity] = (timelineCounts[timeKey].severity[severity] || 0) + 1;
 
     // Frequent error messages
-    const message = error.message || error.error_message || 'Unknown error';
+    const _message = error.message || error.error_message || 'Unknown error';
     if (message.length < 100) { // Only track short messages
       errorMessages[message] = (errorMessages[message] || 0) + 1;
     }
   });
 
   // Get top frequent errors
-  const frequentErrors = Object.entries(errorMessages)
+  const _frequentErrors = Object.entries(errorMessages)
     .map(([message, count]) => ({ message, count }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
@@ -234,12 +234,12 @@ function processTokenMetrics(tokenEvents: any[]): TokenMetrics {
 
   tokenEvents.forEach(token => {
     // Type counting
-    const type = token.type || token.token_type || 'unknown';
+    const _type = token.type || token.token_type || 'unknown';
     typeCounts[type] = (typeCounts[type] || 0) + 1;
 
     // Timeline counting (group by hour)
-    const timestamp = token.timestamp ? new Date(token.timestamp) : new Date();
-    const timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(), timestamp.getHours()).getTime().toString();
+    const _timestamp = token.timestamp ? new Date(token.timestamp) : new Date();
+    const _timeKey = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(), timestamp.getHours()).getTime().toString();
 
     if (!timelineCounts[timeKey]) {
       timelineCounts[timeKey] = {
@@ -272,18 +272,18 @@ function getRequestSize(req: any): number {
     return req.payload_size;
   }
 
-  const requestSize = req.requestSize || req.request_size || 0;
-  const responseSize = req.responseSize || req.response_size || 0;
-  const totalSize = requestSize + responseSize;
+  const _requestSize = req.requestSize || req.request_size || 0;
+  const _responseSize = req.responseSize || req.response_size || 0;
+  const _totalSize = requestSize + responseSize;
 
   if (totalSize > 0) {
     return totalSize;
   }
 
   // Estimate from body content
-  let estimatedSize = 0;
-  const requestBody = req.requestBody || req.request_body;
-  const responseBody = req.responseBody || req.response_body;
+  let _estimatedSize = 0;
+  const _requestBody = req.requestBody || req.request_body;
+  const _responseBody = req.responseBody || req.response_body;
 
   if (requestBody && typeof requestBody === 'string') {
     estimatedSize += new Blob([requestBody]).size;
@@ -298,7 +298,7 @@ function getRequestSize(req: any): number {
 function calculateSizeDistribution(sizes: number[]): NetworkMetrics['sizeDistribution'] {
   if (sizes.length === 0) return [];
 
-  const ranges = [
+  const _ranges = [
     { min: 0, max: 1024, label: '0-1KB' },
     { min: 1024, max: 5 * 1024, label: '1-5KB' },
     { min: 5 * 1024, max: 10 * 1024, label: '5-10KB' },
@@ -308,7 +308,7 @@ function calculateSizeDistribution(sizes: number[]): NetworkMetrics['sizeDistrib
   ];
 
   return ranges.map(range => {
-    const sizesInRange = sizes.filter(size => size >= range.min && size < range.max);
+    const _sizesInRange = sizes.filter(size => size >= range.min && size < range.max);
     return {
       range: range.label,
       count: sizesInRange.length,

@@ -14,25 +14,25 @@ export const EventCluster: React.FC<EventClusterProps> = ({
 }) => {
   // Calculate circle size based on event count
   // Min size: 8px, Max size: 32px, with logarithmic scaling
-  const minSize = 8
-  const maxSize = 32
-  const size = Math.max(
+  const _minSize = 8
+  const _maxSize = 32
+  const _size = Math.max(
     minSize,
     Math.min(maxSize, minSize + Math.log2(cluster.density) * 4)
   )
 
   // Color intensity based on density
-  const getOpacity = (density: number) => {
+  const _getOpacity = (density: number) => {
     return Math.max(0.3, Math.min(1, 0.3 + (density / 20) * 0.7))
   }
 
-  const swimlaneColors = {
+  const _swimlaneColors = {
     network: '#3B82F6',
     console: '#EF4444',
     token: '#10B981'
   }
 
-  const color = swimlaneColors[cluster.swimlane]
+  const _color = swimlaneColors[cluster.swimlane]
 
   return (
     <div

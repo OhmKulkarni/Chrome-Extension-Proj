@@ -130,10 +130,10 @@ export class DataAdapters {
   // Network Request Adapter - handles any storage format changes
   static networkRequestToV1: DataTransformer<any, NetworkRequestV1> = (data: any): NetworkRequestV1 => {
     // Parse headers safely
-    let headers = { request: {}, response: {} };
+    let _headers = { request: { }, response: {} };
     try {
       if (typeof data.headers === 'string') {
-        const parsed = JSON.parse(data.headers);
+        const _parsed = JSON.parse(data.headers);
         headers = {
           request: parsed.request || {},
           response: parsed.response || {}
@@ -213,7 +213,7 @@ export class DataAdapters {
 
   // Settings Adapter - handles any storage format changes
   static settingsToV1: DataTransformer<any, SettingsV1> = (data: any): SettingsV1 => {
-    const settings = data || {};
+    const _settings = data || {};
 
     return {
       networkInterception: {
@@ -306,7 +306,7 @@ export class SafeTransformers {
 
     return rawData.map(item => {
       try {
-        const transformed = DataAdapters.networkRequestToV1(item);
+        const _transformed = DataAdapters.networkRequestToV1(item);
         // Clear reference to raw item to prevent memory retention
         item = null;
         return transformed;
@@ -322,7 +322,7 @@ export class SafeTransformers {
 
     return rawData.map(item => {
       try {
-        const transformed = DataAdapters.consoleErrorToV1(item);
+        const _transformed = DataAdapters.consoleErrorToV1(item);
         // Clear reference to raw item to prevent memory retention
         item = null;
         return transformed;
@@ -338,7 +338,7 @@ export class SafeTransformers {
 
     return rawData.map(item => {
       try {
-        const transformed = DataAdapters.tokenEventToV1(item);
+        const _transformed = DataAdapters.tokenEventToV1(item);
         // Clear reference to raw item to prevent memory retention
         item = null;
         return transformed;

@@ -5,11 +5,11 @@ interface TopApiEndpointsChartProps {
   data: any[];
 }
 
-const TopApiEndpointsChart: React.FC<TopApiEndpointsChartProps> = ({ data }) => {
-  const endpointData = data.reduce((acc, req) => {
+const TopApiEndpointsChart: React.FC<TopApiEndpointsChartProps> = ({ _data }) => {
+  const _endpointData = data.reduce((acc, req) => {
     try {
-      const endpoint = new URL(req.url).pathname;
-      const key = endpoint.length > 30 ? endpoint.substring(0, 30) + '...' : endpoint;
+      const _endpoint = new URL(req.url).pathname;
+      const _key = endpoint.length > 30 ? endpoint.substring(0, 30) + '...' : endpoint;
       acc[key] = (acc[key] || 0) + 1;
     } catch {
       // Invalid URL, skip
@@ -17,7 +17,7 @@ const TopApiEndpointsChart: React.FC<TopApiEndpointsChartProps> = ({ data }) => 
     return acc;
   }, {} as Record<string, number>);
 
-  const chartData = Object.entries(endpointData)
+  const _chartData = Object.entries(endpointData)
     .sort(([,a], [,b]) => (b as number) - (a as number))
     .slice(0, 10)
     .map(([endpoint, count]) => ({

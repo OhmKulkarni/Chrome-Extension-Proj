@@ -69,7 +69,7 @@ export class ConsoleInterceptorModule {
    */
   public async initialize(): Promise<void> {
     if (this.isInitialized) {
-      console.warn('[ConsoleInterceptor] Already initialized')
+      // console.warn('[ConsoleInterceptor] Already initialized')
       return
     }
 
@@ -79,11 +79,11 @@ export class ConsoleInterceptorModule {
     }
 
     if (!this.config.enabled) {
-      console.log('ConsoleInterceptorModule: Disabled by configuration')
+      // console.log('ConsoleInterceptorModule: Disabled by configuration')
       return
     }
 
-    console.log('[ConsoleInterceptor] Initializing...')
+    // console.log('[ConsoleInterceptor] Initializing...')
 
     try {
       // Set up console method interception
@@ -96,7 +96,7 @@ export class ConsoleInterceptorModule {
       this.interceptUnhandledRejections()
 
       this.isInitialized = true
-      console.log('[ConsoleInterceptor] Initialized successfully')
+      // console.log('[ConsoleInterceptor] Initialized successfully')
     } catch (error) {
       console.error('[ConsoleInterceptor] Failed to initialize:', error)
       this.cleanup()
@@ -160,8 +160,8 @@ export class ConsoleInterceptorModule {
       // Store original method
       this.originalMethods.set(method, console[method])
 
-      const originalMethod = console[method].bind(console)
-      const module = this
+      const _originalMethod = console[method].bind(console)
+      const _module = this
 
       console[method] = function (...args: any[]): void {
         // Call original method first
@@ -173,7 +173,7 @@ export class ConsoleInterceptorModule {
         }
 
         try {
-          const event = module.createConsoleEvent(method, args)
+          const _event = module.createConsoleEvent(method, args)
 
           // Skip if should be filtered
           if (module.shouldFilter(event)) {
@@ -203,10 +203,10 @@ export class ConsoleInterceptorModule {
    * Intercept window error events
    */
   private interceptWindowErrors(): void {
-    const module = this
+    const _module = this
 
     // Store original handler if exists
-    const originalOnError = window.onerror
+    const _originalOnError = window.onerror
     this.originalMethods.set('onerror', originalOnError || (() => {}))
 
     window.onerror = function (
@@ -262,18 +262,18 @@ export class ConsoleInterceptorModule {
    * Intercept unhandled promise rejections
    */
   private interceptUnhandledRejections(): void {
-    const module = this
+    const _module = this
 
-    const originalOnUnhandledRejection = window.onunhandledrejection
+    const _originalOnUnhandledRejection = window.onunhandledrejection
     this.originalMethods.set('onunhandledrejection', originalOnUnhandledRejection || (() => {}))
 
     window.onunhandledrejection = function (event: PromiseRejectionEvent): any {
       try {
-        const errorMessage = event.reason instanceof Error
+        const _errorMessage = event.reason instanceof Error
           ? event.reason.message
           : String(event.reason)
 
-        const errorStack = event.reason instanceof Error
+        const _errorStack = event.reason instanceof Error
           ? event.reason.stack
           : module.captureStackTrace()
 
@@ -321,7 +321,7 @@ export class ConsoleInterceptorModule {
     }
 
     try {
-      const err = new Error()
+      const _err = new Error()
       return err.stack || ''
     } catch (e) {
       return ''
@@ -337,7 +337,7 @@ export class ConsoleInterceptorModule {
 
     // Remove oldest items if queue exceeds max size
     if (this.errorQueue.length > this.MAX_QUEUE_SIZE) {
-      const itemsToRemove = this.errorQueue.length - this.MAX_QUEUE_SIZE
+      const _itemsToRemove = this.errorQueue.length - this.MAX_QUEUE_SIZE
       this.errorQueue.splice(0, itemsToRemove)
     }
   }
@@ -362,15 +362,15 @@ export class ConsoleInterceptorModule {
    */
   private formatMessage(args: any[]): string {
     // Create a cache key from arguments
-    const cacheKey = this.createCacheKey(args)
+    const _cacheKey = this.createCacheKey(args)
 
     // Check cache first
-    const cached = this.messageCache.get(cacheKey)
+    const _cached = this.messageCache.get(cacheKey)
     if (cached) {
       return cached
     }
 
-    let message = ''
+    let _message = ''
 
     args.forEach((arg, index) => {
       if (index > 0) message += ' '
@@ -431,7 +431,7 @@ export class ConsoleInterceptorModule {
 
     // Implement LRU cache eviction
     if (this.messageCache.size > this.MAX_CACHE_SIZE) {
-      const firstKey = this.messageCache.keys().next().value
+      const _firstKey = this.messageCache.keys().next().value
       if (firstKey) {
         this.messageCache.delete(firstKey)
       }
@@ -455,8 +455,8 @@ export class ConsoleInterceptorModule {
    * Fast stringify for simple objects
    */
   private fastStringify(obj: any): string {
-    const pairs = Object.entries(obj).map(([key, value]) => {
-      const valueStr = value === null ? 'null'
+    const _pairs = Object.entries(obj).map(([key, value]) => {
+      const _valueStr = value === null ? 'null'
         : value === undefined ? 'undefined'
         : typeof value === 'string' ? `"${value}"`
         : String(value)
@@ -472,13 +472,13 @@ export class ConsoleInterceptorModule {
   private shouldFilter(event: ConsoleEvent): boolean {
     // URL filters
     if (this.config.urlFilters && this.config.urlFilters.length > 0 && event.url) {
-      const matchesFilter = this.config.urlFilters.some(filter => filter.test(event.url!))
+      const _matchesFilter = this.config.urlFilters.some(filter => filter.test(event.url!))
       if (!matchesFilter) return true
     }
 
     // OPTIMIZATION: Use a single regex for all filter patterns
     if (!this._filterRegex) {
-      const filterPatterns = [
+      const _filterPatterns = [
         'CONTENT:',
         'BACKGROUND:',
         'ConsoleInterceptor',
@@ -515,11 +515,11 @@ export class ConsoleInterceptorModule {
    * Cleanup and destroy the interceptor - RACE CONDITION SAFE
    */
   public destroy(): void {
-    console.log('[ConsoleInterceptor] Destroying module...')
+    // console.log('[ConsoleInterceptor] Destroying module...')
 
     // Prevent concurrent destroy operations
     if (this.isDestroying) {
-      console.warn('ConsoleInterceptorModule: Destroy already in progress')
+      // console.warn('ConsoleInterceptorModule: Destroy already in progress')
       return
     }
 
@@ -529,20 +529,20 @@ export class ConsoleInterceptorModule {
       // Restore console methods
       const methods: ConsoleLevel[] = ['error', 'warn', 'log', 'info', 'debug']
       methods.forEach(method => {
-        const original = this.originalMethods.get(method)
+        const _original = this.originalMethods.get(method)
         if (original) {
           console[method] = original as any
         }
       })
 
       // Restore window.onerror
-      const originalOnError = this.originalMethods.get('onerror')
+      const _originalOnError = this.originalMethods.get('onerror')
       if (originalOnError) {
         window.onerror = originalOnError as OnErrorEventHandler
       }
 
       // Restore window.onunhandledrejection
-      const originalOnUnhandledRejection = this.originalMethods.get('onunhandledrejection')
+      const _originalOnUnhandledRejection = this.originalMethods.get('onunhandledrejection')
       if (originalOnUnhandledRejection) {
         window.onunhandledrejection = originalOnUnhandledRejection as ((this: WindowEventHandlers, ev: PromiseRejectionEvent) => any)
       }
@@ -565,7 +565,7 @@ export class ConsoleInterceptorModule {
       // Reset initialization flag
       this.isInitialized = false
 
-      console.log('[ConsoleInterceptor] Module destroyed successfully')
+      // console.log('[ConsoleInterceptor] Module destroyed successfully')
     } catch (error) {
       console.error('[ConsoleInterceptor] Error during destroy:', error)
     } finally {
@@ -579,18 +579,18 @@ export class ConsoleInterceptorModule {
       // Restore any methods that were intercepted
       const methods: ConsoleLevel[] = ['error', 'warn', 'log', 'info', 'debug']
       methods.forEach(method => {
-        const original = this.originalMethods.get(method)
+        const _original = this.originalMethods.get(method)
         if (original) {
           console[method] = original as any
         }
       })
 
-      const originalOnError = this.originalMethods.get('onerror')
+      const _originalOnError = this.originalMethods.get('onerror')
       if (originalOnError) {
         window.onerror = originalOnError as OnErrorEventHandler
       }
 
-      const originalOnUnhandledRejection = this.originalMethods.get('onunhandledrejection')
+      const _originalOnUnhandledRejection = this.originalMethods.get('onunhandledrejection')
       if (originalOnUnhandledRejection) {
         window.onunhandledrejection = originalOnUnhandledRejection as ((this: WindowEventHandlers, ev: PromiseRejectionEvent) => any)
       }

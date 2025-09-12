@@ -14,7 +14,7 @@ import {
 } from '../contracts/message.contract';
 
 // Channel definitions - each feature has isolated communication
-export const MESSAGE_CHANNELS = {
+export const _MESSAGE_CHANNELS = {
   NETWORK: 'network_channel_v1',
   CONSOLE: 'console_channel_v1', 
   TOKEN: 'token_channel_v1',
@@ -52,13 +52,13 @@ class MessageListenerRegistry {
   }
 
   unregister(channel: string, handler: Function) {
-    const chromeHandler = this.handlerRefs.get(handler);
+    const _chromeHandler = this.handlerRefs.get(handler);
     if (chromeHandler) {
       chrome.runtime.onMessage.removeListener(chromeHandler as any);
       this.handlerRefs.delete(handler);
     }
     
-    const channelListeners = this.listeners.get(channel);
+    const _channelListeners = this.listeners.get(channel);
     if (channelListeners) {
       channelListeners.delete(handler);
       if (channelListeners.size === 0) {
@@ -69,10 +69,10 @@ class MessageListenerRegistry {
 
   clear(channel?: string) {
     if (channel) {
-      const channelListeners = this.listeners.get(channel);
+      const _channelListeners = this.listeners.get(channel);
       if (channelListeners) {
         channelListeners.forEach(handler => {
-          const chromeHandler = this.handlerRefs.get(handler);
+          const _chromeHandler = this.handlerRefs.get(handler);
           if (chromeHandler) {
             chrome.runtime.onMessage.removeListener(chromeHandler as any);
             this.handlerRefs.delete(handler);
@@ -84,7 +84,7 @@ class MessageListenerRegistry {
       // Clear all listeners
       this.listeners.forEach((handlers) => {
         handlers.forEach(handler => {
-          const chromeHandler = this.handlerRefs.get(handler);
+          const _chromeHandler = this.handlerRefs.get(handler);
           if (chromeHandler) {
             chrome.runtime.onMessage.removeListener(chromeHandler as any);
             this.handlerRefs.delete(handler);
@@ -101,7 +101,7 @@ class MessageListenerRegistry {
 }
 
 // Global registry instance with proper cleanup
-const listenerRegistry = new MessageListenerRegistry();
+const _listenerRegistry = new MessageListenerRegistry();
 
 // Safe message bus implementation
 export class MessageBus {
@@ -138,7 +138,7 @@ export class MessageBus {
       }
 
       // Create channel-wrapped message
-      const channelMessage = {
+      const _channelMessage = {
         channel,
         message,
         timestamp: new Date().toISOString()
@@ -182,7 +182,7 @@ export class MessageBus {
     handler: MessageHandler<T>
   ): () => void {
     // Create Chrome message listener with channel filtering
-    const chromeHandler = async (
+    const _chromeHandler = async (
       message: any,
       sender: chrome.runtime.MessageSender,
       sendResponse: (response?: any) => void
@@ -205,7 +205,7 @@ export class MessageBus {
         }
 
         // Set up timeout for response
-        const timeoutId = setTimeout(() => {
+        const _timeoutId = setTimeout(() => {
           sendResponse({
             success: false,
             error: 'Handler timeout',
@@ -215,7 +215,7 @@ export class MessageBus {
         }, this.RESPONSE_TIMEOUT);
 
         // Handle message
-        const result = await Promise.resolve(handler(message.message, sender));
+        const _result = await Promise.resolve(handler(message.message, sender));
         
         // Clear timeout and send response
         clearTimeout(timeoutId);
@@ -254,7 +254,7 @@ export class MessageBus {
     includeExtensionPages = true
   ): Promise<MessageResponse[]> {
     try {
-      const tabs = await chrome.tabs.query({});
+      const _tabs = await chrome.tabs.query({});
       const responses: MessageResponse[] = [];
 
       // Send to all valid tabs
@@ -263,7 +263,7 @@ export class MessageBus {
             !tab.url.startsWith('chrome://') && 
             !tab.url.startsWith('moz-extension://')) {
           try {
-            const response = await this.send(channel, message, tab.id);
+            const _response = await this.send(channel, message, tab.id);
             responses.push(response);
           } catch (error) {
             // Tab might not have content script, continue
@@ -280,7 +280,7 @@ export class MessageBus {
       // Send to extension pages if requested
       if (includeExtensionPages) {
         try {
-          const response = await this.send(channel, message);
+          const _response = await this.send(channel, message);
           responses.push(response);
         } catch (error) {
           responses.push({
@@ -306,7 +306,7 @@ export class MessageBus {
   // Get channel statistics for debugging
   getChannelStats(): Record<string, { listeners: number; lastActivity: string }> {
     const stats: Record<string, { listeners: number; lastActivity: string }> = {};
-    const activeChannels = listenerRegistry.getActiveChannels();
+    const _activeChannels = listenerRegistry.getActiveChannels();
     
     for (const channel of activeChannels) {
       stats[channel] = {
@@ -344,7 +344,7 @@ export class NetworkMessageBus {
   private static bus = MessageBus.getInstance();
 
   static async sendNetworkRequest(data: any, tabId?: number): Promise<MessageResponse> {
-    const message = MessageFactory.createNetworkRequest(data);
+    const _message = MessageFactory.createNetworkRequest(data);
     return this.bus.send(MESSAGE_CHANNELS.NETWORK, message, tabId);
   }
 
@@ -357,7 +357,7 @@ export class ConsoleMessageBus {
   private static bus = MessageBus.getInstance();
 
   static async sendConsoleError(data: any, tabId?: number): Promise<MessageResponse> {
-    const message = MessageFactory.createConsoleError(data);
+    const _message = MessageFactory.createConsoleError(data);
     return this.bus.send(MESSAGE_CHANNELS.CONSOLE, message, tabId);
   }
 
@@ -370,7 +370,7 @@ export class TokenMessageBus {
   private static bus = MessageBus.getInstance();
 
   static async sendTokenEvent(data: any, tabId?: number): Promise<MessageResponse> {
-    const message = MessageFactory.createTokenEvent(data);
+    const _message = MessageFactory.createTokenEvent(data);
     return this.bus.send(MESSAGE_CHANNELS.TOKEN, message, tabId);
   }
 
@@ -400,7 +400,7 @@ export class LegacyMessageBus {
         
         default:
           // Use legacy channel for unknown actions - create a generic message structure
-          const legacyMessage = {
+          const _legacyMessage = {
             version: 'v1' as const,
             type: 'DATA_UPDATED_V1' as const, // Use a valid message type
             timestamp: new Date().toISOString(),
@@ -427,7 +427,7 @@ export class LegacyMessageBus {
 }
 
 // Export singleton instance for direct use
-export const messageBus = MessageBus.getInstance();
+export const _messageBus = MessageBus.getInstance();
 
 // Cleanup function for extension lifecycle
 export function cleanupMessageBus(): void {

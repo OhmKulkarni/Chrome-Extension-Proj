@@ -5,18 +5,18 @@ import { useState, useMemo } from 'react';
 import React from 'react';
 
 // Hook to detect dark mode
-const useDarkMode = () => {
+const _useDarkMode = () => {
   const [isDark, setIsDark] = React.useState(false);
 
   React.useEffect(() => {
-    const checkDarkMode = () => {
+    const _checkDarkMode = () => {
       setIsDark(document.documentElement.classList.contains('dark'));
     };
 
     checkDarkMode();
 
     // Watch for class changes
-    const observer = new MutationObserver(checkDarkMode);
+    const _observer = new MutationObserver(checkDarkMode);
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['class']
@@ -34,7 +34,7 @@ interface ResourceStatsSectionProps {
 }
 
 // Map detailed categories to primary categories
-const getPrimaryCategory = (type: LibraryInfo['type']): 'libraries' | 'analytics' | 'privacy' | 'services' | 'assets' => {
+const _getPrimaryCategory = (type: LibraryInfo['type']): 'libraries' | 'analytics' | 'privacy' | 'services' | 'assets' => {
   switch (type) {
     case 'framework':
     case 'utility':
@@ -57,7 +57,7 @@ const getPrimaryCategory = (type: LibraryInfo['type']): 'libraries' | 'analytics
   }
 };
 
-const getPrimaryCategoryIcon = (primaryType: string) => {
+const _getPrimaryCategoryIcon = (primaryType: string) => {
   switch (primaryType) {
     case 'libraries':
       return <Library className="h-4 w-4" />;
@@ -74,7 +74,7 @@ const getPrimaryCategoryIcon = (primaryType: string) => {
   }
 };
 
-const getSecondaryTypeIcon = (type: LibraryInfo['type']) => {
+const _getSecondaryTypeIcon = (type: LibraryInfo['type']) => {
   switch (type) {
     case 'framework':
       return <Layers className="h-3 w-3" />;
@@ -103,7 +103,7 @@ const getSecondaryTypeIcon = (type: LibraryInfo['type']) => {
   }
 };
 
-const getTypeDisplayName = (type: LibraryInfo['type']): string => {
+const _getTypeDisplayName = (type: LibraryInfo['type']): string => {
   switch (type) {
     case 'framework':
       return 'Framework';
@@ -132,7 +132,7 @@ const getTypeDisplayName = (type: LibraryInfo['type']): string => {
   }
 };
 
-const getBadgeStyle = (type: LibraryInfo['type'], isDark: boolean): string => {
+const _getBadgeStyle = (type: LibraryInfo['type'], isDark: boolean): string => {
   switch (type) {
     case 'framework':
       return isDark ? 'bg-blue-800 text-blue-200 hover:bg-blue-700' : 'bg-blue-600 text-white hover:bg-blue-700';
@@ -161,7 +161,7 @@ const getBadgeStyle = (type: LibraryInfo['type'], isDark: boolean): string => {
   }
 };
 
-const copyToClipboard = async (text: string): Promise<boolean> => {
+const _copyToClipboard = async (text: string): Promise<boolean> => {
   try {
     await navigator.clipboard.writeText(text);
     return true;
@@ -172,13 +172,13 @@ const copyToClipboard = async (text: string): Promise<boolean> => {
 };
 
 const ResourceStatsSection: React.FC<ResourceStatsSectionProps> = ({ resources, className = '' }) => {
-  const isDark = useDarkMode();
+  const _isDark = useDarkMode();
   const [searchTerm, setSearchTerm] = useState('');
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [copiedItems, setCopiedItems] = useState<Set<string>>(new Set());
 
   // Filter resources by search term and exclude unknown versions
-  const filteredResources = useMemo(() => {
+  const _filteredResources = useMemo(() => {
     return resources.filter(resource =>
       resource.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
       resource.version !== 'unknown'
@@ -186,10 +186,10 @@ const ResourceStatsSection: React.FC<ResourceStatsSectionProps> = ({ resources, 
   }, [resources, searchTerm]);
 
   // Group resources by primary category
-  const resourcesByCategory = useMemo(() => {
+  const _resourcesByCategory = useMemo(() => {
     const grouped: Record<string, LibraryInfo[]> = {};
     filteredResources.forEach(resource => {
-      const primaryCategory = getPrimaryCategory(resource.type);
+      const _primaryCategory = getPrimaryCategory(resource.type);
       if (!grouped[primaryCategory]) {
         grouped[primaryCategory] = [];
       }
@@ -199,12 +199,12 @@ const ResourceStatsSection: React.FC<ResourceStatsSectionProps> = ({ resources, 
   }, [filteredResources]);
 
   // Group resources within each category by their detailed type
-  const resourcesByDetailedType = useMemo(() => {
+  const _resourcesByDetailedType = useMemo(() => {
     const result: Record<string, Record<string, LibraryInfo[]>> = {};
     Object.entries(resourcesByCategory).forEach(([primaryCategory, categoryResources]) => {
       result[primaryCategory] = {};
       categoryResources.forEach(resource => {
-        const detailedType = resource.type;
+        const _detailedType = resource.type;
         if (!result[primaryCategory][detailedType]) {
           result[primaryCategory][detailedType] = [];
         }
@@ -214,8 +214,8 @@ const ResourceStatsSection: React.FC<ResourceStatsSectionProps> = ({ resources, 
     return result;
   }, [resourcesByCategory]);
 
-  const toggleCategory = (category: string) => {
-    const newCollapsed = new Set(collapsedCategories);
+  const _toggleCategory = (category: string) => {
+    const _newCollapsed = new Set(collapsedCategories);
     if (newCollapsed.has(category)) {
       newCollapsed.delete(category);
     } else {
@@ -224,13 +224,13 @@ const ResourceStatsSection: React.FC<ResourceStatsSectionProps> = ({ resources, 
     setCollapsedCategories(newCollapsed);
   };
 
-  const handleCopy = async (text: string, resourceName: string) => {
-    const success = await copyToClipboard(text);
+  const _handleCopy = async (text: string, resourceName: string) => {
+    const _success = await copyToClipboard(text);
     if (success) {
       setCopiedItems(prev => new Set([...prev, resourceName]));
       setTimeout(() => {
         setCopiedItems(prev => {
-          const newSet = new Set(prev);
+          const _newSet = new Set(prev);
           newSet.delete(resourceName);
           return newSet;
         });
@@ -267,8 +267,8 @@ const ResourceStatsSection: React.FC<ResourceStatsSectionProps> = ({ resources, 
       {/* Resource categories */}
       <div className="space-y-4 bg-transparent">
         {Object.entries(resourcesByDetailedType).map(([primaryCategory, detailedTypes]) => {
-          const totalCount = Object.values(detailedTypes).reduce((sum, resources) => sum + resources.length, 0);
-          const isCollapsed = collapsedCategories.has(primaryCategory);
+          const _totalCount = Object.values(detailedTypes).reduce((sum, resources) => sum + resources.length, 0);
+          const _isCollapsed = collapsedCategories.has(primaryCategory);
 
           return (
             <div key={primaryCategory} className="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">

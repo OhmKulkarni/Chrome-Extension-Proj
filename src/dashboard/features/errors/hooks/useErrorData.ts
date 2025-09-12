@@ -27,10 +27,10 @@ interface PaginationConfig {
 }
 
 // Chrome message utility
-const sendChromeMessage = async (message: any): Promise<any> => {
+const _sendChromeMessage = async (message: any): Promise<any> => {
   try {
-    const response = await chrome.runtime.sendMessage(message)
-    const result = response ? { ...response } : null
+    const _response = await chrome.runtime.sendMessage(message)
+    const _result = response ? { ...response } : null
     return result
   } catch (error) {
     console.error('Chrome message failed:', error)
@@ -39,15 +39,15 @@ const sendChromeMessage = async (message: any): Promise<any> => {
 }
 
 // Memory monitoring utility
-const checkMemoryPressure = (): { pressure: number; shouldThrottle: boolean } => {
-  const performanceMemory = (performance as any).memory
+const _checkMemoryPressure = (): { pressure: number; shouldThrottle: boolean } => {
+  const _performanceMemory = (performance as any).memory
   if (!performanceMemory?.usedJSHeapSize) {
     return { pressure: 0, shouldThrottle: false }
   }
 
-  const heapUsed = performanceMemory.usedJSHeapSize
-  const heapLimit = performanceMemory.jsHeapSizeLimit
-  const pressure = (heapUsed / heapLimit) * 100
+  const _heapUsed = performanceMemory.usedJSHeapSize
+  const _heapLimit = performanceMemory.jsHeapSizeLimit
+  const _pressure = (heapUsed / heapLimit) * 100
 
   return {
     pressure,
@@ -74,7 +74,7 @@ interface UseErrorDataReturn {
   }
 }
 
-export const useErrorData = (
+export const _useErrorData = (
   initialPage: number = 1,
   itemsPerPage: number = 10
 ): UseErrorDataReturn => {
@@ -93,21 +93,21 @@ export const useErrorData = (
   })
 
   // Load console errors with pagination
-  const loadConsoleErrors = useCallback(async (page: number, limit: number = itemsPerPage) => {
+  const _loadConsoleErrors = useCallback(async (page: number, limit: number = itemsPerPage) => {
     try {
-      console.log(`🔄 Loading console errors page ${page} with limit ${limit}`)
+      // console.log(`🔄 Loading console errors page ${page} with limit ${limit}`)
       setLoading(true)
       setError(null)
 
       // Check memory pressure before loading
       const { shouldThrottle } = checkMemoryPressure()
       if (shouldThrottle) {
-        console.warn('🚨 High memory pressure, reducing error load')
+        // console.warn('🚨 High memory pressure, reducing error load')
         limit = Math.min(limit, 5) // Reduce load under pressure
       }
 
-      const offset = (page - 1) * limit
-      const response = await sendChromeMessage({
+      const _offset = (page - 1) * limit
+      const _response = await sendChromeMessage({
         action: 'getConsoleErrors',
         limit,
         offset
@@ -117,10 +117,10 @@ export const useErrorData = (
         // Clear previous data to prevent accumulation
         setErrors(response.errors)
         setTotalErrors(response.total || 0)
-        console.log(`✅ Loaded ${response.errors.length} console errors, total: ${response.total}`)
+        // console.log(`✅ Loaded ${response.errors.length} console errors, total: ${response.total}`)
       } else {
         setError('Failed to load console errors')
-        console.warn('⚠️ Console errors response missing success/errors:', response)
+        // console.warn('⚠️ Console errors response missing success/errors:', response)
       }
     } catch (err) {
       setError('Error loading console errors')
@@ -131,13 +131,13 @@ export const useErrorData = (
   }, [itemsPerPage])
 
   // Load page
-  const loadPage = useCallback(async (page: number) => {
+  const _loadPage = useCallback(async (page: number) => {
     setCurrentPage(page)
     await loadConsoleErrors(page, itemsPerPage)
   }, [loadConsoleErrors, itemsPerPage])
 
   // Set sorting
-  const setSort = useCallback((key: string) => {
+  const _setSort = useCallback((key: string) => {
     setSortConfig((prev: SortConfig) => ({
       key,
       direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
@@ -146,13 +146,13 @@ export const useErrorData = (
   }, [])
 
   // Set filters
-  const setFilters = useCallback((newFilters: { searchTerm?: string; severity?: string }) => {
+  const _setFilters = useCallback((newFilters: { searchTerm?: string; severity?: string }) => {
     setFiltersState(prev => ({ ...prev, ...newFilters }))
     setCurrentPage(1) // Reset to first page when filtering
   }, [])
 
   // Refresh data
-  const refresh = useCallback(async () => {
+  const _refresh = useCallback(async () => {
     await loadConsoleErrors(currentPage, itemsPerPage)
   }, [loadConsoleErrors, currentPage, itemsPerPage])
 
@@ -162,7 +162,7 @@ export const useErrorData = (
   }, [loadConsoleErrors, currentPage, itemsPerPage])
 
   // Calculate pagination
-  const totalPages = Math.ceil(totalErrors / itemsPerPage)
+  const _totalPages = Math.ceil(totalErrors / itemsPerPage)
   const pagination: PaginationConfig = {
     currentPage,
     itemsPerPage,

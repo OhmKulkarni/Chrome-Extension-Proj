@@ -20,27 +20,27 @@ export const NetworkDashboard: React.FC<NetworkDashboardProps> = ({ onRequestDet
     actions
   } = useNetworkData()
 
-  const handleRowDoubleClick = (request: any) => {
+  const _handleRowDoubleClick = (request: any) => {
     if (onRequestDetail) {
       onRequestDetail(request)
     }
   }
 
-  const handleClearFilters = () => {
+  const _handleClearFilters = () => {
     actions.setFilters({ searchTerm: '', method: 'all' })
   }
 
-  const handlePageChange = (page: number) => {
+  const _handlePageChange = (page: number) => {
     actions.loadPage(page)
   }
 
-  const handlePrevious = () => {
+  const _handlePrevious = () => {
     if (pagination.currentPage > 1) {
       actions.loadPage(pagination.currentPage - 1)
     }
   }
 
-  const handleNext = () => {
+  const _handleNext = () => {
     if (pagination.currentPage < pagination.totalPages) {
       actions.loadPage(pagination.currentPage + 1)
     }

@@ -16,12 +16,12 @@ export class UnifiedPermissionService {
    */
   async initialize(): Promise<void> {
     if (this.isInitialized) {
-      console.warn('UnifiedPermissionService: Already initialized');
+      // console.warn('UnifiedPermissionService: Already initialized');
       return;
     }
 
     try {
-      console.log('🔄 Initializing unified permission service...');
+      // console.log('🔄 Initializing unified permission service...');
 
       // Check if we need to migrate from old system
       await this.checkAndMigrate();
@@ -36,7 +36,7 @@ export class UnifiedPermissionService {
       this.setupStorageListeners();
 
       this.isInitialized = true;
-      console.log('✅ UnifiedPermissionService: Successfully initialized');
+      // console.log('✅ UnifiedPermissionService: Successfully initialized');
 
     } catch (error) {
       console.error('❌ UnifiedPermissionService: Initialization failed:', error);
@@ -50,40 +50,40 @@ export class UnifiedPermissionService {
   private async checkAndMigrate(): Promise<void> {
     try {
       // Check if unified system already exists
-      const result = await chrome.storage.local.get(['unifiedPermissions']);
+      const _result = await chrome.storage.local.get(['unifiedPermissions']);
       if (result.unifiedPermissions) {
-        console.log('✅ Unified permission system already exists, skipping migration');
+        // console.log('✅ Unified permission system already exists, skipping migration');
         return;
       }
 
       // Check if old system data exists
-      const oldDataCheck = await chrome.storage.local.get([
+      const _oldDataCheck = await chrome.storage.local.get([
         'extensionEnabled',
         'extensionState'
       ]);
 
-      const hasOldData = oldDataCheck.extensionEnabled !== undefined ||
+      const _hasOldData = oldDataCheck.extensionEnabled !== undefined ||
                          oldDataCheck.extensionState !== undefined;
 
       if (hasOldData) {
-        console.log('🔄 Old permission system detected, starting migration...');
+        // console.log('🔄 Old permission system detected, starting migration...');
 
         // Create backup first
-        const backup = await permissionMigrationUtility.createBackup();
+        const _backup = await permissionMigrationUtility.createBackup();
         if (!backup.success) {
-          console.warn('⚠️ Failed to create backup, continuing without backup');
+          // console.warn('⚠️ Failed to create backup, continuing without backup');
         }
 
         // Perform migration
-        const migration = await permissionMigrationUtility.migrateToUnifiedSystem();
+        const _migration = await permissionMigrationUtility.migrateToUnifiedSystem();
         if (migration.success) {
-          console.log('✅ Permission migration completed successfully');
+          // console.log('✅ Permission migration completed successfully');
         } else {
           console.error('❌ Permission migration failed:', migration.errors);
           // Continue with defaults rather than failing
         }
       } else {
-        console.log('📋 No existing permission data found, starting with defaults');
+        // console.log('📋 No existing permission data found, starting with defaults');
       }
 
     } catch (error) {
@@ -98,16 +98,16 @@ export class UnifiedPermissionService {
    */
   private async syncWithExistingPreferences(): Promise<void> {
     try {
-      console.log('🔄 UnifiedPermissionService: Syncing with existing preferences...');
+      // console.log('🔄 UnifiedPermissionService: Syncing with existing preferences...');
 
       // Read existing global state from chrome.storage.local
-      const globalResult = await chrome.storage.local.get(['extensionEnabled']);
-      const globalEnabled = globalResult.extensionEnabled ?? true;
+      const _globalResult = await chrome.storage.local.get(['extensionEnabled']);
+      const _globalEnabled = globalResult.extensionEnabled ?? true;
 
       // Update unified system with global state
       await unifiedPermissionManager.setGlobalEnabled(globalEnabled);
 
-      console.log(`✅ UnifiedPermissionService: Synced global state: ${globalEnabled}`);
+      // console.log(`✅ UnifiedPermissionService: Synced global state: ${globalEnabled}`);
 
     } catch (error) {
       console.error('❌ UnifiedPermissionService: Failed to sync existing preferences:', error);
@@ -121,7 +121,7 @@ export class UnifiedPermissionService {
   private setupStorageListeners(): void {
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (areaName === 'local' && changes.unifiedPermissions) {
-        console.log('🔄 Unified permissions changed, notifying components...');
+        // console.log('🔄 Unified permissions changed, notifying components...');
         // The unified manager's event system will handle notifications
       }
     });
@@ -134,7 +134,7 @@ export class UnifiedPermissionService {
    * Handle GET_GLOBAL_POWER_STATE message
    */
   async handleGetGlobalPowerState(): Promise<{ enabled: boolean }> {
-    const enabled = await unifiedPermissionManager.isGlobalEnabled();
+    const _enabled = await unifiedPermissionManager.isGlobalEnabled();
     return { enabled };
   }
 
@@ -145,14 +145,14 @@ export class UnifiedPermissionService {
    */
   async handleGetSiteSpecificState(tabId: number): Promise<{ enabled: boolean }> {
     try {
-      console.warn('⚠️  GET_SITE_SPECIFIC_STATE is deprecated - site state should be derived from individual toggles');
+      // console.warn('⚠️  GET_SITE_SPECIFIC_STATE is deprecated - site state should be derived from individual toggles');
 
       // For backwards compatibility, still return the old logic
-      const networkEnabled = await unifiedPermissionManager.isFeatureEnabled(tabId, 'network');
-      const consoleEnabled = await unifiedPermissionManager.isFeatureEnabled(tabId, 'console');
-      const tokensEnabled = await unifiedPermissionManager.isFeatureEnabled(tabId, 'tokens');
+      const _networkEnabled = await unifiedPermissionManager.isFeatureEnabled(tabId, 'network');
+      const _consoleEnabled = await unifiedPermissionManager.isFeatureEnabled(tabId, 'console');
+      const _tokensEnabled = await unifiedPermissionManager.isFeatureEnabled(tabId, 'tokens');
 
-      const siteEnabled = networkEnabled && consoleEnabled && tokensEnabled;
+      const _siteEnabled = networkEnabled && consoleEnabled && tokensEnabled;
       return { enabled: siteEnabled };
 
     } catch (error) {
@@ -175,27 +175,27 @@ export class UnifiedPermissionService {
     try {
       if (!tabId) {
         // Return global state only
-        const enabled = await unifiedPermissionManager.isGlobalEnabled();
+        const _enabled = await unifiedPermissionManager.isGlobalEnabled();
         return { enabled };
       }
 
       // Get tab URL
-      const tabs = await chrome.tabs.query({});
-      const tab = tabs.find(t => t.id === tabId);
+      const _tabs = await chrome.tabs.query({});
+      const _tab = tabs.find(t => t.id === tabId);
 
       if (!tab?.url) {
-        const enabled = await unifiedPermissionManager.isGlobalEnabled();
+        const _enabled = await unifiedPermissionManager.isGlobalEnabled();
         return { enabled };
       }
 
       // Use unified permission check
-      const globalEnabled = await unifiedPermissionManager.isGlobalEnabled();
+      const _globalEnabled = await unifiedPermissionManager.isGlobalEnabled();
       if (!globalEnabled) {
         return { enabled: false, domain: this.extractDomain(tab.url) };
       }
 
-      const domain = this.extractDomain(tab.url);
-      const siteEnabled = await unifiedPermissionManager.isSiteEnabled(domain);
+      const _domain = this.extractDomain(tab.url);
+      const _siteEnabled = await unifiedPermissionManager.isSiteEnabled(domain);
 
       return { enabled: siteEnabled, domain };
 
@@ -212,7 +212,7 @@ export class UnifiedPermissionService {
    */
   async handleSetExtensionState(enabled: boolean, tabId?: number): Promise<{ success: boolean; newState: any }> {
     try {
-      console.warn('⚠️  SET_EXTENSION_STATE is deprecated - site toggle should directly control individual toggles');
+      // console.warn('⚠️  SET_EXTENSION_STATE is deprecated - site toggle should directly control individual toggles');
 
       if (!tabId) {
         // Set global state
@@ -224,12 +224,12 @@ export class UnifiedPermissionService {
       }
 
       // For backwards compatibility, still provide the old behavior
-      const tabs = await chrome.tabs.query({});
-      const tab = tabs.find(t => t.id === tabId);
+      const _tabs = await chrome.tabs.query({});
+      const _tab = tabs.find(t => t.id === tabId);
 
       if (tab?.url) {
-        const domain = this.extractDomain(tab.url);
-        console.log(`🔄 Legacy site toggle for ${domain}: ${enabled ? 'enabling' : 'disabling'} all individual features`);
+        const _domain = this.extractDomain(tab.url);
+        // console.log(`🔄 Legacy site toggle for ${domain}: ${enabled ? 'enabling' : 'disabling'} all individual features`);
 
         await Promise.all([
           unifiedPermissionManager.setFeatureEnabled(tabId, 'network', enabled),
@@ -257,7 +257,7 @@ export class UnifiedPermissionService {
    */
   async handleGetTabNetworkState(tabId: number): Promise<{ success: boolean; active: boolean }> {
     try {
-      const active = await unifiedPermissionManager.isFeatureEnabled(tabId, 'network');
+      const _active = await unifiedPermissionManager.isFeatureEnabled(tabId, 'network');
       return { success: true, active };
     } catch (error) {
       console.error('Error getting tab network state:', error);
@@ -277,7 +277,7 @@ export class UnifiedPermissionService {
 
   async handleGetTabErrorState(tabId: number): Promise<{ success: boolean; active: boolean }> {
     try {
-      const active = await unifiedPermissionManager.isFeatureEnabled(tabId, 'console');
+      const _active = await unifiedPermissionManager.isFeatureEnabled(tabId, 'console');
       return { success: true, active };
     } catch (error) {
       console.error('Error getting tab error state:', error);
@@ -297,7 +297,7 @@ export class UnifiedPermissionService {
 
   async handleGetTabTokenState(tabId: number): Promise<{ success: boolean; active: boolean }> {
     try {
-      const active = await unifiedPermissionManager.isFeatureEnabled(tabId, 'tokens');
+      const _active = await unifiedPermissionManager.isFeatureEnabled(tabId, 'tokens');
       return { success: true, active };
     } catch (error) {
       console.error('Error getting tab token state:', error);
@@ -324,18 +324,18 @@ export class UnifiedPermissionService {
   ): Promise<{ canIntercept: boolean; reason?: string }> {
     try {
       // Get tab URL
-      const tabs = await chrome.tabs.query({});
-      const tab = tabs.find(t => t.id === tabId);
+      const _tabs = await chrome.tabs.query({});
+      const _tab = tabs.find(t => t.id === tabId);
 
       if (!tab?.url) {
         return { canIntercept: false, reason: 'No tab URL found' };
       }
 
-      const canIntercept = await unifiedPermissionManager.canIntercept(tabId, feature);
+      const _canIntercept = await unifiedPermissionManager.canIntercept(tabId, feature);
 
       if (!canIntercept) {
         // Determine reason
-        const globalEnabled = await unifiedPermissionManager.isGlobalEnabled();
+        const _globalEnabled = await unifiedPermissionManager.isGlobalEnabled();
         if (!globalEnabled) {
           return { canIntercept: false, reason: 'Global extension disabled' };
         }
@@ -361,8 +361,8 @@ export class UnifiedPermissionService {
     domain?: string;
   }> {
     try {
-      const tabs = await chrome.tabs.query({});
-      const tab = tabs.find(t => t.id === tabId);
+      const _tabs = await chrome.tabs.query({});
+      const _tab = tabs.find(t => t.id === tabId);
 
       return await unifiedPermissionManager.getTabPermissionState(tabId, tab?.url);
 
@@ -391,7 +391,7 @@ export class UnifiedPermissionService {
 
   private extractDomain(url: string): string {
     try {
-      const urlObj = new URL(url);
+      const _urlObj = new URL(url);
       return urlObj.hostname;
     } catch {
       return 'unknown';
@@ -403,9 +403,9 @@ export class UnifiedPermissionService {
    */
   cleanup(): void {
     this.isInitialized = false;
-    console.log('🧹 UnifiedPermissionService: Cleanup completed');
+    // console.log('🧹 UnifiedPermissionService: Cleanup completed');
   }
 }
 
 // Export singleton instance
-export const unifiedPermissionService = new UnifiedPermissionService();
+export const _unifiedPermissionService = new UnifiedPermissionService();

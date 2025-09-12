@@ -125,7 +125,7 @@ export class UnifiedPermissionManager {
     }
 
     try {
-      const result = await chrome.storage.local.get([this.STORAGE_KEY]);
+      const _result = await chrome.storage.local.get([this.STORAGE_KEY]);
 
       if (result[this.STORAGE_KEY]) {
         this.state = result[this.STORAGE_KEY];
@@ -190,7 +190,7 @@ export class UnifiedPermissionManager {
 
     // MAJOR FIX: Always migrate console to false regardless of version
     // Check if migration is needed (version < 1.2.0 or console is true)
-    const needsMigration = !this.state.version ||
+    const _needsMigration = !this.state.version ||
                           this.state.version === '1.0.0' ||
                           this.state.version === '1.1.0' ||
                           this.state.featureDefaults.console === true ||
@@ -254,7 +254,7 @@ export class UnifiedPermissionManager {
     await this.ensureState();
     if (!this.state) return;
 
-    const wasEnabled = this.state.globalEnabled;
+    const _wasEnabled = this.state.globalEnabled;
     this.state.globalEnabled = enabled;
 
     await this.saveState();
@@ -278,7 +278,7 @@ export class UnifiedPermissionManager {
     if (!this.state) return true;
 
     // If no site-specific setting, default to enabled
-    const sitePermission = this.state.sitePermissions[domain];
+    const _sitePermission = this.state.sitePermissions[domain];
     return sitePermission ? sitePermission.enabled : true;
   }
 
@@ -289,7 +289,7 @@ export class UnifiedPermissionManager {
     await this.ensureState();
     if (!this.state) return;
 
-    const wasEnabled = await this.isSiteEnabled(domain);
+    const _wasEnabled = await this.isSiteEnabled(domain);
 
     this.state.sitePermissions[domain] = {
       enabled,
@@ -333,7 +333,7 @@ export class UnifiedPermissionManager {
 
     // FIXED: Simple tab-based check, no site-level overrides
     // Each tab has independent settings
-    const tabControl = this.state.tabControls[tabId];
+    const _tabControl = this.state.tabControls[tabId];
     if (tabControl && tabControl[feature] !== undefined) {
       return tabControl[feature];
     }
@@ -359,13 +359,13 @@ export class UnifiedPermissionManager {
     try {
       // console.log(`🔄 UnifiedPermissionManager: Initializing tab ${tabId} with fresh defaults`);
 
-      const domain = this.extractDomain(tabUrl);
+      const _domain = this.extractDomain(tabUrl);
 
       // FIXED: Each tab starts fresh with defaults, not domain-based inheritance
       // This ensures each tab has independent settings
-      const networkEnabled = this.state.featureDefaults.network;
-      const consoleEnabled = this.state.featureDefaults.console;
-      const tokensEnabled = this.state.featureDefaults.tokens;
+      const _networkEnabled = this.state.featureDefaults.network;
+      const _consoleEnabled = this.state.featureDefaults.console;
+      const _tokensEnabled = this.state.featureDefaults.tokens;
 
       // console.log(`🔄 UnifiedPermissionManager: Tab ${tabId} starting fresh with defaults for ${domain}`);
 
@@ -402,7 +402,7 @@ export class UnifiedPermissionManager {
     await this.ensureState();
     if (!this.state) return;
 
-    const wasEnabled = await this.isFeatureEnabled(tabId, feature);
+    const _wasEnabled = await this.isFeatureEnabled(tabId, feature);
 
     // Get or create tab control
     if (!this.state.tabControls[tabId]) {
@@ -442,7 +442,7 @@ export class UnifiedPermissionManager {
     await this.ensureState();
     if (!this.state) return;
 
-    const domain = tabUrl ? this.extractDomain(tabUrl) : 'unknown';
+    const _domain = tabUrl ? this.extractDomain(tabUrl) : 'unknown';
 
     // Get or create tab control
     if (!this.state.tabControls[tabId]) {
@@ -457,7 +457,7 @@ export class UnifiedPermissionManager {
     }
 
     // Store previous state for event emission
-    const wasAllEnabled = this.state.tabControls[tabId].network &&
+    const _wasAllEnabled = this.state.tabControls[tabId].network &&
                          this.state.tabControls[tabId].console &&
                          this.state.tabControls[tabId].tokens;
 
@@ -498,9 +498,9 @@ export class UnifiedPermissionManager {
     console: boolean;
     tokens: boolean;
   }> {
-    const network = await this.isFeatureEnabled(tabId, 'network');
-    const console = await this.isFeatureEnabled(tabId, 'console');
-    const tokens = await this.isFeatureEnabled(tabId, 'tokens');
+    const _network = await this.isFeatureEnabled(tabId, 'network');
+    const _console = await this.isFeatureEnabled(tabId, 'console');
+    const _tokens = await this.isFeatureEnabled(tabId, 'tokens');
 
     return { network, console, tokens };
   }
@@ -515,11 +515,11 @@ export class UnifiedPermissionManager {
     feature: 'network' | 'console' | 'tokens'
   ): Promise<boolean> {
     // 1. Global power check (master switch)
-    const globalEnabled = await this.isGlobalEnabled();
+    const _globalEnabled = await this.isGlobalEnabled();
     if (!globalEnabled) return false;
 
     // 2. Feature-specific check (tab-based only)
-    const featureEnabled = await this.isFeatureEnabled(tabId, feature);
+    const _featureEnabled = await this.isFeatureEnabled(tabId, feature);
     return featureEnabled;
   }
 
@@ -534,16 +534,16 @@ export class UnifiedPermissionManager {
     features: { network: boolean; console: boolean; tokens: boolean };
     domain?: string;
   }> {
-    const global = await this.isGlobalEnabled();
+    const _global = await this.isGlobalEnabled();
 
-    const features = {
+    const _features = {
       network: await this.isFeatureEnabled(tabId, 'network'),
       console: await this.isFeatureEnabled(tabId, 'console'),
       tokens: await this.isFeatureEnabled(tabId, 'tokens')
     };
 
     // FIXED: Site state is derived from whether all features are enabled
-    const site = features.network && features.console && features.tokens;
+    const _site = features.network && features.console && features.tokens;
 
     let domain: string | undefined;
     if (tabUrl) {
@@ -558,7 +558,7 @@ export class UnifiedPermissionManager {
    */
   private extractDomain(url: string): string {
     try {
-      const urlObj = new URL(url);
+      const _urlObj = new URL(url);
       return urlObj.hostname;
     } catch {
       return 'unknown';
@@ -571,13 +571,13 @@ export class UnifiedPermissionManager {
   private async cleanupOldTabs(): Promise<void> {
     if (!this.state) return;
 
-    const now = Date.now();
-    const tabIds = Object.keys(this.state.tabControls);
-    let cleaned = 0;
+    const _now = Date.now();
+    const _tabIds = Object.keys(this.state.tabControls);
+    let _cleaned = 0;
 
     for (const tabIdStr of tabIds) {
-      const tabId = parseInt(tabIdStr);
-      const tabControl = this.state.tabControls[tabId];
+      const _tabId = parseInt(tabIdStr);
+      const _tabControl = this.state.tabControls[tabId];
 
       if (now - tabControl.lastUpdated > this.TAB_TTL) {
         delete this.state.tabControls[tabId];
@@ -619,7 +619,7 @@ export class UnifiedPermissionManager {
   }
 
   removeEventListener(listener: (event: PermissionEvent) => void): void {
-    const index = this.eventListeners.indexOf(listener);
+    const _index = this.eventListeners.indexOf(listener);
     if (index > -1) {
       this.eventListeners.splice(index, 1);
     }
@@ -658,4 +658,4 @@ export interface PermissionEvent {
 }
 
 // Singleton instance for easy access
-export const unifiedPermissionManager = UnifiedPermissionManager.getInstance();
+export const _unifiedPermissionManager = UnifiedPermissionManager.getInstance();

@@ -9,7 +9,7 @@ function createDelayPromise(ms: number): Promise<void> {
 }
 
 // Use the external function
-const delay = createDelayPromise
+const _delay = createDelayPromise
 
 interface PerformanceStats {
   totalOperations: number
@@ -30,11 +30,11 @@ interface StorageStressTestResult {
 }
 
 export // Centralized Chrome message handler to prevent response accumulation
-const sendChromeMessage = async (message: any) => {
+const _sendChromeMessage = async (message: any) => {
   try {
-    const response = await chrome.runtime.sendMessage(message)
+    const _response = await chrome.runtime.sendMessage(message)
     // Immediately nullify response object references to prevent accumulation
-    const result = response ? { ...response } : null
+    const _result = response ? { ...response } : null
     return result
   } catch (error) {
     console.error('Chrome message failed:', error)
@@ -48,15 +48,15 @@ export const PerformanceMonitoringDashboard: React.FC = () => {
   const [isRunningStressTest, setIsRunningStressTest] = useState(false)
 
   // Load current performance stats
-  const loadStats = async () => {
+  const _loadStats = async () => {
     try {
       // Get stats from background script
-      const response = await sendChromeMessage({ 
+      const _response = await sendChromeMessage({ 
         action: 'getPerformanceStats' 
       })
       if (response && response.success && response.data) {
         setStats(response.data)
-        console.log('Performance stats loaded:', response.data)
+        // console.log('Performance stats loaded:', response.data)
       } else {
         console.error('Failed to load performance stats:', response?.error || 'Unknown error')
       }
@@ -66,13 +66,13 @@ export const PerformanceMonitoringDashboard: React.FC = () => {
   }
 
   // Run storage stress test
-  const runStressTest = async () => {
+  const _runStressTest = async () => {
     setIsRunningStressTest(true)
     const results: StorageStressTestResult[] = []
 
     try {
       // Test different load scenarios
-      const testScenarios = [
+      const _testScenarios = [
         { name: 'Small batch', count: 10 },
         { name: 'Medium batch', count: 100 },
         { name: 'Large batch', count: 500 },
@@ -80,11 +80,11 @@ export const PerformanceMonitoringDashboard: React.FC = () => {
       ]
 
       for (const scenario of testScenarios) {
-        const memoryBefore = (performance as any).memory?.usedJSHeapSize || 0
-        const startTime = performance.now()
+        const _memoryBefore = (performance as any).memory?.usedJSHeapSize || 0
+        const _startTime = performance.now()
 
         // Generate test data and insert
-        const testData = Array.from({ length: scenario.count }, (_, i) => ({
+        const _testData = Array.from({ length: scenario.count }, (_, i) => ({
           url: `https://test-api.example.com/endpoint/${i}`,
           method: 'GET',
           status: 200,
@@ -100,8 +100,8 @@ export const PerformanceMonitoringDashboard: React.FC = () => {
           })
         }
 
-        const totalTime = performance.now() - startTime
-        const memoryAfter = (performance as any).memory?.usedJSHeapSize || 0
+        const _totalTime = performance.now() - startTime
+        const _memoryAfter = (performance as any).memory?.usedJSHeapSize || 0
 
         results.push({
           operation: scenario.name,
@@ -126,7 +126,7 @@ export const PerformanceMonitoringDashboard: React.FC = () => {
   }
 
   // Clear old test data
-  const clearTestData = async () => {
+  const _clearTestData = async () => {
     try {
       await sendChromeMessage({ action: 'clearAllData' })
       setStressTestResults([])
@@ -137,11 +137,11 @@ export const PerformanceMonitoringDashboard: React.FC = () => {
   }
 
   useEffect(() => {
-    let isActive = true
+    let _isActive = true
     let intervalId: number | null = null
     
     // MEMORY LEAK FIX: Memory-aware loading with exponential backoff
-    const scheduleLoad = (delay: number = 10000) => {
+    const _scheduleLoad = (delay: number = 10000) => {
       if (!isActive) return
       
       if (intervalId) {
@@ -153,15 +153,15 @@ export const PerformanceMonitoringDashboard: React.FC = () => {
         
         try {
           // Check memory pressure before loading
-          const performanceMemory = (performance as any).memory
+          const _performanceMemory = (performance as any).memory
           if (performanceMemory?.usedJSHeapSize) {
-            const heapUsed = performanceMemory.usedJSHeapSize
-            const heapLimit = performanceMemory.jsHeapSizeLimit
-            const heapPercentage = (heapUsed / heapLimit) * 100
+            const _heapUsed = performanceMemory.usedJSHeapSize
+            const _heapLimit = performanceMemory.jsHeapSizeLimit
+            const _heapPercentage = (heapUsed / heapLimit) * 100
             
             if (heapPercentage > 85) {
               // Skip load under high memory pressure
-              console.log('🚨 Skipping performance stats load - high memory pressure')
+              // console.log('🚨 Skipping performance stats load - high memory pressure')
               scheduleLoad(Math.min(delay * 1.5, 60000)) // Exponential backoff
               return
             }
@@ -188,15 +188,15 @@ export const PerformanceMonitoringDashboard: React.FC = () => {
     }
   }, [])
 
-  const formatBytes = (bytes: number) => {
+  const _formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 B'
-    const k = 1024
-    const sizes = ['B', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    const _k = 1024
+    const _sizes = ['B', 'KB', 'MB', 'GB']
+    const _i = Math.floor(Math.log(bytes) / Math.log(k))
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
-  const formatTime = (ms: number) => {
+  const _formatTime = (ms: number) => {
     return ms < 1 ? `${(ms * 1000).toFixed(1)}μs` : `${ms.toFixed(2)}ms`
   }
 
@@ -276,9 +276,9 @@ export const PerformanceMonitoringDashboard: React.FC = () => {
                 </thead>
                 <tbody>
                   {Object.entries(stats.operationCounts).map(([operation, count]) => {
-                    const times = stats.operationTimes[operation] || []
-                    const avgTime = times.length > 0 ? times.reduce((a, b) => a + b, 0) / times.length : 0
-                    const recentTimes = times.slice(-5) // Last 5 measurements
+                    const _times = stats.operationTimes[operation] || []
+                    const _avgTime = times.length > 0 ? times.reduce((a, b) => a + b, 0) / times.length : 0
+                    const _recentTimes = times.slice(-5) // Last 5 measurements
                     
                     return (
                       <tr key={operation} className="border-b">

@@ -35,42 +35,42 @@ export class EdgeCaseActivationSystem {
     const reasons: string[] = [];
 
     // Check for cross-origin iframes
-    const hasIframes = this.detectCrossOriginIframes();
+    const _hasIframes = this.detectCrossOriginIframes();
     if (hasIframes) {
       reasons.push('Cross-origin iframes detected - content script needed for iframe requests');
     }
 
     // Check for service workers
-    const hasServiceWorkers = await this.detectServiceWorkers();
+    const _hasServiceWorkers = await this.detectServiceWorkers();
     if (hasServiceWorkers) {
       reasons.push('Service workers detected - may need content script for worker context');
     }
 
     // Check for web workers
-    const hasWebWorkers = this.detectWebWorkers();
+    const _hasWebWorkers = this.detectWebWorkers();
     if (hasWebWorkers) {
       reasons.push('Web workers detected - content script better for worker requests');
     }
 
     // Check if we're in an extension page
-    const isExtensionPage = this.isExtensionEnvironment();
+    const _isExtensionPage = this.isExtensionEnvironment();
     if (isExtensionPage) {
       reasons.push('Extension page context - content script required');
     }
 
     // Check for strict CSP
-    const hasStrictCSP = this.detectStrictCSP();
+    const _hasStrictCSP = this.detectStrictCSP();
     if (hasStrictCSP) {
       reasons.push('Strict CSP detected - main-world script may be blocked');
     }
 
     // Check for dynamic script injection
-    const hasDynamicScripts = this.detectDynamicScripts();
+    const _hasDynamicScripts = this.detectDynamicScripts();
     if (hasDynamicScripts) {
       reasons.push('Dynamic script injection detected - content script provides better coverage');
     }
 
-    const recommendContentInterception =
+    const _recommendContentInterception =
       hasIframes || hasServiceWorkers || hasWebWorkers ||
       isExtensionPage || hasStrictCSP || hasDynamicScripts;
 
@@ -99,12 +99,12 @@ export class EdgeCaseActivationSystem {
       throw new Error('Must call analyzeEnvironment() first');
     }
 
-    const networkConfig = {
+    const _networkConfig = {
       enabled: this.analysis.recommendContentInterception,
       reason: this.analysis.reasons.length > 0 ? this.analysis.reasons.join(', ') : undefined
     };
 
-    const consoleConfig = {
+    const _consoleConfig = {
       enabled: this.analysis.hasServiceWorkers || this.analysis.hasWebWorkers || this.analysis.isExtensionPage,
       reason: this.analysis.hasServiceWorkers || this.analysis.hasWebWorkers || this.analysis.isExtensionPage
         ? 'Worker contexts or extension pages benefit from content script console interception'
@@ -120,14 +120,14 @@ export class EdgeCaseActivationSystem {
   // Private detection methods
 
   private detectCrossOriginIframes(): boolean {
-    const iframes = document.querySelectorAll('iframe');
-    const currentOrigin = window.location.origin;
+    const _iframes = document.querySelectorAll('iframe');
+    const _currentOrigin = window.location.origin;
 
     for (const iframe of iframes) {
       try {
-        const src = iframe.src;
+        const _src = iframe.src;
         if (src && src.startsWith('http')) {
-          const iframeOrigin = new URL(src).origin;
+          const _iframeOrigin = new URL(src).origin;
           if (iframeOrigin !== currentOrigin) {
             return true;
           }
@@ -146,7 +146,7 @@ export class EdgeCaseActivationSystem {
     }
 
     try {
-      const registrations = await navigator.serviceWorker.getRegistrations();
+      const _registrations = await navigator.serviceWorker.getRegistrations();
       return registrations.length > 0;
     } catch (error) {
       return false;
@@ -155,8 +155,8 @@ export class EdgeCaseActivationSystem {
 
   private detectWebWorkers(): boolean {
     // Check if page creates web workers
-    const originalWorker = window.Worker;
-    let workerDetected = false;
+    const _originalWorker = window.Worker;
+    let _workerDetected = false;
 
     if (originalWorker) {
       // Override Worker constructor to detect usage
@@ -181,9 +181,9 @@ export class EdgeCaseActivationSystem {
   }
 
   private detectStrictCSP(): boolean {
-    const metaTags = document.querySelectorAll('meta[http-equiv="Content-Security-Policy"]');
+    const _metaTags = document.querySelectorAll('meta[http-equiv="Content-Security-Policy"]');
     for (const meta of metaTags) {
-      const content = meta.getAttribute('content');
+      const _content = meta.getAttribute('content');
       if (content && (content.includes("'none'") || content.includes("'self'"))) {
         return true;
       }
@@ -193,8 +193,8 @@ export class EdgeCaseActivationSystem {
 
   private detectDynamicScripts(): boolean {
     // Set up mutation observer to detect script injection
-    let dynamicScripts = false;
-    const observer = new MutationObserver((mutations) => {
+    let _dynamicScripts = false;
+    const _observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         mutation.addedNodes.forEach((node) => {
           if (node.nodeName === 'SCRIPT') {

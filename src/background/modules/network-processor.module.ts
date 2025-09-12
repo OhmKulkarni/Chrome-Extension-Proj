@@ -52,7 +52,7 @@ export class NetworkProcessorModule {
     };
 
     this.abortController = new AbortController();
-    console.log('🌐 NetworkProcessorModule: Initialized with IndexedDB storage for all interceptions');
+    // console.log('🌐 NetworkProcessorModule: Initialized with IndexedDB storage for all interceptions');
   }
 
   /**
@@ -60,7 +60,7 @@ export class NetworkProcessorModule {
    */
   async initialize(): Promise<void> {
     if (this.isInitialized) {
-      console.warn('NetworkProcessorModule: Already initialized');
+      // console.warn('NetworkProcessorModule: Already initialized');
       return;
     }
 
@@ -71,7 +71,7 @@ export class NetworkProcessorModule {
       }
 
       this.isInitialized = true;
-      console.log('✅ NetworkProcessorModule: Successfully initialized');
+      // console.log('✅ NetworkProcessorModule: Successfully initialized');
     } catch (error) {
       console.error('❌ NetworkProcessorModule: Initialization failed:', error);
       throw error;
@@ -88,7 +88,7 @@ export class NetworkProcessorModule {
 
     this.isInitialized = false;
     this.processedCount = 0;
-    console.log('🧹 NetworkProcessorModule: Cleanup completed');
+    // console.log('🧹 NetworkProcessorModule: Cleanup completed');
   }
 
   // ===== NETWORK REQUEST PROCESSING =====
@@ -122,7 +122,7 @@ export class NetworkProcessorModule {
       let url, method, status, headers, body, timestamp, tabId, tabUrl;
 
       // ENHANCED DEBUG: Define debug condition early for problematic domains
-      const shouldDebugUrl = requestData.url?.includes('dianomi.com') ||
+      const _shouldDebugUrl = requestData.url?.includes('dianomi.com') ||
                             requestData.url?.includes('cnn.io');
 
       if (requestData.type === 'fetch' || requestData.type === 'xhr') {
@@ -139,8 +139,8 @@ export class NetworkProcessorModule {
 
         // IFRAME FIX: Prefer sender.tab.url for cross-origin iframes
         // If tabUrl is a data URI or doesn't match the tab domain, use sender.tab.url instead
-        const contentScriptTabUrl = requestData.tabUrl;
-        const senderTabUrl = sender?.tab?.url;
+        const _contentScriptTabUrl = requestData.tabUrl;
+        const _senderTabUrl = sender?.tab?.url;
 
         if (shouldDebugUrl) {
           console.log('🔍 RAW REQUEST DATA DEBUG:', {
@@ -171,9 +171,9 @@ export class NetworkProcessorModule {
 
         if (senderTabUrl && contentScriptTabUrl) {
           // If content script tabUrl is a data URI or cross-origin, prefer sender tab URL
-          const isDataUri = contentScriptTabUrl.startsWith('data:');
-          const isBlobUri = contentScriptTabUrl.startsWith('blob:');
-          const sameOrigin = this.isSameOrigin(contentScriptTabUrl, senderTabUrl);
+          const _isDataUri = contentScriptTabUrl.startsWith('data:');
+          const _isBlobUri = contentScriptTabUrl.startsWith('blob:');
+          const _sameOrigin = this.isSameOrigin(contentScriptTabUrl, senderTabUrl);
 
           if (shouldDebugUrl) {
             console.log(`🔍 IFRAME DEBUG - URL analysis:`, {
@@ -197,18 +197,18 @@ export class NetworkProcessorModule {
                 willGroupUnder: this.extractMainDomain(senderTabUrl),
                 reason: 'cross-origin iframe detected'
               });
-              console.log(`✅ IFRAME DEBUG - Using sender tab URL for grouping: ${senderTabUrl.substring(0, 100)}`);
+              // console.log(`✅ IFRAME DEBUG - Using sender tab URL for grouping: ${senderTabUrl.substring(0, 100)}`);
             }
           } else {
             tabUrl = contentScriptTabUrl;
             if (shouldDebugUrl) {
-              console.log(`✅ IFRAME DEBUG - Using content script tab URL: ${contentScriptTabUrl.substring(0, 100)}`);
+              // console.log(`✅ IFRAME DEBUG - Using content script tab URL: ${contentScriptTabUrl.substring(0, 100)}`);
             }
           }
         } else {
           tabUrl = senderTabUrl || contentScriptTabUrl || requestData.url;
           if (shouldDebugUrl) {
-            console.log(`⚠️ IFRAME DEBUG - Fallback URL selection: ${tabUrl?.substring(0, 100) || 'NONE'}`);
+            // console.log(`⚠️ IFRAME DEBUG - Fallback URL selection: ${tabUrl?.substring(0, 100) || 'NONE'}`);
             console.log(`⚠️ IFRAME DEBUG - Fallback reason:`, {
               senderTabUrlExists: !!senderTabUrl,
               contentScriptTabUrlExists: !!contentScriptTabUrl,
@@ -221,7 +221,7 @@ export class NetworkProcessorModule {
 
         // ADDITIONAL: Smart grouping based on URL patterns and known third-party domains
         if (senderTabUrl && this.shouldGroupUnderParentDomain(url, senderTabUrl)) {
-          const originalGrouping = this.extractMainDomain(tabUrl || url);
+          const _originalGrouping = this.extractMainDomain(tabUrl || url);
           tabUrl = senderTabUrl;
 
           if (shouldDebugUrl) {
@@ -257,9 +257,9 @@ export class NetworkProcessorModule {
         // This ensures new tabs respect previously set user preferences instead of defaulting to enabled
         await this.unifiedPermissionService.initializeTabPermissions(tabId, tabUrl);
 
-        const permissionCheck = await this.unifiedPermissionService.canInterceptOnTab(tabId, 'network');
+        const _permissionCheck = await this.unifiedPermissionService.canInterceptOnTab(tabId, 'network');
         if (!permissionCheck.canIntercept) {
-          console.log(`🚫 NetworkProcessor: Request blocked - ${permissionCheck.reason}`);
+          // console.log(`🚫 NetworkProcessor: Request blocked - ${permissionCheck.reason}`);
           return {
             success: false,
             reason: permissionCheck.reason || 'Network logging disabled',
@@ -269,11 +269,11 @@ export class NetworkProcessorModule {
       }
 
       // Get settings for filtering and body sanitization
-      const settings = await this.storageManager.getSettings();
-      const networkConfig = settings.networkInterception || {};
+      const _settings = await this.storageManager.getSettings();
+      const _networkConfig = settings.networkInterception || {};
 
       // Check if request should be filtered as noise (with backward compatibility)
-      const privacyConfig = networkConfig.privacy || {};
+      const _privacyConfig = networkConfig.privacy || {};
 
       // Debug logging to see what settings we have
       if (url.includes('awswaf') || url.includes('edge.sdk')) {
@@ -286,13 +286,13 @@ export class NetworkProcessorModule {
       }
 
       // Backward compatibility: support old filterNoise setting
-      let shouldFilter = false;
+      let _shouldFilter = false;
       if (privacyConfig.noiseFilters) {
         // New granular filtering system
         shouldFilter = this.isNoiseRequest(url, method, privacyConfig.noiseFilters);
       } else if ((privacyConfig as any).filterNoise) {
         // Old simple filtering system - apply all filters
-        const defaultFilters = {
+        const _defaultFilters = {
           analytics: true,
           advertising: true,
           socialMedia: true,
@@ -305,13 +305,13 @@ export class NetworkProcessorModule {
 
       if (shouldFilter) {
         if (url.includes('awswaf') || url.includes('edge.sdk')) {
-          console.log('🔇 FILTERED AWS WAF REQUEST:', url.substring(0, 80));
+          // console.log('🔇 FILTERED AWS WAF REQUEST:', url.substring(0, 80));
         }
         return { success: false, reason: 'Request filtered as noise' };
       }
 
       // Extract main domain for intelligent grouping
-      const mainDomain = tabUrl ? this.extractMainDomain(tabUrl) : this.extractMainDomain(url);
+      const _mainDomain = tabUrl ? this.extractMainDomain(tabUrl) : this.extractMainDomain(url);
 
       // Prevent storing requests with invalid main domains
       if (!mainDomain || mainDomain === 'unknown' || mainDomain === 'Unknown' || mainDomain === 'Unknown URL') {
@@ -376,7 +376,7 @@ export class NetworkProcessorModule {
 
         // For main-world data, we need to properly handle headers
         // The headers should include both request and response headers
-        const combinedHeaders = {
+        const _combinedHeaders = {
           ...(requestData.requestHeaders || {}),
           ...(requestData.responseHeaders || {})
         };
@@ -397,20 +397,20 @@ export class NetworkProcessorModule {
 
         // Map the request data from main-world-script to storage API format (EXACT COPY FROM MAIN BRANCH)
         // Get body truncation limits from config
-        const maxBodySize = networkConfig.bodyCapture?.maxBodySize || 50000; // Default 50KB
+        const _maxBodySize = networkConfig.bodyCapture?.maxBodySize || 50000; // Default 50KB
 
         // Truncate bodies during storage to prevent memory issues
-        const originalRequestBodySize = requestData.requestBody ? new Blob([requestData.requestBody]).size : 0;
-        const originalResponseBodySize = requestData.responseBody ? new Blob([requestData.responseBody]).size : 0;
+        const _originalRequestBodySize = requestData.requestBody ? new Blob([requestData.requestBody]).size : 0;
+        const _originalResponseBodySize = requestData.responseBody ? new Blob([requestData.responseBody]).size : 0;
 
-        const truncatedRequestBody = this.sanitizeBody(requestData.requestBody, maxBodySize) || '';
-        const truncatedResponseBody = this.sanitizeBody(
+        const _truncatedRequestBody = this.sanitizeBody(requestData.requestBody, maxBodySize) || '';
+        const _truncatedResponseBody = this.sanitizeBody(
           requestData.responseBody || `Status: ${status} ${requestData.statusText || ''}`,
           maxBodySize
         ) || `Status: ${status} ${requestData.statusText || ''}`;
 
-        const storedRequestBodySize = truncatedRequestBody ? new Blob([truncatedRequestBody]).size : 0;
-        const storedResponseBodySize = truncatedResponseBody ? new Blob([truncatedResponseBody]).size : 0;
+        const _storedRequestBodySize = truncatedRequestBody ? new Blob([truncatedRequestBody]).size : 0;
+        const _storedResponseBodySize = truncatedResponseBody ? new Blob([truncatedResponseBody]).size : 0;
 
         // Debug logging for size verification
         if (Math.random() < 0.1) { // Log 10% of requests for debugging
@@ -422,7 +422,7 @@ export class NetworkProcessorModule {
           });
         }
 
-        const apiCallData = {
+        const _apiCallData = {
           url: validatedRequestData.url,
           method: validatedRequestData.method || 'GET',
           headers: JSON.stringify({
@@ -452,7 +452,7 @@ export class NetworkProcessorModule {
         // LIBRARY DETECTION: Detect libraries asynchronously without blocking storage
         // This runs in parallel with storage to avoid performance impact
         this.detectAndStoreLibraries(validatedRequestData, requestData).catch(error => {
-          console.warn('NetworkProcessorModule: Library detection failed (non-blocking):', error);
+          // console.warn('NetworkProcessorModule: Library detection failed (non-blocking):', error);
         });
 
         // Use IndexedDB storage with race condition protection
@@ -461,11 +461,11 @@ export class NetworkProcessorModule {
         } else {
           // Fire and forget for performance (not recommended)
           this.indexedDbStorage.insertApiCall(apiCallData).catch(error =>
-            console.warn('NetworkProcessorModule: IndexedDB storage failed:', error)
+            // console.warn('NetworkProcessorModule: IndexedDB storage failed:', error)
           );
         }
 
-        console.log(`🗄️ NetworkProcessorModule: Stored network request in IndexedDB`);
+        // console.log(`🗄️ NetworkProcessorModule: Stored network request in IndexedDB`);
 
         // Notify dashboard about new data
         this.sendDataUpdatedNotification('network_request');
@@ -475,17 +475,17 @@ export class NetworkProcessorModule {
       }
 
       // Track token events if this is a token-related request
-      let tokenEvent = null;
+      let _tokenEvent = null;
       try {
         tokenEvent = await this.tokenTracker.detectTokenEvent(validatedRequestData);
       } catch (tokenError) {
-        console.warn('NetworkProcessorModule: Token detection failed:', tokenError);
+        // console.warn('NetworkProcessorModule: Token detection failed:', tokenError);
         // Don't fail the entire operation if token detection fails
       }
 
       this.processedCount++;
 
-      console.log(`🌐 NetworkProcessorModule: Processed ${method} ${status} from ${mainDomain}`);
+      // console.log(`🌐 NetworkProcessorModule: Processed ${method} ${status} from ${mainDomain}`);
 
       return {
         success: true,
@@ -502,7 +502,7 @@ export class NetworkProcessorModule {
   async getNetworkRequests(limit = 50, offset = 0): Promise<NetworkRequestData[]> {
     return this.executeWithSafety('getNetworkRequests', async () => {
       // Get data from IndexedDB instead of Chrome storage
-      const apiCalls = await this.indexedDbStorage.getApiCalls(limit, offset);
+      const _apiCalls = await this.indexedDbStorage.getApiCalls(limit, offset);
 
       // Transform IndexedDB ApiCall format to NetworkRequestData format for compatibility
       return apiCalls.map(apiCall => ({
@@ -540,7 +540,7 @@ export class NetworkProcessorModule {
    */
   async getNetworkRequestsCount(): Promise<number> {
     return this.executeWithSafety('getNetworkRequestsCount', async () => {
-      const counts = await this.indexedDbStorage.getTableCounts();
+      const _counts = await this.indexedDbStorage.getTableCounts();
       return counts.apiCalls || 0;
     });
   }
@@ -557,7 +557,7 @@ export class NetworkProcessorModule {
       });
     } catch (error) {
       // Dashboard might not be open, ignore error
-      console.log('📡 NetworkProcessorModule: Could not notify dashboard (dashboard closed?):', error);
+      // console.log('📡 NetworkProcessorModule: Could not notify dashboard (dashboard closed?):', error);
     }
   }
 
@@ -569,13 +569,13 @@ export class NetworkProcessorModule {
   async toggleTabLogging(tabId: number): Promise<{ success: boolean; newState: boolean }> {
     return this.executeWithSafety('toggleTabLogging', async () => {
       // Get current state
-      const currentState = await this.storageManager.getTabNetworkState(tabId);
-      const newState = !currentState;
+      const _currentState = await this.storageManager.getTabNetworkState(tabId);
+      const _newState = !currentState;
 
       // Set new state
       await this.storageManager.setTabNetworkState(tabId, newState);
 
-      console.log(`🌐 NetworkProcessorModule: Tab ${tabId} network logging ${newState ? 'enabled' : 'disabled'}`);
+      // console.log(`🌐 NetworkProcessorModule: Tab ${tabId} network logging ${newState ? 'enabled' : 'disabled'}`);
 
       return { success: true, newState };
     });
@@ -591,10 +591,10 @@ export class NetworkProcessorModule {
   }> {
     return this.executeWithSafety('getInterceptionState', async () => {
       // Get current settings
-      const settings = await this.storageManager.getSettings();
+      const _settings = await this.storageManager.getSettings();
 
       // Get tab-specific network logging state
-      const networkLogging = tabId ? await this.storageManager.getTabNetworkState(tabId) : false;
+      const _networkLogging = tabId ? await this.storageManager.getTabNetworkState(tabId) : false;
 
       return {
         success: true,
@@ -610,10 +610,10 @@ export class NetworkProcessorModule {
    * Check if request should be filtered as noise based on enabled filter categories
    */
   private isNoiseRequest(url: string, method: string, noiseFilters: any): boolean {
-    const urlLower = url.toLowerCase();
+    const _urlLower = url.toLowerCase();
 
     // Define patterns by category
-    const patternCategories = {
+    const _patternCategories = {
       analytics: [
         'google-analytics',
         'googletagmanager',
@@ -706,21 +706,21 @@ export class NetworkProcessorModule {
    */
   private extractMainDomain(url: string): string {
     try {
-      const urlObj = new URL(url);
-      const hostname = urlObj.hostname;
+      const _urlObj = new URL(url);
+      const _hostname = urlObj.hostname;
 
       // Remove 'www.' prefix if present
-      const withoutWww = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
+      const _withoutWww = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
 
       // For most cases, return the base domain
-      const parts = withoutWww.split('.');
+      const _parts = withoutWww.split('.');
       if (parts.length >= 2) {
         return parts.slice(-2).join('.');
       }
 
       return withoutWww;
     } catch (error) {
-      console.warn('NetworkProcessorModule: Failed to extract main domain from URL:', url, error);
+      // console.warn('NetworkProcessorModule: Failed to extract main domain from URL:', url, error);
       return 'unknown';
     }
   }
@@ -730,8 +730,8 @@ export class NetworkProcessorModule {
    */
   private isSameOrigin(url1: string, url2: string): boolean {
     try {
-      const urlObj1 = new URL(url1);
-      const urlObj2 = new URL(url2);
+      const _urlObj1 = new URL(url1);
+      const _urlObj2 = new URL(url2);
 
       return urlObj1.origin === urlObj2.origin;
     } catch (error) {
@@ -801,22 +801,22 @@ export class NetworkProcessorModule {
       throw new Error(`NetworkProcessorModule: Operation aborted (${operation})`);
     }
 
-    const startTime = Date.now();
+    const _startTime = Date.now();
     let lastError: Error | null = null;
 
-    for (let attempt = 0; attempt <= this.config.maxRetries; attempt++) {
+    for (let _attempt = 0; attempt <= this.config.maxRetries; attempt++) {
       try {
         // Race condition protection
         if (this.config.enableRaceConditionProtection && attempt > 0) {
           await new Promise(resolve => setTimeout(resolve, 100 * attempt));
         }
 
-        const result = await fn();
+        const _result = await fn();
 
         // Log performance for slow operations
-        const duration = Date.now() - startTime;
+        const _duration = Date.now() - startTime;
         if (duration > 500 && attempt === 0) {
-          console.warn(`🐌 NetworkProcessorModule: ${operation} took ${duration}ms`);
+          // console.warn(`🐌 NetworkProcessorModule: ${operation} took ${duration}ms`);
         }
 
         return result;
@@ -828,7 +828,7 @@ export class NetworkProcessorModule {
           break;
         }
 
-        console.warn(`⚠️ NetworkProcessorModule: ${operation} failed, retrying (${attempt + 1}/${this.config.maxRetries}):`, lastError);
+        // console.warn(`⚠️ NetworkProcessorModule: ${operation} failed, retrying (${attempt + 1}/${this.config.maxRetries}):`, lastError);
       }
     }
 
@@ -845,26 +845,26 @@ export class NetworkProcessorModule {
   ): Promise<void> {
     try {
       // Check if any logging is enabled before proceeding with library detection
-      const tabId = validatedRequestData.tabId;
+      const _tabId = validatedRequestData.tabId;
 
       if (tabId) {
         // Use the already imported unified permission manager
         // SECURITY FIX: Ensure permission manager is properly initialized before checking
         // This prevents library detection during Chrome startup when permissions aren't loaded
-        const isReady = await unifiedPermissionManager.isReady();
+        const _isReady = await unifiedPermissionManager.isReady();
         if (!isReady) {
-          console.warn(`🚫 LibraryDetector: Permission manager not ready for tab ${tabId}, skipping detection`);
+          // console.warn(`🚫 LibraryDetector: Permission manager not ready for tab ${tabId}, skipping detection`);
           return;
         }
 
         // Check if any of the three logging types are enabled for this tab
-        const isNetworkEnabled = await unifiedPermissionManager.isFeatureEnabled(tabId, 'network');
-        const isConsoleEnabled = await unifiedPermissionManager.isFeatureEnabled(tabId, 'console');
-        const isTokenEnabled = await unifiedPermissionManager.isFeatureEnabled(tabId, 'tokens');
+        const _isNetworkEnabled = await unifiedPermissionManager.isFeatureEnabled(tabId, 'network');
+        const _isConsoleEnabled = await unifiedPermissionManager.isFeatureEnabled(tabId, 'console');
+        const _isTokenEnabled = await unifiedPermissionManager.isFeatureEnabled(tabId, 'tokens');
 
         // If no logging is enabled, skip library detection
         if (!isNetworkEnabled && !isConsoleEnabled && !isTokenEnabled) {
-          console.log(`🚫 LibraryDetector: Skipping detection - no logging enabled for tab ${tabId}`);
+          // console.log(`🚫 LibraryDetector: Skipping detection - no logging enabled for tab ${tabId}`);
           return;
         }
 
@@ -879,17 +879,17 @@ export class NetworkProcessorModule {
         }
       } else {
         // No tab ID means we can't check permissions - skip detection
-        console.log('🚫 LibraryDetector: No tab ID available, skipping detection');
+        // console.log('🚫 LibraryDetector: No tab ID available, skipping detection');
         return;
       }
 
       // Extract headers for library detection
-      const url = validatedRequestData.url;
-      const headers = validatedRequestData.headers || {};
-      const responseBody = requestData.responseBody;
+      const _url = validatedRequestData.url;
+      const _headers = validatedRequestData.headers || {};
+      const _responseBody = requestData.responseBody;
 
       // Detect libraries using our detection utility
-      const detectedLibraries = LibraryDetector.detectFromRequest(url, headers, responseBody);
+      const _detectedLibraries = LibraryDetector.detectFromRequest(url, headers, responseBody);
 
       // Only store if libraries were detected
       if (detectedLibraries.length > 0) {
@@ -902,18 +902,18 @@ export class NetworkProcessorModule {
         // Store each detected library in IndexedDB
         for (const library of detectedLibraries) {
           try {
-            const minifiedLibrary = LibraryDetector.toMinifiedLibrary(library, validatedRequestData.main_domain || this.extractMainDomain(url));
+            const _minifiedLibrary = LibraryDetector.toMinifiedLibrary(library, validatedRequestData.main_domain || this.extractMainDomain(url));
             await this.indexedDbStorage.insertMinifiedLibrary(minifiedLibrary);
           } catch (storageError) {
-            console.warn('Failed to store library detection:', library.name, storageError);
+            // console.warn('Failed to store library detection:', library.name, storageError);
           }
         }
 
-        console.log(`📚 LibraryDetector: Stored ${detectedLibraries.length} libraries for ${this.extractMainDomain(validatedRequestData.source_url || url)}`);
+        // console.log(`📚 LibraryDetector: Stored ${detectedLibraries.length} libraries for ${this.extractMainDomain(validatedRequestData.source_url || url)}`);
       }
     } catch (error) {
       // Fail silently to avoid impacting main request processing
-      console.warn('NetworkProcessorModule: Library detection error (non-critical):', error);
+      // console.warn('NetworkProcessorModule: Library detection error (non-critical):', error);
     }
   }
 
@@ -953,8 +953,8 @@ export class NetworkProcessorModule {
    */
   private shouldGroupUnderParentDomain(requestUrl: string, parentUrl: string): boolean {
     try {
-      const requestDomain = this.extractMainDomain(requestUrl);
-      const parentDomain = this.extractMainDomain(parentUrl);
+      const _requestDomain = this.extractMainDomain(requestUrl);
+      const _parentDomain = this.extractMainDomain(parentUrl);
 
       // Don't group if they're already the same domain
       if (requestDomain === parentDomain) {
@@ -962,7 +962,7 @@ export class NetworkProcessorModule {
       }
 
       // Known third-party advertising/analytics domains that should be grouped with their parent
-      const thirdPartyDomains = [
+      const _thirdPartyDomains = [
         // Advertising
         'btloader.com',
         'criteo.com',
@@ -1002,7 +1002,7 @@ export class NetworkProcessorModule {
       ];
 
       // Check if request domain matches any known third-party domain
-      const isThirdPartyDomain = thirdPartyDomains.some(domain =>
+      const _isThirdPartyDomain = thirdPartyDomains.some(domain =>
         requestDomain.includes(domain) || domain.includes(requestDomain)
       );
 
@@ -1011,13 +1011,13 @@ export class NetworkProcessorModule {
       }
 
       // Additional heuristic: If parent is a major news/content site, group advertising/analytics subdomains
-      const majorContentSites = ['cnn.com', 'bbc.com', 'nytimes.com', 'washingtonpost.com', 'theguardian.com'];
-      const isContentSite = majorContentSites.some(site => parentDomain.includes(site));
+      const _majorContentSites = ['cnn.com', 'bbc.com', 'nytimes.com', 'washingtonpost.com', 'theguardian.com'];
+      const _isContentSite = majorContentSites.some(site => parentDomain.includes(site));
 
       if (isContentSite) {
         // Patterns that suggest advertising/analytics
-        const adPatterns = ['ad', 'ads', 'analytics', 'tracking', 'metrics', 'pixel', 'tag'];
-        const hasAdPattern = adPatterns.some(pattern =>
+        const _adPatterns = ['ad', 'ads', 'analytics', 'tracking', 'metrics', 'pixel', 'tag'];
+        const _hasAdPattern = adPatterns.some(pattern =>
           requestUrl.toLowerCase().includes(pattern) || requestDomain.includes(pattern)
         );
 
@@ -1028,7 +1028,7 @@ export class NetworkProcessorModule {
 
       return false;
     } catch (error) {
-      console.warn('NetworkProcessorModule: Error in shouldGroupUnderParentDomain:', error);
+      // console.warn('NetworkProcessorModule: Error in shouldGroupUnderParentDomain:', error);
       return false;
     }
   }

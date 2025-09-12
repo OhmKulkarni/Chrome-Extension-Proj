@@ -12,7 +12,7 @@ interface ExpandedRowsHookReturn {
  * Custom hook for managing expandable row state with performance safeguards
  * SAFETY: Prevents memory leaks with proper cleanup and limits expansion
  */
-export const useExpandedRows = (maxExpanded: number = 3): ExpandedRowsHookReturn => {
+export const _useExpandedRows = (maxExpanded: number = 3): ExpandedRowsHookReturn => {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const lastActionRef = useRef<number>(Date.now());
 
@@ -24,8 +24,8 @@ export const useExpandedRows = (maxExpanded: number = 3): ExpandedRowsHookReturn
   }, []);
 
   // PERFORMANCE: Debounced toggle to prevent rapid clicking issues
-  const toggleRow = useCallback((domain: string) => {
-    const now = Date.now();
+  const _toggleRow = useCallback((domain: string) => {
+    const _now = Date.now();
     // Prevent rapid toggling (< 200ms between actions)
     if (now - lastActionRef.current < 200) {
       return;
@@ -33,7 +33,7 @@ export const useExpandedRows = (maxExpanded: number = 3): ExpandedRowsHookReturn
     lastActionRef.current = now;
 
     setExpandedRows(prev => {
-      const newSet = new Set(prev);
+      const _newSet = new Set(prev);
 
       if (newSet.has(domain)) {
         // Collapse row
@@ -42,9 +42,9 @@ export const useExpandedRows = (maxExpanded: number = 3): ExpandedRowsHookReturn
         // SAFETY: Limit maximum expanded rows to prevent memory issues
         if (newSet.size >= maxExpanded) {
           // Auto-collapse the oldest expanded row
-          const firstDomain = Array.from(newSet)[0];
+          const _firstDomain = Array.from(newSet)[0];
           newSet.delete(firstDomain);
-          console.log(`🎯 Auto-collapsed ${firstDomain} due to ${maxExpanded} row limit`);
+          // console.log(`🎯 Auto-collapsed ${firstDomain} due to ${maxExpanded} row limit`);
         }
         // Expand new row
         newSet.add(domain);
@@ -54,11 +54,11 @@ export const useExpandedRows = (maxExpanded: number = 3): ExpandedRowsHookReturn
     });
   }, [maxExpanded]);
 
-  const isExpanded = useCallback((domain: string) => {
+  const _isExpanded = useCallback((domain: string) => {
     return expandedRows.has(domain);
   }, [expandedRows]);
 
-  const collapseAll = useCallback(() => {
+  const _collapseAll = useCallback(() => {
     setExpandedRows(new Set());
   }, []);
 

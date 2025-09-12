@@ -64,15 +64,15 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
   onViewInTimeline,
   onDelete
 }) => {
-  const indexOfLastRequest = currentPage * requestsPerPage;
-  const indexOfFirstRequest = indexOfLastRequest - requestsPerPage;
+  const _indexOfLastRequest = currentPage * requestsPerPage;
+  const _indexOfFirstRequest = indexOfLastRequest - requestsPerPage;
 
-  const clearFilters = () => {
+  const _clearFilters = () => {
     onSearchChange('');
     onMethodFilterChange('all');
   };
 
-  const handleDelete = async (request: NetworkRequest) => {
+  const _handleDelete = async (request: NetworkRequest) => {
     try {
       console.log('🔍 Attempting to delete network request:', {
         id: request.id,
@@ -88,7 +88,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
         return;
       }
 
-      console.log('🔍 Using database ID:', request.id);
+      // console.log('🔍 Using database ID:', request.id);
 
       await storageService.deleteNetworkRequest(request.id);
 
@@ -97,14 +97,14 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
         onDelete(String(request.id));
       }
 
-      console.log('✅ Network request deletion attempted successfully');
+      // console.log('✅ Network request deletion attempted successfully');
     } catch (error) {
       console.error('Failed to delete network request:', error);
     }
   };
 
   // Helper function to check if a request is selected
-  const isRequestSelected = (request: NetworkRequest): boolean => {
+  const _isRequestSelected = (request: NetworkRequest): boolean => {
     if (!selectedRequest) return false;
 
     // Compare key properties to determine if it's the same request
@@ -120,16 +120,16 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
 
   // Helper function to extract response time with performance metrics as primary source
   // Helper function to get size display with multiple fallback options
-  const getSizeDisplay = (request: NetworkRequest): string => {
+  const _getSizeDisplay = (request: NetworkRequest): string => {
     // Helper function to safely parse size value
-    const parseSize = (value: any): number => {
+    const _parseSize = (value: any): number => {
       if (value === null || value === undefined) return 0;
-      const parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
+      const _parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
       return isNaN(parsed) || parsed < 0 ? 0 : parsed;
     };
 
     // DEBUG MODE: Show detailed size data for first few requests (remove this after debugging)
-    const showDebug = Math.random() < 0.1; // Show debug for ~10% of requests
+    const _showDebug = Math.random() < 0.1; // Show debug for ~10% of requests
     if (showDebug) {
       console.log('🔍 SIZE DEBUG for', request.url?.substring(0, 50), {
         payload_size: request.payload_size,
@@ -146,40 +146,40 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
     }
 
     // Method 1: Use payload_size if available (most reliable)
-    const payloadSize = parseSize(request.payload_size);
+    const _payloadSize = parseSize(request.payload_size);
     if (payloadSize > 0) {
       if (showDebug) console.log('✅ Using Method 1 (payload_size):', payloadSize);
-      const sizeInKB = payloadSize / 1024;
+      const _sizeInKB = payloadSize / 1024;
       return sizeInKB >= 1 ? `${sizeInKB.toFixed(1)}KB` : `~${sizeInKB.toFixed(1)}KB`;
     }
 
     // Method 2: Calculate from separate size fields (try both naming conventions)
-    const requestSize = parseSize(request.requestSize || request.request_size);
-    const responseSize = parseSize(request.responseSize || request.response_size);
-    const totalSize = requestSize + responseSize;
+    const _requestSize = parseSize(request.requestSize || request.request_size);
+    const _responseSize = parseSize(request.responseSize || request.response_size);
+    const _totalSize = requestSize + responseSize;
 
     if (totalSize > 0) {
       if (showDebug) console.log('✅ Using Method 2 (individual sizes):', { requestSize, responseSize, totalSize });
-      const sizeInKB = totalSize / 1024;
+      const _sizeInKB = totalSize / 1024;
       return sizeInKB >= 1 ? `${sizeInKB.toFixed(1)}KB` : `~${sizeInKB.toFixed(1)}KB`;
     }
 
     // Method 3: Estimate from body content if available (try both naming conventions)
-    let estimatedSize = 0;
+    let _estimatedSize = 0;
 
-    const requestBody = request.requestBody || request.request_body;
+    const _requestBody = request.requestBody || request.request_body;
     if (requestBody) {
       estimatedSize += new Blob([requestBody]).size;
     }
 
-    const responseBody = request.responseBody || request.response_body;
+    const _responseBody = request.responseBody || request.response_body;
     if (responseBody) {
       estimatedSize += new Blob([responseBody]).size;
     }
 
     if (estimatedSize > 0) {
       if (showDebug) console.log('⚠️  Using Method 3 (body estimation):', estimatedSize);
-      const sizeInKB = estimatedSize / 1024;
+      const _sizeInKB = estimatedSize / 1024;
       return `~${sizeInKB.toFixed(1)}KB`;
     }
 
@@ -187,8 +187,8 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
     // Method 4: Estimate from headers if available
     if (request.headers) {
       try {
-        const headerStr = typeof request.headers === 'string' ? request.headers : JSON.stringify(request.headers);
-        const headerSize = new Blob([headerStr]).size;
+        const _headerStr = typeof request.headers === 'string' ? request.headers : JSON.stringify(request.headers);
+        const _headerSize = new Blob([headerStr]).size;
         if (headerSize > 100) { // Only show if meaningful size
           if (showDebug) console.log('⚠️  Using Method 4 (header estimation):', headerSize);
           return `~${Math.round(headerSize / 1024)}KB`;
@@ -204,17 +204,17 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
   };
 
   // Helper function to get stored size (size of data actually saved after truncation)
-  const getStoredSizeDisplay = (request: NetworkRequest): string => {
-    let storedSize = 0;
+  const _getStoredSizeDisplay = (request: NetworkRequest): string => {
+    let _storedSize = 0;
 
     // Calculate size of stored request body
-    const requestBody = request.requestBody || request.request_body;
+    const _requestBody = request.requestBody || request.request_body;
     if (requestBody && typeof requestBody === 'string') {
       storedSize += new Blob([requestBody]).size;
     }
 
     // Calculate size of stored response body
-    const responseBody = request.responseBody || request.response_body;
+    const _responseBody = request.responseBody || request.response_body;
     if (responseBody && typeof responseBody === 'string') {
       storedSize += new Blob([responseBody]).size;
     }
@@ -222,7 +222,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
     // Add estimated header size if available
     if (request.headers) {
       try {
-        const headerStr = typeof request.headers === 'string' ? request.headers : JSON.stringify(request.headers);
+        const _headerStr = typeof request.headers === 'string' ? request.headers : JSON.stringify(request.headers);
         storedSize += new Blob([headerStr]).size;
       } catch (e) {
         // Ignore header size calculation errors
@@ -230,7 +230,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
     }
 
     if (storedSize > 0) {
-      const sizeInKB = storedSize / 1024;
+      const _sizeInKB = storedSize / 1024;
       return sizeInKB >= 1 ? `${sizeInKB.toFixed(1)}KB` : `~${sizeInKB.toFixed(1)}KB`;
     }
 
@@ -238,26 +238,26 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
   };
 
   // Helper function to get size tooltip with detailed breakdown
-  const getSizeTooltip = (request: NetworkRequest): string => {
-    const parseSize = (value: any): number => {
+  const _getSizeTooltip = (request: NetworkRequest): string => {
+    const _parseSize = (value: any): number => {
       if (value === null || value === undefined) return 0;
-      const parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
+      const _parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
       return isNaN(parsed) || parsed < 0 ? 0 : parsed;
     };
 
-    const formatSize = (bytes: number): string => bytes > 0 ? `${(bytes / 1024).toFixed(2)}KB (${bytes} bytes)` : '0KB (0 bytes)';
+    const _formatSize = (bytes: number): string => bytes > 0 ? `${ (bytes / 1024).toFixed(2) }KB (${ bytes } bytes)` : '0KB (0 bytes)';
 
-    const payloadSize = parseSize(request.payload_size);
-    const requestSize = parseSize(request.requestSize || request.request_size);
-    const responseSize = parseSize(request.responseSize || request.response_size);
+    const _payloadSize = parseSize(request.payload_size);
+    const _requestSize = parseSize(request.requestSize || request.request_size);
+    const _responseSize = parseSize(request.responseSize || request.response_size);
 
     // Calculate stored sizes
-    let storedRequestSize = 0;
-    let storedResponseSize = 0;
-    let storedHeaderSize = 0;
+    let _storedRequestSize = 0;
+    let _storedResponseSize = 0;
+    let _storedHeaderSize = 0;
 
-    const requestBody = request.requestBody || request.request_body;
-    const responseBody = request.responseBody || request.response_body;
+    const _requestBody = request.requestBody || request.request_body;
+    const _responseBody = request.responseBody || request.response_body;
 
     if (requestBody && typeof requestBody === 'string') {
       storedRequestSize = new Blob([requestBody]).size;
@@ -270,14 +270,14 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
     // Add header size calculation to match stored size column
     if (request.headers) {
       try {
-        const headerStr = typeof request.headers === 'string' ? request.headers : JSON.stringify(request.headers);
+        const _headerStr = typeof request.headers === 'string' ? request.headers : JSON.stringify(request.headers);
         storedHeaderSize = new Blob([headerStr]).size;
       } catch (e) {
         // Ignore header size calculation errors
       }
     }
 
-    let tooltip = 'Original Size (before truncation):\n';
+    let _tooltip = 'Original Size (before truncation):\n';
 
     if (payloadSize > 0) {
       if (requestSize > 0 || responseSize > 0) {
@@ -291,11 +291,11 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
       tooltip += `Total: ${formatSize(requestSize + responseSize)}`;
     } else {
       // Try to estimate from body content
-      const requestBody = request.requestBody || request.request_body;
-      const responseBody = request.responseBody || request.response_body;
+      const _requestBody = request.requestBody || request.request_body;
+      const _responseBody = request.responseBody || request.response_body;
 
-      let estimatedRequest = 0;
-      let estimatedResponse = 0;
+      let _estimatedRequest = 0;
+      let _estimatedResponse = 0;
 
       if (requestBody) estimatedRequest = new Blob([requestBody]).size;
       if (responseBody) estimatedResponse = new Blob([responseBody]).size;
@@ -311,7 +311,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
     }
 
     // Add stored size information if different from original
-    const totalStored = storedRequestSize + storedResponseSize + storedHeaderSize;
+    const _totalStored = storedRequestSize + storedResponseSize + storedHeaderSize;
     if (totalStored > 0) {
       tooltip += '\n\nStored Size (after truncation):\n';
       if (storedRequestSize > 0) tooltip += `Request Stored: ${formatSize(storedRequestSize)}\n`;
@@ -320,7 +320,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
       tooltip += `Total Stored: ${formatSize(totalStored)}`;
 
       // Show space saved
-      const originalTotal = payloadSize > 0 ? payloadSize : (requestSize + responseSize);
+      const _originalTotal = payloadSize > 0 ? payloadSize : (requestSize + responseSize);
       if (originalTotal > totalStored) {
         tooltip += `\nSpace Saved: ${formatSize(originalTotal - totalStored)}`;
       }
@@ -330,11 +330,11 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
   };
 
   // Helper function to get method tooltip with request details
-  const getMethodTooltip = (request: NetworkRequest): string => {
-    const requestBody = request.requestBody || request.request_body;
-    const responseBody = request.responseBody || request.response_body;
+  const _getMethodTooltip = (request: NetworkRequest): string => {
+    const _requestBody = request.requestBody || request.request_body;
+    const _responseBody = request.responseBody || request.response_body;
 
-    let tooltip = `${request.method} ${request.url}\n\n`;
+    let _tooltip = `${ request.method } ${ request.url }\n\n`;
 
     if (requestBody) {
       tooltip += `Request Body (${requestBody.length} chars):\n`;
@@ -352,12 +352,12 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
 
     return tooltip.trim();
   };
-  const getResponseTimeTooltip = (request: NetworkRequest): string => {
-    let tooltip = 'Response Time Details:\n';
+  const _getResponseTimeTooltip = (request: NetworkRequest): string => {
+    let _tooltip = 'Response Time Details:\n';
 
     // Check performance metrics first
     if (request.performanceMetrics && typeof request.performanceMetrics === 'object') {
-      const metrics = request.performanceMetrics;
+      const _metrics = request.performanceMetrics;
       tooltip += `Total Time: ${metrics.totalTime || 'N/A'}ms\n`;
 
       if (metrics.dnsLookup) tooltip += `DNS Lookup: ${metrics.dnsLookup}ms\n`;
@@ -385,14 +385,14 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
 
     return tooltip.trim();
   };
-  const getHeadersTooltip = (request: NetworkRequest): string => {
+  const _getHeadersTooltip = (request: NetworkRequest): string => {
     try {
       let requestHeaders: any = {};
       let responseHeaders: any = {};
 
       // Parse headers using same logic as getHeaderPreview
       if (request.headers) {
-        const headerData = typeof request.headers === 'string' ? JSON.parse(request.headers) : request.headers;
+        const _headerData = typeof request.headers === 'string' ? JSON.parse(request.headers) : request.headers;
         requestHeaders = headerData.request || {};
         responseHeaders = headerData.response || {};
       } else {
@@ -404,10 +404,10 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
         }
       }
 
-      let tooltip = '';
+      let _tooltip = '';
 
       // Show request headers
-      const requestHeaderEntries = Object.entries(requestHeaders);
+      const _requestHeaderEntries = Object.entries(requestHeaders);
       if (requestHeaderEntries.length > 0) {
         tooltip += 'Request Headers:\n';
         requestHeaderEntries.forEach(([key, value]) => {
@@ -416,7 +416,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
       }
 
       // Show response headers
-      const responseHeaderEntries = Object.entries(responseHeaders);
+      const _responseHeaderEntries = Object.entries(responseHeaders);
       if (responseHeaderEntries.length > 0) {
         if (tooltip) tooltip += '\n';
         tooltip += 'Response Headers:\n';
@@ -435,10 +435,10 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
     }
   };
 
-  const getResponseTime = (request: NetworkRequest): string => {
+  const _getResponseTime = (request: NetworkRequest): string => {
     // First try to get performance metrics total time (already parsed object from background)
     if (request.performanceMetrics && typeof request.performanceMetrics === 'object') {
-      const totalTime = request.performanceMetrics.totalTime;
+      const _totalTime = request.performanceMetrics.totalTime;
       if (totalTime && typeof totalTime === 'number') {
         return `${Math.round(totalTime)}ms`;
       }
@@ -452,14 +452,14 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
     return 'N/A';
   };
 
-  const getHeaderPreview = (request: NetworkRequest): string => {
+  const _getHeaderPreview = (request: NetworkRequest): string => {
     try {
       let requestHeaders: any = {};
       let responseHeaders: any = {};
 
       // Use same robust header parsing logic as detail view
       if (request.headers) {
-        const headerData = typeof request.headers === 'string' ? JSON.parse(request.headers) : request.headers;
+        const _headerData = typeof request.headers === 'string' ? JSON.parse(request.headers) : request.headers;
         requestHeaders = headerData.request || {};
         responseHeaders = headerData.response || {};
       }
@@ -477,19 +477,19 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
       const allHeaders: any = { ...requestHeaders, ...responseHeaders };
 
       // Priority headers to show in preview
-      const priorityHeaders = ['content-type', 'authorization', 'accept', 'user-agent', 'x-api-key'];
+      const _priorityHeaders = ['content-type', 'authorization', 'accept', 'user-agent', 'x-api-key'];
 
       for (const priority of priorityHeaders) {
         if (allHeaders[priority]) {
-          const value = String(allHeaders[priority]);
+          const _value = String(allHeaders[priority]);
           return `${priority}: ${value.substring(0, 30)}${value.length > 30 ? '...' : ''}`;
         }
       }
 
       // If no priority headers, show first available header
-      const firstHeader = Object.entries(allHeaders)[0];
+      const _firstHeader = Object.entries(allHeaders)[0];
       if (firstHeader) {
-        const value = String(firstHeader[1]);
+        const _value = String(firstHeader[1]);
         return `${firstHeader[0]}: ${value.substring(0, 30)}${value.length > 30 ? '...' : ''}`;
       }
 
@@ -500,20 +500,20 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
     }
   };
 
-  const generatePageNumbers = () => {
+  const _generatePageNumbers = () => {
     const pageNumbers: (number | string)[] = [];
-    const maxVisiblePages = 7;
+    const _maxVisiblePages = 7;
 
     if (totalPages <= maxVisiblePages) {
       // Show all pages if total is small
-      for (let i = 1; i <= totalPages; i++) {
+      for (let _i = 1; i <= totalPages; i++) {
         pageNumbers.push(i);
       }
     } else {
       // Google-style pagination logic
       if (currentPage <= 4) {
         // Show 1-5 ... totalPages
-        for (let i = 1; i <= 5; i++) {
+        for (let _i = 1; i <= 5; i++) {
           pageNumbers.push(i);
         }
         if (totalPages > 5) {
@@ -524,14 +524,14 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
         // Show 1 ... (totalPages-4)-totalPages
         pageNumbers.push(1);
         pageNumbers.push('...');
-        for (let i = totalPages - 4; i <= totalPages; i++) {
+        for (let _i = totalPages - 4; i <= totalPages; i++) {
           pageNumbers.push(i);
         }
       } else {
         // Show 1 ... (currentPage-1) currentPage (currentPage+1) ... totalPages
         pageNumbers.push(1);
         pageNumbers.push('...');
-        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+        for (let _i = currentPage - 1; i <= currentPage + 1; i++) {
           pageNumbers.push(i);
         }
         pageNumbers.push('...');
@@ -715,9 +715,9 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
               </thead>
               <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                 {requests.map((request, index) => {
-                  const isSelected = isRequestSelected(request);
+                  const _isSelected = isRequestSelected(request);
                   // Create a more unique key to prevent React key conflicts with duplicates
-                  const uniqueKey = `${request.url}-${request.method}-${request.timestamp}-${request.status}-${index}`;
+                  const _uniqueKey = `${ request.url }-${ request.method }-${ request.timestamp }-${ request.status }-${ index }`;
                   return (
                     <tr
                       key={uniqueKey}

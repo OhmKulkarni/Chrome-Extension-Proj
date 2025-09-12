@@ -10,7 +10,7 @@ if (typeof window._extensionInjected !== 'undefined') {
 
 // Performance monitoring state (prevent duplicate declarations)
 if (typeof performanceMetricsState === 'undefined') {
-  var performanceMetricsState = {
+  var _performanceMetricsState = {
     observer: null,
     pendingRequests: new Map(),
     isObserving: false,
@@ -22,35 +22,35 @@ if (typeof performanceMetricsState === 'undefined') {
 // Prevent duplicate variable declarations
 if (typeof extensionSettings === 'undefined') {
   // Default settings
-  var extensionSettings = {
+  var _extensionSettings = {
     maxBodySize: 2000 // Default truncation limit
   };
 }
 
 // Track original functions and interception state (only if not already declared)
 if (typeof originalFetch === 'undefined') {
-  var originalFetch = window.fetch;
-  var originalXhrOpen = XMLHttpRequest.prototype.open;
-  var originalXhrSend = XMLHttpRequest.prototype.send;
-  var originalXhrSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader;
-  var originalConsoleError = console.error;
-  var originalConsoleWarn = console.warn;
-  var originalConsoleInfo = console.info;
-  var originalConsoleLog = console.log;
+  var _originalFetch = window.fetch;
+  var _originalXhrOpen = XMLHttpRequest.prototype.open;
+  var _originalXhrSend = XMLHttpRequest.prototype.send;
+  var _originalXhrSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader;
+  var _originalConsoleError = console.error;
+  var _originalConsoleWarn = console.warn;
+  var _originalConsoleInfo = console.info;
+  var _originalConsoleLog = console.log;
 }
-let isIntercepting = false;
-let isConsoleIntercepting = false;
+let _isIntercepting = false;
+let _isConsoleIntercepting = false;
 
 // State tracking for main-world context (no direct Chrome API access)
 // FIX: Start with disabled defaults to prevent inappropriate logging on tab reactivation
-let mainWorldState = {
+let _mainWorldState = {
   extensionEnabled: true,
   networkLoggingEnabled: false,  // Start disabled, will be enabled by content script if needed
   consoleLoggingEnabled: false   // Start disabled, will be enabled by content script if needed
 };
 
 // Error statistics tracking
-let errorStats = {
+let _errorStats = {
   crossOriginErrors: 0,
   regularErrors: 0,
   unhandledRejections: 0,
@@ -62,14 +62,14 @@ let errorStats = {
 };
 
 // Communication with content script for Chrome API access
-const requestFromContentScript = (action, data = {}) => {
+const _requestFromContentScript = (action, data = {}) => {
   return new Promise((resolve) => {
-    const requestId = Math.random().toString(36);
-    let resolved = false;
+    const _requestId = Math.random().toString(36);
+    let _resolved = false;
 
     originalConsoleLog.call(console, 'MAIN-WORLD: Requesting from content script:', action, 'ID:', requestId);
 
-    const responseHandler = (event) => {
+    const _responseHandler = (event) => {
       if (event.detail?.requestId === requestId && !resolved) {
         resolved = true;
         window.removeEventListener('contentScriptResponse', responseHandler);
@@ -80,7 +80,7 @@ const requestFromContentScript = (action, data = {}) => {
 
     window.addEventListener('contentScriptResponse', responseHandler);
     window.dispatchEvent(new CustomEvent('contentScriptRequest', {
-      detail: { action, data, requestId }
+      detail: { action, _data, requestId }
     }));
 
     // Cleanup timeout
@@ -96,10 +96,10 @@ const requestFromContentScript = (action, data = {}) => {
 };
 
 // Check if logging is enabled for current tab
-const isLoggingEnabled = async () => {
+const _isLoggingEnabled = async () => {
   try {
     originalConsoleLog.call(console, 'MAIN-WORLD: Checking if logging is enabled...');
-    const result = await requestFromContentScript('checkNetworkLogging');
+    const _result = await requestFromContentScript('checkNetworkLogging');
     originalConsoleLog.call(console, 'MAIN-WORLD: Network logging check result:', result);
     return result?.enabled ?? mainWorldState.networkLoggingEnabled;
   } catch (error) {
@@ -109,10 +109,10 @@ const isLoggingEnabled = async () => {
 };
 
 // Check if console error logging is enabled for current tab
-const isConsoleLoggingEnabled = async () => {
+const _isConsoleLoggingEnabled = async () => {
   try {
     originalConsoleLog.call(console, 'MAIN-WORLD: Checking if console logging is enabled...');
-    const result = await requestFromContentScript('checkConsoleLogging');
+    const _result = await requestFromContentScript('checkConsoleLogging');
     originalConsoleLog.call(console, 'MAIN-WORLD: Console logging check result:', result);
     return result?.enabled ?? mainWorldState.consoleLoggingEnabled;
   } catch (error) {
@@ -125,7 +125,7 @@ const isConsoleLoggingEnabled = async () => {
 function getSafeDomain(url) {
   try {
     // Handle relative URLs by resolving against current origin
-    const resolvedUrl = url.startsWith('/') || url.startsWith('./') || url.startsWith('../')
+    const _resolvedUrl = url.startsWith('/') || url.startsWith('./') || url.startsWith('../')
       ? new URL(url, window.location.origin)
       : new URL(url);
     return resolvedUrl.hostname;
@@ -133,7 +133,7 @@ function getSafeDomain(url) {
     originalConsoleLog.call(console, 'MAIN-WORLD: Could not parse URL, using fallback domain:', url);
     // Extract domain from URL string manually for absolute URLs
     if (typeof url === 'string') {
-      const match = url.match(/^https?:\/\/([^\/]+)/);
+      const _match = url.match(/^https?:\/\/([^\/]+)/);
       if (match) {
         return match[1];
       }
@@ -151,7 +151,7 @@ function truncateBody(text, maxSize = extensionSettings.maxBodySize) {
   if (!text || typeof text !== 'string') return '';
 
   // Safety: Even if user sets 0 (no limit), apply a reasonable safety limit to prevent memory issues
-  const SAFETY_MAX_SIZE = 50000; // 50KB safety limit
+  const _SAFETY_MAX_SIZE = 50000; // 50KB safety limit
   let effectiveMaxSize;
 
   if (maxSize === 0) {
@@ -171,26 +171,26 @@ function truncateBody(text, maxSize = extensionSettings.maxBodySize) {
 }
 
 // Performance Metrics Collection Functions
-const extractPerformanceMetrics = (url, requestStartTime, manualDuration) => {
+const _extractPerformanceMetrics = (url, requestStartTime, manualDuration) => {
   try {
     // Get all resource entries for this URL
-    const entries = performance.getEntriesByName(url, 'resource');
+    const _entries = performance.getEntriesByName(url, 'resource');
     if (entries.length === 0) return null;
 
     // Find the entry closest to our request start time
-    const targetEntry = entries.find(entry => {
-      const timeDiff = Math.abs(entry.startTime - (requestStartTime - performance.timeOrigin));
+    const _targetEntry = entries.find(entry => {
+      const _timeDiff = Math.abs(entry.startTime - (requestStartTime - performance.timeOrigin));
       return timeDiff < 100; // Within 100ms tolerance
     }) || entries[entries.length - 1]; // Fallback to latest entry
 
     // Check if we have detailed timing data (not restricted by cross-origin policies)
-    const hasDetailedTiming = targetEntry.domainLookupStart > 0 &&
+    const _hasDetailedTiming = targetEntry.domainLookupStart > 0 &&
                              targetEntry.connectStart > 0 &&
                              targetEntry.requestStart > 0 &&
                              targetEntry.responseStart > 0;
 
     // Extract timing metrics with safety checks
-    const metrics = {
+    const _metrics = {
       dnsLookup: hasDetailedTiming && targetEntry.domainLookupEnd && targetEntry.domainLookupStart ?
         Math.max(0, targetEntry.domainLookupEnd - targetEntry.domainLookupStart) : 0,
 
@@ -212,13 +212,13 @@ const extractPerformanceMetrics = (url, requestStartTime, manualDuration) => {
 
       // Use Resource Timing total if available and reasonable, otherwise use manual timing
       totalTime: (() => {
-        const resourceTotal = targetEntry.responseEnd && targetEntry.startTime ?
+        const _resourceTotal = targetEntry.responseEnd && targetEntry.startTime ?
           Math.max(0, targetEntry.responseEnd - targetEntry.startTime) : 0;
 
         // If Resource Timing total seems unreasonable (too far from manual), use manual
         if (resourceTotal > 0 && manualDuration > 0) {
-          const difference = Math.abs(resourceTotal - manualDuration);
-          const percentDiff = difference / Math.max(resourceTotal, manualDuration);
+          const _difference = Math.abs(resourceTotal - manualDuration);
+          const _percentDiff = difference / Math.max(resourceTotal, manualDuration);
 
           // If difference is > 50%, prefer manual timing (more reliable)
           return percentDiff > 0.5 ? manualDuration : resourceTotal;
@@ -267,7 +267,7 @@ const extractPerformanceMetrics = (url, requestStartTime, manualDuration) => {
   }
 };
 
-const initializePerformanceMonitoring = () => {
+const _initializePerformanceMonitoring = () => {
   if (!window.PerformanceObserver || performanceMetricsState.isObserving) return;
 
   try {
@@ -277,15 +277,15 @@ const initializePerformanceMonitoring = () => {
         for (const entry of list.getEntries()) {
           if (entry.entryType === 'resource') {
             // Check if we have pending requests for this URL
-            const pendingKey = `${entry.name}:${Math.floor(entry.startTime)}`;
-            const approximateKeys = Array.from(performanceMetricsState.pendingRequests.keys())
+            const _pendingKey = `${ entry.name }:${ Math.floor(entry.startTime) }`;
+            const _approximateKeys = Array.from(performanceMetricsState.pendingRequests.keys())
               .filter(key => key.startsWith(entry.name));
 
             // If we have pending requests, extract metrics for the closest match
             approximateKeys.forEach(key => {
-              const pendingData = performanceMetricsState.pendingRequests.get(key);
+              const _pendingData = performanceMetricsState.pendingRequests.get(key);
               if (pendingData && Math.abs(entry.startTime - pendingData.startTime) < 200) {
-                const metrics = extractPerformanceMetrics(entry.name, pendingData.startTime, pendingData.manualDuration);
+                const _metrics = extractPerformanceMetrics(entry.name, pendingData.startTime, pendingData.manualDuration);
                 if (metrics) {
                   pendingData.performanceMetrics = metrics;
                 }
@@ -304,8 +304,8 @@ const initializePerformanceMonitoring = () => {
 
     // Set up cleanup interval to prevent memory leaks
     performanceMetricsState.cleanupInterval = setInterval(() => {
-      const now = Date.now();
-      const pendingRequests = performanceMetricsState.pendingRequests;
+      const _now = Date.now();
+      const _pendingRequests = performanceMetricsState.pendingRequests;
 
       // Remove entries older than 30 seconds
       for (const [key, data] of pendingRequests.entries()) {
@@ -316,10 +316,10 @@ const initializePerformanceMonitoring = () => {
 
       // If we have too many pending requests, clean up oldest ones
       if (pendingRequests.size > performanceMetricsState.maxPendingRequests) {
-        const sortedEntries = Array.from(pendingRequests.entries())
+        const _sortedEntries = Array.from(pendingRequests.entries())
           .sort((a, b) => a[1].timestamp - b[1].timestamp);
 
-        const toRemove = sortedEntries.slice(0, pendingRequests.size - performanceMetricsState.maxPendingRequests);
+        const _toRemove = sortedEntries.slice(0, pendingRequests.size - performanceMetricsState.maxPendingRequests);
         toRemove.forEach(([key]) => pendingRequests.delete(key));
 
         originalConsoleWarn.call(console, 'MAIN-WORLD: Cleaned up', toRemove.length, 'old performance requests');
@@ -341,10 +341,10 @@ const initializePerformanceMonitoring = () => {
   }
 };
 
-const addRequestToPendingMetrics = (url, startTime, manualDuration) => {
+const _addRequestToPendingMetrics = (url, startTime, manualDuration) => {
   if (!performanceMetricsState.isObserving) return;
 
-  const key = `${url}:${Math.floor(startTime)}`;
+  const _key = `${ url }:${ Math.floor(startTime) }`;
   performanceMetricsState.pendingRequests.set(key, {
     url,
     startTime,
@@ -353,11 +353,11 @@ const addRequestToPendingMetrics = (url, startTime, manualDuration) => {
   });
 };
 
-const getAndRemovePendingMetrics = (url, startTime) => {
+const _getAndRemovePendingMetrics = (url, startTime) => {
   if (!performanceMetricsState.isObserving) return null;
 
-  const key = `${url}:${Math.floor(startTime)}`;
-  const pendingData = performanceMetricsState.pendingRequests.get(key);
+  const _key = `${ url }:${ Math.floor(startTime) }`;
+  const _pendingData = performanceMetricsState.pendingRequests.get(key);
 
   if (pendingData && pendingData.performanceMetrics) {
     performanceMetricsState.pendingRequests.delete(key);
@@ -365,16 +365,16 @@ const getAndRemovePendingMetrics = (url, startTime) => {
   }
 
   // Fallback: try to extract metrics directly
-  const metrics = extractPerformanceMetrics(url, startTime);
+  const _metrics = extractPerformanceMetrics(url, startTime);
   performanceMetricsState.pendingRequests.delete(key); // Clean up even if no metrics
   return metrics;
 };
 
 // Create our main world interception
-const interceptFetch = (originalFetch, input, init) => {
-  const startTime = Date.now();
-  const performanceStartTime = performance.now() + performance.timeOrigin;
-  let url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+const _interceptFetch = (originalFetch, input, init) => {
+  const _startTime = Date.now();
+  const _performanceStartTime = performance.now() + performance.timeOrigin;
+  let _url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
 
   // CRITICAL: Resolve relative URLs to absolute URLs for proper database storage
   try {
@@ -387,8 +387,8 @@ const interceptFetch = (originalFetch, input, init) => {
 
   // Call the original fetch
   return originalFetch.call(this, input, init).then(async response => {
-    const endTime = performance.now() + performance.timeOrigin;
-    const manualDuration = endTime - performanceStartTime;
+    const _endTime = performance.now() + performance.timeOrigin;
+    const _manualDuration = endTime - performanceStartTime;
 
     // Add request to pending performance metrics tracking with manual duration
     addRequestToPendingMetrics(url, performanceStartTime, manualDuration);
@@ -398,33 +398,33 @@ const interceptFetch = (originalFetch, input, init) => {
       originalConsoleLog.call(console, 'MAIN-WORLD: Intercepted fetch request:', url);
     }
 
-    const endTimeMs = Date.now();
+    const _endTimeMs = Date.now();
     // Log response (reduced for performance)
     if (Math.random() < 0.1) { // Only log 10% of responses
       originalConsoleLog.call(console, 'MAIN-WORLD: Fetch response received for:', url, 'Status:', response.status);
     }
 
     // Try to capture response body
-    let responseBody = '';
-    let requestBody = '';
-    let originalRequestSize = 0;
-    let originalResponseSize = 0;
+    let _responseBody = '';
+    let _requestBody = '';
+    let _originalRequestSize = 0;
+    let _originalResponseSize = 0;
 
     try {
       // Capture request body
       if (init && init.body) {
-        const originalRequestBody = String(init.body);
+        const _originalRequestBody = String(init.body);
         originalRequestSize = new Blob([originalRequestBody]).size; // Calculate size BEFORE truncation
         requestBody = truncateBody(originalRequestBody, extensionSettings.maxBodySize);
       }
 
       // Clone response to capture body
-      const responseClone = response.clone();
-      const contentType = response.headers.get('content-type') || '';
+      const _responseClone = response.clone();
+      const _contentType = response.headers.get('content-type') || '';
 
       if (contentType.includes('application/json') || contentType.includes('text/')) {
         try {
-          const originalResponseBody = await responseClone.text();
+          const _originalResponseBody = await responseClone.text();
           originalResponseSize = new Blob([originalResponseBody]).size; // Calculate size BEFORE truncation
           responseBody = truncateBody(originalResponseBody, extensionSettings.maxBodySize);
         } catch (e) {
@@ -436,7 +436,7 @@ const interceptFetch = (originalFetch, input, init) => {
     }
 
     // Capture request headers
-    let requestHeaders = {};
+    let _requestHeaders = {};
     if (init && init.headers) {
       if (init.headers instanceof Headers) {
         for (const [key, value] of init.headers.entries()) {
@@ -448,22 +448,22 @@ const interceptFetch = (originalFetch, input, init) => {
     }
 
     // Capture response headers
-    let responseHeaders = {};
+    let _responseHeaders = {};
     for (const [key, value] of response.headers.entries()) {
       responseHeaders[key] = value;
     }
 
     // Extract performance metrics with a small delay to allow metrics to be available
-    let performanceMetrics = null;
+    let _performanceMetrics = null;
     setTimeout(() => {
       performanceMetrics = getAndRemovePendingMetrics(url, performanceStartTime);
 
       // Use the accurate sizes calculated before truncation
-      const requestSize = originalRequestSize;
-      const responseSize = originalResponseSize;
+      const _requestSize = originalRequestSize;
+      const _responseSize = originalResponseSize;
 
       // Send captured data including performance metrics and size calculations
-      const capturedData = {
+      const _capturedData = {
         type: 'fetch',
         method: (init?.method || 'GET').toUpperCase(),
         url: url,
@@ -510,11 +510,11 @@ const interceptFetch = (originalFetch, input, init) => {
 };
 
 // XHR interception function
-const interceptXHR = (xhr, originalXhrSend, data) => {
+const _interceptXHR = (xhr, originalXhrSend, data) => {
   xhr.addEventListener('loadend', () => {
-    const endTime = Date.now();
-    const performanceEndTime = performance.now() + performance.timeOrigin;
-    const manualDuration = xhr._performanceStartTime ? performanceEndTime - xhr._performanceStartTime : 0;
+    const _endTime = Date.now();
+    const _performanceEndTime = performance.now() + performance.timeOrigin;
+    const _manualDuration = xhr._performanceStartTime ? performanceEndTime - xhr._performanceStartTime : 0;
 
     // Update pending metrics with manual duration
     if (xhr._url && xhr._performanceStartTime && manualDuration > 0) {
@@ -522,9 +522,9 @@ const interceptXHR = (xhr, originalXhrSend, data) => {
     }
 
     // Capture response headers
-    let responseHeaders = {};
+    let _responseHeaders = {};
     try {
-      const headerString = xhr.getAllResponseHeaders();
+      const _headerString = xhr.getAllResponseHeaders();
       if (headerString) {
         headerString.split('\r\n').forEach(line => {
           if (line.includes(':')) {
@@ -538,8 +538,8 @@ const interceptXHR = (xhr, originalXhrSend, data) => {
     }
 
     // Capture response body and calculate accurate size
-    let responseBody = '';
-    let originalResponseSize = 0;
+    let _responseBody = '';
+    let _originalResponseSize = 0;
     try {
       if (xhr.responseText) {
         originalResponseSize = new Blob([xhr.responseText]).size; // Calculate size BEFORE truncation
@@ -551,14 +551,14 @@ const interceptXHR = (xhr, originalXhrSend, data) => {
 
     // Extract performance metrics with a small delay
     setTimeout(() => {
-      const performanceMetrics = getAndRemovePendingMetrics(xhr._url, xhr._performanceStartTime);
+      const _performanceMetrics = getAndRemovePendingMetrics(xhr._url, xhr._performanceStartTime);
 
       // Calculate accurate sizes (request size from original data, response size calculated above)
-      const requestSize = data ? new Blob([String(data)]).size : 0;
-      const responseSize = originalResponseSize;
+      const _requestSize = data ? new Blob([String(data)]).size : 0;
+      const _responseSize = originalResponseSize;
 
       // Send captured data
-      const capturedData = {
+      const _capturedData = {
         type: 'xhr',
         method: xhr._method || 'GET',
         url: xhr._url,
@@ -611,7 +611,7 @@ const interceptXHR = (xhr, originalXhrSend, data) => {
 };
 
 // Console interception functions
-const interceptConsole = (originalMethod, methodName, severity, callSiteStack, ...args) => {
+const _interceptConsole = (originalMethod, methodName, severity, callSiteStack, ...args) => {
   // Call original method first to maintain normal console behavior
   try {
     originalMethod.apply(console, args);
@@ -621,9 +621,9 @@ const interceptConsole = (originalMethod, methodName, severity, callSiteStack, .
   }
 
   // Check if we should capture this log level
-  const shouldCapture = async () => {
+  const _shouldCapture = async () => {
     try {
-      const isEnabled = await isConsoleLoggingEnabled();
+      const _isEnabled = await isConsoleLoggingEnabled();
       if (!isEnabled) return false;
 
       // For now, capture all console calls when enabled
@@ -640,7 +640,7 @@ const interceptConsole = (originalMethod, methodName, severity, callSiteStack, .
 
     try {
       // Convert arguments to strings
-      const message = args.map(arg => {
+      const _message = args.map(arg => {
         if (typeof arg === 'object') {
           try {
             return JSON.stringify(arg, null, 2);
@@ -660,7 +660,7 @@ const interceptConsole = (originalMethod, methodName, severity, callSiteStack, .
       }
 
       // Create console error data that matches main branch format
-      const consoleData = {
+      const _consoleData = {
         message: message,
         severity: severity,
         timestamp: new Date().toISOString(),
@@ -676,16 +676,16 @@ const interceptConsole = (originalMethod, methodName, severity, callSiteStack, .
 
       // Try to parse stack trace for line/column info and clean it
       if (stack) {
-        const stackLines = stack.split('\n');
+        const _stackLines = stack.split('\n');
 
         // STACK TRACE FIX: Clean the stack to remove interceptor frames
         // Remove: Error constructor, console override function, and interceptConsole function
         // Find the first frame that's not from the extension
-        let cleanedStackLines = [];
-        let foundUserCode = false;
+        let _cleanedStackLines = [];
+        let _foundUserCode = false;
 
-        for (let i = 0; i < stackLines.length; i++) {
-          const line = stackLines[i];
+        for (let _i = 0; i < stackLines.length; i++) {
+          const _line = stackLines[i];
 
           // Skip extension frames (contains chrome-extension://)
           if (line.includes('chrome-extension://') ||
@@ -700,7 +700,7 @@ const interceptConsole = (originalMethod, methodName, severity, callSiteStack, .
           if (!foundUserCode) {
             foundUserCode = true;
             // Extract line/column from first user code frame
-            const match = line.match(/:(\d+):(\d+)\)?$/);
+            const _match = line.match(/:(\d+):(\d+)\)?$/);
             if (match) {
               consoleData.lineNumber = parseInt(match[1], 10);
               consoleData.columnNumber = parseInt(match[2], 10);
@@ -753,7 +753,7 @@ try {
   });
 
   // Start interception
-  const startInterception = () => {
+  const _startInterception = () => {
     if (isIntercepting) return;
 
     originalConsoleLog.call(console, 'MAIN-WORLD: Starting network interception...');
@@ -805,11 +805,11 @@ try {
   };
 
   // Error event handlers (for cleanup)
-  let uncaughtErrorHandler = null;
-  let unhandledRejectionHandler = null;
+  let _uncaughtErrorHandler = null;
+  let _unhandledRejectionHandler = null;
 
   // Start console interception
-  const startConsoleInterception = () => {
+  const _startConsoleInterception = () => {
     if (isConsoleIntercepting) return;
 
     originalConsoleLog.call(console, 'MAIN-WORLD: Starting console interception...');
@@ -818,25 +818,25 @@ try {
     // Override console methods
     console.error = function(...args) {
       // STACK TRACE FIX: Capture stack trace immediately at console call site
-      const callSiteStack = (new Error().stack) || 'No stack trace available';
+      const _callSiteStack = (new Error().stack) || 'No stack trace available';
       interceptConsole(originalConsoleError, 'error', 'error', callSiteStack, ...args);
     };
 
     console.warn = function(...args) {
       // STACK TRACE FIX: Capture stack trace immediately at console call site
-      const callSiteStack = (new Error().stack) || 'No stack trace available';
+      const _callSiteStack = (new Error().stack) || 'No stack trace available';
       interceptConsole(originalConsoleWarn, 'warn', 'warn', callSiteStack, ...args);
     };
 
     console.info = function(...args) {
       // STACK TRACE FIX: Capture stack trace immediately at console call site
-      const callSiteStack = (new Error().stack) || 'No stack trace available';
+      const _callSiteStack = (new Error().stack) || 'No stack trace available';
       interceptConsole(originalConsoleInfo, 'info', 'info', callSiteStack, ...args);
     };
 
     console.log = function(...args) {
       // STACK TRACE FIX: Capture stack trace immediately at console call site
-      const callSiteStack = (new Error().stack) || 'No stack trace available';
+      const _callSiteStack = (new Error().stack) || 'No stack trace available';
       interceptConsole(originalConsoleLog, 'log', 'info', callSiteStack, ...args);
     };
 
@@ -852,7 +852,7 @@ try {
         });
 
         // Detect cross-origin "Script error." and provide more context
-        const isCrossOriginError = event.message === 'Script error.' && !event.filename;
+        const _isCrossOriginError = event.message === 'Script error.' && !event.filename;
         let errorMessage, stack, filename;
 
         if (isCrossOriginError) {
@@ -868,7 +868,7 @@ try {
         }
 
         // Create console error data matching our format
-        const consoleData = {
+        const _consoleData = {
           message: errorMessage,
           severity: 'error',
           timestamp: new Date().toISOString(),
@@ -910,11 +910,11 @@ try {
         });
 
         // Handle unhandled promise rejections
-        const errorMessage = `Unhandled Promise Rejection: ${event.reason}`;
-        const stack = event.reason?.stack || 'No stack trace available';
+        const _errorMessage = `Unhandled Promise Rejection: ${ event.reason }`;
+        const _stack = event.reason?.stack || 'No stack trace available';
 
         // Create console error data matching our format
-        const consoleData = {
+        const _consoleData = {
           message: errorMessage,
           severity: 'error',
           timestamp: new Date().toISOString(),
@@ -954,7 +954,7 @@ try {
   };
 
   // Stop interception
-  const stopInterception = () => {
+  const _stopInterception = () => {
     if (!isIntercepting) return;
 
     originalConsoleLog.call(console, ' MAIN_WORLD: Stopping network interception...');
@@ -968,7 +968,7 @@ try {
   };
 
   // Stop console interception
-  const stopConsoleInterception = () => {
+  const _stopConsoleInterception = () => {
     if (!isConsoleIntercepting) return;
 
     originalConsoleLog.call(console, ' MAIN_WORLD: Stopping console interception...');
@@ -1011,10 +1011,10 @@ try {
     // Check initial states - with multiple retries for tab reactivation scenarios
     originalConsoleLog.call(console, ' MAIN_WORLD: Checking initial logging states...');
 
-    let networkEnabled = false;
-    let consoleEnabled = false;
-    let retryCount = 0;
-    const maxRetries = 3;
+    let _networkEnabled = false;
+    let _consoleEnabled = false;
+    let _retryCount = 0;
+    const _maxRetries = 3;
 
     while (retryCount < maxRetries) {
       try {
@@ -1071,7 +1071,7 @@ try {
     originalConsoleLog.call(console, 'MAIN-WORLD: Tab logging state change received:', event.detail);
 
     if (event.detail?.networkEnabled !== undefined) {
-      const networkEnabled = event.detail.networkEnabled && mainWorldState.extensionEnabled;
+      const _networkEnabled = event.detail.networkEnabled && mainWorldState.extensionEnabled;
 
       if (networkEnabled && !isIntercepting) {
         originalConsoleLog.call(console, 'MAIN-WORLD: Starting network interception due to state change');
@@ -1083,7 +1083,7 @@ try {
     }
 
     if (event.detail?.consoleEnabled !== undefined) {
-      const consoleEnabled = event.detail.consoleEnabled && mainWorldState.extensionEnabled;
+      const _consoleEnabled = event.detail.consoleEnabled && mainWorldState.extensionEnabled;
 
       if (consoleEnabled && !isConsoleIntercepting) {
         originalConsoleLog.call(console, 'MAIN-WORLD: Starting console interception due to state change');
@@ -1138,11 +1138,11 @@ window.addEventListener('checkMainWorldActive', (event) => {
 
 // Global debugging functions for developers
 window.getErrorStats = () => {
-  const runtime = Date.now() - errorStats.startTime;
-  const runtimeMinutes = Math.round(runtime / 60000 * 10) / 10;
+  const _runtime = Date.now() - errorStats.startTime;
+  const _runtimeMinutes = Math.round(runtime / 60000 * 10) / 10;
 
-  const totalErrors = errorStats.crossOriginErrors + errorStats.regularErrors + errorStats.unhandledRejections;
-  const totalConsole = errorStats.consoleErrors + errorStats.consoleWarns + errorStats.consoleInfos + errorStats.consoleLogs;
+  const _totalErrors = errorStats.crossOriginErrors + errorStats.regularErrors + errorStats.unhandledRejections;
+  const _totalConsole = errorStats.consoleErrors + errorStats.consoleWarns + errorStats.consoleInfos + errorStats.consoleLogs;
 
   originalConsoleLog.call(console, `📊 Error & Console Statistics (${runtimeMinutes} min runtime):`);
   originalConsoleLog.call(console, `  🚨 JavaScript Errors:`);
@@ -1196,7 +1196,7 @@ window.generateTestConsoleMessages = () => {
   }, 200);
 
   setTimeout(() => {
-    console.info('Test console.info() message - should appear in dashboard');
+    // console.info('Test console.info() message - should appear in dashboard');
   }, 300);
 
   setTimeout(() => {

@@ -16,23 +16,23 @@ export const TokenDashboard: React.FC<TokenDashboardProps> = ({ onTokenDetail })
     actions
   } = useTokenData()
 
-  const handleRowDoubleClick = (token: any) => {
+  const _handleRowDoubleClick = (token: any) => {
     if (onTokenDetail) {
       onTokenDetail(token)
     }
   }
 
-  const handlePageChange = (page: number) => {
+  const _handlePageChange = (page: number) => {
     actions.loadPage(page)
   }
 
-  const handlePrevious = () => {
+  const _handlePrevious = () => {
     if (pagination.currentPage > 1) {
       actions.loadPage(pagination.currentPage - 1)
     }
   }
 
-  const handleNext = () => {
+  const _handleNext = () => {
     if (pagination.currentPage < pagination.totalPages) {
       actions.loadPage(pagination.currentPage + 1)
     }

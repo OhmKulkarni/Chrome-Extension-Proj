@@ -14,9 +14,9 @@ const EnhancedPopup: React.FC = () => {
 };
 
 // Mount the component
-const container = document.getElementById('root');
+const _container = document.getElementById('root');
 if (container) {
-  const root = createRoot(container);
+  const _root = createRoot(container);
   root.render(<EnhancedPopup />);
 } else {
   // console.error('Root element not found');

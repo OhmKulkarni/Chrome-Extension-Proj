@@ -19,7 +19,7 @@ export const ErrorFilters: React.FC<ErrorFiltersProps> = ({
   totalItems,
   filteredItems
 }) => {
-  const hasActiveFilters = searchTerm || severityFilter !== 'all'
+  const _hasActiveFilters = searchTerm || severityFilter !== 'all'
 
   return (
     <div className="mb-4 space-y-4">

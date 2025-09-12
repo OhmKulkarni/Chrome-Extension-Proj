@@ -61,7 +61,7 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
 
   // Close dropdowns when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const _handleClickOutside = (event: MouseEvent) => {
       if (headerRef.current && !headerRef.current.contains(event.target as Node)) {
         setShowLastDropdown(false)
         setShowFirstDropdown(false)
@@ -78,7 +78,7 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
   // Initialize custom time values if not set
   useEffect(() => {
     if (!customStartDate || !customStartTime) {
-      const now = new Date()
+      const _now = new Date()
       if (!customStartDate) {
         setCustomStartDate(now.toISOString().split('T')[0])
       }
@@ -89,7 +89,7 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
   }, [customStartDate, customStartTime])
 
   // Dropdown options
-  const timeIntervals = [
+  const _timeIntervals = [
     { value: '1-minute', label: '1 Minute' },
     { value: '5-minutes', label: '5 Minutes' },
     { value: '10-minutes', label: '10 Minutes' },
@@ -114,17 +114,17 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
     { value: '12-months', label: '12 Months' }
   ]
 
-  const lastOptions = timeIntervals.map(interval => ({
+  const _lastOptions = timeIntervals.map(interval => ({
     value: `last-${interval.value}`,
     label: `Last ${interval.label}`
   }))
 
-  const firstOptions = timeIntervals.map(interval => ({
+  const _firstOptions = timeIntervals.map(interval => ({
     value: `first-${interval.value}`,
     label: `First ${interval.label}`
   }))
 
-  const handleTimeSelectionModeChange = (mode: 'last' | 'first' | 'all-time' | 'custom') => {
+  const _handleTimeSelectionModeChange = (mode: 'last' | 'first' | 'all-time' | 'custom') => {
     // Close all dropdowns
     setShowLastDropdown(false)
     setShowFirstDropdown(false)
@@ -205,9 +205,9 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
             <div className="text-sm text-gray-500 dark:text-gray-400">Showing:</div>
             <div className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 rounded-full text-sm font-medium">
               {(() => {
-                const startTime = new Date(viewport.startTime)
-                const endTime = new Date(viewport.endTime)
-                const duration = viewport.duration
+                const _startTime = new Date(viewport.startTime)
+                const _endTime = new Date(viewport.endTime)
+                const _duration = viewport.duration
 
                 // Format based on duration
                 if (duration <= 60 * 60 * 1000) { // 1 hour or less
@@ -221,7 +221,7 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
                     minute: '2-digit'
                   })}`
                 } else if (duration <= 24 * 60 * 60 * 1000) { // 1 day or less
-                  const isSameDay = startTime.toDateString() === endTime.toDateString()
+                  const _isSameDay = startTime.toDateString() === endTime.toDateString()
                   if (isSameDay) {
                     return `${startTime.toLocaleDateString('en-US', {
                       month: 'short',
@@ -375,11 +375,11 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
                   <button
                     onClick={() => {
                       // Create a custom label from the settings
-                      const scopeLabel = timeIntervals.find(t => t.value === customScope)?.label || customScope
-                      let dateLabel = ''
+                      const _scopeLabel = timeIntervals.find(t => t.value === customScope)?.label || customScope
+                      let _dateLabel = ''
 
                       if (customStartDate) {
-                        const date = new Date(customStartDate)
+                        const _date = new Date(customStartDate)
                         dateLabel = date.toLocaleDateString('en-US', {
                           month: 'short',
                           day: 'numeric',
@@ -387,33 +387,33 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
                         })
                       }
 
-                      const timeLabel = customStartTime ? ` at ${customStartTime}` : ''
-                      const label = `${scopeLabel}${dateLabel ? ` from ${dateLabel}` : ''}${timeLabel}`
+                      const _timeLabel = customStartTime ? ` at ${ customStartTime }` : ''
+                      const _label = `${ scopeLabel }${ dateLabel ? ` from ${dateLabel }` : ''}${ timeLabel }`
                       setCustomLabel(label)
 
                       // Calculate actual timestamp from custom inputs
-                      let targetTimestamp = Date.now() // Default to now
+                      let _targetTimestamp = Date.now() // Default to now
 
                       if (customStartDate && customStartTime) {
                         // Both date and time specified - use explicit date construction
                         const [year, month, day] = customStartDate.split('-').map(Number)
                         const [hours, minutes] = customStartTime.split(':').map(Number)
-                        const dateTime = new Date(year, month - 1, day, hours, minutes, 0, 0)
+                        const _dateTime = new Date(year, month - 1, day, hours, minutes, 0, 0)
                         targetTimestamp = dateTime.getTime()
-                        console.log(`🕐 Custom time: ${customStartDate} ${customStartTime} -> ${dateTime.toISOString()} (${targetTimestamp})`)
+                        // console.log(`🕐 Custom time: ${customStartDate} ${customStartTime} -> ${dateTime.toISOString()} (${targetTimestamp})`)
                       } else if (customStartDate) {
                         // Only date specified, use start of day
                         const [year, month, day] = customStartDate.split('-').map(Number)
-                        const date = new Date(year, month - 1, day, 0, 0, 0, 0)
+                        const _date = new Date(year, month - 1, day, 0, 0, 0, 0)
                         targetTimestamp = date.getTime()
-                        console.log(`📅 Custom date: ${customStartDate} -> ${date.toISOString()} (${targetTimestamp})`)
+                        // console.log(`📅 Custom date: ${customStartDate} -> ${date.toISOString()} (${targetTimestamp})`)
                       } else if (customStartTime) {
                         // Only time specified, use today's date
-                        const today = new Date()
+                        const _today = new Date()
                         const [hours, minutes] = customStartTime.split(':').map(Number)
                         today.setHours(hours, minutes, 0, 0)
                         targetTimestamp = today.getTime()
-                        console.log(`⏰ Custom time today: ${customStartTime} -> ${today.toISOString()} (${targetTimestamp})`)
+                        // console.log(`⏰ Custom time today: ${customStartTime} -> ${today.toISOString()} (${targetTimestamp})`)
                       }
 
                       // Jump to the calculated time with the selected scope

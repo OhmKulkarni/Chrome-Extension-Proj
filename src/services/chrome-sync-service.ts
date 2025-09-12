@@ -32,7 +32,7 @@ export class ChromeSyncService {
    */
   private extractDomain(url: string): string {
     try {
-      const urlObj = new URL(url);
+      const _urlObj = new URL(url);
       return urlObj.hostname.toLowerCase();
     } catch {
       return 'unknown';
@@ -44,11 +44,11 @@ export class ChromeSyncService {
    */
   async getTabPreferencesForDomain(domain: string): Promise<DomainLoggingPreferences> {
     try {
-      const result = await chrome.storage.sync.get(['tabPreferences']);
-      const tabPrefs = result.tabPreferences || DEFAULT_TAB_PREFERENCES;
+      const _result = await chrome.storage.sync.get(['tabPreferences']);
+      const _tabPrefs = result.tabPreferences || DEFAULT_TAB_PREFERENCES;
 
       // Return domain-specific preferences or safe defaults with timestamp
-      const domainPrefs = tabPrefs.domainPreferences[domain];
+      const _domainPrefs = tabPrefs.domainPreferences[domain];
       if (domainPrefs) {
         return domainPrefs;
       } else {
@@ -76,7 +76,7 @@ export class ChromeSyncService {
    * Get tab logging preferences for a URL
    */
   async getTabPreferencesForUrl(url: string): Promise<DomainLoggingPreferences> {
-    const domain = this.extractDomain(url);
+    const _domain = this.extractDomain(url);
     return this.getTabPreferencesForDomain(domain);
   }
 
@@ -85,7 +85,7 @@ export class ChromeSyncService {
    */
   async setTabPreferencesForDomain(domain: string, preferences: Partial<DomainLoggingPreferences>): Promise<void> {
     try {
-      const result = await chrome.storage.sync.get(['tabPreferences']);
+      const _result = await chrome.storage.sync.get(['tabPreferences']);
       const tabPrefs: SyncTabPreferences = result.tabPreferences || DEFAULT_TAB_PREFERENCES;
 
       // Update domain preferences
@@ -110,7 +110,7 @@ export class ChromeSyncService {
    * Set tab logging preferences for a URL
    */
   async setTabPreferencesForUrl(url: string, preferences: Partial<DomainLoggingPreferences>): Promise<void> {
-    const domain = this.extractDomain(url);
+    const _domain = this.extractDomain(url);
     return this.setTabPreferencesForDomain(domain, preferences);
   }
 
@@ -132,7 +132,7 @@ export class ChromeSyncService {
    */
   async setTabDefaults(defaults: Partial<Omit<DomainLoggingPreferences, 'lastUpdated'>>): Promise<void> {
     try {
-      const result = await chrome.storage.sync.get(['tabPreferences']);
+      const _result = await chrome.storage.sync.get(['tabPreferences']);
       const tabPrefs: SyncTabPreferences = result.tabPreferences || DEFAULT_TAB_PREFERENCES;
 
       tabPrefs.defaults = {
@@ -156,7 +156,7 @@ export class ChromeSyncService {
    */
   async getUserPreferences(): Promise<SyncUserPreferences> {
     try {
-      const result = await chrome.storage.sync.get(['userPreferences']);
+      const _result = await chrome.storage.sync.get(['userPreferences']);
       return result.userPreferences || DEFAULT_USER_PREFERENCES;
     } catch (error) {
       // console.warn('ChromeSyncService: Failed to get user preferences, using defaults:', error);
@@ -169,7 +169,7 @@ export class ChromeSyncService {
    */
   async setUserPreferences(preferences: Partial<SyncUserPreferences>): Promise<void> {
     try {
-      const current = await this.getUserPreferences();
+      const _current = await this.getUserPreferences();
 
       const updated: SyncUserPreferences = {
         ...current,
@@ -191,7 +191,7 @@ export class ChromeSyncService {
    */
   async getAllSyncData(): Promise<ChromeSyncStorage> {
     try {
-      const result = await chrome.storage.sync.get(['tabPreferences', 'userPreferences', 'syncMetadata']);
+      const _result = await chrome.storage.sync.get(['tabPreferences', 'userPreferences', 'syncMetadata']);
 
       return {
         tabPreferences: result.tabPreferences || DEFAULT_TAB_PREFERENCES,
@@ -209,7 +209,7 @@ export class ChromeSyncService {
    */
   async initializeSyncStorage(): Promise<void> {
     try {
-      const existing = await chrome.storage.sync.get(['tabPreferences', 'userPreferences', 'syncMetadata']);
+      const _existing = await chrome.storage.sync.get(['tabPreferences', 'userPreferences', 'syncMetadata']);
 
       const updates: Partial<ChromeSyncStorage> = {};
 
@@ -251,8 +251,8 @@ export class ChromeSyncService {
    */
   async getSyncStorageUsage(): Promise<{ used: number; quota: number; percentage: number }> {
     try {
-      const bytesUsed = await chrome.storage.sync.getBytesInUse();
-      const quota = chrome.storage.sync.QUOTA_BYTES || 102400; // 100KB
+      const _bytesUsed = await chrome.storage.sync.getBytesInUse();
+      const _quota = chrome.storage.sync.QUOTA_BYTES || 102400; // 100KB
 
       return {
         used: bytesUsed,

@@ -5,15 +5,15 @@ interface HttpMethodDistributionChartProps {
   data: any[];
 }
 
-const HttpMethodDistributionChart: React.FC<HttpMethodDistributionChartProps> = ({ data }) => {
+const HttpMethodDistributionChart: React.FC<HttpMethodDistributionChartProps> = ({ _data }) => {
   // Group data by HTTP method
-  const methodData = data.reduce((acc, req) => {
-    const method = req.method || 'Unknown';
+  const _methodData = data.reduce((acc, req) => {
+    const _method = req.method || 'Unknown';
     acc[method] = (acc[method] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  const chartData = Object.entries(methodData).map(([method, count]) => ({
+  const _chartData = Object.entries(methodData).map(([method, count]) => ({
     method,
     count
   }));

@@ -34,11 +34,11 @@ export const DensityClusterComponent: React.FC<DensityClusterProps> = ({
   const [isHovered, setIsHovered] = useState(false)
   const clusterRef = useRef<HTMLDivElement>(null)
 
-  const handleDoubleClick = useCallback(() => {
+  const _handleDoubleClick = useCallback(() => {
     onZoomIn(cluster)
   }, [cluster, onZoomIn])
 
-  const handleRightClick = useCallback((event: React.MouseEvent) => {
+  const _handleRightClick = useCallback((event: React.MouseEvent) => {
     event.preventDefault()
     setContextMenu({
       visible: true,
@@ -48,11 +48,11 @@ export const DensityClusterComponent: React.FC<DensityClusterProps> = ({
     })
   }, [cluster])
 
-  const handleMouseEnter = useCallback(() => {
+  const _handleMouseEnter = useCallback(() => {
     setIsHovered(true)
   }, [])
 
-  const handleMouseLeave = useCallback(() => {
+  const _handleMouseLeave = useCallback(() => {
     setIsHovered(false)
   }, [])
 
@@ -69,7 +69,7 @@ export const DensityClusterComponent: React.FC<DensityClusterProps> = ({
 
   // Close context menu when clicking elsewhere
   React.useEffect(() => {
-    const handleClickOutside = () => {
+    const _handleClickOutside = () => {
       if (contextMenu.visible) {
         setContextMenu({ visible: false, x: 0, y: 0, cluster: null })
       }
@@ -82,7 +82,7 @@ export const DensityClusterComponent: React.FC<DensityClusterProps> = ({
   }, [contextMenu.visible])
 
   // Calculate visual properties based on cluster size and swimlane
-  const getClusterColor = (swimlane: string) => {
+  const _getClusterColor = (swimlane: string) => {
     switch (swimlane) {
       case 'network': return '#3B82F6' // Blue
       case 'console': return '#EF4444'  // Red
@@ -91,19 +91,19 @@ export const DensityClusterComponent: React.FC<DensityClusterProps> = ({
     }
   }
 
-  const getClusterSize = () => {
+  const _getClusterSize = () => {
     // Enhanced size calculation with smoother scaling
-    const baseSize = 8
-    const maxSize = 32
-    const sizeMultiplier = Math.min(Math.sqrt(cluster.density) * 2, 4)
+    const _baseSize = 8
+    const _maxSize = 32
+    const _sizeMultiplier = Math.min(Math.sqrt(cluster.density) * 2, 4)
     return Math.max(baseSize, Math.min(maxSize, baseSize + sizeMultiplier * 4))
   }
 
-  const clusterSize = getClusterSize()
-  const clusterColor = getClusterColor(cluster.swimlane)
-  const clusterOpacity = Math.min(0.9, 0.6 + (cluster.density / 100) * 0.3)
-  const shouldPulse = cluster.density > 10
-  const shouldGlow = cluster.density > 20 || isHighlighted
+  const _clusterSize = getClusterSize()
+  const _clusterColor = getClusterColor(cluster.swimlane)
+  const _clusterOpacity = Math.min(0.9, 0.6 + (cluster.density / 100) * 0.3)
+  const _shouldPulse = cluster.density > 10
+  const _shouldGlow = cluster.density > 20 || isHighlighted
 
   return (
     <>

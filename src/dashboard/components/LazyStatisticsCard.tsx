@@ -1,6 +1,6 @@
 import React, { lazy, Suspense } from 'react';
 
-const StatisticsCard = lazy(() => import('./StatisticsCard'));
+const _StatisticsCard = lazy(() => import('./StatisticsCard'));
 
 interface LazyStatisticsCardProps {
   networkRequests: any[];

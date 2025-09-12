@@ -31,10 +31,10 @@ interface PaginationConfig {
 }
 
 // Chrome message utility
-const sendChromeMessage = async (message: any): Promise<any> => {
+const _sendChromeMessage = async (message: any): Promise<any> => {
   try {
-    const response = await chrome.runtime.sendMessage(message)
-    const result = response ? { ...response } : null
+    const _response = await chrome.runtime.sendMessage(message)
+    const _result = response ? { ...response } : null
     return result
   } catch (error) {
     console.error('Chrome message failed:', error)
@@ -43,15 +43,15 @@ const sendChromeMessage = async (message: any): Promise<any> => {
 }
 
 // Memory monitoring utility
-const checkMemoryPressure = (): { pressure: number; shouldThrottle: boolean } => {
-  const performanceMemory = (performance as any).memory
+const _checkMemoryPressure = (): { pressure: number; shouldThrottle: boolean } => {
+  const _performanceMemory = (performance as any).memory
   if (!performanceMemory?.usedJSHeapSize) {
     return { pressure: 0, shouldThrottle: false }
   }
   
-  const heapUsed = performanceMemory.usedJSHeapSize
-  const heapLimit = performanceMemory.jsHeapSizeLimit
-  const pressure = (heapUsed / heapLimit) * 100
+  const _heapUsed = performanceMemory.usedJSHeapSize
+  const _heapLimit = performanceMemory.jsHeapSizeLimit
+  const _pressure = (heapUsed / heapLimit) * 100
   
   return {
     pressure,
@@ -78,7 +78,7 @@ interface UseNetworkDataReturn {
   }
 }
 
-export const useNetworkData = (
+export const _useNetworkData = (
   initialPage: number = 1,
   itemsPerPage: number = 10
 ): UseNetworkDataReturn => {
@@ -97,21 +97,21 @@ export const useNetworkData = (
   })
 
   // Load network requests with pagination
-  const loadNetworkRequests = useCallback(async (page: number, limit: number = itemsPerPage) => {
+  const _loadNetworkRequests = useCallback(async (page: number, limit: number = itemsPerPage) => {
     try {
-      console.log(`🔄 Loading network requests page ${page} with limit ${limit}`)
+      // console.log(`🔄 Loading network requests page ${page} with limit ${limit}`)
       setLoading(true)
       setError(null)
       
       // Check memory pressure before loading
       const { shouldThrottle } = checkMemoryPressure()
       if (shouldThrottle) {
-        console.warn('🚨 High memory pressure, reducing request load')
+        // console.warn('🚨 High memory pressure, reducing request load')
         limit = Math.min(limit, 5) // Reduce load under pressure
       }
       
-      const offset = (page - 1) * limit
-      const response = await sendChromeMessage({ 
+      const _offset = (page - 1) * limit
+      const _response = await sendChromeMessage({ 
         action: 'getNetworkRequests', 
         limit, 
         offset 
@@ -121,10 +121,10 @@ export const useNetworkData = (
         // Clear previous data to prevent accumulation
         setRequests(response.requests)
         setTotalRequests(response.total || 0)
-        console.log(`✅ Loaded ${response.requests.length} network requests, total: ${response.total}`)
+        // console.log(`✅ Loaded ${response.requests.length} network requests, total: ${response.total}`)
       } else {
         setError('Failed to load network requests')
-        console.warn('⚠️ Network requests response missing success/requests:', response)
+        // console.warn('⚠️ Network requests response missing success/requests:', response)
       }
     } catch (err) {
       setError('Error loading network requests')
@@ -135,13 +135,13 @@ export const useNetworkData = (
   }, [itemsPerPage])
 
   // Load page
-  const loadPage = useCallback(async (page: number) => {
+  const _loadPage = useCallback(async (page: number) => {
     setCurrentPage(page)
     await loadNetworkRequests(page, itemsPerPage)
   }, [loadNetworkRequests, itemsPerPage])
 
   // Set sorting
-  const setSort = useCallback((key: string) => {
+  const _setSort = useCallback((key: string) => {
     setSortConfig((prev: SortConfig) => ({
       key,
       direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
@@ -150,13 +150,13 @@ export const useNetworkData = (
   }, [])
 
   // Set filters
-  const setFilters = useCallback((newFilters: { searchTerm?: string; method?: string }) => {
+  const _setFilters = useCallback((newFilters: { searchTerm?: string; method?: string }) => {
     setFiltersState(prev => ({ ...prev, ...newFilters }))
     setCurrentPage(1) // Reset to first page when filtering
   }, [])
 
   // Refresh data
-  const refresh = useCallback(async () => {
+  const _refresh = useCallback(async () => {
     await loadNetworkRequests(currentPage, itemsPerPage)
   }, [loadNetworkRequests, currentPage, itemsPerPage])
 
@@ -166,7 +166,7 @@ export const useNetworkData = (
   }, [loadNetworkRequests, currentPage, itemsPerPage])
 
   // Calculate pagination
-  const totalPages = Math.ceil(totalRequests / itemsPerPage)
+  const _totalPages = Math.ceil(totalRequests / itemsPerPage)
   const pagination: PaginationConfig = {
     currentPage,
     itemsPerPage,

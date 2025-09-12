@@ -5,19 +5,19 @@ interface StatusCodeDistributionChartProps {
   data: any[];
 }
 
-const StatusCodeDistributionChart: React.FC<StatusCodeDistributionChartProps> = ({ data }) => {
-  const statusData = data.reduce((acc, req) => {
-    const status = req.status || 'Unknown';
+const StatusCodeDistributionChart: React.FC<StatusCodeDistributionChartProps> = ({ _data }) => {
+  const _statusData = data.reduce((acc, req) => {
+    const _status = req.status || 'Unknown';
     acc[status] = (acc[status] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  const chartData = Object.entries(statusData).map(([status, count]) => ({
+  const _chartData = Object.entries(statusData).map(([status, count]) => ({
     name: status,
     value: count
   }));
 
-  const colors = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444'];
+  const _colors = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444'];
 
   return (
     <ResponsiveContainer width="100%" height={200}>

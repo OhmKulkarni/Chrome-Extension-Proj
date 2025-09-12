@@ -20,27 +20,27 @@ export const ErrorDashboard: React.FC<ErrorDashboardProps> = ({ onErrorDetail })
     actions
   } = useErrorData()
 
-  const handleRowDoubleClick = (errorItem: any) => {
+  const _handleRowDoubleClick = (errorItem: any) => {
     if (onErrorDetail) {
       onErrorDetail(errorItem)
     }
   }
 
-  const handleClearFilters = () => {
+  const _handleClearFilters = () => {
     actions.setFilters({ searchTerm: '', severity: 'all' })
   }
 
-  const handlePageChange = (page: number) => {
+  const _handlePageChange = (page: number) => {
     actions.loadPage(page)
   }
 
-  const handlePrevious = () => {
+  const _handlePrevious = () => {
     if (pagination.currentPage > 1) {
       actions.loadPage(pagination.currentPage - 1)
     }
   }
 
-  const handleNext = () => {
+  const _handleNext = () => {
     if (pagination.currentPage < pagination.totalPages) {
       actions.loadPage(pagination.currentPage + 1)
     }

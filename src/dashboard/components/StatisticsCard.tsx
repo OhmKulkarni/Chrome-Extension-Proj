@@ -33,7 +33,7 @@ import {
 import { SimpleTestChart } from './SimpleTestChart';
 
 // Map detailed categories to primary categories for dashboard display
-const getPrimaryCategory = (type: string): 'libraries' | 'analytics' | 'privacy' | 'services' | 'assets' => {
+const _getPrimaryCategory = (type: string): 'libraries' | 'analytics' | 'privacy' | 'services' | 'assets' => {
   switch (type) {
     case 'framework':
     case 'utility':
@@ -57,18 +57,18 @@ const getPrimaryCategory = (type: string): 'libraries' | 'analytics' | 'privacy'
 };
 
 // Hook to detect dark mode
-const useDarkMode = () => {
+const _useDarkMode = () => {
   const [isDark, setIsDark] = React.useState(false);
 
   React.useEffect(() => {
-    const checkDarkMode = () => {
+    const _checkDarkMode = () => {
       setIsDark(document.documentElement.classList.contains('dark'));
     };
 
     checkDarkMode();
 
     // Watch for class changes
-    const observer = new MutationObserver(checkDarkMode);
+    const _observer = new MutationObserver(checkDarkMode);
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['class']
@@ -80,7 +80,7 @@ const useDarkMode = () => {
   return isDark;
 };
 
-const getPrimaryCategoryInfo = (primaryType: string, isDark: boolean = false) => {
+const _getPrimaryCategoryInfo = (primaryType: string, isDark: boolean = false) => {
   switch (primaryType) {
     case 'libraries':
       return {
@@ -171,7 +171,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   totalTokenEvents
   // REMOVED: onRefreshAnalysisData to eliminate infinite loops
 }) => {
-  const isDark = useDarkMode();
+  const _isDark = useDarkMode();
 
   // MEMORY LEAK FIX: AbortController for cleanup
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -189,24 +189,24 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     };
   }, []);
   // Debug mode: Add mock data for testing charts
-  const DEBUG_MODE = false; // PRODUCTION: Set to false to disable mock data - prevents phantom statistics
+  const _DEBUG_MODE = false; // PRODUCTION: Set to false to disable mock data - prevents phantom statistics
 
-  const generateMockData = () => {
-    const now = Date.now();
-    const domains = ['api.example.com', 'cdn.example.com', 'analytics.google.com', 'github.com', 'stackoverflow.com'];
-    const methods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
-    const statuses = [200, 201, 400, 401, 403, 404, 500, 502];
+  const _generateMockData = () => {
+    const _now = Date.now();
+    const _domains = ['api.example.com', 'cdn.example.com', 'analytics.google.com', 'github.com', 'stackoverflow.com'];
+    const _methods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
+    const _statuses = [200, 201, 400, 401, 403, 404, 500, 502];
 
-    const mockNetworkRequests = [];
-    const mockConsoleErrors = [];
-    const mockTokenEvents = [];
+    const _mockNetworkRequests = [];
+    const _mockConsoleErrors = [];
+    const _mockTokenEvents = [];
 
     // Generate network requests for the last 24 hours
-    for (let i = 0; i < 100; i++) {
-      const domain = domains[Math.floor(Math.random() * domains.length)];
-      const method = methods[Math.floor(Math.random() * methods.length)];
-      const status = statuses[Math.floor(Math.random() * statuses.length)];
-      const timestamp = now - Math.random() * 24 * 60 * 60 * 1000; // Random time in last 24h
+    for (let _i = 0; i < 100; i++) {
+      const _domain = domains[Math.floor(Math.random() * domains.length)];
+      const _method = methods[Math.floor(Math.random() * methods.length)];
+      const _status = statuses[Math.floor(Math.random() * statuses.length)];
+      const _timestamp = now - Math.random() * 24 * 60 * 60 * 1000; // Random time in last 24h
 
       mockNetworkRequests.push({
         method,
@@ -222,11 +222,11 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     }
 
     // Generate console errors
-    const errorTypes = ['TypeError', 'ReferenceError', 'NetworkError', 'SyntaxError'];
-    for (let i = 0; i < 20; i++) {
-      const domain = domains[Math.floor(Math.random() * domains.length)];
-      const errorType = errorTypes[Math.floor(Math.random() * errorTypes.length)];
-      const timestamp = now - Math.random() * 24 * 60 * 60 * 1000;
+    const _errorTypes = ['TypeError', 'ReferenceError', 'NetworkError', 'SyntaxError'];
+    for (let _i = 0; i < 20; i++) {
+      const _domain = domains[Math.floor(Math.random() * domains.length)];
+      const _errorType = errorTypes[Math.floor(Math.random() * errorTypes.length)];
+      const _timestamp = now - Math.random() * 24 * 60 * 60 * 1000;
 
       mockConsoleErrors.push({
         message: `${errorType}: Sample error message ${i}`,
@@ -241,11 +241,11 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     }
 
     // Generate token events
-    const tokenTypes = ['session', 'auth', 'api_key', 'csrf'];
-    for (let i = 0; i < 30; i++) {
-      const domain = domains[Math.floor(Math.random() * domains.length)];
-      const tokenType = tokenTypes[Math.floor(Math.random() * tokenTypes.length)];
-      const timestamp = now - Math.random() * 24 * 60 * 60 * 1000;
+    const _tokenTypes = ['session', 'auth', 'api_key', 'csrf'];
+    for (let _i = 0; i < 30; i++) {
+      const _domain = domains[Math.floor(Math.random() * domains.length)];
+      const _tokenType = tokenTypes[Math.floor(Math.random() * tokenTypes.length)];
+      const _timestamp = now - Math.random() * 24 * 60 * 60 * 1000;
 
       mockTokenEvents.push({
         type: tokenType,
@@ -301,8 +301,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   // Web resources source domain dropdown state
   const [expandedLibraryDomains, setExpandedLibraryDomains] = useState<Set<string>>(new Set());
 
-  const toggleLibrarySection = (domain: string) => {
-    const newExpanded = new Set(expandedLibrarySections);
+  const _toggleLibrarySection = (domain: string) => {
+    const _newExpanded = new Set(expandedLibrarySections);
     if (newExpanded.has(domain)) {
       newExpanded.delete(domain);
     } else {
@@ -311,10 +311,10 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     setExpandedLibrarySections(newExpanded);
   };
 
-  const isLibrarySectionExpanded = (domain: string) => expandedLibrarySections.has(domain);
+  const _isLibrarySectionExpanded = (domain: string) => expandedLibrarySections.has(domain);
 
-  const toggleLibrarySourceDomains = (domain: string) => {
-    const newExpanded = new Set(expandedLibraryDomains);
+  const _toggleLibrarySourceDomains = (domain: string) => {
+    const _newExpanded = new Set(expandedLibraryDomains);
     if (newExpanded.has(domain)) {
       newExpanded.delete(domain);
     } else {
@@ -354,7 +354,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   });
 
   // Shared chart data processing (when feature flag enabled)
-  const sharedChartData = useSharedChartData(
+  const _sharedChartData = useSharedChartData(
     isFeatureEnabled('enableSharedChartData') ? analysisData : {
       networkRequests: [],
       consoleErrors: [],
@@ -380,9 +380,9 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   const isLoadingRef = useRef<boolean>(false);
 
   // Load analysis data for statistics calculations (uses selectable limit) - MEMORY LEAK SAFE
-  const loadAnalysisData = withPerformanceMonitoring('StatisticsCard.loadAnalysisData',
+  const _loadAnalysisData = withPerformanceMonitoring('StatisticsCard.loadAnalysisData',
     useCallback(async (limitOverride?: number) => {
-      const limit = typeof limitOverride === 'number' ? limitOverride : analysisLimit;
+      const _limit = typeof limitOverride === 'number' ? limitOverride : analysisLimit;
 
       // INFINITE LOOP PROTECTION: Prevent concurrent calls
       if (isLoadingRef.current) {
@@ -398,7 +398,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
         setAnalysisData(prev => ({ ...prev, loading: true }));
 
         // Use the new getAnalysisData endpoint for efficient chart data loading
-        const response = await chrome.runtime.sendMessage({
+        const _response = await chrome.runtime.sendMessage({
           action: 'getAnalysisData',
           limit
         });
@@ -460,16 +460,16 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     }
 
     // Setup auto-refresh with memory leak protection
-    const refreshInterval = (chartSettings.refreshInterval || 30) * 1000; // Convert to ms
-    console.log(`📊 StatisticsCard: Setting up auto-refresh every ${refreshInterval}ms`);
+    const _refreshInterval = (chartSettings.refreshInterval || 30) * 1000; // Convert to ms
+    // console.log(`📊 StatisticsCard: Setting up auto-refresh every ${refreshInterval}ms`);
 
-    const intervalId = setInterval(() => {
-      console.log('🔄 StatisticsCard: Auto-refresh triggered');
+    const _intervalId = setInterval(() => {
+      // console.log('🔄 StatisticsCard: Auto-refresh triggered');
       loadAnalysisData(analysisLimit);
     }, refreshInterval);
 
     return () => {
-      console.log('📊 StatisticsCard: Cleaning up auto-refresh interval');
+      // console.log('📊 StatisticsCard: Cleaning up auto-refresh interval');
       clearInterval(intervalId);
     };
     // CRITICAL FIX: Remove loadAnalysisData from dependencies to prevent infinite loops
@@ -479,7 +479,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   // Manual refresh effect - triggers when manual refresh is requested - FIXED: Remove loadAnalysisData dependency
   useEffect(() => {
     if (manualRefreshTrigger > 0) {
-      console.log('🔄 StatisticsCard: Manual refresh effect triggered');
+      // console.log('🔄 StatisticsCard: Manual refresh effect triggered');
       loadAnalysisData(analysisLimit);
     }
     // CRITICAL FIX: Remove loadAnalysisData from dependencies to prevent infinite loops
@@ -488,7 +488,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
 
   // Manual refresh function
   const triggerManualRefresh = useCallback(() => {
-    console.log('🔄 StatisticsCard: Manual refresh triggered by user');
+    // console.log('🔄 StatisticsCard: Manual refresh triggered by user');
     setManualRefreshTrigger(prev => prev + 1);
   }, []);
 
@@ -591,11 +591,11 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   }), []);
 
   // Filtered charts based on search
-  const filteredCharts = useMemo(() => {
-    const charts = Object.entries(chartDefinitions);
+  const _filteredCharts = useMemo(() => {
+    const _charts = Object.entries(chartDefinitions);
     if (!chartSearch.trim()) return charts;
 
-    const searchLower = chartSearch.toLowerCase();
+    const _searchLower = chartSearch.toLowerCase();
     return charts.filter(([, chart]) =>
       chart.name.toLowerCase().includes(searchLower) ||
       chart.description.toLowerCase().includes(searchLower) ||
@@ -604,24 +604,24 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   }, [chartDefinitions, chartSearch]);
 
   // Chart renderer function with error boundary
-  const renderChart = (chartKey: string) => {
+  const _renderChart = (chartKey: string) => {
     try {
       // Use analysis data for charts when available for better accuracy
-      const useAnalysisData = analysisData.loaded && analysisData.networkRequests.length > 0;
+      const _useAnalysisData = analysisData.loaded && analysisData.networkRequests.length > 0;
 
-      const effectiveNetworkRequests = useAnalysisData
+      const _effectiveNetworkRequests = useAnalysisData
         ? analysisData.networkRequests
         : (DEBUG_MODE && (!networkRequests || networkRequests.length === 0) ? mockNetworkRequests : networkRequests);
 
-      const effectiveConsoleErrors = useAnalysisData
+      const _effectiveConsoleErrors = useAnalysisData
         ? analysisData.consoleErrors
         : (DEBUG_MODE && (!consoleErrors || consoleErrors.length === 0) ? mockConsoleErrors : consoleErrors);
 
-      const effectiveTokenEvents = useAnalysisData
+      const _effectiveTokenEvents = useAnalysisData
         ? analysisData.tokenEvents
         : (DEBUG_MODE && (!tokenEvents || tokenEvents.length === 0) ? mockTokenEvents : tokenEvents);
 
-      const chartData = {
+      const _chartData = {
         data: globalStats,
         networkRequests: effectiveNetworkRequests,
         consoleErrors: effectiveConsoleErrors,
@@ -649,7 +649,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
 
       // MEMORY LEAK FIX: Add null checks for chart data
       if (!chartData.networkRequests) {
-        console.warn('Chart rendering skipped - no network requests data');
+        // console.warn('Chart rendering skipped - no network requests data');
         return (
           <div className="h-96 bg-gray-50 dark:bg-gray-800 rounded flex items-center justify-center">
             <div className="text-center text-gray-400 dark:text-gray-500">
@@ -717,7 +717,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
           );
         case 'method-usage-daily':
           try {
-            console.log('About to render SimpleTestChart instead of MethodUsageDailyChart');
+            // console.log('About to render SimpleTestChart instead of MethodUsageDailyChart');
             return <SimpleTestChart networkRequests={chartData.networkRequests} />;
           } catch (chartError) {
             console.error('SimpleTestChart specific error:', chartError);
@@ -776,11 +776,11 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   // Calculate global statistics - MEMORY LEAK FIX: Batch processing with abort signal
   const globalStats: GlobalStats = useMemo(() => {
     // Check if we should abort processing
-    const isAborted = abortControllerRef.current?.signal.aborted;
-    console.log('🔍 GlobalStats useMemo starting:', { isAborted, analysisDataLoaded: analysisData.loaded });
+    const _isAborted = abortControllerRef.current?.signal.aborted;
+    // console.log('🔍 GlobalStats useMemo starting:', { isAborted, analysisDataLoaded: analysisData.loaded });
 
     if (isAborted) {
-      console.log('⚠️ GlobalStats calculation aborted');
+      // console.log('⚠️ GlobalStats calculation aborted');
       return {
         totalRequests: 0,
         totalErrors: 0,
@@ -797,17 +797,17 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
 
     // CONSISTENCY FIX: Use the exact same logic as charts for data source selection
     // FALLBACK SAFETY: Only use real data or empty arrays - no random mock data in production
-    const useAnalysisData = analysisData.loaded && analysisData.networkRequests.length > 0;
+    const _useAnalysisData = analysisData.loaded && analysisData.networkRequests.length > 0;
 
-    const effectiveNetworkRequests = useAnalysisData
+    const _effectiveNetworkRequests = useAnalysisData
       ? analysisData.networkRequests
       : []; // PRODUCTION: Always use empty array when no data, never mock data
 
-    const effectiveConsoleErrors = useAnalysisData
+    const _effectiveConsoleErrors = useAnalysisData
       ? analysisData.consoleErrors
       : []; // PRODUCTION: Always use empty array when no data
 
-    const effectiveTokenEvents = useAnalysisData
+    const _effectiveTokenEvents = useAnalysisData
       ? analysisData.tokenEvents
       : []; // PRODUCTION: Always use empty array when no data
 
@@ -821,38 +821,38 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       dataSource: useAnalysisData ? 'analysis (latest N records)' : 'current page'
     });
 
-    const calculatedTotalRequests = effectiveNetworkRequests.length;
-    const calculatedTotalErrors = effectiveConsoleErrors.length;
-    const calculatedTotalTokenEvents = effectiveTokenEvents.length;
+    const _calculatedTotalRequests = effectiveNetworkRequests.length;
+    const _calculatedTotalErrors = effectiveConsoleErrors.length;
+    const _calculatedTotalTokenEvents = effectiveTokenEvents.length;
 
     // CONSISTENCY FIX: When using analysis data, use calculated totals from that data, not global props
-    const finalTotalRequests = useAnalysisData ? calculatedTotalRequests : (totalRequests ?? calculatedTotalRequests);
-    const finalTotalErrors = useAnalysisData ? calculatedTotalErrors : (totalErrors ?? calculatedTotalErrors);
-    const finalTotalTokenEvents = useAnalysisData ? calculatedTotalTokenEvents : (totalTokenEvents ?? calculatedTotalTokenEvents);
+    const _finalTotalRequests = useAnalysisData ? calculatedTotalRequests : (totalRequests ?? calculatedTotalRequests);
+    const _finalTotalErrors = useAnalysisData ? calculatedTotalErrors : (totalErrors ?? calculatedTotalErrors);
+    const _finalTotalTokenEvents = useAnalysisData ? calculatedTotalTokenEvents : (totalTokenEvents ?? calculatedTotalTokenEvents);
 
     // MEMORY EFFICIENT: Process data in batches to avoid blocking UI
-    const batchSize = 50;
-    const uniqueDomainsSet = new Set();
+    const _batchSize = 50;
+    const _uniqueDomainsSet = new Set();
     const requestsByMethod: { [method: string]: number } = {};
     const errorsBySeverity: { [severity: string]: number } = {};
     const tokensByType: { [type: string]: number } = {};
-    let totalResponseTime = 0;
-    let responseTimeCount = 0;
-    let maxResponseTimeCalculated = 0;
-    let successCount = 0;
+    let _totalResponseTime = 0;
+    let _responseTimeCount = 0;
+    let _maxResponseTimeCalculated = 0;
+    let _successCount = 0;
 
     // Process network requests in batches
-    for (let i = 0; i < effectiveNetworkRequests.length; i += batchSize) {
+    for (let _i = 0; i < effectiveNetworkRequests.length; i += batchSize) {
       if (abortControllerRef.current?.signal.aborted) break;
 
-      const batch = effectiveNetworkRequests.slice(i, i + batchSize);
+      const _batch = effectiveNetworkRequests.slice(i, i + batchSize);
       batch.forEach(req => {
         // Extract domains
-        const itemUrl = req.url || req.request?.url || '';
+        const _itemUrl = req.url || req.request?.url || '';
         if (itemUrl && itemUrl !== 'unknown') {
           try {
-            const hostname = new URL(itemUrl).hostname;
-            const mainDomain = req.main_domain || hostname.replace(/^www\./, '').toLowerCase();
+            const _hostname = new URL(itemUrl).hostname;
+            const _mainDomain = req.main_domain || hostname.replace(/^www\./, '').toLowerCase();
             if (mainDomain && mainDomain !== 'unknown') {
               uniqueDomainsSet.add(mainDomain);
             }
@@ -862,11 +862,11 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
         }
 
         // Method tracking
-        const method = req.method || req.request_method || 'GET';
+        const _method = req.method || req.request_method || 'GET';
         requestsByMethod[method] = (requestsByMethod[method] || 0) + 1;
 
         // Response time tracking
-        const responseTime = req.response_time || req.responseTime || 0;
+        const _responseTime = req.response_time || req.responseTime || 0;
         if (responseTime > 0) {
           totalResponseTime += responseTime;
           responseTimeCount++;
@@ -874,7 +874,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
         }
 
         // Success rate tracking - use same status field detection as chart
-        const status = req.status ?? req.response_status ?? req.response?.status ?? req.statusCode ?? 0;
+        const _status = req.status ?? req.response_status ?? req.response?.status ?? req.statusCode ?? 0;
         if (status >= 200 && status < 400) {
           successCount++;
         }
@@ -882,17 +882,17 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     }
 
     // Process console errors in batches for domain and severity tracking
-    for (let i = 0; i < effectiveConsoleErrors.length; i += batchSize) {
+    for (let _i = 0; i < effectiveConsoleErrors.length; i += batchSize) {
       if (abortControllerRef.current?.signal.aborted) break;
 
-      const batch = effectiveConsoleErrors.slice(i, i + batchSize);
+      const _batch = effectiveConsoleErrors.slice(i, i + batchSize);
       batch.forEach(error => {
         // Extract domains
-        const itemUrl = error.url || error.details?.url || error.source_url || '';
+        const _itemUrl = error.url || error.details?.url || error.source_url || '';
         if (itemUrl && itemUrl !== 'unknown' && itemUrl !== 'Unknown' && itemUrl !== 'Unknown URL') {
           try {
-            const hostname = new URL(itemUrl).hostname;
-            const mainDomain = error.main_domain || hostname.replace(/^www\./, '').toLowerCase();
+            const _hostname = new URL(itemUrl).hostname;
+            const _mainDomain = error.main_domain || hostname.replace(/^www\./, '').toLowerCase();
             if (mainDomain && mainDomain !== 'unknown') {
               uniqueDomainsSet.add(mainDomain);
             }
@@ -902,23 +902,23 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
         }
 
         // Severity tracking
-        const severity = error.severity || 'error';
+        const _severity = error.severity || 'error';
         errorsBySeverity[severity] = (errorsBySeverity[severity] || 0) + 1;
       });
     }
 
     // Process token events in batches for domain and type tracking
-    for (let i = 0; i < effectiveTokenEvents.length; i += batchSize) {
+    for (let _i = 0; i < effectiveTokenEvents.length; i += batchSize) {
       if (abortControllerRef.current?.signal.aborted) break;
 
-      const batch = effectiveTokenEvents.slice(i, i + batchSize);
+      const _batch = effectiveTokenEvents.slice(i, i + batchSize);
       batch.forEach(token => {
         // Extract domains
-        const itemUrl = token.url || token.details?.url || token.source_url || '';
+        const _itemUrl = token.url || token.details?.url || token.source_url || '';
         if (itemUrl && itemUrl !== 'unknown' && itemUrl !== 'Unknown' && itemUrl !== 'Unknown URL') {
           try {
-            const hostname = new URL(itemUrl).hostname;
-            const mainDomain = token.main_domain || hostname.replace(/^www\./, '').toLowerCase();
+            const _hostname = new URL(itemUrl).hostname;
+            const _mainDomain = token.main_domain || hostname.replace(/^www\./, '').toLowerCase();
             if (mainDomain && mainDomain !== 'unknown') {
               uniqueDomainsSet.add(mainDomain);
             }
@@ -928,7 +928,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
         }
 
         // Token type tracking
-        let type = 'Unknown';
+        let _type = 'Unknown';
         if (token.token_type) {
           type = token.token_type;
         } else if (token.type) {
@@ -944,8 +944,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     }
 
     // Calculate final statistics
-    const avgResponseTime = responseTimeCount > 0 ? Math.round(totalResponseTime / responseTimeCount) : 0;
-    const successRate = finalTotalRequests > 0 ? Math.round((successCount / finalTotalRequests) * 100) : 0;
+    const _avgResponseTime = responseTimeCount > 0 ? Math.round(totalResponseTime / responseTimeCount) : 0;
+    const _successRate = finalTotalRequests > 0 ? Math.round((successCount / finalTotalRequests) * 100) : 0;
 
     console.log('Success Rate Debug:', {
       successCount,
@@ -980,35 +980,35 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
 
   // Calculate domain-specific statistics with enhanced grouping
   useEffect(() => {
-    const loadDomainStats = async () => {
+    const _loadDomainStats = async () => {
       try {
         // CONSISTENCY FIX: Use the exact same logic as charts for data source selection
-        const useAnalysisData = analysisData.loaded && analysisData.networkRequests.length > 0;
+        const _useAnalysisData = analysisData.loaded && analysisData.networkRequests.length > 0;
 
-        const effectiveNetworkRequests = useAnalysisData
+        const _effectiveNetworkRequests = useAnalysisData
           ? analysisData.networkRequests
           : (DEBUG_MODE ? mockNetworkRequests : []);
 
-        const effectiveConsoleErrors = useAnalysisData
+        const _effectiveConsoleErrors = useAnalysisData
           ? analysisData.consoleErrors
           : (DEBUG_MODE ? mockConsoleErrors : []);
 
-        const effectiveTokenEvents = useAnalysisData
+        const _effectiveTokenEvents = useAnalysisData
           ? analysisData.tokenEvents
           : (DEBUG_MODE ? mockTokenEvents : []);
 
-        const allData = [...effectiveNetworkRequests, ...effectiveConsoleErrors, ...effectiveTokenEvents];
+        const _allData = [...effectiveNetworkRequests, ...effectiveConsoleErrors, ...effectiveTokenEvents];
 
         // DEBUG: Very visible logging to check data structure
-        console.log('🚨🚨🚨 DASHBOARD DEBUG START 🚨🚨🚨');
-        console.log('📊 Analysis data loaded:', analysisData.loaded);
-        console.log('📊 Use analysis data:', useAnalysisData);
-        console.log('📊 Total items before domain grouping:', allData.length);
-        console.log('📊 Network requests count:', effectiveNetworkRequests.length);
-        console.log('📊 Analysis data network requests:', analysisData.networkRequests?.length);
+        // console.log('🚨🚨🚨 DASHBOARD DEBUG START 🚨🚨🚨');
+        // console.log('📊 Analysis data loaded:', analysisData.loaded);
+        // console.log('📊 Use analysis data:', useAnalysisData);
+        // console.log('📊 Total items before domain grouping:', allData.length);
+        // console.log('📊 Network requests count:', effectiveNetworkRequests.length);
+        // console.log('📊 Analysis data network requests:', analysisData.networkRequests?.length);
 
         // DEBUG: Log actual URLs to see if CNN.io requests are present
-        console.log('📊 Network request URLs:', effectiveNetworkRequests.map(req => req.url?.substring(0, 60)));
+        // console.log('📊 Network request URLs:', effectiveNetworkRequests.map(req => req.url?.substring(0, 60)));
 
         console.log('🔍 BEFORE DOMAIN GROUPING - First 3 items structure:', allData.slice(0, 3).map(item => ({
           url: item.url?.substring(0, 60),
@@ -1019,9 +1019,9 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
           main_domainValue: (item as any).main_domain,
           type: item.type || 'unknown'
         })));
-        console.log('🚨🚨🚨 DASHBOARD DEBUG END 🚨🚨🚨');
+        // console.log('🚨🚨🚨 DASHBOARD DEBUG END 🚨🚨🚨');
 
-        const stats = await groupDataByDomain(allData);
+        const _stats = await groupDataByDomain(allData);
         setDomainStats(stats);
       } catch (error) {
         console.error('Failed to load domain statistics:', error);
@@ -1033,14 +1033,14 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   }, [analysisData]);
 
   // Sorting functions
-  const handleGlobalSort = (key: string) => {
+  const _handleGlobalSort = (key: string) => {
     setGlobalSortConfig({
       key,
       direction: globalSortConfig.key === key && globalSortConfig.direction === 'desc' ? 'asc' : 'desc'
     });
   };
 
-  const handleDomainSort = (key: string) => {
+  const _handleDomainSort = (key: string) => {
     setDomainSortConfig({
       key,
       direction: domainSortConfig.key === key && domainSortConfig.direction === 'desc' ? 'asc' : 'desc'
@@ -1048,8 +1048,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   };
 
   // Prepare sorted global stats for table
-  const globalStatsTable = useMemo(() => {
-    const stats = [
+  const _globalStatsTable = useMemo(() => {
+    const _stats = [
       // Network category metrics
       { metric: 'Total Requests', value: globalStats.totalRequests, category: 'Network' },
       { metric: 'Unique Domains', value: globalStats.uniqueDomains, category: 'Network' },
@@ -1089,8 +1089,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
           ? a.metric.localeCompare(b.metric)
           : b.metric.localeCompare(a.metric);
       } else if (globalSortConfig.key === 'value') {
-        const aVal = typeof a.value === 'string' ? parseInt(a.value) || 0 : a.value;
-        const bVal = typeof b.value === 'string' ? parseInt(b.value) || 0 : b.value;
+        const _aVal = typeof a.value === 'string' ? parseInt(a.value) || 0 : a.value;
+        const _bVal = typeof b.value === 'string' ? parseInt(b.value) || 0 : b.value;
         return globalSortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
       } else if (globalSortConfig.key === 'category') {
         return globalSortConfig.direction === 'asc'
@@ -1102,11 +1102,11 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   }, [globalStats, globalSortConfig]);
 
   // Prepare sorted domain stats
-  const sortedDomainStats = useMemo(() => {
+  const _sortedDomainStats = useMemo(() => {
     return [...domainStats].sort((a, b) => {
-      const key = domainSortConfig.key as keyof DomainStats;
-      let aVal = a[key];
-      let bVal = b[key];
+      const _key = domainSortConfig.key as keyof DomainStats;
+      let _aVal = a[key];
+      let _bVal = b[key];
 
       if (typeof aVal === 'string' && typeof bVal === 'string') {
         return domainSortConfig.direction === 'asc'
@@ -1234,7 +1234,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
             <select
               value={analysisLimit}
               onChange={(e) => {
-                const value = parseInt(e.target.value, 10);
+                const _value = parseInt(e.target.value, 10);
                 setAnalysisLimit(isNaN(value) ? 200 : value);
               }}
               className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
@@ -2001,16 +2001,16 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                     <div className="flex flex-wrap gap-1 max-w-md">
                                       {stat.libraries.slice(0, 4).map((lib, libIndex) => {
                                         // Apply smart truncation and categorization to main display
-                                        const displayName = LibraryDetector.getDisplayName(lib, 20); // Shorter for main view
-                                        const fullName = `${lib.name}${lib.version && lib.version !== 'unknown' ? `@${lib.version}` : ''}`;
+                                        const _displayName = LibraryDetector.getDisplayName(lib, 20); // Shorter for main view
+                                        const _fullName = `${ lib.name }${ lib.version && lib.version !== 'unknown' ? `@${lib.version }` : ''}`;
 
                                         // Get primary category info for dashboard display
-                                        const getPrimaryResourceTypeInfo = (libType: string) => {
-                                          const primaryCategory = getPrimaryCategory(libType);
-                                          const primaryInfo = getPrimaryCategoryInfo(primaryCategory, isDark);
+                                        const _getPrimaryResourceTypeInfo = (libType: string) => {
+                                          const _primaryCategory = getPrimaryCategory(libType);
+                                          const _primaryInfo = getPrimaryCategoryInfo(primaryCategory, isDark);
 
                                           // Get detailed label for tooltip
-                                          const detailedLabel = (() => {
+                                          const _detailedLabel = (() => {
                                             switch (libType) {
                                               case 'framework': return 'Framework';
                                               case 'utility': return 'Utility';
@@ -2033,8 +2033,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                           };
                                         };
 
-                                        const typeInfo = getPrimaryResourceTypeInfo(lib.type);
-                                        const IconComponent = typeInfo.icon;
+                                        const _typeInfo = getPrimaryResourceTypeInfo(lib.type);
+                                        const _IconComponent = typeInfo.icon;
 
                                         return (
                                           <span
@@ -2080,16 +2080,16 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                             <div className="flex flex-wrap gap-1">
                                               {sourceDomain.libraries.map((lib, libIndex) => {
                                                 // Use smart truncation for better display
-                                                const displayName = LibraryDetector.getDisplayName(lib, 25);
-                                                const fullName = `${lib.name}${lib.version && lib.version !== 'unknown' ? `@${lib.version}` : ''}`;
+                                                const _displayName = LibraryDetector.getDisplayName(lib, 25);
+                                                const _fullName = `${ lib.name }${ lib.version && lib.version !== 'unknown' ? `@${lib.version }` : ''}`;
 
                                                 // Get primary category info for domain library display
-                                                const getDomainPrimaryResourceTypeInfo = (libType: string) => {
-                                                  const primaryCategory = getPrimaryCategory(libType);
-                                                  const primaryInfo = getPrimaryCategoryInfo(primaryCategory, isDark);
+                                                const _getDomainPrimaryResourceTypeInfo = (libType: string) => {
+                                                  const _primaryCategory = getPrimaryCategory(libType);
+                                                  const _primaryInfo = getPrimaryCategoryInfo(primaryCategory, isDark);
 
                                                   // Get detailed label for tooltip
-                                                  const detailedLabel = (() => {
+                                                  const _detailedLabel = (() => {
                                                     switch (libType) {
                                                       case 'framework': return 'Framework';
                                                       case 'utility': return 'Utility';
@@ -2112,8 +2112,8 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
                                                   };
                                                 };
 
-                                                const typeInfo = getDomainPrimaryResourceTypeInfo(lib.type);
-                                                const IconComponent = typeInfo.icon;
+                                                const _typeInfo = getDomainPrimaryResourceTypeInfo(lib.type);
+                                                const _IconComponent = typeInfo.icon;
 
                                                 return (
                                                   <span

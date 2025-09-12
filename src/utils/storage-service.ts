@@ -105,10 +105,10 @@ export class StorageService {
   private async sendMessage(message: any): Promise<any> {
     let lastError: Error | null = null;
 
-    for (let attempt = 0; attempt < this.options.retryAttempts!; attempt++) {
+    for (let _attempt = 0; attempt < this.options.retryAttempts!; attempt++) {
       try {
         return await new Promise((resolve, reject) => {
-          const timeout = setTimeout(() => {
+          const _timeout = setTimeout(() => {
             reject(new Error(`Storage operation timed out after ${this.options.timeout}ms`));
           }, this.options.timeout);
 
@@ -149,10 +149,10 @@ export class StorageService {
 }
 
 // Create singleton instance for easy use
-export const storageService = new StorageService();
+export const _storageService = new StorageService();
 
 // Legacy compatibility functions that match chrome.storage.local API
-export const chromeStorageCompat = {
+export const _chromeStorageCompat = {
   /**
    * Get items from storage (chrome.storage.local.get compatible)
    */

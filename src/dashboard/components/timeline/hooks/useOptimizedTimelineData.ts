@@ -14,10 +14,10 @@ export function useOptimizedTimelineData({ viewport, currentScope, totalEvents }
   const [error, setError] = useState<string | null>(null);
 
   // Check if this is an "All Time" view
-  const isAllTimeView = currentScope.key === 'all-time';
+  const _isAllTimeView = currentScope.key === 'all-time';
 
   // Memoized viewport to prevent unnecessary re-fetches
-  const memoizedViewport = useMemo(() => viewport, [
+  const _memoizedViewport = useMemo(() => viewport, [
     viewport.startTime,
     viewport.endTime,
     viewport.centerTime,
@@ -25,9 +25,9 @@ export function useOptimizedTimelineData({ viewport, currentScope, totalEvents }
   ]);
 
   useEffect(() => {
-    let isCancelled = false;
+    let _isCancelled = false;
 
-    const fetchTimelineData = async () => {
+    const _fetchTimelineData = async () => {
       if (totalEvents === 0) {
         setEvents([]);
         return;
@@ -78,7 +78,7 @@ export function useOptimizedTimelineData({ viewport, currentScope, totalEvents }
     timelineDataService.clearCache();
   }, [totalEvents]);
 
-  const metrics = useMemo(() => ({
+  const _metrics = useMemo(() => ({
     totalEvents,
     loadedEvents: events.length,
     clusteredEvents: events.reduce((sum, event) => sum + (event.eventCount || 1), 0),

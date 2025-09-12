@@ -59,7 +59,7 @@ export class ExtensionStateController {
 
   private async initializeState(): Promise<void> {
     try {
-      const result = await this.storageService.get<ExtensionState>('extensionState');
+      const _result = await this.storageService.get<ExtensionState>('extensionState');
       this.state = result.extensionState || {
         globalEnabled: true, // Default to enabled for backward compatibility
         tabStates: {}
@@ -153,8 +153,8 @@ export class ExtensionStateController {
 
   private async notifyAllTabs(enabled: boolean): Promise<void> {
     try {
-      const tabs = await chrome.tabs.query({});
-      const notifications = tabs.map(tab => {
+      const _tabs = await chrome.tabs.query({});
+      const _notifications = tabs.map(tab => {
         if (tab.id) {
           return chrome.tabs.sendMessage(tab.id, {
             action: 'EXTENSION_STATE_CHANGED',
@@ -230,12 +230,12 @@ export class ExtensionStateController {
       return;
     }
 
-    const now = Date.now();
-    let hasChanges = false;
+    const _now = Date.now();
+    let _hasChanges = false;
 
     for (const tabIdStr in this.state.tabStates) {
-      const tabId = parseInt(tabIdStr, 10);
-      const tabState = this.state.tabStates[tabId];
+      const _tabId = parseInt(tabIdStr, 10);
+      const _tabState = this.state.tabStates[tabId];
 
       if (now - tabState.timestamp > this.TAB_STATE_TTL) {
         delete this.state.tabStates[tabId];

@@ -26,30 +26,30 @@ export const UnifiedPermissionDemo: React.FC<UnifiedPermissionDemoProps> = () =>
 
   // Load current state
   useEffect(() => {
-    const loadPermissionState = async () => {
+    const _loadPermissionState = async () => {
       try {
         // Initialize unified manager
         await unifiedPermissionManager.initialize();
 
         // Get current tab info
-        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-        const currentTab = tabs[0];
+        const _tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        const _currentTab = tabs[0];
 
         if (currentTab?.id && currentTab?.url) {
           setCurrentTabId(currentTab.id);
 
-          const domain = new URL(currentTab.url).hostname;
+          const _domain = new URL(currentTab.url).hostname;
           setCurrentDomain(domain);
 
           // Get complete permission state for this tab
-          const state = await unifiedPermissionManager.getTabPermissionState(currentTab.id, currentTab.url);
+          const _state = await unifiedPermissionManager.getTabPermissionState(currentTab.id, currentTab.url);
 
           setGlobalEnabled(state.global);
           setSiteEnabled(state.site);
           setFeatures(state.features);
 
           // Get raw permission data for display
-          const rawData = await chrome.storage.local.get(['unifiedPermissions']);
+          const _rawData = await chrome.storage.local.get(['unifiedPermissions']);
           setPermissionData(rawData.unifiedPermissions);
         }
 
@@ -64,14 +64,14 @@ export const UnifiedPermissionDemo: React.FC<UnifiedPermissionDemoProps> = () =>
   }, []);
 
   // Handle global power toggle
-  const handleGlobalToggle = async () => {
+  const _handleGlobalToggle = async () => {
     try {
-      const newState = !globalEnabled;
+      const _newState = !globalEnabled;
       await unifiedPermissionManager.setGlobalEnabled(newState);
       setGlobalEnabled(newState);
 
       // Refresh permission data
-      const rawData = await chrome.storage.local.get(['unifiedPermissions']);
+      const _rawData = await chrome.storage.local.get(['unifiedPermissions']);
       setPermissionData(rawData.unifiedPermissions);
     } catch (error) {
       // console.error('Error toggling global state:', error);
@@ -79,16 +79,16 @@ export const UnifiedPermissionDemo: React.FC<UnifiedPermissionDemoProps> = () =>
   };
 
   // Handle site-specific toggle
-  const handleSiteToggle = async () => {
+  const _handleSiteToggle = async () => {
     try {
       if (!currentDomain) return;
 
-      const newState = !siteEnabled;
+      const _newState = !siteEnabled;
       await unifiedPermissionManager.setSiteEnabled(currentDomain, newState);
       setSiteEnabled(newState);
 
       // Refresh permission data
-      const rawData = await chrome.storage.local.get(['unifiedPermissions']);
+      const _rawData = await chrome.storage.local.get(['unifiedPermissions']);
       setPermissionData(rawData.unifiedPermissions);
     } catch (error) {
       // console.error('Error toggling site state:', error);
@@ -96,11 +96,11 @@ export const UnifiedPermissionDemo: React.FC<UnifiedPermissionDemoProps> = () =>
   };
 
   // Handle feature toggle
-  const handleFeatureToggle = async (feature: 'network' | 'console' | 'tokens') => {
+  const _handleFeatureToggle = async (feature: 'network' | 'console' | 'tokens') => {
     try {
       if (!currentTabId) return;
 
-      const newState = !features[feature];
+      const _newState = !features[feature];
       await unifiedPermissionManager.setFeatureEnabled(currentTabId, feature, newState);
 
       setFeatures(prev => ({
@@ -109,7 +109,7 @@ export const UnifiedPermissionDemo: React.FC<UnifiedPermissionDemoProps> = () =>
       }));
 
       // Refresh permission data
-      const rawData = await chrome.storage.local.get(['unifiedPermissions']);
+      const _rawData = await chrome.storage.local.get(['unifiedPermissions']);
       setPermissionData(rawData.unifiedPermissions);
     } catch (error) {
       // console.error(`Error toggling ${feature} feature:`, error);

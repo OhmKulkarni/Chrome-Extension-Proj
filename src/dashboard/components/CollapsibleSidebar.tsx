@@ -67,18 +67,18 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
   }, [isOpen]);
 
   // Load storage usage function from settings
-  const loadStorageUsage = async () => {
+  const _loadStorageUsage = async () => {
     try {
       setStorageUsage(prev => ({ ...prev, isLoading: true }));
 
       // Get table counts for storage estimation
-      const response = await chrome.runtime.sendMessage({
+      const _response = await chrome.runtime.sendMessage({
         action: 'getTableCounts'
       });
 
       if (response && response.success && response.data) {
-        const tableCounts = response.data;
-        let estimatedBytes = 0;
+        const _tableCounts = response.data;
+        let _estimatedBytes = 0;
 
         // Calculate estimated size based on table counts
         if (tableCounts.apiCalls) {
@@ -94,8 +94,8 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
           estimatedBytes += tableCounts.minifiedLibraries * 15000; // ~15KB average
         }
 
-        const STORAGE_LIMIT = 100 * 1024 * 1024; // 100MB limit
-        const percentage = (estimatedBytes / STORAGE_LIMIT) * 100;
+        const _STORAGE_LIMIT = 100 * 1024 * 1024; // 100MB limit
+        const _percentage = (estimatedBytes / STORAGE_LIMIT) * 100;
 
         setStorageUsage({
           bytes: estimatedBytes,
@@ -110,22 +110,22 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
   };
 
   // Format bytes to human readable format
-  const formatBytes = (bytes: number): string => {
+  const _formatBytes = (bytes: number): string => {
     if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    const _k = 1024;
+    const _sizes = ['B', 'KB', 'MB', 'GB'];
+    const _i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   // Filter tabs based on search term (only when in logging mode)
-  const filteredTabs = sidebarMode === 'logging' ? tabsLoggingStatus.filter(tab =>
+  const _filteredTabs = sidebarMode === 'logging' ? tabsLoggingStatus.filter(tab =>
     tab.title.toLowerCase().includes(tabSearchTerm.toLowerCase()) ||
     tab.domain.toLowerCase().includes(tabSearchTerm.toLowerCase()) ||
     tab.url.toLowerCase().includes(tabSearchTerm.toLowerCase())
   ) : [];
 
-  const renderBaseContent = () => (
+  const _renderBaseContent = () => (
     <div className="flex-1 p-4 space-y-4">
       {/* Mode Selector */}
       <div className="space-y-2">
@@ -211,7 +211,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
     </div>
   );
 
-  const renderLoggingContent = () => (
+  const _renderLoggingContent = () => (
     <>
       {/* Search Bar */}
       <div className="p-4 border-b border-gray-200">
@@ -336,7 +336,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
     </>
   );
 
-  const renderSettingsContent = () => (
+  const _renderSettingsContent = () => (
     <div className="flex-1 p-4 space-y-4">
       <h3 className="text-sm font-semibold text-gray-900">Settings</h3>
       <div className="text-sm text-gray-600">

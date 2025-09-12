@@ -23,22 +23,22 @@ export const TimelineVisualization: React.FC<TimelineVisualizationProps> = ({ fo
   const lastProcessedEventIdRef = React.useRef<string | null>(null)
 
   // Initialize viewport with default settings first
-  const viewport = useViewport({ initialScope: '1-hour' })
+  const _viewport = useViewport({ initialScope: '1-hour' })
 
-  const timelineData = useTimelineData({
+  const _timelineData = useTimelineData({
     swimlanes: ['network', 'console', 'token'],
     zoomLevel: viewport.zoomLevel
   })
 
   // Calculate earliest and latest timestamps from timeline data for "first-" and "last-" scopes
-  const earliestTimestamp = useMemo(() => {
+  const _earliestTimestamp = useMemo(() => {
     if (!timelineData.events || timelineData.events.length === 0) {
       return Date.now() - (24 * 60 * 60 * 1000) // Default fallback
     }
     return Math.min(...timelineData.events.map(event => event.timestamp))
   }, [timelineData.events])
 
-  const latestTimestamp = useMemo(() => {
+  const _latestTimestamp = useMemo(() => {
     if (!timelineData.events || timelineData.events.length === 0) {
       return Date.now() // Default fallback to current time
     }
@@ -52,15 +52,15 @@ export const TimelineVisualization: React.FC<TimelineVisualizationProps> = ({ fo
   }, [earliestTimestamp, latestTimestamp, viewport])
 
   // Use the new density-based visualization
-  const visualizationData = useTimelineVisualization({
+  const _visualizationData = useTimelineVisualization({
     events: timelineData.events,
     viewport: viewport.viewport,
     zoomLevel: viewport.zoomLevel
   })
 
-  const hiddenSwimlanes = swimlanes.filter(lane => !lane.isVisible).map(lane => lane.id)
+  const _hiddenSwimlanes = swimlanes.filter(lane => !lane.isVisible).map(lane => lane.id)
 
-  const handleShowSwimlane = (laneId: string) => {
+  const _handleShowSwimlane = (laneId: string) => {
     setSwimlanes(prev => prev.map(lane =>
       lane.id === laneId ? { ...lane, isVisible: true } : lane
     ))
@@ -79,14 +79,14 @@ export const TimelineVisualization: React.FC<TimelineVisualizationProps> = ({ fo
       lastProcessedEventIdRef.current = focusedEventId
 
       // First try exact ID match
-      let targetEvent = timelineData.events.find(event => event.id === focusedEventId)
+      let _targetEvent = timelineData.events.find(event => event.id === focusedEventId)
 
       if (!targetEvent) {
         // If no exact match, try to find by timestamp and type
-        const idParts = focusedEventId.split('_')
+        const _idParts = focusedEventId.split('_')
         if (idParts.length >= 3) {
-          const eventType = idParts[0]
-          const timestamp = parseInt(idParts[idParts.length - 1])
+          const _eventType = idParts[0]
+          const _timestamp = parseInt(idParts[idParts.length - 1])
 
           if (!isNaN(timestamp)) {
             // Find event by type and timestamp (within 100ms tolerance)
@@ -99,7 +99,7 @@ export const TimelineVisualization: React.FC<TimelineVisualizationProps> = ({ fo
       }
 
       if (targetEvent) {
-        const targetTime = targetEvent.timestamp
+        const _targetTime = targetEvent.timestamp
 
         // Set timeline to 1-minute scope and center on the event in one smooth operation
         // Use jumpToTime which handles both scope and timing properly
@@ -110,17 +110,17 @@ export const TimelineVisualization: React.FC<TimelineVisualizationProps> = ({ fo
           setHighlightedEventId(focusedEventId)
         }, 150)
 
-        console.log(`Timeline focused on event: ${focusedEventId} at ${new Date(targetTime).toLocaleString()}`)
+        // console.log(`Timeline focused on event: ${focusedEventId} at ${new Date(targetTime).toLocaleString()}`)
       } else {
-        console.warn(`Timeline could not find event with ID: ${focusedEventId}`)
-        console.log('Available events:', timelineData.events.map(e => ({ id: e.id, type: e.type, timestamp: e.timestamp })))
+        // console.warn(`Timeline could not find event with ID: ${focusedEventId}`)
+        // console.log('Available events:', timelineData.events.map(e => ({ id: e.id, type: e.type, timestamp: e.timestamp })))
       }
     } else if (focusedEventId && timelineData.loading) {
-      console.log('Timeline waiting for data to load before focusing...')
+      // console.log('Timeline waiting for data to load before focusing...')
     }
   }, [focusedEventId, timelineData.events, timelineData.loading])  // Check for updates periodically - TEMPORARILY DISABLED
   useEffect(() => {
-    // const interval = setInterval(() => {
+    // const _interval = setInterval(() => {
     //   timelineData.checkForUpdates()
     // }, 30000) // Check every 30 seconds
 
@@ -129,12 +129,12 @@ export const TimelineVisualization: React.FC<TimelineVisualizationProps> = ({ fo
 
   // Add keyboard shortcut for debug mode
   useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
+    const _handleKeyPress = (e: KeyboardEvent) => {
       // Ctrl+Shift+D to toggle debug mode
       if (e.ctrlKey && e.shiftKey && e.key === 'D') {
         e.preventDefault()
         setDebugMode(prev => !prev)
-        console.log(`🐛 Timeline Debug Mode: ${!debugMode ? 'ON' : 'OFF'}`)
+        // console.log(`🐛 Timeline Debug Mode: ${!debugMode ? 'ON' : 'OFF'}`)
       }
     }
 

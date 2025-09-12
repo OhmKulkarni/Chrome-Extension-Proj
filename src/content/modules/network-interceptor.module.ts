@@ -79,7 +79,7 @@ export class NetworkInterceptorModule {
    */
   public initialize(): void {
     if (this.isInitialized) {
-      console.warn('NetworkInterceptorModule: Already initialized')
+      // console.warn('NetworkInterceptorModule: Already initialized')
       return
     }
 
@@ -89,11 +89,11 @@ export class NetworkInterceptorModule {
     }
 
     if (!this.config.enabled) {
-      console.log('NetworkInterceptorModule: Disabled by configuration')
+      // console.log('NetworkInterceptorModule: Disabled by configuration')
       return
     }
 
-    console.log('NetworkInterceptorModule: Initializing network interception...')
+    // console.log('NetworkInterceptorModule: Initializing network interception...')
     console.log('NetworkInterceptorModule: Config:', {
       enabled: this.config.enabled,
       captureHeaders: this.config.captureHeaders,
@@ -109,7 +109,7 @@ export class NetworkInterceptorModule {
       this.interceptFetch()
 
       this.isInitialized = true
-      console.log('NetworkInterceptorModule: Network interception initialized')
+      // console.log('NetworkInterceptorModule: Network interception initialized')
 
     } catch (error) {
       console.error('NetworkInterceptorModule: Initialization failed:', error)
@@ -137,11 +137,11 @@ export class NetworkInterceptorModule {
    * Notify all listeners of a network request
    */
   private notifyListeners(request: NetworkRequest): void {
-    console.log(`📢 NetworkInterceptor: Notifying ${this.listeners.size} listeners for ${request.method} ${request.url}`)
+    // console.log(`📢 NetworkInterceptor: Notifying ${this.listeners.size} listeners for ${request.method} ${request.url}`)
     this.listeners.forEach(listener => {
       try {
         listener(request)
-        console.log(`✅ NetworkInterceptor: Listener notified successfully`)
+        // console.log(`✅ NetworkInterceptor: Listener notified successfully`)
       } catch (error) {
         console.error('NetworkInterceptorModule: Listener error:', error)
       }
@@ -158,9 +158,9 @@ export class NetworkInterceptorModule {
       this.originalMethods.xhrSend = XMLHttpRequest.prototype.send
     }
 
-    const originalXHROpen = this.originalMethods.xhrOpen!
-    const originalXHRSend = this.originalMethods.xhrSend!
-    const moduleInstance = this
+    const _originalXHROpen = this.originalMethods.xhrOpen!
+    const _originalXHRSend = this.originalMethods.xhrSend!
+    const _moduleInstance = this
 
     XMLHttpRequest.prototype.open = function(method: string, url: string, async?: boolean, user?: string, password?: string) {
       ;(this as any)._networkInterceptor = {
@@ -174,27 +174,27 @@ export class NetworkInterceptorModule {
     }
 
     XMLHttpRequest.prototype.send = function(body?: Document | XMLHttpRequestBodyInit | null) {
-      const interceptor = (this as any)._networkInterceptor
-      console.log(`🌐 NetworkInterceptor: XHR send called for ${interceptor?.url || 'unknown'}`)
+      const _interceptor = (this as any)._networkInterceptor
+      // console.log(`🌐 NetworkInterceptor: XHR send called for ${interceptor?.url || 'unknown'}`)
 
       if (!interceptor) {
-        console.log(`⚠️ NetworkInterceptor: No interceptor data found`)
+        // console.log(`⚠️ NetworkInterceptor: No interceptor data found`)
         return originalXHRSend.call(this, body)
       }
 
       // Store request body and calculate size
       let requestBody: string | undefined = undefined
-      let requestSize = 0
+      let _requestSize = 0
 
       if (body && moduleInstance.config.captureBody) {
         if (typeof body === 'string') {
-          const bodyStr = body.length <= moduleInstance.config.maxBodySize ? body : body.substring(0, moduleInstance.config.maxBodySize)
+          const _bodyStr = body.length <= moduleInstance.config.maxBodySize ? body : body.substring(0, moduleInstance.config.maxBodySize)
           requestBody = bodyStr
           requestSize = new Blob([body]).size // Accurate size calculation
         } else if (body instanceof FormData) {
           requestBody = '[FormData]'
           // Approximate FormData size calculation
-          let formDataSize = 0
+          let _formDataSize = 0
           try {
             body.forEach((value) => {
               if (typeof value === 'string') {
@@ -215,7 +215,7 @@ export class NetworkInterceptorModule {
           requestBody = `[ArrayBuffer: ${body.byteLength} bytes]`
           requestSize = body.byteLength
         } else {
-          const bodyStr = String(body)
+          const _bodyStr = String(body)
           requestBody = bodyStr.length <= moduleInstance.config.maxBodySize ? bodyStr : bodyStr.substring(0, moduleInstance.config.maxBodySize)
           requestSize = new Blob([bodyStr]).size
         }
@@ -229,7 +229,7 @@ export class NetworkInterceptorModule {
           requestSize = body.byteLength
         } else if (body instanceof FormData) {
           // Approximate FormData size
-          let formDataSize = 0
+          let _formDataSize = 0
           try {
             body.forEach((value) => {
               if (typeof value === 'string') {
@@ -251,7 +251,7 @@ export class NetworkInterceptorModule {
       interceptor.requestSize = requestSize
 
       // Capture request headers
-      const setRequestHeader = this.setRequestHeader
+      const _setRequestHeader = this.setRequestHeader
       this.setRequestHeader = function(name: string, value: string) {
         interceptor.requestHeaders[name] = value
         return setRequestHeader.call(this, name, value)
@@ -260,11 +260,11 @@ export class NetworkInterceptorModule {
       // Set up response handler
       this.addEventListener('readystatechange', () => {
         if (this.readyState === XMLHttpRequest.DONE) {
-          const endTime = performance.now() // High-precision end time
+          const _endTime = performance.now() // High-precision end time
 
           // Calculate response size and body
           let responseBody: string | undefined = undefined
-          let responseSize = 0
+          let _responseSize = 0
 
           if (moduleInstance.config.captureBody && this.responseText) {
             responseBody = this.responseText.length <= moduleInstance.config.maxBodySize
@@ -342,20 +342,20 @@ export class NetworkInterceptorModule {
       this.originalMethods.fetch = window.fetch
     }
 
-    const originalFetch = this.originalMethods.fetch!
-    const module = this
+    const _originalFetch = this.originalMethods.fetch!
+    const _module = this
 
     window.fetch = async function(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-      const startTime = performance.now() // High-precision timing
-      const realStartTime = Date.now() // Real timestamp for storage
-      const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
-      const method = init?.method || 'GET'
+      const _startTime = performance.now() // High-precision timing
+      const _realStartTime = Date.now() // Real timestamp for storage
+      const _url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
+      const _method = init?.method || 'GET'
 
-      console.log(`🌐 NetworkInterceptor: Fetch called for ${method} ${url}`)
+      // console.log(`🌐 NetworkInterceptor: Fetch called for ${method} ${url}`)
 
       // Calculate request size and body
       let requestBody: string | undefined = undefined
-      let requestSize = 0
+      let _requestSize = 0
 
       if (init?.body && module.config.captureBody) {
         if (typeof init.body === 'string') {
@@ -363,7 +363,7 @@ export class NetworkInterceptorModule {
           requestSize = new Blob([init.body]).size
         } else if (init.body instanceof FormData) {
           requestBody = '[FormData]'
-          let formDataSize = 0
+          let _formDataSize = 0
           try {
             init.body.forEach((value) => {
               if (typeof value === 'string') {
@@ -383,7 +383,7 @@ export class NetworkInterceptorModule {
           requestBody = `[ArrayBuffer: ${init.body.byteLength} bytes]`
           requestSize = init.body.byteLength
         } else {
-          const bodyStr = String(init.body)
+          const _bodyStr = String(init.body)
           requestBody = bodyStr.length <= module.config.maxBodySize ? bodyStr : bodyStr.substring(0, module.config.maxBodySize)
           requestSize = new Blob([bodyStr]).size
         }
@@ -396,7 +396,7 @@ export class NetworkInterceptorModule {
         } else if (init.body instanceof ArrayBuffer) {
           requestSize = init.body.byteLength
         } else if (init.body instanceof FormData) {
-          let formDataSize = 0
+          let _formDataSize = 0
           try {
             init.body.forEach((value) => {
               if (typeof value === 'string') {
@@ -415,31 +415,31 @@ export class NetworkInterceptorModule {
       }
 
       try {
-        const response = await originalFetch(input, init)
-        const endTime = performance.now() // High-precision end time
+        const _response = await originalFetch(input, init)
+        const _endTime = performance.now() // High-precision end time
 
         // Calculate response size and body
         let responseBody: string | undefined = undefined
-        let responseSize = 0
+        let _responseSize = 0
 
         if (module.config.captureBody) {
           try {
-            const responseClone = response.clone()
-            const text = await responseClone.text()
+            const _responseClone = response.clone()
+            const _text = await responseClone.text()
             responseBody = text.length <= module.config.maxBodySize ? text : text.substring(0, module.config.maxBodySize)
             responseSize = new Blob([text]).size
-            console.log('🌐 NetworkInterceptor: Captured response body:', text.length, 'chars, truncated to:', responseBody.length)
+            // console.log('🌐 NetworkInterceptor: Captured response body:', text.length, 'chars, truncated to:', responseBody.length)
           } catch (error) {
-            console.warn('🌐 NetworkInterceptor: Failed to capture response body:', error)
+            // console.warn('🌐 NetworkInterceptor: Failed to capture response body:', error)
             // If reading response body fails, try to get content-length header
-            const contentLength = response.headers.get('content-length')
+            const _contentLength = response.headers.get('content-length')
             if (contentLength) {
               responseSize = parseInt(contentLength, 10) || 0
             }
           }
         } else {
           // Get size from content-length header if available
-          const contentLength = response.headers.get('content-length')
+          const _contentLength = response.headers.get('content-length')
           if (contentLength) {
             responseSize = parseInt(contentLength, 10) || 0
           }
@@ -489,7 +489,7 @@ export class NetworkInterceptorModule {
 
         return response
       } catch (error) {
-        const endTime = performance.now()
+        const _endTime = performance.now()
 
         const networkRequest: NetworkRequest = {
           id: `fetch_error_${realStartTime}_${Math.random().toString(36).substr(2, 9)}`,
@@ -558,34 +558,34 @@ export class NetworkInterceptorModule {
    * Check if request should be filtered
    */
   private shouldFilter(request: NetworkRequest): boolean {
-    console.log(`🔍 NetworkInterceptor: shouldFilter check for ${request.method} ${request.url}`)
+    // console.log(`🔍 NetworkInterceptor: shouldFilter check for ${request.method} ${request.url}`)
 
     // URL filters
     if (this.config.urlFilters && this.config.urlFilters.length > 0) {
-      console.log(`🔍 NetworkInterceptor: Checking ${this.config.urlFilters.length} URL filters`)
-      const matchesFilter = this.config.urlFilters.some(filter => {
-        const matches = filter.test(request.url)
-        console.log(`🔍 NetworkInterceptor: Filter ${filter} - matches: ${matches}`)
+      // console.log(`🔍 NetworkInterceptor: Checking ${this.config.urlFilters.length} URL filters`)
+      const _matchesFilter = this.config.urlFilters.some(filter => {
+        const _matches = filter.test(request.url)
+        // console.log(`🔍 NetworkInterceptor: Filter ${filter} - matches: ${matches}`)
         return matches
       })
       if (!matchesFilter) {
-        console.log(`❌ NetworkInterceptor: URL filtered out - no filter match`)
+        // console.log(`❌ NetworkInterceptor: URL filtered out - no filter match`)
         return true
       }
-      console.log(`✅ NetworkInterceptor: URL passes filter`)
+      // console.log(`✅ NetworkInterceptor: URL passes filter`)
     }
 
     // Method filters
     if (this.config.methodFilters && this.config.methodFilters.length > 0) {
-      console.log(`🔍 NetworkInterceptor: Checking method filters: ${this.config.methodFilters}`)
+      // console.log(`🔍 NetworkInterceptor: Checking method filters: ${this.config.methodFilters}`)
       if (!this.config.methodFilters.includes(request.method)) {
-        console.log(`❌ NetworkInterceptor: Method ${request.method} filtered out`)
+        // console.log(`❌ NetworkInterceptor: Method ${request.method} filtered out`)
         return true
       }
-      console.log(`✅ NetworkInterceptor: Method ${request.method} passes filter`)
+      // console.log(`✅ NetworkInterceptor: Method ${request.method} passes filter`)
     }
 
-    console.log(`✅ NetworkInterceptor: Request passes all filters, will notify listeners`)
+    // console.log(`✅ NetworkInterceptor: Request passes all filters, will notify listeners`)
     return false
   }
 
@@ -595,14 +595,14 @@ export class NetworkInterceptorModule {
   public destroy(): void {
     // Prevent concurrent destroy operations
     if (this.isDestroying) {
-      console.warn('NetworkInterceptorModule: Destroy already in progress')
+      // console.warn('NetworkInterceptorModule: Destroy already in progress')
       return
     }
 
     this.isDestroying = true
 
     try {
-      console.log('NetworkInterceptorModule: Destroying and restoring original methods...')
+      // console.log('NetworkInterceptorModule: Destroying and restoring original methods...')
 
       // Restore original methods if they were intercepted
       if (this.originalMethods.fetch) {
@@ -624,7 +624,7 @@ export class NetworkInterceptorModule {
       this.listeners.clear()
       this.isInitialized = false
 
-      console.log('NetworkInterceptorModule: Destroyed and methods restored')
+      // console.log('NetworkInterceptorModule: Destroyed and methods restored')
 
     } catch (error) {
       console.error('NetworkInterceptorModule: Error during destroy:', error)

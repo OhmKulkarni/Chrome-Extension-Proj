@@ -1,9 +1,9 @@
 // Centralized Chrome message handler with memory leak prevention
-export const sendChromeMessage = async (message: any): Promise<any> => {
+export const _sendChromeMessage = async (message: any): Promise<any> => {
   try {
-    const response = await chrome.runtime.sendMessage(message)
+    const _response = await chrome.runtime.sendMessage(message)
     // Immediately copy and nullify response to prevent accumulation
-    const result = response ? { ...response } : null
+    const _result = response ? { ...response } : null
     return result
   } catch (error) {
     // console.error('Chrome message failed:', error)
@@ -12,9 +12,9 @@ export const sendChromeMessage = async (message: any): Promise<any> => {
 }
 
 // Chrome message functions for specific actions
-export const getChromeTabInfo = async (): Promise<any> => {
+export const _getChromeTabInfo = async (): Promise<any> => {
   try {
-    const response = await sendChromeMessage({ action: 'getTabInfo' })
+    const _response = await sendChromeMessage({ action: 'getTabInfo' })
     if (response && !response.error) {
       return response
     } else {
@@ -26,8 +26,8 @@ export const getChromeTabInfo = async (): Promise<any> => {
   }
 }
 
-export const clearChromeData = async (): Promise<void> => {
-  const response = await sendChromeMessage({ action: 'clearAllData' })
+export const _clearChromeData = async (): Promise<void> => {
+  const _response = await sendChromeMessage({ action: 'clearAllData' })
   if (chrome.runtime.lastError) {
     // console.error('Error clearing data:', chrome.runtime.lastError)
     throw chrome.runtime.lastError
@@ -40,13 +40,13 @@ export const clearChromeData = async (): Promise<void> => {
 }
 
 // Storage utilities
-export const getStorageData = async (keys: string[]): Promise<any> => {
+export const _getStorageData = async (keys: string[]): Promise<any> => {
   return new Promise((resolve) => {
     chrome.storage.local.get(keys, resolve)
   })
 }
 
-export const setStorageData = async (data: any): Promise<void> => {
+export const _setStorageData = async (data: any): Promise<void> => {
   return new Promise((resolve) => {
     chrome.storage.local.set(data, resolve)
   })

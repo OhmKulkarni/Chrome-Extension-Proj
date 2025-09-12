@@ -26,17 +26,17 @@ export const ViewedStateSettings: React.FC<ViewedStateSettingsProps> = ({
     }
   }, [isOpen])
 
-  const handleSave = () => {
+  const _handleSave = () => {
     onSettingsChange(localSettings)
     onClose()
   }
 
-  const handleCancel = () => {
+  const _handleCancel = () => {
     setLocalSettings(settings) // Reset to original
     onClose()
   }
 
-  const handleClearViewedEvents = () => {
+  const _handleClearViewedEvents = () => {
     if (window.confirm('Are you sure you want to clear all viewed event history? This action cannot be undone.')) {
       viewedStateService.clearAllViewedEvents()
       setViewedEventsCount(0)

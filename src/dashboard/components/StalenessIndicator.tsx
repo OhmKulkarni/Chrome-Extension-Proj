@@ -24,13 +24,13 @@ export const StalenessIndicator: React.FC<StalenessIndicatorProps> = ({
     return null;
   }
 
-  const now = Date.now();
-  const ageMs = now - lastProcessed;
-  const ageSeconds = ageMs / 1000;
+  const _now = Date.now();
+  const _ageMs = now - lastProcessed;
+  const _ageSeconds = ageMs / 1000;
 
   // Calculate staleness level
-  const refreshIntervalMs = refreshInterval * 1000;
-  const staleness = ageMs / refreshIntervalMs;
+  const _refreshIntervalMs = refreshInterval * 1000;
+  const _staleness = ageMs / refreshIntervalMs;
 
   // Determine status
   let status: 'fresh' | 'aging' | 'stale' | 'very-stale';
@@ -60,7 +60,7 @@ export const StalenessIndicator: React.FC<StalenessIndicatorProps> = ({
     bgColor = 'bg-red-50 border-red-200';
   }
 
-  const formatAge = (seconds: number): string => {
+  const _formatAge = (seconds: number): string => {
     if (seconds < 60) {
       return `${Math.round(seconds)}s ago`;
     } else if (seconds < 3600) {
@@ -70,7 +70,7 @@ export const StalenessIndicator: React.FC<StalenessIndicatorProps> = ({
     }
   };
 
-  const getStatusText = (status: string): string => {
+  const _getStatusText = (status: string): string => {
     switch (status) {
       case 'fresh': return 'Data is fresh';
       case 'aging': return 'Data is aging';
@@ -116,8 +116,8 @@ export const DataFreshnessBadge: React.FC<DataFreshnessBadgeProps> = ({
     return null;
   }
 
-  const ageMs = Date.now() - lastProcessed;
-  const ageMinutes = ageMs / (1000 * 60);
+  const _ageMs = Date.now() - lastProcessed;
+  const _ageMinutes = ageMs / (1000 * 60);
 
   if (ageMinutes < 1) {
     return (

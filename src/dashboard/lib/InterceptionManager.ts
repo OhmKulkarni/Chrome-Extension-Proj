@@ -58,7 +58,7 @@ export class InterceptionEventBus {
   }
 
   emit(event: string, data: any): void {
-    const eventListeners = this.listeners.get(event);
+    const _eventListeners = this.listeners.get(event);
     if (eventListeners) {
       eventListeners.forEach(callback => {
         try {
@@ -88,7 +88,7 @@ export class NetworkInterceptionManager {
   async start(): Promise<void> {
     if (this.isActive) return;
 
-    console.log('🔗 NetworkInterceptionManager: Starting network interception');
+    // console.log('🔗 NetworkInterceptionManager: Starting network interception');
     this.isActive = true;
 
     // Listen for network events from content script
@@ -156,7 +156,7 @@ export class NetworkInterceptionManager {
   stop(): void {
     if (!this.isActive) return;
 
-    console.log('🔗 NetworkInterceptionManager: Stopping network interception');
+    // console.log('🔗 NetworkInterceptionManager: Stopping network interception');
     this.isActive = false;
     chrome.runtime.onMessage.removeListener(this.handleNetworkMessage.bind(this));
   }
@@ -175,7 +175,7 @@ export class ConsoleErrorManager {
   async start(): Promise<void> {
     if (this.isActive) return;
 
-    console.log('📝 ConsoleErrorManager: Starting console error interception');
+    // console.log('📝 ConsoleErrorManager: Starting console error interception');
     this.isActive = true;
 
     chrome.runtime.onMessage.addListener(this.handleConsoleMessage.bind(this));
@@ -230,7 +230,7 @@ export class ConsoleErrorManager {
   stop(): void {
     if (!this.isActive) return;
 
-    console.log('📝 ConsoleErrorManager: Stopping console error interception');
+    // console.log('📝 ConsoleErrorManager: Stopping console error interception');
     this.isActive = false;
     chrome.runtime.onMessage.removeListener(this.handleConsoleMessage.bind(this));
   }

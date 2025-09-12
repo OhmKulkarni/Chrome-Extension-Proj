@@ -42,7 +42,7 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
   const [tabSearchTerm, setTabSearchTerm] = useState<string>('');
 
   // Filter tabs based on search term
-  const filteredTabs = tabsLoggingStatus.filter(tab => 
+  const _filteredTabs = tabsLoggingStatus.filter(tab => 
     tab.title.toLowerCase().includes(tabSearchTerm.toLowerCase()) ||
     tab.domain.toLowerCase().includes(tabSearchTerm.toLowerCase()) ||
     tab.url.toLowerCase().includes(tabSearchTerm.toLowerCase())

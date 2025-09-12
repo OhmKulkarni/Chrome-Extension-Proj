@@ -5,18 +5,18 @@ import { useState, useMemo } from 'react';
 import React from 'react';
 
 // Hook to detect dark mode
-const useDarkMode = () => {
+const _useDarkMode = () => {
   const [isDark, setIsDark] = React.useState(false);
 
   React.useEffect(() => {
-    const checkDarkMode = () => {
+    const _checkDarkMode = () => {
       setIsDark(document.documentElement.classList.contains('dark'));
     };
 
     checkDarkMode();
 
     // Watch for class changes
-    const observer = new MutationObserver(checkDarkMode);
+    const _observer = new MutationObserver(checkDarkMode);
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['class']
@@ -35,7 +35,7 @@ interface InlineResourcesSectionProps {
 }
 
 // Map detailed categories to primary categories
-const getPrimaryCategory = (type: LibraryInfo['type']): 'libraries' | 'analytics' | 'privacy' | 'services' | 'assets' => {
+const _getPrimaryCategory = (type: LibraryInfo['type']): 'libraries' | 'analytics' | 'privacy' | 'services' | 'assets' => {
   switch (type) {
     case 'framework':
     case 'utility':
@@ -58,7 +58,7 @@ const getPrimaryCategory = (type: LibraryInfo['type']): 'libraries' | 'analytics
   }
 };
 
-const getPrimaryCategoryIcon = (primaryType: string) => {
+const _getPrimaryCategoryIcon = (primaryType: string) => {
   switch (primaryType) {
     case 'libraries':
       return <Library className="h-4 w-4" />;
@@ -75,7 +75,7 @@ const getPrimaryCategoryIcon = (primaryType: string) => {
   }
 };
 
-const getTypeIcon = (type: LibraryInfo['type']) => {
+const _getTypeIcon = (type: LibraryInfo['type']) => {
   switch (type) {
     case 'framework':
       return <Layers className="h-4 w-4" />;
@@ -104,7 +104,7 @@ const getTypeIcon = (type: LibraryInfo['type']) => {
   }
 };
 
-const getTypeBadgeColor = (type: LibraryInfo['type'], isDark: boolean) => {
+const _getTypeBadgeColor = (type: LibraryInfo['type'], isDark: boolean) => {
   switch (type) {
     case 'framework':
       return isDark ? 'bg-blue-800 text-blue-200' : 'bg-blue-600 text-white';
@@ -133,7 +133,7 @@ const getTypeBadgeColor = (type: LibraryInfo['type'], isDark: boolean) => {
   }
 };
 
-const getPrimaryCategoryColor = (primaryType: string, isDark: boolean) => {
+const _getPrimaryCategoryColor = (primaryType: string, isDark: boolean) => {
   switch (primaryType) {
     case 'libraries':
       return isDark ? 'bg-blue-800 text-blue-200' : 'bg-blue-700 text-white';
@@ -150,7 +150,7 @@ const getPrimaryCategoryColor = (primaryType: string, isDark: boolean) => {
   }
 };
 
-const formatTypeName = (type: LibraryInfo['type']) => {
+const _formatTypeName = (type: LibraryInfo['type']) => {
   switch (type) {
     case 'service':
       return 'Web Service';
@@ -160,29 +160,29 @@ const formatTypeName = (type: LibraryInfo['type']) => {
 };
 
 const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain, resources, className = '' }) => {
-  const isDark = useDarkMode();
+  const _isDark = useDarkMode();
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set(['libraries', 'analytics', 'privacy', 'services', 'assets']));
   const [searchTerm, setSearchTerm] = useState('');
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
 
   // Group resources by primary category
-  const groupedResources = useMemo(() => {
-    const filtered = resources.filter(lib =>
+  const _groupedResources = useMemo(() => {
+    const _filtered = resources.filter(lib =>
       lib.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lib.url?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lib.type.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return filtered.reduce((acc, lib) => {
-      const primary = getPrimaryCategory(lib.type);
+      const _primary = getPrimaryCategory(lib.type);
       if (!acc[primary]) acc[primary] = [];
       acc[primary].push(lib);
       return acc;
     }, {} as Record<string, LibraryInfo[]>);
   }, [resources, searchTerm]);
 
-  const toggleSection = (section: string) => {
-    const newCollapsed = new Set(collapsedSections);
+  const _toggleSection = (section: string) => {
+    const _newCollapsed = new Set(collapsedSections);
     if (newCollapsed.has(section)) {
       newCollapsed.delete(section);
     } else {
@@ -191,7 +191,7 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
     setCollapsedSections(newCollapsed);
   };
 
-  const copyToClipboard = async (text: string) => {
+  const _copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
       setCopiedUrl(text);
@@ -201,8 +201,8 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
     }
   };
 
-  const totalResources = resources.length;
-  const filteredResources = Object.values(groupedResources).flat().length;
+  const _totalResources = resources.length;
+  const _filteredResources = Object.values(groupedResources).flat().length;
 
   return (
     <div className={`bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg w-full ${className}`}>
@@ -292,12 +292,12 @@ const InlineResourcesSection: React.FC<InlineResourcesSectionProps> = ({ domain,
                               <div className="font-mono text-xs text-gray-500 dark:text-gray-400 truncate max-w-xs" title={lib.url}>
                                 {(() => {
                                   try {
-                                    const url = new URL(lib.url);
-                                    const filename = url.pathname.split('/').pop() || url.pathname;
+                                    const _url = new URL(lib.url);
+                                    const _filename = url.pathname.split('/').pop() || url.pathname;
                                     return filename && filename !== '/' ? filename : url.hostname;
                                   } catch (error) {
                                     // If URL is invalid, just show the last part after the last slash
-                                    const parts = lib.url.split('/');
+                                    const _parts = lib.url.split('/');
                                     return parts[parts.length - 1] || lib.url;
                                   }
                                 })()}

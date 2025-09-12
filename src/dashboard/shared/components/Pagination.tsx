@@ -12,19 +12,19 @@ interface PaginationProps {
 }
 
 // Generate Google-style page numbers for pagination
-const getPageNumbers = (currentPage: number, totalPages: number, maxVisible: number = 7) => {
+const _getPageNumbers = (currentPage: number, totalPages: number, maxVisible: number = 7) => {
   const pageNumbers: (number | string)[] = []
   
   if (totalPages <= maxVisible) {
     // Show all pages if total is small
-    for (let i = 1; i <= totalPages; i++) {
+    for (let _i = 1; i <= totalPages; i++) {
       pageNumbers.push(i)
     }
   } else {
     // Google-style pagination logic
     if (currentPage <= 4) {
       // Show 1-5 ... totalPages
-      for (let i = 1; i <= 5; i++) {
+      for (let _i = 1; i <= 5; i++) {
         pageNumbers.push(i)
       }
       if (totalPages > 5) {
@@ -35,14 +35,14 @@ const getPageNumbers = (currentPage: number, totalPages: number, maxVisible: num
       // Show 1 ... (totalPages-4)-totalPages
       pageNumbers.push(1)
       pageNumbers.push('...')
-      for (let i = totalPages - 4; i <= totalPages; i++) {
+      for (let _i = totalPages - 4; i <= totalPages; i++) {
         pageNumbers.push(i)
       }
     } else {
       // Show 1 ... (currentPage-1) currentPage (currentPage+1) ... totalPages
       pageNumbers.push(1)
       pageNumbers.push('...')
-      for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+      for (let _i = currentPage - 1; i <= currentPage + 1; i++) {
         pageNumbers.push(i)
       }
       pageNumbers.push('...')
@@ -65,8 +65,8 @@ export const Pagination: React.FC<PaginationProps> = ({
 }) => {
   if (totalPages <= 1) return null
 
-  const indexOfLastItem = currentPage * itemsPerPage
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage + 1
+  const _indexOfLastItem = currentPage * itemsPerPage
+  const _indexOfFirstItem = indexOfLastItem - itemsPerPage + 1
 
   return (
     <div className="mt-6 flex items-center justify-between">

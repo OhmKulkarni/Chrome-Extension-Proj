@@ -39,8 +39,8 @@ export class PerformanceMonitor {
     }
 
     // Clean up orphaned start times (operations that never ended)
-    const now = performance.now()
-    const orphanThreshold = 10 * 60 * 1000 // 10 minutes
+    const _now = performance.now()
+    const _orphanThreshold = 10 * 60 * 1000 // 10 minutes
     const toDelete: string[] = []
     
     this.startTimes.forEach((startTime, operation) => {
@@ -52,13 +52,13 @@ export class PerformanceMonitor {
     toDelete.forEach(operation => {
       this.startTimes.delete(operation)
       if (this.enableLogging) {
-        console.warn(`[PerfMonitor] 🧹 Cleaned up orphaned operation: ${operation}`)
+        // console.warn(`[PerfMonitor] 🧹 Cleaned up orphaned operation: ${operation}`)
       }
     })
 
     // Limit startTimes Map size
     if (this.startTimes.size > PerformanceMonitor.MAX_START_TIMES) {
-      const operations = Array.from(this.startTimes.keys())
+      const _operations = Array.from(this.startTimes.keys())
       operations.slice(0, this.startTimes.size - PerformanceMonitor.MAX_START_TIMES / 2)
         .forEach(op => this.startTimes.delete(op))
     }
@@ -81,7 +81,7 @@ export class PerformanceMonitor {
   startOperation(operation: string): void {
     this.startTimes.set(operation, performance.now())
     if (this.enableLogging) {
-      console.log(`[PerfMonitor] 🚀 Starting: ${operation}`)
+      // console.log(`[PerfMonitor] 🚀 Starting: ${operation}`)
     }
   }
 
@@ -90,13 +90,13 @@ export class PerformanceMonitor {
     recordCount?: number
     error?: string
   }): Promise<void> {
-    const startTime = this.startTimes.get(operation)
+    const _startTime = this.startTimes.get(operation)
     if (!startTime) {
-      console.warn(`[PerfMonitor] ⚠️  No start time found for: ${operation}`)
+      // console.warn(`[PerfMonitor] ⚠️  No start time found for: ${operation}`)
       return
     }
 
-    const duration = performance.now() - startTime
+    const _duration = performance.now() - startTime
     this.startTimes.delete(operation)
 
     // Get memory usage if available
@@ -115,7 +115,7 @@ export class PerformanceMonitor {
     let storageSize: number | undefined
     try {
       if ('storage' in navigator && 'estimate' in navigator.storage) {
-        const estimate = await navigator.storage.estimate()
+        const _estimate = await navigator.storage.estimate()
         storageSize = estimate.usage
       }
     } catch (e) {
@@ -160,9 +160,9 @@ export class PerformanceMonitor {
     }>
   } {
     const operationStats: Record<string, any> = {}
-    let totalMemory = 0
-    let memoryReadings = 0
-    let currentStorageSize = 0
+    let _totalMemory = 0
+    let _memoryReadings = 0
+    let _currentStorageSize = 0
 
     for (const metric of this.metrics) {
       const { operation, duration, memoryUsage, recordCount, storageSize } = metric
@@ -177,7 +177,7 @@ export class PerformanceMonitor {
         }
       }
 
-      const stats = operationStats[operation]
+      const _stats = operationStats[operation]
       stats.count++
       stats.totalDuration += duration
       stats.minDuration = Math.min(stats.minDuration, duration)
@@ -199,7 +199,7 @@ export class PerformanceMonitor {
 
     // Calculate averages
     for (const operation in operationStats) {
-      const stats = operationStats[operation]
+      const _stats = operationStats[operation]
       stats.avgDuration = stats.totalDuration / stats.count
       delete stats.totalDuration
     }
@@ -219,7 +219,7 @@ export class PerformanceMonitor {
 
   // Clear old metrics (keep only recent)
   pruneMetrics(maxAge: number = 24 * 60 * 60 * 1000): void {
-    const cutoff = Date.now() - maxAge
+    const _cutoff = Date.now() - maxAge
     this.metrics = this.metrics.filter(metric => metric.timestamp > cutoff)
   }
 
@@ -229,7 +229,7 @@ export class PerformanceMonitor {
     memoryUsage: number
     recommendation: string
   } {
-    let memoryUsage = 0
+    let _memoryUsage = 0
     try {
       // @ts-ignore
       if (performance.memory) {
@@ -244,8 +244,8 @@ export class PerformanceMonitor {
       }
     }
 
-    const memoryMB = memoryUsage / 1024 / 1024
-    const isHighMemory = memoryMB > 100 // 100MB threshold
+    const _memoryMB = memoryUsage / 1024 / 1024
+    const _isHighMemory = memoryMB > 100 // 100MB threshold
 
     return {
       isHighMemory,
@@ -258,7 +258,7 @@ export class PerformanceMonitor {
 }
 
 // Global performance monitor instance
-export const performanceMonitor = new PerformanceMonitor()
+export const _performanceMonitor = new PerformanceMonitor()
 
 // MEMORY LEAK FIX: Cleanup global instance on window unload
 if (typeof window !== 'undefined') {

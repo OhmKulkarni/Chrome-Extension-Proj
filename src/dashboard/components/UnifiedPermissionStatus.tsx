@@ -6,7 +6,7 @@ import { Button } from './ui/button';
 import { UnifiedPermissionManager } from '../../utils/unified-permission-manager';
 
 // Get unified permission manager singleton
-const unifiedPermissionManager = UnifiedPermissionManager.getInstance();
+const _unifiedPermissionManager = UnifiedPermissionManager.getInstance();
 
 interface PermissionSummary {
   globalEnabled: boolean;
@@ -39,28 +39,28 @@ const UnifiedPermissionStatus: React.FC<UnifiedPermissionStatusProps> = ({ class
   const [loading, setLoading] = useState(true);
 
   // Load permission summary data
-  const loadPermissionSummary = useCallback(async () => {
+  const _loadPermissionSummary = useCallback(async () => {
     try {
       setLoading(true);
 
       // Get global state
-      const globalEnabled = await unifiedPermissionManager.isGlobalEnabled();
+      const _globalEnabled = await unifiedPermissionManager.isGlobalEnabled();
 
       // Get all active tabs
-      const tabs = await chrome.tabs.query({});
-      const activeTabs = tabs.filter(tab => tab.url && !tab.url.startsWith('chrome://')).length;
+      const _tabs = await chrome.tabs.query({});
+      const _activeTabs = tabs.filter(tab => tab.url && !tab.url.startsWith('chrome://')).length;
 
       // Get site permissions summary
-      const sitePermissions = await unifiedPermissionManager.getAllSitePermissions();
-      const totalSites = Object.keys(sitePermissions).length;
-      const enabledSites = Object.values(sitePermissions).filter(permission =>
+      const _sitePermissions = await unifiedPermissionManager.getAllSitePermissions();
+      const _totalSites = Object.keys(sitePermissions).length;
+      const _enabledSites = Object.values(sitePermissions).filter(permission =>
         permission && typeof permission === 'object' && 'enabled' in permission && permission.enabled
       ).length;
 
       // Count active features across all tabs
-      let networkCount = 0;
-      let consoleCount = 0;
-      let tokensCount = 0;
+      let _networkCount = 0;
+      let _consoleCount = 0;
+      let _tokensCount = 0;
 
       for (const tab of tabs) {
         if (tab.id && tab.url && !tab.url.startsWith('chrome://')) {
@@ -101,9 +101,9 @@ const UnifiedPermissionStatus: React.FC<UnifiedPermissionStatusProps> = ({ class
   }, []);
 
   // Toggle global permission
-  const toggleGlobalPermission = useCallback(async () => {
+  const _toggleGlobalPermission = useCallback(async () => {
     try {
-      const newState = !summary.globalEnabled;
+      const _newState = !summary.globalEnabled;
       await unifiedPermissionManager.setGlobalEnabled(newState);
       await loadPermissionSummary(); // Reload summary
     } catch (error) {
@@ -112,13 +112,13 @@ const UnifiedPermissionStatus: React.FC<UnifiedPermissionStatusProps> = ({ class
   }, [summary.globalEnabled, loadPermissionSummary]);
 
   // Reset all site permissions
-  const resetAllSitePermissions = useCallback(async () => {
+  const _resetAllSitePermissions = useCallback(async () => {
     if (confirm('Reset all site-specific permissions? This will enable monitoring for all sites.')) {
       try {
-        const sitePermissions = await unifiedPermissionManager.getAllSitePermissions();
+        const _sitePermissions = await unifiedPermissionManager.getAllSitePermissions();
 
         // Enable all sites
-        const promises = Object.keys(sitePermissions).map(domain =>
+        const _promises = Object.keys(sitePermissions).map(domain =>
           unifiedPermissionManager.setSiteEnabled(domain, true)
         );
 
@@ -132,9 +132,9 @@ const UnifiedPermissionStatus: React.FC<UnifiedPermissionStatusProps> = ({ class
 
   // Initialize on mount
   useEffect(() => {
-    let mounted = true;
+    let _mounted = true;
 
-    const loadInitialData = async () => {
+    const _loadInitialData = async () => {
       if (mounted) {
         await loadPermissionSummary();
       }
@@ -143,7 +143,7 @@ const UnifiedPermissionStatus: React.FC<UnifiedPermissionStatusProps> = ({ class
     loadInitialData();
 
     // Set up permission change listener
-    const handlePermissionChange = () => {
+    const _handlePermissionChange = () => {
       if (mounted) {
         loadPermissionSummary();
       }
@@ -152,7 +152,7 @@ const UnifiedPermissionStatus: React.FC<UnifiedPermissionStatusProps> = ({ class
     unifiedPermissionManager.addEventListener(handlePermissionChange);
 
     // Refresh periodically (with mount check)
-    const interval = setInterval(() => {
+    const _interval = setInterval(() => {
       if (mounted) {
         loadPermissionSummary();
       }
@@ -174,8 +174,8 @@ const UnifiedPermissionStatus: React.FC<UnifiedPermissionStatusProps> = ({ class
     );
   }
 
-  const effectiveRate = summary.totalSites > 0 ? (summary.enabledSites / summary.totalSites * 100) : 100;
-  const isHealthy = summary.globalEnabled && effectiveRate > 50;
+  const _effectiveRate = summary.totalSites > 0 ? (summary.enabledSites / summary.totalSites * 100) : 100;
+  const _isHealthy = summary.globalEnabled && effectiveRate > 50;
 
   return (
     <Card className={className}>

@@ -1,52 +1,52 @@
 import React, { lazy, Suspense } from 'react';
 
 // Lazy load individual chart components to reduce bundle size
-const HttpMethodDistributionChart = lazy(() =>
+const _HttpMethodDistributionChart = lazy(() =>
   import('./ChartComponents').then(module => ({ default: module.HttpMethodDistributionChart }))
 );
 
-const AvgResponseTimePerRouteChart = lazy(() =>
+const _AvgResponseTimePerRouteChart = lazy(() =>
   import('./ChartComponents').then(module => ({ default: module.AvgResponseTimePerRouteChart }))
 );
 
-const AuthFailuresVsSuccessChart = lazy(() =>
+const _AuthFailuresVsSuccessChart = lazy(() =>
   import('./ChartComponents').then(module => ({ default: module.AuthFailuresVsSuccessChart }))
 );
 
-const TopFrequentErrorsChart = lazy(() =>
+const _TopFrequentErrorsChart = lazy(() =>
   import('./ChartComponents').then(module => ({ default: module.TopFrequentErrorsChart }))
 );
 
-const RequestsOverTimeChart = lazy(() =>
+const _RequestsOverTimeChart = lazy(() =>
   import('./ChartComponents').then(module => ({ default: module.RequestsOverTimeChart }))
 );
 
-const ErrorFrequencyOverTimeChart = lazy(() =>
+const _ErrorFrequencyOverTimeChart = lazy(() =>
   import('./ChartComponents').then(module => ({ default: module.ErrorFrequencyOverTimeChart }))
 );
 
-const LatencyOverTimeChart = lazy(() =>
+const _LatencyOverTimeChart = lazy(() =>
   import('./ChartComponents').then(module => ({ default: module.LatencyOverTimeChart }))
 );
 
-const TrafficByEndpointChart = lazy(() =>
+const _TrafficByEndpointChart = lazy(() =>
   import('./ChartComponents').then(module => ({ default: module.TrafficByEndpointChart }))
 );
 
-const StatusCodeBreakdownChartNew = lazy(() =>
+const _StatusCodeBreakdownChartNew = lazy(() =>
   import('./ChartComponents').then(module => ({ default: module.StatusCodeBreakdownChartNew }))
 );
 
-const PayloadSizeDistributionChart = lazy(() =>
+const _PayloadSizeDistributionChart = lazy(() =>
   import('./ChartComponents').then(module => ({ default: module.PayloadSizeDistributionChart }))
 );
 
-const RequestsByTimeOfDayChart = lazy(() =>
+const _RequestsByTimeOfDayChart = lazy(() =>
   import('./ChartComponents').then(module => ({ default: module.RequestsByTimeOfDayChart }))
 );
 
 // Loading component for chart suspense fallback
-const ChartLoadingSpinner = () => (
+const _ChartLoadingSpinner = () => (
   <div className="flex items-center justify-center h-40 bg-gray-50 dark:bg-gray-700 rounded-lg">
     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400"></div>
     <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Loading chart...</span>

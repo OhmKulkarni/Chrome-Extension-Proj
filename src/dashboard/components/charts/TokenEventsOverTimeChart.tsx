@@ -5,16 +5,16 @@ interface TokenEventsOverTimeChartProps {
   data: any[];
 }
 
-const TokenEventsOverTimeChart: React.FC<TokenEventsOverTimeChartProps> = ({ data }) => {
-  const hourlyData = data.reduce((acc, event) => {
-    const date = new Date(event.timestamp);
-    const hour = date.getHours();
-    const key = `${hour}:00`;
+const TokenEventsOverTimeChart: React.FC<TokenEventsOverTimeChartProps> = ({ _data }) => {
+  const _hourlyData = data.reduce((acc, event) => {
+    const _date = new Date(event.timestamp);
+    const _hour = date.getHours();
+    const _key = `${ hour }:00`;
     acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  const chartData = Object.entries(hourlyData)
+  const _chartData = Object.entries(hourlyData)
     .map(([hour, count]) => ({ hour, tokens: count }))
     .sort((a, b) => parseInt(a.hour) - parseInt(b.hour));
 

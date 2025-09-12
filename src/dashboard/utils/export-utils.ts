@@ -58,13 +58,13 @@ export interface TokenEvent {
 }
 
 // CSV Export Functions
-export const exportNetworkRequestsToCSV = (requests: NetworkRequest[], includeDetails: boolean = false): string => {
+export const _exportNetworkRequestsToCSV = (requests: NetworkRequest[], includeDetails: boolean = false): string => {
   if (!requests || requests.length === 0) {
     return 'No network requests to export\n';
   }
 
   // Basic headers
-  const headers = ['Method', 'URL', 'Status', 'Size (KB)', 'Response Time (ms)', 'Timestamp'];
+  const _headers = ['Method', 'URL', 'Status', 'Size (KB)', 'Response Time (ms)', 'Timestamp'];
 
   // Add detailed headers matching what's shown in the actual detailed view
   if (includeDetails) {
@@ -74,19 +74,19 @@ export const exportNetworkRequestsToCSV = (requests: NetworkRequest[], includeDe
   }
 
   // Helper function to get size in KB
-  const getSize = (request: NetworkRequest): string => {
-    const size = request.payload_size || request.requestSize || request.request_size || 0;
+  const _getSize = (request: NetworkRequest): string => {
+    const _size = request.payload_size || request.requestSize || request.request_size || 0;
     return size > 0 ? (size / 1024).toFixed(2) : '0';
   };
 
   // Helper function to get response time
-  const getResponseTime = (request: NetworkRequest): string => {
+  const _getResponseTime = (request: NetworkRequest): string => {
     return String(request.response_time || request.time_taken || request.duration || 0);
   };
 
   // Generate CSV rows
-  const rows = requests.map(request => {
-    const basicRow = [
+  const _rows = requests.map(request => {
+    const _basicRow = [
       request.method || '',
       request.url || '',
       String(request.status || ''),
@@ -97,14 +97,14 @@ export const exportNetworkRequestsToCSV = (requests: NetworkRequest[], includeDe
 
     if (includeDetails) {
       // Include only fields that are actually shown in the detailed view
-      const tabId = (request as any).tab_id || '';
+      const _tabId = (request as any).tab_id || '';
 
       // Headers as JSON strings (as shown in detailed view)
-      let reqHeadersStr = '';
-      let respHeadersStr = '';
+      let _reqHeadersStr = '';
+      let _respHeadersStr = '';
       try {
         if (request.headers) {
-          const headerData = typeof request.headers === 'string' ? JSON.parse(request.headers) : request.headers;
+          const _headerData = typeof request.headers === 'string' ? JSON.parse(request.headers) : request.headers;
           reqHeadersStr = JSON.stringify(headerData.request || {});
           respHeadersStr = JSON.stringify(headerData.response || {});
         } else {
@@ -117,8 +117,8 @@ export const exportNetworkRequestsToCSV = (requests: NetworkRequest[], includeDe
       }
 
       // Body content (as shown in detailed view)
-      const reqBody = request.request_body || request.requestBody || '';
-      const respBody = request.response_body || request.responseBody || '';
+      const _reqBody = request.request_body || request.requestBody || '';
+      const _respBody = request.response_body || request.responseBody || '';
 
       basicRow.push(tabId, reqHeadersStr, respHeadersStr, reqBody, respBody);
     }
@@ -137,19 +137,19 @@ export const exportNetworkRequestsToCSV = (requests: NetworkRequest[], includeDe
   ].join('\n');
 };
 
-export const exportConsoleErrorsToCSV = (errors: ConsoleError[], includeDetails: boolean = false): string => {
+export const _exportConsoleErrorsToCSV = (errors: ConsoleError[], includeDetails: boolean = false): string => {
   if (!errors || errors.length === 0) {
     return 'No console errors to export\n';
   }
 
   // Basic headers
-  const headers = ['Severity', 'Message', 'URL', 'Line', 'Column', 'Timestamp'];
+  const _headers = ['Severity', 'Message', 'URL', 'Line', 'Column', 'Timestamp'];
 
   // Add detailed headers matching what's shown in the actual detailed view
   if (includeDetails) {
     headers.push('Stack-Trace');
   }  // Helper function to truncate long messages
-  const truncateMessage = (message: string, maxLength: number = 500): string => {
+  const _truncateMessage = (message: string, maxLength: number = 500): string => {
     if (!message) return '';
     return message.length > maxLength ? message.substring(0, maxLength) + '...' : message;
   };
@@ -157,8 +157,8 @@ export const exportConsoleErrorsToCSV = (errors: ConsoleError[], includeDetails:
 
 
   // Generate CSV rows
-  const rows = errors.map(error => {
-    const basicRow = [
+  const _rows = errors.map(error => {
+    const _basicRow = [
       error.severity || '',
       truncateMessage(error.message || ''),
       error.url || '',
@@ -169,7 +169,7 @@ export const exportConsoleErrorsToCSV = (errors: ConsoleError[], includeDetails:
 
     if (includeDetails) {
       // Include only the stack trace as shown in detailed view
-      const stackTrace = error.stack_trace || error.stack || 'No stack trace available';
+      const _stackTrace = error.stack_trace || error.stack || 'No stack trace available';
       basicRow.push(stackTrace);
     }
 
@@ -187,20 +187,20 @@ export const exportConsoleErrorsToCSV = (errors: ConsoleError[], includeDetails:
   ].join('\n');
 };
 
-export const exportTokenEventsToCSV = (events: TokenEvent[], includeDetails: boolean = false): string => {
+export const _exportTokenEventsToCSV = (events: TokenEvent[], includeDetails: boolean = false): string => {
   if (!events || events.length === 0) {
     return 'No token events to export\n';
   }
 
   // Basic headers
-  const headers = ['Event Type', 'URL', 'Method', 'Value Hash', 'Token Type', 'Timestamp'];
+  const _headers = ['Event Type', 'URL', 'Method', 'Value Hash', 'Token Type', 'Timestamp'];
 
   // Add detailed headers matching what's shown in the actual detailed view
   if (includeDetails) {
     headers.push('Status', 'Expiry');
   }  // Generate CSV rows
-  const rows = events.map(event => {
-    const basicRow = [
+  const _rows = events.map(event => {
+    const _basicRow = [
       event.type || '',
       event.url || '',
       event.method || '',
@@ -230,7 +230,7 @@ export const exportTokenEventsToCSV = (events: TokenEvent[], includeDetails: boo
 };
 
 // Combined export function
-export const generateCombinedCSV = (data: {
+export const _generateCombinedCSV = (data: {
   network?: NetworkRequest[];
   errors?: ConsoleError[];
   tokens?: TokenEvent[];
@@ -257,12 +257,12 @@ export const generateCombinedCSV = (data: {
 };
 
 // File download utility
-export const downloadCSVFile = (csvContent: string, filename: string): void => {
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
+export const _downloadCSVFile = (csvContent: string, filename: string): void => {
+  const _blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const _link = document.createElement('a');
 
   if (link.download !== undefined) {
-    const url = URL.createObjectURL(blob);
+    const _url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
     link.setAttribute('download', filename);
     link.style.visibility = 'hidden';
@@ -274,8 +274,8 @@ export const downloadCSVFile = (csvContent: string, filename: string): void => {
 };
 
 // Generate filename with timestamp
-export const generateExportFilename = (tables: string[], format: string = 'csv'): string => {
-  const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
-  const tableNames = tables.join('-');
+export const _generateExportFilename = (tables: string[], format: string = 'csv'): string => {
+  const _timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
+  const _tableNames = tables.join('-');
   return `chrome-extension-data-${tableNames}-${timestamp}.${format}`;
 };

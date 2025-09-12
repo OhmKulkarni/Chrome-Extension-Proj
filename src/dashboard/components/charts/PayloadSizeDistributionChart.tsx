@@ -5,8 +5,8 @@ interface PayloadSizeDistributionChartProps {
   data: any[];
 }
 
-const PayloadSizeDistributionChart: React.FC<PayloadSizeDistributionChartProps> = ({ data }) => {
-  const sizeRanges = {
+const PayloadSizeDistributionChart: React.FC<PayloadSizeDistributionChartProps> = ({ _data }) => {
+  const _sizeRanges = {
     'Small (0-1KB)': 0,
     'Medium (1-10KB)': 0,
     'Large (10-100KB)': 0,
@@ -14,14 +14,14 @@ const PayloadSizeDistributionChart: React.FC<PayloadSizeDistributionChartProps> 
   };
 
   data.forEach(req => {
-    const size = req.payload_size || 0;
+    const _size = req.payload_size || 0;
     if (size <= 1024) sizeRanges['Small (0-1KB)']++;
     else if (size <= 10240) sizeRanges['Medium (1-10KB)']++;
     else if (size <= 102400) sizeRanges['Large (10-100KB)']++;
     else sizeRanges['Extra Large (>100KB)']++;
   });
 
-  const chartData = Object.entries(sizeRanges).map(([range, count]) => ({
+  const _chartData = Object.entries(sizeRanges).map(([range, count]) => ({
     range,
     count
   }));

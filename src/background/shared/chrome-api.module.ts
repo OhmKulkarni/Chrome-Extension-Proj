@@ -25,7 +25,7 @@ export class ChromeApiModule {
     };
 
     this.abortController = new AbortController();
-    console.log('🔧 ChromeApiModule: Initialized with safety config');
+    // console.log('🔧 ChromeApiModule: Initialized with safety config');
   }
 
   /**
@@ -33,7 +33,7 @@ export class ChromeApiModule {
    */
   async initialize(): Promise<void> {
     if (this.isInitialized) {
-      console.warn('ChromeApiModule: Already initialized');
+      // console.warn('ChromeApiModule: Already initialized');
       return;
     }
 
@@ -44,7 +44,7 @@ export class ChromeApiModule {
       }
 
       this.isInitialized = true;
-      console.log('✅ ChromeApiModule: Successfully initialized');
+      // console.log('✅ ChromeApiModule: Successfully initialized');
     } catch (error) {
       console.error('❌ ChromeApiModule: Initialization failed:', error);
       throw error;
@@ -59,7 +59,7 @@ export class ChromeApiModule {
       this.abortController.abort('ChromeApiModule cleanup');
     }
     this.isInitialized = false;
-    console.log('🧹 ChromeApiModule: Cleanup completed');
+    // console.log('🧹 ChromeApiModule: Cleanup completed');
   }
 
   // ===== STORAGE API WRAPPERS =====
@@ -69,7 +69,7 @@ export class ChromeApiModule {
    */
   async getFromStorage(keys: string | string[] | null = null): Promise<any> {
     return this.executeWithSafety('storage.local.get', async () => {
-      const result = await chrome.storage.local.get(keys);
+      const _result = await chrome.storage.local.get(keys);
 
       if (chrome.runtime.lastError) {
         throw new Error(`Storage get error: ${chrome.runtime.lastError.message}`);
@@ -125,7 +125,7 @@ export class ChromeApiModule {
    */
   async queryTabs(queryInfo: chrome.tabs.QueryInfo = {}): Promise<ChromeTabInfo[]> {
     return this.executeWithSafety('tabs.query', async () => {
-      const tabs = await chrome.tabs.query(queryInfo);
+      const _tabs = await chrome.tabs.query(queryInfo);
 
       if (chrome.runtime.lastError) {
         throw new Error(`Tab query error: ${chrome.runtime.lastError.message}`);
@@ -151,7 +151,7 @@ export class ChromeApiModule {
    * Get current active tab
    */
   async getCurrentTab(): Promise<ChromeTabInfo | null> {
-    const tabs = await this.queryTabs({ active: true, currentWindow: true });
+    const _tabs = await this.queryTabs({ active: true, currentWindow: true });
     return tabs.length > 0 ? tabs[0] : null;
   }
 
@@ -161,15 +161,15 @@ export class ChromeApiModule {
   async sendMessageToTab(tabId: number, message: any): Promise<any> {
     return this.executeWithSafety('tabs.sendMessage', async () => {
       try {
-        const response = await chrome.tabs.sendMessage(tabId, message);
+        const _response = await chrome.tabs.sendMessage(tabId, message);
 
         if (chrome.runtime.lastError) {
-          const errorMessage = chrome.runtime.lastError.message;
+          const _errorMessage = chrome.runtime.lastError.message;
 
           // Handle specific connection errors gracefully
           if (errorMessage?.includes('Could not establish connection')) {
             // This is expected when content scripts are not loaded or tabs are inactive
-            console.debug(`ChromeApiModule: No content script available for tab ${tabId}`);
+            // console.debug(`ChromeApiModule: No content script available for tab ${tabId}`);
             return null;
           }
 
@@ -180,7 +180,7 @@ export class ChromeApiModule {
       } catch (error) {
         // Check if it's a connection error
         if (error instanceof Error && error.message.includes('Could not establish connection')) {
-          console.debug(`ChromeApiModule: No content script available for tab ${tabId}`);
+          // console.debug(`ChromeApiModule: No content script available for tab ${tabId}`);
           return null;
         }
         throw error;
@@ -195,7 +195,7 @@ export class ChromeApiModule {
    */
   async sendRuntimeMessage(message: any): Promise<any> {
     return this.executeWithSafety('runtime.sendMessage', async () => {
-      const response = await chrome.runtime.sendMessage(message);
+      const _response = await chrome.runtime.sendMessage(message);
 
       if (chrome.runtime.lastError) {
         throw new Error(`Runtime message error: ${chrome.runtime.lastError.message}`);
@@ -224,7 +224,7 @@ export class ChromeApiModule {
    */
   async executeScript(tabId: number, options: chrome.scripting.ScriptInjection<any[], any>): Promise<any> {
     return this.executeWithSafety('scripting.executeScript', async () => {
-      const result = await chrome.scripting.executeScript({
+      const _result = await chrome.scripting.executeScript({
         ...options,
         target: { tabId }
       });
@@ -249,10 +249,10 @@ export class ChromeApiModule {
 
     try {
       if ('memory' in performance) {
-        const memory = (performance as any).memory;
-        const heapUsed = memory.usedJSHeapSize || 0;
-        const heapTotal = memory.jsHeapSizeLimit || 1;
-        const percentage = (heapUsed / heapTotal) * 100;
+        const _memory = (performance as any).memory;
+        const _heapUsed = memory.usedJSHeapSize || 0;
+        const _heapTotal = memory.jsHeapSizeLimit || 1;
+        const _percentage = (heapUsed / heapTotal) * 100;
 
         return {
           heapUsed,
@@ -261,7 +261,7 @@ export class ChromeApiModule {
         };
       }
     } catch (error) {
-      console.warn('ChromeApiModule: Memory monitoring failed:', error);
+      // console.warn('ChromeApiModule: Memory monitoring failed:', error);
     }
 
     return { heapUsed: 0, heapTotal: 0, percentage: 0 };
@@ -281,10 +281,10 @@ export class ChromeApiModule {
       throw new Error(`ChromeApiModule: Operation aborted (${operation})`);
     }
 
-    const startTime = Date.now();
+    const _startTime = Date.now();
     let lastError: Error | null = null;
 
-    for (let attempt = 0; attempt <= this.config.maxRetries; attempt++) {
+    for (let _attempt = 0; attempt <= this.config.maxRetries; attempt++) {
       try {
         // Race condition protection
         if (this.config.enableRaceConditionProtection && attempt > 0) {
@@ -292,16 +292,16 @@ export class ChromeApiModule {
         }
 
         // Timeout protection
-        const timeoutPromise = new Promise<never>((_, reject) => {
+        const _timeoutPromise = new Promise<never>((_, reject) => {
           setTimeout(() => reject(new Error(`Operation timeout: ${operation}`)), this.config.timeoutMs);
         });
 
-        const result = await Promise.race([fn(), timeoutPromise]);
+        const _result = await Promise.race([fn(), timeoutPromise]);
 
         // Log successful execution
-        const duration = Date.now() - startTime;
+        const _duration = Date.now() - startTime;
         if (attempt > 0) {
-          console.log(`✅ ChromeApiModule: ${operation} succeeded on retry ${attempt} (${duration}ms)`);
+          // console.log(`✅ ChromeApiModule: ${operation} succeeded on retry ${attempt} (${duration}ms)`);
         }
 
         return result;
@@ -313,7 +313,7 @@ export class ChromeApiModule {
           break;
         }
 
-        console.warn(`⚠️ ChromeApiModule: ${operation} failed, retrying (${attempt + 1}/${this.config.maxRetries}):`, lastError);
+        // console.warn(`⚠️ ChromeApiModule: ${operation} failed, retrying (${attempt + 1}/${this.config.maxRetries}):`, lastError);
       }
     }
 

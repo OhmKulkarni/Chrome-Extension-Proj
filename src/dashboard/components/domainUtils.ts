@@ -143,7 +143,7 @@ function extractBaseDomain(url: string): string {
     }
 
     // Handle URLs that don't have a protocol
-    let fullUrl = url;
+    let _fullUrl = url;
     if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('//')) {
       // Try to add https:// if it looks like a domain
       if (url.includes('.') && !url.includes('/')) {
@@ -153,29 +153,29 @@ function extractBaseDomain(url: string): string {
       }
     }
 
-    const urlObj = new URL(fullUrl);
-    const hostname = urlObj.hostname;
+    const _urlObj = new URL(fullUrl);
+    const _hostname = urlObj.hostname;
 
     // Remove 'www.' prefix if present
-    const withoutWww = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
+    const _withoutWww = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
 
     // For most cases, return the base domain (e.g., 'reddit.com' from 'api.reddit.com')
-    const parts = withoutWww.split('.');
+    const _parts = withoutWww.split('.');
     if (parts.length >= 2) {
       return parts.slice(-2).join('.');
     }
 
     return withoutWww;
   } catch (error) {
-    console.warn('Failed to extract base domain from URL:', url, error);
+    // console.warn('Failed to extract base domain from URL:', url, error);
     return 'unknown';
   }
 }
 
 // Helper function to infer library type from name and URL patterns
 function inferLibraryType(name: string, url: string): LibraryInfo['type'] {
-  const nameLower = name.toLowerCase();
-  const urlLower = url.toLowerCase();
+  const _nameLower = name.toLowerCase();
+  const _urlLower = url.toLowerCase();
 
   // 🎯 ADVERTISING & MARKETING SERVICES
   if (/(?:casalemedia|criteo|adsrvr|pubmatic|doubleclick|adsystem|bidder|cdb|translator|hbopenbid|wunderkind|magnite|sodar|rid)/i.test(nameLower + urlLower)) {
@@ -261,7 +261,7 @@ function parseDomainInfo(url: string, _tabContext?: TabContext): DomainInfo {
     }
 
     // Handle URLs that don't have a protocol
-    let fullUrl = url;
+    let _fullUrl = url;
     if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('//')) {
       // Try to add https:// if it looks like a domain
       if (url.includes('.') && !url.includes('/')) {
@@ -277,8 +277,8 @@ function parseDomainInfo(url: string, _tabContext?: TabContext): DomainInfo {
       }
     }
 
-    const urlObj = new URL(fullUrl);
-    const hostname = urlObj.hostname;
+    const _urlObj = new URL(fullUrl);
+    const _hostname = urlObj.hostname;
 
     // Skip if hostname is empty or invalid
     if (!hostname || hostname === 'unknown') {
@@ -291,18 +291,18 @@ function parseDomainInfo(url: string, _tabContext?: TabContext): DomainInfo {
     }
 
     // Remove www prefix
-    const withoutWww = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
+    const _withoutWww = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
 
     // Extract base domain (last two parts for most TLDs)
-    const parts = withoutWww.split('.');
-    const baseDomain = parts.length >= 2 ? parts.slice(-2).join('.') : withoutWww;
+    const _parts = withoutWww.split('.');
+    const _baseDomain = parts.length >= 2 ? parts.slice(-2).join('.') : withoutWww;
 
     // Extract subdomain if present
-    const subdomain = parts.length > 2 ? parts.slice(0, -2).join('.') : undefined;
+    const _subdomain = parts.length > 2 ? parts.slice(0, -2).join('.') : undefined;
 
     // Categorize domain type
     let category: DomainInfo['category'] = 'other';
-    const lowerHostname = hostname.toLowerCase();
+    const _lowerHostname = hostname.toLowerCase();
 
     if (lowerHostname.includes('api.') || lowerHostname.includes('/api/')) category = 'api';
     else if (lowerHostname.includes('cdn.') || lowerHostname.includes('static.')) category = 'cdn';
@@ -319,7 +319,7 @@ function parseDomainInfo(url: string, _tabContext?: TabContext): DomainInfo {
       isGrouped: !!subdomain
     };
   } catch (error) {
-    console.warn('Failed to parse domain info:', url, error);
+    // console.warn('Failed to parse domain info:', url, error);
     return {
       fullDomain: 'unknown',
       baseDomain: 'unknown',
@@ -331,23 +331,23 @@ function parseDomainInfo(url: string, _tabContext?: TabContext): DomainInfo {
 
 export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
   // Simple and reliable grouping based on the main_domain field recorded at capture time
-  console.log('🎯 Using simplified domain grouping with main_domain field approach');
+  // console.log('🎯 Using simplified domain grouping with main_domain field approach');
 
   // Fetch library data from background script
   let libraryData: any[] = [];
   try {
     if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-      const response = await chrome.runtime.sendMessage({ action: 'getMinifiedLibraries', limit: 1000 });
+      const _response = await chrome.runtime.sendMessage({ action: 'getMinifiedLibraries', limit: 1000 });
       if (response && response.success && response.libraries) {
         libraryData = response.libraries;
-        console.log('📚 domainUtils: Loaded', libraryData.length, 'libraries from storage');
+        // console.log('📚 domainUtils: Loaded', libraryData.length, 'libraries from storage');
       }
     }
   } catch (error) {
-    console.warn('📚 domainUtils: Failed to load library data:', error);
+    // console.warn('📚 domainUtils: Failed to load library data:', error);
   }
 
-  const domainMap = new Map<string, {
+  const _domainMap = new Map<string, {
     info: DomainInfo;
     requests: any[];
     errors: any[];
@@ -367,19 +367,19 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
 
   // Process each data item and group by the main_domain field
   data.forEach(item => {
-    const itemUrl = item.url || item.request?.url || item.details?.url || item.source_url || '';
+    const _itemUrl = item.url || item.request?.url || item.details?.url || item.source_url || '';
     if (!itemUrl || itemUrl === 'unknown' || itemUrl === 'Unknown' || itemUrl === 'Unknown URL') return;
 
-    const tabId = item.tab_id;
-    const tabUrl = item.tab_url;
+    const _tabId = item.tab_id;
+    const _tabUrl = item.tab_url;
 
     // Use the main_domain field if available, otherwise fall back to domain parsing
-    let mainDomain = item.main_domain || extractBaseDomain(itemUrl);
+    let _mainDomain = item.main_domain || extractBaseDomain(itemUrl);
 
     // DOMAIN AFFILIATION: Group affiliated domains under their parent domain
-    const parentDomain = getParentDomain(mainDomain);
+    const _parentDomain = getParentDomain(mainDomain);
     if (parentDomain !== mainDomain) {
-      console.log(`🔗 [DomainAffiliation] Grouping ${mainDomain} under parent domain ${parentDomain}`);
+      // console.log(`🔗 [DomainAffiliation] Grouping ${mainDomain} under parent domain ${parentDomain}`);
       mainDomain = parentDomain;
     }
 
@@ -410,7 +410,7 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
     // Skip if we can't determine a valid main domain
     if (!mainDomain || mainDomain === 'unknown' || mainDomain === 'Unknown') return;
 
-    const domainInfo = parseDomainInfo(itemUrl, tabId ? { tabId, tabUrl } : undefined);
+    const _domainInfo = parseDomainInfo(itemUrl, tabId ? { tabId, tabUrl } : undefined);
 
     if (!domainMap.has(mainDomain)) {
       domainMap.set(mainDomain, {
@@ -431,7 +431,7 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
       });
     }
 
-    const group = domainMap.get(mainDomain)!;
+    const _group = domainMap.get(mainDomain)!;
 
     // Track all domains that are part of this main domain group
     // Only add valid domain names (skip 'unknown' entries)
@@ -448,7 +448,7 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
     }
 
     // Track stats for each individual domain (including subdomains)
-    const trackingDomain = domainInfo.fullDomain;
+    const _trackingDomain = domainInfo.fullDomain;
     if (!group.subdomainStats.has(trackingDomain)) {
       group.subdomainStats.set(trackingDomain, {
         requests: [],
@@ -458,7 +458,7 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
       });
     }
 
-    const subdomainGroup = group.subdomainStats.get(trackingDomain)!;
+    const _subdomainGroup = group.subdomainStats.get(trackingDomain)!;
 
     // Add tab context
     if (tabId) {
@@ -476,7 +476,7 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
       group.requests.push(item);
       subdomainGroup.requests.push(item);
 
-      const responseTime = item.response_time || item.responseTime || item.duration || item.time;
+      const _responseTime = item.response_time || item.responseTime || item.duration || item.time;
       if (typeof responseTime === 'number' && responseTime > 0) {
         group.responseTimes.push(responseTime);
         subdomainGroup.responseTimes.push(responseTime);
@@ -485,18 +485,18 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
   });
 
   // LIBRARY-ONLY DOMAINS: Add domains that only have library data (no network events)
-  console.log('📚 Processing library-only domains...');
-  const existingDomains = new Set(domainMap.keys());
+  // console.log('📚 Processing library-only domains...');
+  const _existingDomains = new Set(domainMap.keys());
 
   // Group libraries by main_domain to find domains with libraries but no events
-  const libraryDomains = new Set<string>();
+  const _libraryDomains = new Set<string>();
   libraryData.forEach(lib => {
     if (lib.main_domain) {
       // Apply domain affiliation to library domains too
-      let mainDomain = lib.main_domain;
-      const parentDomain = getParentDomain(mainDomain);
+      let _mainDomain = lib.main_domain;
+      const _parentDomain = getParentDomain(mainDomain);
       if (parentDomain !== mainDomain) {
-        console.log(`🔗 [LibraryAffiliation] Grouping library domain ${mainDomain} under parent ${parentDomain}`);
+        // console.log(`🔗 [LibraryAffiliation] Grouping library domain ${mainDomain} under parent ${parentDomain}`);
         mainDomain = parentDomain;
       }
 
@@ -508,7 +508,7 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
 
   // Create domain entries for library-only domains
   libraryDomains.forEach(domain => {
-    console.log(`📚 Adding library-only domain: ${domain}`);
+    // console.log(`📚 Adding library-only domain: ${domain}`);
 
     // Create a minimal domain info for library-only domains
     const domainInfo: DomainInfo = {
@@ -532,52 +532,52 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
     });
   });
 
-  console.log(`📚 Added ${libraryDomains.size} library-only domains to stats`);
+  // console.log(`📚 Added ${libraryDomains.size} library-only domains to stats`);
 
   // Convert to DomainStats array
-  const results = Array.from(domainMap.entries()).map(([mainDomain, group]) => {
-    const totalRequests = group.requests.length;
-    const errors = group.errors.length;
-    const tokens = group.tokens.length;
+  const _results = Array.from(domainMap.entries()).map(([mainDomain, group]) => {
+    const _totalRequests = group.requests.length;
+    const _errors = group.errors.length;
+    const _tokens = group.tokens.length;
 
-    const avgResponseTime = group.responseTimes.length > 0
+    const _avgResponseTime = group.responseTimes.length > 0
       ? group.responseTimes.reduce((sum, time) => sum + time, 0) / group.responseTimes.length
       : 0;
 
-    const successfulRequests = group.requests.filter(req => {
+    const _successfulRequests = group.requests.filter(req => {
       // Use same success criteria as global stats: status 200-399
-      const status = req.status ?? req.response_status ?? req.response?.status ?? req.statusCode ?? 0;
+      const _status = req.status ?? req.response_status ?? req.response?.status ?? req.statusCode ?? 0;
       return status >= 200 && status < 400;
     }).length;
-    const successRate = totalRequests > 0 ? (successfulRequests / totalRequests) * 100 : 100;
+    const _successRate = totalRequests > 0 ? (successfulRequests / totalRequests) * 100 : 100;
 
-    const isGrouped = group.subdomains.size > 0 || group.allGroupedDomains.size > 1;
-    const subdomainsList = Array.from(group.subdomains).sort();
-    const groupedDomainsList = Array.from(group.allGroupedDomains).sort();
+    const _isGrouped = group.subdomains.size > 0 || group.allGroupedDomains.size > 1;
+    const _subdomainsList = Array.from(group.subdomains).sort();
+    const _groupedDomainsList = Array.from(group.allGroupedDomains).sort();
 
-    const allItems = [...group.requests, ...group.errors, ...group.tokens];
-    const lastSeen = allItems.reduce((latest, item) => {
-      const timestamp = item.timestamp || item.time || Date.now();
+    const _allItems = [...group.requests, ...group.errors, ...group.tokens];
+    const _lastSeen = allItems.reduce((latest, item) => {
+      const _timestamp = item.timestamp || item.time || Date.now();
       return Math.max(latest, timestamp);
     }, 0);
 
     // Determine primary tab URL for context
-    const primaryTabId = Array.from(group.tabIds)[0];
-    const primaryTabUrl = allItems.find(item => item.tab_id === primaryTabId)?.tab_url;
-    const isMainDomain = true; // Since we're grouping by main_domain, this is always the main domain
+    const _primaryTabId = Array.from(group.tabIds)[0];
+    const _primaryTabUrl = allItems.find(item => item.tab_id === primaryTabId)?.tab_url;
+    const _isMainDomain = true; // Since we're grouping by main_domain, this is always the main domain
 
     // Calculate subdomain stats
-    const subdomainStatsArray = Array.from(group.subdomainStats.entries()).map(([domain, stats]) => {
-      const subAvgResponseTime = stats.responseTimes.length > 0
+    const _subdomainStatsArray = Array.from(group.subdomainStats.entries()).map(([domain, stats]) => {
+      const _subAvgResponseTime = stats.responseTimes.length > 0
         ? stats.responseTimes.reduce((sum, time) => sum + time, 0) / stats.responseTimes.length
         : 0;
 
-      const subSuccessfulRequests = stats.requests.filter(req => {
+      const _subSuccessfulRequests = stats.requests.filter(req => {
         // Use same success criteria as global stats: status 200-399
-        const status = req.status ?? req.response_status ?? req.response?.status ?? req.statusCode ?? 0;
+        const _status = req.status ?? req.response_status ?? req.response?.status ?? req.statusCode ?? 0;
         return status >= 200 && status < 400;
       }).length;
-      const subSuccessRate = stats.requests.length > 0 ? (subSuccessfulRequests / stats.requests.length) * 100 : 100;
+      const _subSuccessRate = stats.requests.length > 0 ? (subSuccessfulRequests / stats.requests.length) * 100 : 100;
 
       return {
         domain,
@@ -590,21 +590,21 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
     }).sort((a, b) => b.requests - a.requests);
 
     // Filter libraries for this domain based on main_domain field
-    const domainLibraries = libraryData.filter(lib => {
+    const _domainLibraries = libraryData.filter(lib => {
       // Match libraries that were loaded by this main domain OR its affiliated domains
       if (lib.main_domain === mainDomain) {
         return true;
       }
 
       // Also include libraries from affiliated domains
-      const libParentDomain = getParentDomain(lib.main_domain);
+      const _libParentDomain = getParentDomain(lib.main_domain);
       return libParentDomain === mainDomain;
     });
 
     // Group libraries by their source domain
-    const librarySourceMap = new Map<string, any[]>();
+    const _librarySourceMap = new Map<string, any[]>();
     domainLibraries.forEach(lib => {
-      const sourceDomain = lib.source_domain || 'unknown';
+      const _sourceDomain = lib.source_domain || 'unknown';
       if (!librarySourceMap.has(sourceDomain)) {
         librarySourceMap.set(sourceDomain, []);
       }
@@ -612,8 +612,8 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
     });
 
     // Create library source domain breakdown
-    const librarySourceDomains = Array.from(librarySourceMap.entries()).map(([sourceDomain, libs]) => {
-      const thirdPartyInfo = LibraryDetector.classifyThirdPartyDomain(sourceDomain);
+    const _librarySourceDomains = Array.from(librarySourceMap.entries()).map(([sourceDomain, libs]) => {
+      const _thirdPartyInfo = LibraryDetector.classifyThirdPartyDomain(sourceDomain);
       return {
         domain: sourceDomain,
         libraries: libs.map(lib => ({
@@ -651,28 +651,28 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
     }));
 
     // Calculate library counts by type
-    const frameworkCount = librariesForDomain.filter(lib =>
+    const _frameworkCount = librariesForDomain.filter(lib =>
       ['react', 'vue', 'angular', 'svelte', 'ember'].some(fw => lib.name.toLowerCase().includes(fw))
     ).length;
 
-    const utilityCount = librariesForDomain.filter(lib =>
+    const _utilityCount = librariesForDomain.filter(lib =>
       ['lodash', 'underscore', 'moment', 'axios', 'fetch'].some(util => lib.name.toLowerCase().includes(util))
     ).length;
 
-    const uiLibraryCount = librariesForDomain.filter(lib =>
+    const _uiLibraryCount = librariesForDomain.filter(lib =>
       ['bootstrap', 'material', 'antd', 'chakra', 'semantic'].some(ui => lib.name.toLowerCase().includes(ui))
     ).length;
 
-    const analyticsCount = librariesForDomain.filter(lib =>
+    const _analyticsCount = librariesForDomain.filter(lib =>
       ['analytics', 'gtag', 'google', 'mixpanel', 'segment'].some(analytics => lib.name.toLowerCase().includes(analytics))
     ).length;
 
-    const cdnCount = librariesForDomain.filter(lib =>
+    const _cdnCount = librariesForDomain.filter(lib =>
       ['cdn', 'jsdelivr', 'unpkg', 'cdnjs'].some(cdn => lib.url.toLowerCase().includes(cdn))
     ).length;
 
     // Classify domain as 3rd party
-    const thirdPartyClassification = LibraryDetector.classifyThirdPartyDomain(mainDomain);
+    const _thirdPartyClassification = LibraryDetector.classifyThirdPartyDomain(mainDomain);
 
     return {
       domain: mainDomain,
@@ -718,17 +718,17 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
     return b.totalRequests - a.totalRequests;
   });
 
-  console.log(`✅ Grouped ${data.length} items into ${results.length} main domains:`, results.map(r => `${r.domain} (${r.totalRequests} requests)`));
+  // console.log(`✅ Grouped ${data.length} items into ${results.length} main domains:`, results.map(r => `${r.domain} (${r.totalRequests} requests)`));
 
   return results;
 }
 
 // Tab domain tracker for context awareness (simplified)
-export const tabDomainTracker = {
+export const _tabDomainTracker = {
   trackTabDomain: (tabId: number, requestUrl: string, tabUrl?: string) => {
     // Simplified tracking - just log for debugging
-    const requestDomain = extractBaseDomain(requestUrl);
-    const tabDomain = tabUrl ? extractBaseDomain(tabUrl) : 'unknown';
-    console.log(`📍 Tab ${tabId}: Request from ${requestDomain} on page ${tabDomain}`);
+    const _requestDomain = extractBaseDomain(requestUrl);
+    const _tabDomain = tabUrl ? extractBaseDomain(tabUrl) : 'unknown';
+    // console.log(`📍 Tab ${tabId}: Request from ${requestDomain} on page ${tabDomain}`);
   }
 };

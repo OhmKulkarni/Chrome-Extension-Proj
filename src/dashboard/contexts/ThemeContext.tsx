@@ -21,12 +21,12 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [actualTheme, setActualTheme] = useState<ActualTheme>('light');
 
   // Detect system preference
-  const getSystemTheme = (): ActualTheme => {
+  const _getSystemTheme = (): ActualTheme => {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   };
 
   // Calculate actual theme based on mode
-  const calculateActualTheme = (mode: ThemeMode): ActualTheme => {
+  const _calculateActualTheme = (mode: ThemeMode): ActualTheme => {
     if (mode === 'auto') {
       return getSystemTheme();
     }
@@ -34,27 +34,27 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   };
 
   // Set theme mode with persistence
-  const setThemeMode = (mode: ThemeMode) => {
+  const _setThemeMode = (mode: ThemeMode) => {
     setThemeModeState(mode);
     // Save to Chrome storage
     try {
       chrome.storage.sync.set({ themePreference: mode });
     } catch (error) {
-      console.warn('Failed to save theme preference:', error);
+      // console.warn('Failed to save theme preference:', error);
       // Fallback to localStorage for development
       localStorage.setItem('themePreference', mode);
     }
   };
 
   // Toggle between light and dark (skipping auto for manual toggle)
-  const toggleTheme = () => {
+  const _toggleTheme = () => {
     const newMode: ThemeMode = actualTheme === 'light' ? 'dark' : 'light';
     setThemeMode(newMode);
   };
 
   // Apply theme to DOM
-  const applyTheme = (theme: ActualTheme) => {
-    const root = document.documentElement;
+  const _applyTheme = (theme: ActualTheme) => {
+    const _root = document.documentElement;
 
     // Add transition class to prevent flash
     root.classList.add('theme-transitioning');
@@ -74,15 +74,15 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
   // Initialize theme from storage
   useEffect(() => {
-    const initializeTheme = async () => {
+    const _initializeTheme = async () => {
       try {
         // Try Chrome storage first
-        const result = await chrome.storage.sync.get(['themePreference']);
-        const savedTheme = result.themePreference as ThemeMode || 'auto';
+        const _result = await chrome.storage.sync.get(['themePreference']);
+        const _savedTheme = result.themePreference as ThemeMode || 'auto';
         setThemeModeState(savedTheme);
       } catch (error) {
         // Fallback to localStorage for development
-        const savedTheme = localStorage.getItem('themePreference') as ThemeMode || 'auto';
+        const _savedTheme = localStorage.getItem('themePreference') as ThemeMode || 'auto';
         setThemeModeState(savedTheme);
       }
     };
@@ -92,18 +92,18 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
   // Update actual theme when mode changes or system preference changes
   useEffect(() => {
-    const newActualTheme = calculateActualTheme(themeMode);
+    const _newActualTheme = calculateActualTheme(themeMode);
     setActualTheme(newActualTheme);
     applyTheme(newActualTheme);
   }, [themeMode]);
 
   // Listen for system theme changes when in auto mode
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const _mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
-    const handleSystemThemeChange = () => {
+    const _handleSystemThemeChange = () => {
       if (themeMode === 'auto') {
-        const newActualTheme = getSystemTheme();
+        const _newActualTheme = getSystemTheme();
         setActualTheme(newActualTheme);
         applyTheme(newActualTheme);
       }
@@ -130,8 +130,8 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   );
 };
 
-export const useTheme = (): ThemeContextType => {
-  const context = useContext(ThemeContext);
+export const _useTheme = (): ThemeContextType => {
+  const _context = useContext(ThemeContext);
   if (context === undefined) {
     throw new Error('useTheme must be used within a ThemeProvider');
   }

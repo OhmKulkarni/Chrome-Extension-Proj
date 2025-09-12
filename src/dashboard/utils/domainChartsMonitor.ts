@@ -88,4 +88,4 @@ export class DomainChartsMonitor {
   }
 }
 
-export const chartMonitor = new DomainChartsMonitor();
+export const _chartMonitor = new DomainChartsMonitor();

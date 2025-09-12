@@ -68,15 +68,15 @@ export class NetworkDataProvider {
   // Handle incoming network messages
   private async handleNetworkMessage(message: any): Promise<void> {
     // Transform raw message data to V1 contract
-    const networkRequest = DataAdapters.networkRequestToV1(message.data);
+    const _networkRequest = DataAdapters.networkRequestToV1(message.data);
 
     // Update cache
-    const cacheKey = `tab_${networkRequest.tabId || 'global'}`;
+    const _cacheKey = `tab_${ networkRequest.tabId || 'global' }`;
     if (!this.cache.has(cacheKey)) {
       this.cache.set(cacheKey, []);
     }
 
-    const tabRequests = this.cache.get(cacheKey)!;
+    const _tabRequests = this.cache.get(cacheKey)!;
     tabRequests.unshift(networkRequest); // Add to beginning for recency
 
     // Limit cache size to prevent memory leaks (keep last 100 requests per tab)
@@ -102,12 +102,12 @@ export class NetworkDataProvider {
   } = {}): Promise<NetworkRequestV1[]> {
     try {
       // Get from cache first
-      const cacheKey = `tab_${options.tabId || 'global'}`;
-      let requests = this.cache.get(cacheKey) || [];
+      const _cacheKey = `tab_${ options.tabId || 'global' }`;
+      let _requests = this.cache.get(cacheKey) || [];
 
       // If cache is empty, fetch from background
       if (requests.length === 0) {
-        const response = await chrome.runtime.sendMessage({
+        const _response = await chrome.runtime.sendMessage({
           action: 'getNetworkRequests',
           limit: options.limit || 50,
           offset: options.offset || 0,
@@ -127,8 +127,8 @@ export class NetworkDataProvider {
       }
 
       // Apply pagination
-      const start = options.offset || 0;
-      const end = start + (options.limit || 50);
+      const _start = options.offset || 0;
+      const _end = start + (options.limit || 50);
 
       return requests.slice(start, end);
     } catch (error) {
@@ -165,9 +165,9 @@ export class NetworkDataProvider {
 
       // Time range filter
       if (filters.timeRange) {
-        const requestTime = new Date(request.timestamp);
-        const startTime = new Date(filters.timeRange.start);
-        const endTime = new Date(filters.timeRange.end);
+        const _requestTime = new Date(request.timestamp);
+        const _startTime = new Date(filters.timeRange.start);
+        const _endTime = new Date(filters.timeRange.end);
 
         if (requestTime < startTime || requestTime > endTime) {
           return false;
@@ -181,7 +181,7 @@ export class NetworkDataProvider {
   // Store new network request
   async storeNetworkRequest(request: Partial<NetworkRequestV1>): Promise<boolean> {
     try {
-      const response = await NetworkMessageBus.sendNetworkRequest(request);
+      const _response = await NetworkMessageBus.sendNetworkRequest(request);
       return response.success;
     } catch (error) {
       // console.error('Failed to store network request:', error);
@@ -192,7 +192,7 @@ export class NetworkDataProvider {
   // Clear network requests
   async clearNetworkRequests(tabId?: number): Promise<boolean> {
     try {
-      const response = await chrome.runtime.sendMessage({
+      const _response = await chrome.runtime.sendMessage({
         action: 'clearNetworkRequests',
         tabId
       });
@@ -229,7 +229,7 @@ export class NetworkDataProvider {
 
   // Notify specific tab listeners
   private notifyListeners(cacheKey: string): void {
-    const data = this.cache.get(cacheKey) || [];
+    const _data = this.cache.get(cacheKey) || [];
     this.listeners.forEach(listener => {
       try {
         listener(data);
@@ -264,7 +264,7 @@ export class NetworkDataProvider {
     methodDistribution: Record<string, number>;
     statusDistribution: Record<number, number>;
   } {
-    const cacheKey = tabId ? `tab_${tabId}` : null;
+    const _cacheKey = tabId ? `tab_${ tabId }` : null;
     let requests: NetworkRequestV1[] = [];
 
     if (cacheKey) {
@@ -277,9 +277,9 @@ export class NetworkDataProvider {
     }
 
     // Calculate statistics
-    const totalRequests = requests.length;
-    const successfulRequests = requests.filter(r => r.status >= 200 && r.status < 400).length;
-    const successRate = totalRequests > 0 ? (successfulRequests / totalRequests) * 100 : 0;
+    const _totalRequests = requests.length;
+    const _successfulRequests = requests.filter(r => r.status >= 200 && r.status < 400).length;
+    const _successRate = totalRequests > 0 ? (successfulRequests / totalRequests) * 100 : 0;
 
     // Method distribution
     const methodDistribution: Record<string, number> = {};
@@ -299,7 +299,7 @@ export class NetworkDataProvider {
       domainCounts[r.mainDomain] = (domainCounts[r.mainDomain] || 0) + 1;
     });
 
-    const topDomains = Object.entries(domainCounts)
+    const _topDomains = Object.entries(domainCounts)
       .map(([domain, count]) => ({ domain, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
@@ -334,14 +334,14 @@ export class NetworkDataProvider {
 }
 
 // Export singleton instance
-export const networkDataProvider = NetworkDataProvider.getInstance();
+export const _networkDataProvider = NetworkDataProvider.getInstance();
 
 // Network utility functions isolated from other features
 export class NetworkUtils {
   // Parse URL safely
   static parseUrl(url: string): { protocol: string; hostname: string; pathname: string; domain: string } {
     try {
-      const urlObj = new URL(url);
+      const _urlObj = new URL(url);
       return {
         protocol: urlObj.protocol,
         hostname: urlObj.hostname,
@@ -360,7 +360,7 @@ export class NetworkUtils {
 
   // Extract main domain from hostname
   static extractDomain(hostname: string): string {
-    const parts = hostname.split('.');
+    const _parts = hostname.split('.');
     if (parts.length >= 2) {
       return parts.slice(-2).join('.');
     }
@@ -407,7 +407,7 @@ export class NetworkUtils {
 
   // Parse headers safely
   static parseHeaders(headers: any): { request: Record<string, string>; response: Record<string, string> } {
-    const defaultHeaders = { request: {}, response: {} };
+    const _defaultHeaders = { request: { }, response: {} };
 
     try {
       if (typeof headers === 'string') {

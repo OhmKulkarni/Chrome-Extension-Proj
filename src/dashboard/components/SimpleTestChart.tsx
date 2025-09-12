@@ -15,16 +15,16 @@ interface SimpleTestChartProps {
 }
 
 export const SimpleTestChart: React.FC<SimpleTestChartProps> = ({ networkRequests }) => {
-  console.log('SimpleTestChart - Input:', networkRequests?.length || 0);
+  // console.log('SimpleTestChart - Input:', networkRequests?.length || 0);
 
   // Create minimal test data
-  const testData = [
+  const _testData = [
     { date: 'Day 1', GET: 5, POST: 3 },
     { date: 'Day 2', GET: 8, POST: 2 },
     { date: 'Day 3', GET: 4, POST: 6 }
   ];
 
-  console.log('SimpleTestChart - Test data:', testData);
+  // console.log('SimpleTestChart - Test data:', testData);
 
   return (
     <div className="space-y-4">

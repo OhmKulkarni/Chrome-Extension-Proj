@@ -5,19 +5,19 @@ interface TokenTypesDistributionChartProps {
   data: any[];
 }
 
-const TokenTypesDistributionChart: React.FC<TokenTypesDistributionChartProps> = ({ data }) => {
-  const typeData = data.reduce((acc, event) => {
-    const type = event.type || 'unknown';
+const TokenTypesDistributionChart: React.FC<TokenTypesDistributionChartProps> = ({ _data }) => {
+  const _typeData = data.reduce((acc, event) => {
+    const _type = event.type || 'unknown';
     acc[type] = (acc[type] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  const chartData = Object.entries(typeData).map(([type, count]) => ({
+  const _chartData = Object.entries(typeData).map(([type, count]) => ({
     name: type,
     value: count
   }));
 
-  const colors = ['#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#3B82F6'];
+  const _colors = ['#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#3B82F6'];
 
   return (
     <ResponsiveContainer width="100%" height={200}>

@@ -5,16 +5,16 @@ interface ErrorsOverTimeChartProps {
   data: any[];
 }
 
-const ErrorsOverTimeChart: React.FC<ErrorsOverTimeChartProps> = ({ data }) => {
-  const hourlyData = data.reduce((acc, error) => {
-    const date = new Date(error.timestamp);
-    const hour = date.getHours();
-    const key = `${hour}:00`;
+const ErrorsOverTimeChart: React.FC<ErrorsOverTimeChartProps> = ({ _data }) => {
+  const _hourlyData = data.reduce((acc, error) => {
+    const _date = new Date(error.timestamp);
+    const _hour = date.getHours();
+    const _key = `${ hour }:00`;
     acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  const chartData = Object.entries(hourlyData)
+  const _chartData = Object.entries(hourlyData)
     .map(([hour, count]) => ({ hour, errors: count }))
     .sort((a, b) => parseInt(a.hour) - parseInt(b.hour));
 

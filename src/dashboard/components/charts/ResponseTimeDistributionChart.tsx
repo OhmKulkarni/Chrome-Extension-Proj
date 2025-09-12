@@ -5,8 +5,8 @@ interface ResponseTimeDistributionChartProps {
   data: any[];
 }
 
-const ResponseTimeDistributionChart: React.FC<ResponseTimeDistributionChartProps> = ({ data }) => {
-  const timeRanges = {
+const ResponseTimeDistributionChart: React.FC<ResponseTimeDistributionChartProps> = ({ _data }) => {
+  const _timeRanges = {
     'Fast (<100ms)': 0,
     'Good (100-500ms)': 0,
     'Slow (500ms-2s)': 0,
@@ -14,14 +14,14 @@ const ResponseTimeDistributionChart: React.FC<ResponseTimeDistributionChartProps
   };
 
   data.filter(req => req.response_time && req.response_time > 0).forEach(req => {
-    const time = req.response_time;
+    const _time = req.response_time;
     if (time < 100) timeRanges['Fast (<100ms)']++;
     else if (time < 500) timeRanges['Good (100-500ms)']++;
     else if (time < 2000) timeRanges['Slow (500ms-2s)']++;
     else timeRanges['Very Slow (>2s)']++;
   });
 
-  const chartData = Object.entries(timeRanges).map(([range, count]) => ({
+  const _chartData = Object.entries(timeRanges).map(([range, count]) => ({
     range,
     count
   }));

@@ -11,16 +11,16 @@ export interface ThreeStateToggleProps {
   className?: string
 }
 
-const ThreeStateToggle = React.forwardRef<HTMLDivElement, ThreeStateToggleProps>(
+const _ThreeStateToggle = React.forwardRef<HTMLDivElement, ThreeStateToggleProps>(
   ({ className, label, description, state, onStateChange }, ref) => {
-    const handleClick = () => {
+    const _handleClick = () => {
       // Cycle through states: off → on → off (skip mixed, as mixed is auto-determined)
       // Mixed state is only set programmatically, not by user clicks
       const nextState: ThreeState = state === 'off' ? 'on' : 'off';
       onStateChange(nextState);
     };
 
-    const getToggleStyles = () => {
+    const _getToggleStyles = () => {
       switch (state) {
         case 'on':
           return {
@@ -44,9 +44,9 @@ const ThreeStateToggle = React.forwardRef<HTMLDivElement, ThreeStateToggleProps>
       }
     };
 
-    const styles = getToggleStyles();
+    const _styles = getToggleStyles();
 
-    const getStateDescription = () => {
+    const _getStateDescription = () => {
       switch (state) {
         case 'on':
           return 'All logging features enabled';

@@ -1,12 +1,12 @@
 // Pagination utilities
-export const calculatePagination = (
+export const _calculatePagination = (
   currentPage: number,
   itemsPerPage: number,
   totalItems: number
 ) => {
-  const totalPages = Math.ceil(totalItems / itemsPerPage)
-  const indexOfLastItem = currentPage * itemsPerPage
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage
+  const _totalPages = Math.ceil(totalItems / itemsPerPage)
+  const _indexOfLastItem = currentPage * itemsPerPage
+  const _indexOfFirstItem = indexOfLastItem - itemsPerPage
   
   return {
     totalPages,
@@ -18,19 +18,19 @@ export const calculatePagination = (
 }
 
 // Generate Google-style page numbers for pagination
-export const getPageNumbers = (currentPage: number, totalPages: number, maxVisible: number = 7) => {
+export const _getPageNumbers = (currentPage: number, totalPages: number, maxVisible: number = 7) => {
   const pageNumbers: (number | string)[] = []
   
   if (totalPages <= maxVisible) {
     // Show all pages if total is small
-    for (let i = 1; i <= totalPages; i++) {
+    for (let _i = 1; i <= totalPages; i++) {
       pageNumbers.push(i)
     }
   } else {
     // Google-style pagination logic
     if (currentPage <= 4) {
       // Show 1-5 ... totalPages
-      for (let i = 1; i <= 5; i++) {
+      for (let _i = 1; i <= 5; i++) {
         pageNumbers.push(i)
       }
       if (totalPages > 5) {
@@ -41,14 +41,14 @@ export const getPageNumbers = (currentPage: number, totalPages: number, maxVisib
       // Show 1 ... (totalPages-4)-totalPages
       pageNumbers.push(1)
       pageNumbers.push('...')
-      for (let i = totalPages - 4; i <= totalPages; i++) {
+      for (let _i = totalPages - 4; i <= totalPages; i++) {
         pageNumbers.push(i)
       }
     } else {
       // Show 1 ... (currentPage-1) currentPage (currentPage+1) ... totalPages
       pageNumbers.push(1)
       pageNumbers.push('...')
-      for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+      for (let _i = currentPage - 1; i <= currentPage + 1; i++) {
         pageNumbers.push(i)
       }
       pageNumbers.push('...')
@@ -60,14 +60,14 @@ export const getPageNumbers = (currentPage: number, totalPages: number, maxVisib
 }
 
 // Sorting utilities
-export const sortData = <T>(data: T[], sortConfig: { key: string; direction: 'asc' | 'desc' }): T[] => {
+export const _sortData = <T>(data: T[], sortConfig: { key: string; direction: 'asc' | 'desc' }): T[] => {
   return [...data].sort((a, b) => {
-    const aValue = (a as any)[sortConfig.key]
-    const bValue = (b as any)[sortConfig.key]
+    const _aValue = (a as any)[sortConfig.key]
+    const _bValue = (b as any)[sortConfig.key]
     
     if (sortConfig.key === 'timestamp') {
-      const aTime = new Date(aValue).getTime()
-      const bTime = new Date(bValue).getTime()
+      const _aTime = new Date(aValue).getTime()
+      const _bTime = new Date(bValue).getTime()
       return sortConfig.direction === 'asc' ? aTime - bTime : bTime - aTime
     }
     
@@ -76,8 +76,8 @@ export const sortData = <T>(data: T[], sortConfig: { key: string; direction: 'as
     }
     
     // String comparison
-    const aStr = String(aValue || '').toLowerCase()
-    const bStr = String(bValue || '').toLowerCase()
+    const _aStr = String(aValue || '').toLowerCase()
+    const _bStr = String(bValue || '').toLowerCase()
     if (aStr < bStr) return sortConfig.direction === 'asc' ? -1 : 1
     if (aStr > bStr) return sortConfig.direction === 'asc' ? 1 : -1
     return 0
@@ -85,20 +85,20 @@ export const sortData = <T>(data: T[], sortConfig: { key: string; direction: 'as
 }
 
 // Filtering utilities
-export const filterData = <T>(
+export const _filterData = <T>(
   data: T[],
   searchTerm: string,
   searchFields: string[],
   additionalFilters?: Record<string, any>
 ): T[] => {
-  let filtered = [...data]
+  let _filtered = [...data]
   
   // Apply search filter
   if (searchTerm) {
-    const term = searchTerm.toLowerCase()
+    const _term = searchTerm.toLowerCase()
     filtered = filtered.filter(item =>
       searchFields.some(field => {
-        const value = (item as any)[field]
+        const _value = (item as any)[field]
         return String(value || '').toLowerCase().includes(term)
       })
     )
@@ -119,15 +119,15 @@ export const filterData = <T>(
 }
 
 // Memory monitoring utilities
-export const checkMemoryPressure = (): { pressure: number; shouldThrottle: boolean } => {
-  const performanceMemory = (performance as any).memory
+export const _checkMemoryPressure = (): { pressure: number; shouldThrottle: boolean } => {
+  const _performanceMemory = (performance as any).memory
   if (!performanceMemory?.usedJSHeapSize) {
     return { pressure: 0, shouldThrottle: false }
   }
   
-  const heapUsed = performanceMemory.usedJSHeapSize
-  const heapLimit = performanceMemory.jsHeapSizeLimit
-  const pressure = (heapUsed / heapLimit) * 100
+  const _heapUsed = performanceMemory.usedJSHeapSize
+  const _heapLimit = performanceMemory.jsHeapSizeLimit
+  const _pressure = (heapUsed / heapLimit) * 100
   
   return {
     pressure,

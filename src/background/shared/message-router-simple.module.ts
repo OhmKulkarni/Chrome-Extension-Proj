@@ -61,7 +61,7 @@ export class MessageRouterSimpleModule {
     };
 
     this.abortController = new AbortController();
-    console.log('📬 MessageRouterModule: Initialized with safety configuration');
+    // console.log('📬 MessageRouterModule: Initialized with safety configuration');
   }
 
   /**
@@ -79,7 +79,7 @@ export class MessageRouterSimpleModule {
     });
 
     this.isInitialized = true;
-    console.log('✅ MessageRouterModule: Successfully initialized');
+    // console.log('✅ MessageRouterModule: Successfully initialized');
   }
 
   /**
@@ -92,7 +92,7 @@ export class MessageRouterSimpleModule {
 
     this.isInitialized = false;
     this.messageCount = 0;
-    console.log('🧹 MessageRouterModule: Cleanup completed');
+    // console.log('🧹 MessageRouterModule: Cleanup completed');
   }
 
   /**
@@ -108,14 +108,14 @@ export class MessageRouterSimpleModule {
     try {
       // Handle ping requests immediately (for background readiness check)
       if (message.action === 'ping') {
-        const isReady = (globalThis as any).isBackgroundReady?.() ?? true;
+        const _isReady = (globalThis as any).isBackgroundReady?.() ?? true;
         sendResponse({ success: isReady, initializing: !isReady });
         return;
       }
 
       // Handle getTabInfo requests with fallback during initialization
       if (message.action === 'getTabInfo') {
-        const isReady = (globalThis as any).isBackgroundReady?.() ?? true;
+        const _isReady = (globalThis as any).isBackgroundReady?.() ?? true;
         if (!isReady) {
           sendResponse({
             title: 'Extension Loading...',
@@ -131,13 +131,13 @@ export class MessageRouterSimpleModule {
         return;
       }
 
-      const action = message.action || message.type;
+      const _action = message.action || message.type;
 
       // Route messages to appropriate handlers
       switch (action) {
         // Debug/Test Messages
         case 'debugTest':
-          console.log('🐛 MessageRouter: Debug test called');
+          // console.log('🐛 MessageRouter: Debug test called');
           sendResponse({
             success: true,
             message: 'Debug test successful',
@@ -148,12 +148,12 @@ export class MessageRouterSimpleModule {
 
         // Extension State
         case 'INJECT_MAIN_WORLD_SCRIPT':
-          console.log('🚨 MESSAGE ROUTER: Received INJECT_MAIN_WORLD_SCRIPT request from tabId:', sender.tab?.id);
+          // console.log('🚨 MESSAGE ROUTER: Received INJECT_MAIN_WORLD_SCRIPT request from tabId:', sender.tab?.id);
           await this.handleScriptInjection(message, sender, sendResponse);
           break;
 
         case 'GET_EXTENSION_STATE':
-          const state = await this.extensionState.getExtensionState();
+          const _state = await this.extensionState.getExtensionState();
           sendResponse({ success: true, ...state });
           break;
 
@@ -163,12 +163,12 @@ export class MessageRouterSimpleModule {
             if (message.tabId) {
               try {
                 // Get the domain from the tab
-                const tab = await chrome.tabs.get(message.tabId);
+                const _tab = await chrome.tabs.get(message.tabId);
                 if (tab.url) {
-                  const domain = new URL(tab.url).hostname;
+                  const _domain = new URL(tab.url).hostname;
 
                   // Update both old and new systems
-                  const result = await this.extensionState.setSiteSpecificState(domain, message.enabled);
+                  const _result = await this.extensionState.setSiteSpecificState(domain, message.enabled);
 
                   // CRITICAL FIX: Also update the unified permission system
                   await this.unifiedPermissionService.handleSetExtensionState(message.enabled, message.tabId);
@@ -182,7 +182,7 @@ export class MessageRouterSimpleModule {
               }
             } else {
               // Global extension state
-              const result = await this.extensionState.setExtensionState(message.enabled);
+              const _result = await this.extensionState.setExtensionState(message.enabled);
 
               // CRITICAL FIX: Also update the unified permission system
               await this.unifiedPermissionService.handleSetExtensionState(message.enabled);
@@ -198,24 +198,24 @@ export class MessageRouterSimpleModule {
         case 'storeNetworkRequest':
         case 'STORE_NETWORK_REQUEST':
         case 'NETWORK_REQUEST':
-          const networkResult = await this.networkProcessor.processNetworkRequest(message.data, sender);
+          const _networkResult = await this.networkProcessor.processNetworkRequest(message.data, sender);
           sendResponse(networkResult);
           break;
 
         case 'getNetworkRequests':
-          const networkRequests = await this.networkProcessor.getNetworkRequests(
+          const _networkRequests = await this.networkProcessor.getNetworkRequests(
             message.limit || 50,
             message.offset || 0
           );
-          const networkTotal = await this.networkProcessor.getNetworkRequestsCount();
-          const networkResponse = { success: true, requests: networkRequests, total: networkTotal };
-          console.log('🌐 MessageRouter: getNetworkRequests response:', { requestsCount: networkRequests.length, total: networkTotal });
+          const _networkTotal = await this.networkProcessor.getNetworkRequestsCount();
+          const _networkResponse = { success: true, requests: networkRequests, total: networkTotal };
+          // console.log('🌐 MessageRouter: getNetworkRequests response:', { requestsCount: networkRequests.length, total: networkTotal });
           sendResponse(networkResponse);
           break;
 
         case 'toggleTabLogging':
           if (message.tabId) {
-            const toggleResult = await this.networkProcessor.toggleTabLogging(message.tabId);
+            const _toggleResult = await this.networkProcessor.toggleTabLogging(message.tabId);
             sendResponse(toggleResult);
           } else {
             sendResponse({ success: false, error: 'Tab ID required' });
@@ -224,7 +224,7 @@ export class MessageRouterSimpleModule {
 
         // Console Handling
         case 'CONSOLE_ERROR':
-          const consoleResult = await this.consoleHandler.processConsoleError(message.data, sender);
+          const _consoleResult = await this.consoleHandler.processConsoleError(message.data, sender);
           sendResponse(consoleResult);
           break;
 
@@ -235,19 +235,19 @@ export class MessageRouterSimpleModule {
           break;
 
         case 'getConsoleErrors':
-          const consoleErrors = await this.consoleHandler.getConsoleErrors(
+          const _consoleErrors = await this.consoleHandler.getConsoleErrors(
             message.limit || 50,
             message.offset || 0
           );
-          const errorTotal = await this.consoleHandler.getConsoleErrorsCount();
-          const errorResponse = { success: true, errors: consoleErrors, total: errorTotal };
-          console.log('📝 MessageRouter: getConsoleErrors response:', { errorsCount: consoleErrors.length, total: errorTotal });
+          const _errorTotal = await this.consoleHandler.getConsoleErrorsCount();
+          const _errorResponse = { success: true, errors: consoleErrors, total: errorTotal };
+          // console.log('📝 MessageRouter: getConsoleErrors response:', { errorsCount: consoleErrors.length, total: errorTotal });
           sendResponse(errorResponse);
           break;
 
         case 'toggleTabErrorLogging':
           if (message.tabId) {
-            const errorToggleResult = await this.consoleHandler.toggleTabErrorLogging(message.tabId);
+            const _errorToggleResult = await this.consoleHandler.toggleTabErrorLogging(message.tabId);
             sendResponse(errorToggleResult);
           } else {
             sendResponse({ success: false, error: 'Tab ID required' });
@@ -270,9 +270,9 @@ export class MessageRouterSimpleModule {
                   networkEnabled: message.active,
                   type: 'network'
                 });
-                console.log(`📨 MESSAGE ROUTER: Notified tab ${message.tabId} of network state change: ${message.active}`);
+                // console.log(`📨 MESSAGE ROUTER: Notified tab ${message.tabId} of network state change: ${message.active}`);
               } catch (notificationError) {
-                console.log(`📨 MESSAGE ROUTER: Could not notify tab ${message.tabId} (content script may not be ready):`, notificationError);
+                // console.log(`📨 MESSAGE ROUTER: Could not notify tab ${message.tabId} (content script may not be ready):`, notificationError);
                 // Don't fail the main operation if notification fails
               }
 
@@ -300,9 +300,9 @@ export class MessageRouterSimpleModule {
                   consoleEnabled: message.active,
                   type: 'console'
                 });
-                console.log(`📨 MESSAGE ROUTER: Notified tab ${message.tabId} of console state change: ${message.active}`);
+                // console.log(`📨 MESSAGE ROUTER: Notified tab ${message.tabId} of console state change: ${message.active}`);
               } catch (notificationError) {
-                console.log(`📨 MESSAGE ROUTER: Could not notify tab ${message.tabId} (content script may not be ready):`, notificationError);
+                // console.log(`📨 MESSAGE ROUTER: Could not notify tab ${message.tabId} (content script may not be ready):`, notificationError);
                 // Don't fail the main operation if notification fails
               }
 
@@ -330,9 +330,9 @@ export class MessageRouterSimpleModule {
                   tokenEnabled: message.active,
                   type: 'token'
                 });
-                console.log(`📨 MESSAGE ROUTER: Notified tab ${message.tabId} of token state change: ${message.active}`);
+                // console.log(`📨 MESSAGE ROUTER: Notified tab ${message.tabId} of token state change: ${message.active}`);
               } catch (notificationError) {
-                console.log(`📨 MESSAGE ROUTER: Could not notify tab ${message.tabId} (content script may not be ready):`, notificationError);
+                // console.log(`📨 MESSAGE ROUTER: Could not notify tab ${message.tabId} (content script may not be ready):`, notificationError);
                 // Don't fail the main operation if notification fails
               }
 
@@ -349,7 +349,7 @@ export class MessageRouterSimpleModule {
         case 'getTabNetworkState':
           if (message.tabId !== undefined) {
             try {
-              const active = await this.storageManager.getTabNetworkState(message.tabId);
+              const _active = await this.storageManager.getTabNetworkState(message.tabId);
               sendResponse({ success: true, active });
             } catch (error) {
               sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to get tab network state' });
@@ -362,7 +362,7 @@ export class MessageRouterSimpleModule {
         case 'getTabErrorState':
           if (message.tabId !== undefined) {
             try {
-              const active = await this.storageManager.getTabErrorState(message.tabId);
+              const _active = await this.storageManager.getTabErrorState(message.tabId);
               sendResponse({ success: true, active });
             } catch (error) {
               sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to get tab error state' });
@@ -375,7 +375,7 @@ export class MessageRouterSimpleModule {
         case 'getTabTokenState':
           if (message.tabId !== undefined) {
             try {
-              const active = await this.storageManager.getTabTokenState(message.tabId);
+              const _active = await this.storageManager.getTabTokenState(message.tabId);
               sendResponse({ success: true, active });
             } catch (error) {
               sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to get tab token state' });
@@ -387,7 +387,7 @@ export class MessageRouterSimpleModule {
 
         case 'CHECK_LOGGING_PERMISSIONS':
           try {
-            let tabId = message.tabId;
+            let _tabId = message.tabId;
 
             // If no tabId provided but URL is available, get tabId from sender
             if (!tabId && message.url && sender?.tab?.id) {
@@ -403,7 +403,7 @@ export class MessageRouterSimpleModule {
                 unifiedPermissionManager.isFeatureEnabled(tabId, 'tokens')
               ]);
 
-              const hasAnyLoggingEnabled = networkEnabled || consoleEnabled || tokenEnabled;
+              const _hasAnyLoggingEnabled = networkEnabled || consoleEnabled || tokenEnabled;
 
               sendResponse({
                 success: true,
@@ -448,9 +448,9 @@ export class MessageRouterSimpleModule {
                   consoleEnabled: message.enabled,
                   tokenEnabled: message.enabled
                 });
-                console.log(`📨 MESSAGE ROUTER: Sent atomic state change notification to tab ${message.tabId}: all features = ${message.enabled}`);
+                // console.log(`📨 MESSAGE ROUTER: Sent atomic state change notification to tab ${message.tabId}: all features = ${message.enabled}`);
               } catch (notificationError) {
-                console.log(`📨 MESSAGE ROUTER: Could not notify tab ${message.tabId} (content script may not be ready):`, notificationError);
+                // console.log(`📨 MESSAGE ROUTER: Could not notify tab ${message.tabId} (content script may not be ready):`, notificationError);
                 // Don't fail the main operation if notification fails
               }
 
@@ -466,7 +466,7 @@ export class MessageRouterSimpleModule {
         case 'getAllFeaturesState':
           if (message.tabId !== undefined) {
             try {
-              const features = await unifiedPermissionManager.getAllFeatures(message.tabId);
+              const _features = await unifiedPermissionManager.getAllFeatures(message.tabId);
               sendResponse({ success: true, features });
             } catch (error) {
               sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to get all features state' });
@@ -486,7 +486,7 @@ export class MessageRouterSimpleModule {
                 this.storageManager.getTabTokenState(message.tabId)
               ]);
 
-              const stats = {
+              const _stats = {
                 networkLogs: networkState ? Math.floor(Math.random() * 50) : 0, // Placeholder - replace with actual count
                 consoleLogs: errorState ? Math.floor(Math.random() * 30) : 0,    // Placeholder - replace with actual count
                 tokens: tokenState ? Math.floor(Math.random() * 10) : 0,         // Placeholder - replace with actual count
@@ -495,7 +495,7 @@ export class MessageRouterSimpleModule {
               sendResponse({ success: true, stats });
             } catch (error) {
               // Graceful fallback with zero stats
-              const stats = {
+              const _stats = {
                 networkLogs: 0,
                 consoleLogs: 0,
                 tokens: 0,
@@ -509,7 +509,7 @@ export class MessageRouterSimpleModule {
 
         case 'getSettings':
           try {
-            const settingsData = await this.storageManager.getSettings();
+            const _settingsData = await this.storageManager.getSettings();
             sendResponse({ success: true, data: settingsData });
           } catch (error) {
             sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to get settings' });
@@ -522,14 +522,14 @@ export class MessageRouterSimpleModule {
 
             // ADDED: Broadcast configuration changes to all content scripts
             try {
-              const tabs = await chrome.tabs.query({});
-              const networkConfig = this.extractNetworkConfig(message.settings);
+              const _tabs = await chrome.tabs.query({});
+              const _networkConfig = this.extractNetworkConfig(message.settings);
 
               // Send updated configuration to all tabs with better error handling
-              const configUpdatePromises = tabs.map(async (tab) => {
+              const _configUpdatePromises = tabs.map(async (tab) => {
                 if (tab.id) {
                   try {
-                    const result = await this.chromeApi.sendMessageToTab(tab.id, {
+                    const _result = await this.chromeApi.sendMessageToTab(tab.id, {
                       action: 'updateConfig',
                       config: {
                         network: networkConfig
@@ -537,19 +537,19 @@ export class MessageRouterSimpleModule {
                     });
                     // Only log successful deliveries
                     if (result !== null) {
-                      console.debug(`📡 Config sent to tab ${tab.id}: ${tab.url?.substring(0, 50)}`);
+                      // console.debug(`📡 Config sent to tab ${tab.id}: ${tab.url?.substring(0, 50)}`);
                     }
                   } catch (error) {
                     // Ignore connection errors - content scripts may not be loaded
-                    console.debug(`📡 Skipping tab ${tab.id} (no content script): ${tab.url?.substring(0, 50)}`);
+                    // console.debug(`📡 Skipping tab ${tab.id} (no content script): ${tab.url?.substring(0, 50)}`);
                   }
                 }
               });
 
               await Promise.allSettled(configUpdatePromises);
-              console.log('📡 MessageRouter: Configuration updates sent to available content scripts');
+              // console.log('📡 MessageRouter: Configuration updates sent to available content scripts');
             } catch (error) {
-              console.warn('📡 MessageRouter: Error broadcasting config updates:', error);
+              // console.warn('📡 MessageRouter: Error broadcasting config updates:', error);
             }
 
             sendResponse({ success: true });
@@ -561,18 +561,18 @@ export class MessageRouterSimpleModule {
         // General Storage Operations (for StorageService)
         case 'STORAGE_GET':
           try {
-            const keys = message.keys || [];
+            const _keys = message.keys || [];
             const result: any = {};
 
             for (const key of keys) {
               if (key === 'settings' || key === 'extensionSettings') {
                 result[key] = await this.storageManager.getSettings();
               } else if (key === 'extensionState') {
-                const state = await this.extensionState.getExtensionState();
+                const _state = await this.extensionState.getExtensionState();
                 result[key] = state;
               } else if (key.startsWith('tabLogging_') || key.startsWith('tabErrorLogging_') || key.startsWith('tabTokenLogging_')) {
                 // Tab state keys
-                const tabId = parseInt(key.split('_')[1]);
+                const _tabId = parseInt(key.split('_')[1]);
                 if (!isNaN(tabId)) {
                   if (key.startsWith('tabLogging_')) {
                     result[key] = { active: await this.storageManager.getTabNetworkState(tabId) };
@@ -584,7 +584,7 @@ export class MessageRouterSimpleModule {
                 }
               } else {
                 // For any other keys, try to get them as generic settings
-                const setting = await this.storageManager.getSettings();
+                const _setting = await this.storageManager.getSettings();
                 result[key] = setting[key] || null;
               }
             }
@@ -597,7 +597,7 @@ export class MessageRouterSimpleModule {
 
         case 'STORAGE_SET':
           try {
-            const data = message.data || {};
+            const _data = message.data || {};
 
             for (const [key, value] of Object.entries(data)) {
               if (key === 'settings' || key === 'extensionSettings') {
@@ -606,8 +606,8 @@ export class MessageRouterSimpleModule {
                 await this.extensionState.setExtensionState((value as any)?.globalEnabled ?? true);
               } else if (key.startsWith('tabLogging_') || key.startsWith('tabErrorLogging_') || key.startsWith('tabTokenLogging_')) {
                 // Tab state keys
-                const tabId = parseInt(key.split('_')[1]);
-                const active = typeof value === 'boolean' ? value : (value as any)?.active ?? false;
+                const _tabId = parseInt(key.split('_')[1]);
+                const _active = typeof value === 'boolean' ? value : (value as any)?.active ?? false;
                 if (!isNaN(tabId)) {
                   if (key.startsWith('tabLogging_')) {
                     await this.storageManager.setTabNetworkState(tabId, active);
@@ -619,8 +619,8 @@ export class MessageRouterSimpleModule {
                 }
               } else {
                 // For generic settings, merge with existing settings
-                const currentSettings = await this.storageManager.getSettings();
-                const updatedSettings = { ...currentSettings, [key]: value };
+                const _currentSettings = await this.storageManager.getSettings();
+                const _updatedSettings = { ...currentSettings, [key]: value };
                 await this.storageManager.updateSettings(updatedSettings);
               }
             }
@@ -633,7 +633,7 @@ export class MessageRouterSimpleModule {
 
         case 'STORAGE_REMOVE':
           try {
-            const keys = message.keys || [];
+            const _keys = message.keys || [];
 
             for (const key of keys) {
               if (key === 'settings' || key === 'extensionSettings') {
@@ -642,7 +642,7 @@ export class MessageRouterSimpleModule {
                 await this.extensionState.setExtensionState(true); // Reset to default
               } else {
                 // For generic settings removal
-                const currentSettings = await this.storageManager.getSettings();
+                const _currentSettings = await this.storageManager.getSettings();
                 delete currentSettings[key];
                 await this.storageManager.updateSettings(currentSettings);
               }
@@ -667,7 +667,7 @@ export class MessageRouterSimpleModule {
         case 'STORAGE_INFO':
           try {
             // Get storage information
-            const info = await this.storageManager.getStorageInfo();
+            const _info = await this.storageManager.getStorageInfo();
             sendResponse({ success: true, data: info });
           } catch (error) {
             sendResponse({ success: false, error: error instanceof Error ? error.message : 'Failed to get storage info' });
@@ -676,24 +676,24 @@ export class MessageRouterSimpleModule {
 
         // Token Events
         case 'getTokenEvents':
-          const tokenEvents = await this.tokenTracker.getTokenEvents(
+          const _tokenEvents = await this.tokenTracker.getTokenEvents(
             message.limit || 50,
             message.offset || 0
           );
-          const tokenTotal = await this.tokenTracker.getTokenEventsCount();
-          const tokenResponse = { success: true, events: tokenEvents, total: tokenTotal };
-          console.log('🔍 MessageRouter: getTokenEvents response:', { eventsCount: tokenEvents.length, total: tokenTotal });
+          const _tokenTotal = await this.tokenTracker.getTokenEventsCount();
+          const _tokenResponse = { success: true, events: tokenEvents, total: tokenTotal };
+          // console.log('🔍 MessageRouter: getTokenEvents response:', { eventsCount: tokenEvents.length, total: tokenTotal });
           sendResponse(tokenResponse);
           break;
 
         // Minified Libraries
         case 'getMinifiedLibraries':
           try {
-            const libraries = await this.networkProcessor.getMinifiedLibraries(
+            const _libraries = await this.networkProcessor.getMinifiedLibraries(
               message.limit || 100,
               message.offset || 0
             );
-            console.log('📚 MessageRouter: getMinifiedLibraries response:', { librariesCount: libraries.length });
+            // console.log('📚 MessageRouter: getMinifiedLibraries response:', { librariesCount: libraries.length });
             sendResponse({ success: true, libraries });
           } catch (error) {
             console.error('MessageRouter: Failed to get minified libraries:', error);
@@ -728,11 +728,11 @@ export class MessageRouterSimpleModule {
         case 'getAnalysisData':
           // Get larger datasets for dashboard charts and statistics (memory-optimized)
           try {
-            const requestedLimit = message.limit || 200;
-            console.log(`📊 MessageRouter: Getting ${requestedLimit === -1 ? 'ALL' : requestedLimit} records for dashboard analysis`);
+            const _requestedLimit = message.limit || 200;
+            // console.log(`📊 MessageRouter: Getting ${requestedLimit === -1 ? 'ALL' : requestedLimit} records for dashboard analysis`);
 
             // Handle "All" option (-1) by using a very large limit
-            const actualLimit = requestedLimit === -1 ? 1000000 : requestedLimit;
+            const _actualLimit = requestedLimit === -1 ? 1000000 : requestedLimit;
 
             // Get data from each module with IndexedDB storage
             const [networkRequests, consoleErrors, tokenEvents] = await Promise.all([
@@ -743,9 +743,9 @@ export class MessageRouterSimpleModule {
 
             // PERFORMANCE FIX: Use array lengths instead of expensive count operations
             // This eliminates 27+ seconds of database counting operations
-            const networkCount = networkRequests?.length || 0;
-            const errorCount = consoleErrors?.length || 0;
-            const tokenCount = tokenEvents?.length || 0;
+            const _networkCount = networkRequests?.length || 0;
+            const _errorCount = consoleErrors?.length || 0;
+            const _tokenCount = tokenEvents?.length || 0;
 
             console.log(`✅ MessageRouter: Retrieved analysis data`, {
               networkRequests: networkCount,
@@ -756,7 +756,7 @@ export class MessageRouterSimpleModule {
 
             // DEBUG: Check size fields in first few network requests
             if (networkRequests && networkRequests.length > 0) {
-              console.log('🔍 MessageRouter: Size field debugging for first 3 requests:');
+              // console.log('🔍 MessageRouter: Size field debugging for first 3 requests:');
               networkRequests.slice(0, 3).forEach((req, index) => {
                 console.log(`Request ${index + 1}:`, {
                   url: req.url?.substring(0, 50),
@@ -790,20 +790,20 @@ export class MessageRouterSimpleModule {
         case 'clearAllData':
           try {
             // Clear all three storage systems comprehensively
-            console.log('🧹 MessageRouter: Clearing all data from ALL storage systems...');
+            // console.log('🧹 MessageRouter: Clearing all data from ALL storage systems...');
 
             // Clear Chrome Local Storage (settings, states, etc.)
             await this.storageManager.clearAllData();
-            console.log('✅ Chrome Local Storage cleared');
+            // console.log('✅ Chrome Local Storage cleared');
 
             // Clear IndexedDB (network requests, console errors, token events)
             await this.indexedDbStorage.clearAllData();
-            console.log('✅ IndexedDB cleared');
+            // console.log('✅ IndexedDB cleared');
 
             // Clear Chrome Sync Storage (user preferences, domain settings)
-            const chromeSyncService = ChromeSyncService.getInstance();
+            const _chromeSyncService = ChromeSyncService.getInstance();
             await chromeSyncService.clearAllSyncStorage();
-            console.log('✅ Chrome Sync Storage cleared');
+            // console.log('✅ Chrome Sync Storage cleared');
 
             sendResponse({ success: true, message: 'All data cleared from all storage systems (Local, IndexedDB, Sync)' });
           } catch (error) {
@@ -818,7 +818,7 @@ export class MessageRouterSimpleModule {
         // Debug Permission Actions
         case 'debugGetPermissionState':
           try {
-            const state = await this.unifiedPermissionService.getTabPermissionState(message.tabId);
+            const _state = await this.unifiedPermissionService.getTabPermissionState(message.tabId);
             sendResponse({ success: true, state });
           } catch (error) {
             sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
@@ -837,7 +837,7 @@ export class MessageRouterSimpleModule {
         case 'debugClearAllSitePermissions':
           try {
             // Clear all site permissions directly
-            const allPermissions = await unifiedPermissionManager.getAllSitePermissions();
+            const _allPermissions = await unifiedPermissionManager.getAllSitePermissions();
             for (const domain of Object.keys(allPermissions)) {
               await unifiedPermissionManager.setSiteEnabled(domain, true); // Reset to default (enabled)
             }
@@ -864,14 +864,14 @@ export class MessageRouterSimpleModule {
           if (sender.tab?.id) {
             sendResponse({ success: true, tabId: sender.tab.id });
           } else {
-            const currentTab = await this.chromeApi.getCurrentTab();
+            const _currentTab = await this.chromeApi.getCurrentTab();
             sendResponse({ success: true, tabId: currentTab?.id || 0 });
           }
           break;
 
         case 'getInterceptionState':
           if (message.tabId) {
-            const interceptionResult = await this.networkProcessor.getInterceptionState(message.tabId);
+            const _interceptionResult = await this.networkProcessor.getInterceptionState(message.tabId);
             sendResponse(interceptionResult);
           } else {
             sendResponse({ success: false, error: 'Tab ID required' });
@@ -881,9 +881,9 @@ export class MessageRouterSimpleModule {
         case 'getTabInfo':
           try {
             // Get active tab info (what popup expects)
-            const tabs = await this.chromeApi.queryTabs({ active: true, currentWindow: true });
+            const _tabs = await this.chromeApi.queryTabs({ active: true, currentWindow: true });
             if (tabs.length > 0) {
-              const activeTab = tabs[0];
+              const _activeTab = tabs[0];
               sendResponse({
                 success: true,
                 title: activeTab.title || 'Unknown',
@@ -911,7 +911,7 @@ export class MessageRouterSimpleModule {
         // System Operations
         case 'openDashboard':
           try {
-            const dashboardUrl = chrome.runtime.getURL('src/dashboard/dashboard.html');
+            const _dashboardUrl = chrome.runtime.getURL('src/dashboard/dashboard.html');
             await chrome.tabs.create({ url: dashboardUrl });
             sendResponse({ success: true });
           } catch {
@@ -920,12 +920,12 @@ export class MessageRouterSimpleModule {
           break;
 
         case 'getMemoryUsage':
-          const memoryUsage = this.chromeApi.getMemoryUsage();
+          const _memoryUsage = this.chromeApi.getMemoryUsage();
           sendResponse({ success: true, data: memoryUsage });
           break;
 
         case 'getStorageAnalysis':
-          const analysis = await this.storageManager.getStorageAnalysis();
+          const _analysis = await this.storageManager.getStorageAnalysis();
           sendResponse({ success: true, data: analysis });
           break;
 
@@ -934,29 +934,29 @@ export class MessageRouterSimpleModule {
           break;
 
         case 'getTabs':
-          const allTabs = await this.chromeApi.queryTabs({});
+          const _allTabs = await this.chromeApi.queryTabs({});
           sendResponse({ success: true, tabs: allTabs });
           break;
 
         case 'getVersion':
-          const versionInfo = this.extensionState.getExtensionInfo();
+          const _versionInfo = this.extensionState.getExtensionInfo();
           sendResponse({ success: true, ...versionInfo });
           break;
 
         // Global Power State
         case 'GET_GLOBAL_POWER_STATE':
-          const globalPowerState = await this.unifiedPermissionService.handleGetGlobalPowerState();
+          const _globalPowerState = await this.unifiedPermissionService.handleGetGlobalPowerState();
           sendResponse({ success: true, data: globalPowerState });
           break;
 
         case 'GET_SITE_SPECIFIC_STATE':
           if (message.tabId) {
-            const siteState = await this.unifiedPermissionService.handleGetSiteSpecificState(message.tabId);
+            const _siteState = await this.unifiedPermissionService.handleGetSiteSpecificState(message.tabId);
             sendResponse({ success: true, enabled: siteState.enabled });
           } else if (message.domain) {
             // For backward compatibility, handle domain-based requests
             try {
-              const enabled = await this.unifiedPermissionService.isSiteEnabledByDomain(message.domain);
+              const _enabled = await this.unifiedPermissionService.isSiteEnabledByDomain(message.domain);
               sendResponse({ success: true, enabled, domain: message.domain });
             } catch (error) {
               sendResponse({ success: false, error: `Failed to get site-specific state: ${error instanceof Error ? error.message : error}` });
@@ -971,7 +971,7 @@ export class MessageRouterSimpleModule {
         case 'RETRY_SCRIPT_INJECTION':
           if (message.tabId) {
             try {
-              const result = await this.extensionState.handleScriptInjection(message.tabId);
+              const _result = await this.extensionState.handleScriptInjection(message.tabId);
               sendResponse({ success: result.success, error: result.error });
             } catch (error) {
               sendResponse({ success: false, error: `Script injection failed: ${error instanceof Error ? error.message : error}` });
@@ -984,7 +984,7 @@ export class MessageRouterSimpleModule {
         case 'FORCE_ENABLE_EXTENSION':
           try {
             // Force enable the extension globally
-            const result = await this.extensionState.setExtensionState(true);
+            const _result = await this.extensionState.setExtensionState(true);
             sendResponse({ success: true, message: 'Extension force enabled', newState: result.newState });
           } catch (error) {
             sendResponse({ success: false, error: `Failed to force enable: ${error instanceof Error ? error.message : error}` });
@@ -993,7 +993,7 @@ export class MessageRouterSimpleModule {
 
         case 'GET_RAW_STORAGE':
           try {
-            const rawStorage = await chrome.storage.local.get(null);
+            const _rawStorage = await chrome.storage.local.get(null);
             sendResponse({ success: true, data: rawStorage });
           } catch (error) {
             sendResponse({ success: false, error: `Failed to get raw storage: ${error instanceof Error ? error.message : error}` });
@@ -1003,7 +1003,7 @@ export class MessageRouterSimpleModule {
         case 'RESET_SITE_STATES':
           try {
             // Get current storage
-            const storage = await chrome.storage.local.get(['extensionState']);
+            const _storage = await chrome.storage.local.get(['extensionState']);
             if (storage.extensionState && storage.extensionState.siteSpecificState) {
               // Clear site-specific states
               storage.extensionState.siteSpecificState = {};
@@ -1024,7 +1024,7 @@ export class MessageRouterSimpleModule {
               break;
             }
             await this.consoleHandler.deleteConsoleError(message.id);
-            console.log('🗑️ MessageRouter: Deleted console error:', message.id);
+            // console.log('🗑️ MessageRouter: Deleted console error:', message.id);
             sendResponse({ success: true });
           } catch (error) {
             console.error('MessageRouter: Failed to delete console error:', error);
@@ -1039,7 +1039,7 @@ export class MessageRouterSimpleModule {
               break;
             }
             await this.networkProcessor.deleteNetworkRequest(message.id);
-            console.log('🗑️ MessageRouter: Deleted network request:', message.id);
+            // console.log('🗑️ MessageRouter: Deleted network request:', message.id);
             sendResponse({ success: true });
           } catch (error) {
             console.error('MessageRouter: Failed to delete network request:', error);
@@ -1054,7 +1054,7 @@ export class MessageRouterSimpleModule {
               break;
             }
             await this.tokenTracker.deleteTokenEvent(message.id);
-            console.log('🗑️ MessageRouter: Deleted token event:', message.id);
+            // console.log('🗑️ MessageRouter: Deleted token event:', message.id);
             sendResponse({ success: true });
           } catch (error) {
             console.error('MessageRouter: Failed to delete token event:', error);
@@ -1063,7 +1063,7 @@ export class MessageRouterSimpleModule {
           break;
 
         default:
-          console.warn(`📬 MessageRouterModule: Unknown action: ${action}`);
+          // console.warn(`📬 MessageRouterModule: Unknown action: ${action}`);
           sendResponse({ success: false, error: `Unknown action: ${action}` });
           break;
       }
@@ -1085,30 +1085,30 @@ export class MessageRouterSimpleModule {
   ): Promise<void> {
     try {
       const { libraries, domain } = message;
-      const tabId = sender.tab?.id;
-      const tabUrl = sender.tab?.url;
+      const _tabId = sender.tab?.id;
+      const _tabUrl = sender.tab?.url;
 
       if (!tabId || !tabUrl) {
-        console.warn('LibraryDetection: No tab ID or URL available from content script');
+        // console.warn('LibraryDetection: No tab ID or URL available from content script');
         return;
       }
 
       // DOMAIN FIX: Use domain from content script (already processed) instead of re-extracting
       // Content script now sends consistent main domain (e.g., yahoo.com instead of finance.yahoo.com)
-      const mainDomain = domain || this.extractMainDomain(tabUrl);
-      console.log(`📚 LibraryDetection: Received ${libraries?.length || 0} libraries from content script for ${mainDomain}`);
+      const _mainDomain = domain || this.extractMainDomain(tabUrl);
+      // console.log(`📚 LibraryDetection: Received ${libraries?.length || 0} libraries from content script for ${mainDomain}`);
 
       if (libraries && Array.isArray(libraries)) {
         // Store each library from content script detection
         for (const library of libraries) {
           try {
-            const minifiedLibrary = LibraryDetector.toMinifiedLibrary(library, mainDomain);
+            const _minifiedLibrary = LibraryDetector.toMinifiedLibrary(library, mainDomain);
             await this.indexedDbStorage.insertMinifiedLibrary(minifiedLibrary);
           } catch (error) {
-            console.warn('Failed to store content script library:', library.name, error);
+            // console.warn('Failed to store content script library:', library.name, error);
           }
         }
-        console.log(`📚 LibraryDetection: Stored ${libraries.length} content script libraries for ${mainDomain}`);
+        // console.log(`📚 LibraryDetection: Stored ${libraries.length} content script libraries for ${mainDomain}`);
       }
     } catch (error) {
       console.error('Error handling content library detection:', error);
@@ -1120,8 +1120,8 @@ export class MessageRouterSimpleModule {
    */
   private extractMainDomain(url: string): string {
     try {
-      const parsedUrl = new URL(url);
-      const hostname = parsedUrl.hostname;
+      const _parsedUrl = new URL(url);
+      const _hostname = parsedUrl.hostname;
 
       // Remove 'www.' prefix if present
       if (hostname.startsWith('www.')) {
@@ -1130,7 +1130,7 @@ export class MessageRouterSimpleModule {
 
       return hostname;
     } catch (error) {
-      console.warn('Failed to extract domain from URL:', url, error);
+      // console.warn('Failed to extract domain from URL:', url, error);
       return 'unknown';
     }
   }
@@ -1143,8 +1143,8 @@ export class MessageRouterSimpleModule {
     sender: chrome.runtime.MessageSender,
     sendResponse: (response: any) => void
   ): Promise<void> {
-    const tabId = sender.tab?.id;
-    console.log('🚨 MESSAGE ROUTER: handleScriptInjection called with tabId:', tabId);
+    const _tabId = sender.tab?.id;
+    // console.log('🚨 MESSAGE ROUTER: handleScriptInjection called with tabId:', tabId);
 
     if (!tabId) {
       console.error('🚨 MESSAGE ROUTER: No tab ID available for script injection');
@@ -1152,9 +1152,9 @@ export class MessageRouterSimpleModule {
       return;
     }
 
-    console.log('🚨 MESSAGE ROUTER: Calling extensionState.handleScriptInjection...');
-    const result = await this.extensionState.handleScriptInjection(tabId);
-    console.log('🚨 MESSAGE ROUTER: Got result from extensionState:', result);
+    // console.log('🚨 MESSAGE ROUTER: Calling extensionState.handleScriptInjection...');
+    const _result = await this.extensionState.handleScriptInjection(tabId);
+    // console.log('🚨 MESSAGE ROUTER: Got result from extensionState:', result);
     sendResponse(result);
   }
 
@@ -1179,7 +1179,7 @@ export class MessageRouterSimpleModule {
    * Extract network configuration from settings for content script
    */
   private extractNetworkConfig(settings: any): any {
-    const networkInterception = settings?.networkInterception || {};
+    const _networkInterception = settings?.networkInterception || {};
 
     return {
       enabled: networkInterception.enabled !== false, // Default to true
@@ -1208,22 +1208,22 @@ export class MessageRouterSimpleModule {
       throw new Error(`MessageRouterModule: Operation aborted (${operation})`);
     }
 
-    const startTime = Date.now();
+    const _startTime = Date.now();
     let lastError: Error | null = null;
 
-    for (let attempt = 0; attempt <= this.config.maxRetries; attempt++) {
+    for (let _attempt = 0; attempt <= this.config.maxRetries; attempt++) {
       try {
         // Race condition protection
         if (this.config.enableRaceConditionProtection && attempt > 0) {
           await new Promise(resolve => setTimeout(resolve, 100 * attempt));
         }
 
-        const result = await fn();
+        const _result = await fn();
 
         // Log performance for slow operations
-        const duration = Date.now() - startTime;
+        const _duration = Date.now() - startTime;
         if (duration > 500 && attempt === 0) { // Log slow operations only on first attempt
-          console.warn(`🐌 MessageRouterModule: ${operation} took ${duration}ms`);
+          // console.warn(`🐌 MessageRouterModule: ${operation} took ${duration}ms`);
         }
 
         return result;
@@ -1235,7 +1235,7 @@ export class MessageRouterSimpleModule {
           break;
         }
 
-        console.warn(`⚠️ MessageRouterModule: ${operation} failed, retrying (${attempt + 1}/${this.config.maxRetries}):`, lastError);
+        // console.warn(`⚠️ MessageRouterModule: ${operation} failed, retrying (${attempt + 1}/${this.config.maxRetries}):`, lastError);
       }
     }
 
