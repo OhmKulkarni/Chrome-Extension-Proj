@@ -459,11 +459,11 @@ const SettingsInline: React.FC = () => {
                 </div>
               ) : (
                 <>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium">IndexedDB Usage</span>
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-base font-semibold text-gray-900 dark:text-gray-100">IndexedDB Usage</span>
                     <div className="flex items-center space-x-2">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">
-                        {formatBytes(storageUsage.bytes)} / 100 MB
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 px-2.5 py-1 rounded-md">
+                        {formatBytes(storageUsage.bytes)} <span className="text-gray-500 dark:text-gray-400">/ 100 MB</span>
                       </span>
                       <div
                         className="relative group cursor-help"
@@ -477,26 +477,26 @@ const SettingsInline: React.FC = () => {
                   </div>
 
                   {/* Progress Bar */}
-                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4 shadow-inner">
                     <div
-                      className={`h-3 rounded-full transition-all duration-300 ${
-                        storageUsage.percentage < 50 ? 'bg-green-500' :
-                        storageUsage.percentage < 80 ? 'bg-yellow-500' : 'bg-red-500'
+                      className={`h-4 rounded-full transition-all duration-500 shadow-sm ${
+                        storageUsage.percentage < 50 ? 'bg-gradient-to-r from-green-400 to-green-500' :
+                        storageUsage.percentage < 80 ? 'bg-gradient-to-r from-yellow-400 to-yellow-500' : 'bg-gradient-to-r from-red-400 to-red-500'
                       }`}
                       style={{ width: `${Math.min(storageUsage.percentage, 100)}%` }}
                     ></div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400">Usage:</span>
-                      <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">{storageUsage.percentage.toFixed(1)}%</span>
+                  <div className="grid grid-cols-2 gap-6 mt-4">
+                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
+                      <div className="text-xs uppercase tracking-wide font-medium text-gray-500 dark:text-gray-400 mb-1">Usage</div>
+                      <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">{storageUsage.percentage.toFixed(1)}%</div>
                     </div>
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400">Available:</span>
-                      <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
+                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
+                      <div className="text-xs uppercase tracking-wide font-medium text-gray-500 dark:text-gray-400 mb-1">Available</div>
+                      <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                         {formatBytes(100 * 1024 * 1024 - storageUsage.bytes)}
-                      </span>
+                      </div>
                     </div>
                   </div>
 
