@@ -340,7 +340,7 @@ const Popup: React.FC = () => {
           // Site toggle is now computed automatically - no manual setting needed
 
         } catch (syncError) {
-          console.error('Error loading sync defaults:', syncError);
+          // console.error('Error loading sync defaults:', syncError);
           // Final fallback: Use settings-based defaults instead of hardcoded ones
           try {
             const settingsResult = await storageService.get(['settings']);
@@ -356,15 +356,15 @@ const Popup: React.FC = () => {
 
             // Site toggle is now computed automatically from individual states
 
-            console.log('🔄 POPUP: Using settings-based defaults - Network:', networkDefault, 'Error:', errorDefault, 'Token:', tokenDefault);
+            // console.log('🔄 POPUP: Using settings-based defaults - Network:', networkDefault, 'Error:', errorDefault, 'Token:', tokenDefault);
           } catch (settingsError) {
-            console.error('Error loading settings defaults:', settingsError);
+            // console.error('Error loading settings defaults:', settingsError);
             // Ultimate fallback: Use disabled defaults (safer than enabled)
             setTabLoggingActive(false);
             setTabErrorLoggingActive(false);
             setTabTokenLoggingActive(false);
             // Site toggle will show 'off' automatically since all individual toggles are off
-            console.log('🔄 POPUP: Using ultimate disabled defaults');
+            // console.log('🔄 POPUP: Using ultimate disabled defaults');
           }
         }
       }
@@ -431,7 +431,7 @@ const Popup: React.FC = () => {
     // Listen for background ready signal
     const handleBackgroundReady = (message: any) => {
       if (message.action === 'BACKGROUND_READY') {
-        console.log('Background script is now ready, refreshing popup state...');
+        // console.log('Background script is now ready, refreshing popup state...');
         // Refresh all states when background becomes ready
         loadExtensionState();
         loadTabStates();
@@ -456,9 +456,9 @@ const Popup: React.FC = () => {
     // instead of IndexedDB via StorageService
     try {
       await chrome.storage.local.set({ extensionEnabled: newState });
-      console.log('✅ Popup: Saved extensionEnabled to chrome.storage.local:', newState);
+      // console.log('✅ Popup: Saved extensionEnabled to chrome.storage.local:', newState);
     } catch (error) {
-      console.error('❌ Popup: Failed to save to chrome.storage.local:', error);
+      // console.error('❌ Popup: Failed to save to chrome.storage.local:', error);
     }
 
     // Also update extension state controller for immediate effect
@@ -469,10 +469,10 @@ const Popup: React.FC = () => {
       });
 
       if (!response?.success) {
-        console.warn('Failed to update global extension state:', response);
+        // console.warn('Failed to update global extension state:', response);
       }
     } catch (error) {
-      console.error('Error updating global extension state:', error);
+      // console.error('Error updating global extension state:', error);
     }
   };
 
@@ -487,13 +487,13 @@ const Popup: React.FC = () => {
     // - OFF when mixed states (some on, some off) - this makes the site toggle a true "all or nothing" indicator
     if (allEnabled) {
       // setSiteSpecificEnabled(true); // Removed - using computed three-state
-      console.log('� Site toggle: ON (all individual features enabled)');
+      // console.log('� Site toggle: ON (all individual features enabled)');
     } else {
       // setSiteSpecificEnabled(false); // Removed - using computed three-state
       if (allDisabled) {
-        console.log('🔴 Site toggle: OFF (all individual features disabled)');
+        // console.log('🔴 Site toggle: OFF (all individual features disabled)');
       } else {
-        console.log('🟡 Site toggle: OFF (mixed state - some features enabled, some disabled)');
+        // console.log('🟡 Site toggle: OFF (mixed state - some features enabled, some disabled)');
       }
     }
   };
@@ -505,7 +505,7 @@ const Popup: React.FC = () => {
     // Clicking when on → turn all off
     const targetState = newState === 'on';
 
-    console.log(`🔄 Three-state site toggle: ${newState} → Setting all individual toggles to ${targetState}`);
+    // console.log(`🔄 Three-state site toggle: ${newState} → Setting all individual toggles to ${targetState}`);
     toggleSiteSpecificToState(targetState);
   };
 
@@ -518,7 +518,7 @@ const Popup: React.FC = () => {
       const tabId = tabs[0].id;
       const tabUrl = tabs[0].url;
 
-      console.log(`🔄 Site toggle: ${enabled ? 'Enabling' : 'Disabling'} all 3 individual features using atomic operation`);
+      // console.log(`🔄 Site toggle: ${enabled ? 'Enabling' : 'Disabling'} all 3 individual features using atomic operation`);
 
       // Update all frontend states immediately for responsive UI
       setTabLoggingActive(enabled);
@@ -547,29 +547,29 @@ const Popup: React.FC = () => {
             chrome.tabs.sendMessage(tabId, { action: 'toggleErrorLogging', enabled })
           ]);
         } catch (error) {
-          console.log('Could not send messages to tab (may not have content script):', error);
+          // console.log('Could not send messages to tab (may not have content script):', error);
         }
 
         if (enabled) {
           // If enabling, retry script injection
           try {
             await chrome.tabs.sendMessage(tabId, { action: 'retryScriptInjection' });
-            console.log('Sent script injection retry request to content script');
+            // console.log('Sent script injection retry request to content script');
           } catch (error) {
-            console.log('Could not send injection retry message to tab:', error);
+            // console.log('Could not send injection retry message to tab:', error);
           }
         }
 
-        console.log(`✅ Site toggle complete: All features ${enabled ? 'enabled' : 'disabled'} for this tab using atomic operation`);
+        // console.log(`✅ Site toggle complete: All features ${enabled ? 'enabled' : 'disabled'} for this tab using atomic operation`);
       } else {
-        console.error('Atomic backend update failed, reverting states');
+        // console.error('Atomic backend update failed, reverting states');
         // Revert all states if the atomic operation failed
         setTabLoggingActive(!enabled);
         setTabErrorLoggingActive(!enabled);
         setTabTokenLoggingActive(!enabled);
       }
     } catch (error) {
-      console.error('Error in site toggle:', error);
+      // console.error('Error in site toggle:', error);
     }
   };
 
@@ -603,18 +603,18 @@ const Popup: React.FC = () => {
             enabled: newState
           });
         } catch (error) {
-          console.log('Could not send message to tab (may not have content script):', error);
+          // console.log('Could not send message to tab (may not have content script):', error);
         }
 
         // Update site toggle to reflect new state of all 3 toggles
         updateSiteToggleFromIndividualStates(newState, tabErrorLoggingActive, tabTokenLoggingActive);
       } else {
-        console.error('Failed to toggle tab network state:', response?.error);
+        // console.error('Failed to toggle tab network state:', response?.error);
         // Revert local state if backend update failed
         setTabLoggingActive(!newState);
       }
     } catch (error) {
-      console.error('Error toggling network logging:', error);
+      // console.error('Error toggling network logging:', error);
       // Revert local state on error
       setTabLoggingActive(!tabLoggingActive);
     }
@@ -648,18 +648,18 @@ const Popup: React.FC = () => {
             enabled: newState
           });
         } catch (error) {
-          console.log('Could not send message to tab (may not have content script):', error);
+          // console.log('Could not send message to tab (may not have content script):', error);
         }
 
         // Update site toggle to reflect new state of all 3 toggles
         updateSiteToggleFromIndividualStates(tabLoggingActive, newState, tabTokenLoggingActive);
       } else {
-        console.error('Failed to toggle tab error state:', response?.error);
+        // console.error('Failed to toggle tab error state:', response?.error);
         // Revert local state if backend update failed
         setTabErrorLoggingActive(!newState);
       }
     } catch (error) {
-      console.error('Error toggling error logging:', error);
+      // console.error('Error toggling error logging:', error);
       // Revert local state on error
       setTabErrorLoggingActive(!tabErrorLoggingActive);
     }
@@ -686,7 +686,7 @@ const Popup: React.FC = () => {
       });
 
       if (!response || response.error) {
-        console.error('Failed to toggle tab token state:', response?.error);
+        // console.error('Failed to toggle tab token state:', response?.error);
         // Revert local state if backend update failed
         setTabTokenLoggingActive(!newState);
       } else {
@@ -697,15 +697,15 @@ const Popup: React.FC = () => {
       // Note: Token logging doesn't require content script communication
       // as it's handled purely in the background script via network interception
     } catch (error) {
-      console.error('Error toggling token logging:', error);
+      // console.error('Error toggling token logging:', error);
       // Revert local state on error
       setTabTokenLoggingActive(!tabTokenLoggingActive);
     }
   };
 
   const openDashboard = () => {
-    openChromeDashboard().catch(error => {
-      console.error('Failed to open dashboard:', error)
+    openChromeDashboard().catch(_error => {
+      // console.error('Failed to open dashboard:', error)
     })
   };
 
