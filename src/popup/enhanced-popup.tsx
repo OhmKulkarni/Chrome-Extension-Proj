@@ -19,5 +19,5 @@ if (container) {
   const root = createRoot(container);
   root.render(<EnhancedPopup />);
 } else {
-  console.error('Root element not found');
+  // console.error('Root element not found');
 }
