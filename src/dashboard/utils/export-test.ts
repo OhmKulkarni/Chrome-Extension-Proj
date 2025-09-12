@@ -79,30 +79,30 @@ const sampleTokenEvents: TokenEvent[] = [
 
 // Test functions
 export const testCSVExport = () => {
-  console.log('🧪 Testing CSV Export Functions...');
+  // console.log('🧪 Testing CSV Export Functions...');
 
   try {
     // Test individual exports
-    const networkCSV = exportNetworkRequestsToCSV(sampleNetworkRequests, false);
-    console.log('✅ Network Requests CSV (Basic):', networkCSV.substring(0, 200) + '...');
+    const _networkCSV = exportNetworkRequestsToCSV(sampleNetworkRequests, false);
+    // console.log('✅ Network Requests CSV (Basic):', _networkCSV.substring(0, 200) + '...');
 
-    const networkDetailedCSV = exportNetworkRequestsToCSV(sampleNetworkRequests, true);
-    console.log('✅ Network Requests CSV (Detailed):', networkDetailedCSV.substring(0, 200) + '...');
+    const _networkDetailedCSV = exportNetworkRequestsToCSV(sampleNetworkRequests, true);
+    // console.log('✅ Network Requests CSV (Detailed):', _networkDetailedCSV.substring(0, 200) + '...');
 
-    const errorsCSV = exportConsoleErrorsToCSV(sampleConsoleErrors, false);
-    console.log('✅ Console Errors CSV (Basic):', errorsCSV.substring(0, 200) + '...');
+    const _errorsCSV = exportConsoleErrorsToCSV(sampleConsoleErrors, false);
+    // console.log('✅ Console Errors CSV (Basic):', _errorsCSV.substring(0, 200) + '...');
 
-    const errorsDetailedCSV = exportConsoleErrorsToCSV(sampleConsoleErrors, true);
-    console.log('✅ Console Errors CSV (Detailed):', errorsDetailedCSV.substring(0, 200) + '...');
+    const _errorsDetailedCSV = exportConsoleErrorsToCSV(sampleConsoleErrors, true);
+    // console.log('✅ Console Errors CSV (Detailed):', _errorsDetailedCSV.substring(0, 200) + '...');
 
-    const tokensCSV = exportTokenEventsToCSV(sampleTokenEvents, false);
-    console.log('✅ Token Events CSV (Basic):', tokensCSV.substring(0, 200) + '...');
+    const _tokensCSV = exportTokenEventsToCSV(sampleTokenEvents, false);
+    // console.log('✅ Token Events CSV (Basic):', _tokensCSV.substring(0, 200) + '...');
 
-    const tokensDetailedCSV = exportTokenEventsToCSV(sampleTokenEvents, true);
-    console.log('✅ Token Events CSV (Detailed):', tokensDetailedCSV.substring(0, 200) + '...');
+    const _tokensDetailedCSV = exportTokenEventsToCSV(sampleTokenEvents, true);
+    // console.log('✅ Token Events CSV (Detailed):', _tokensDetailedCSV.substring(0, 200) + '...');
 
     // Test combined export
-    const combinedCSV = generateCombinedCSV(
+    const _combinedCSV = generateCombinedCSV(
       {
         network: sampleNetworkRequests,
         errors: sampleConsoleErrors,
@@ -114,20 +114,20 @@ export const testCSVExport = () => {
         tokens: false
       }
     );
-    console.log('✅ Combined CSV Export:', combinedCSV.substring(0, 300) + '...');
+    // console.log('✅ Combined CSV Export:', _combinedCSV.substring(0, 300) + '...');
 
-    console.log('🎉 All CSV export tests passed!');
+    // console.log('🎉 All CSV export tests passed!');
     return true;
 
   } catch (error) {
-    console.error('❌ CSV export test failed:', error);
+    // console.error('❌ CSV export test failed:', error);
     return false;
   }
 };
 
 // Test with browser download (commented out for safety)
 export const testBrowserDownload = () => {
-  console.log('🧪 Testing browser download...');
+  // console.log('🧪 Testing browser download...');
 
   // Uncomment to test actual file download
   /*
@@ -137,10 +137,10 @@ export const testBrowserDownload = () => {
   );
 
   downloadCSVFile(testCSV, 'test-export.csv');
-  console.log('✅ Test file should be downloading...');
+  // console.log('✅ Test file should be downloading...');
   */
 
-  console.log('⚠️ Browser download test is commented out for safety');
+  // console.log('⚠️ Browser download test is commented out for safety');
 };
 
 // Export test data for use in other components
