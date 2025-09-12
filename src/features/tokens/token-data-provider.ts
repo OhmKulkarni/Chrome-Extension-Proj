@@ -68,7 +68,7 @@ export class TokenDataProvider {
           messageId: message.id || 'unknown'
         };
       } catch (error) {
-        console.error('Token message handler error:', error);
+        // console.error('Token message handler error:', error);
         return { 
           success: false, 
           error: error instanceof Error ? error.message : 'Token handler error',
@@ -154,7 +154,7 @@ export class TokenDataProvider {
       
       return tokens.slice(start, end);
     } catch (error) {
-      console.error('Failed to get token events:', error);
+      // console.error('Failed to get token events:', error);
       return [];
     }
   }
@@ -212,7 +212,7 @@ export class TokenDataProvider {
       const response = await TokenMessageBus.sendTokenEvent(token);
       return response.success;
     } catch (error) {
-      console.error('Failed to store token event:', error);
+      // console.error('Failed to store token event:', error);
       return false;
     }
   }
@@ -242,7 +242,7 @@ export class TokenDataProvider {
       
       return false;
     } catch (error) {
-      console.error('Failed to clear token events:', error);
+      // console.error('Failed to clear token events:', error);
       return false;
     }
   }
@@ -358,7 +358,7 @@ export class TokenDataProvider {
       analysis.securityScore = Math.max(0, Math.min(100, analysis.securityScore));
 
     } catch (error) {
-      console.error('Token analysis error:', error);
+      // console.error('Token analysis error:', error);
       analysis.recommendations.push('Analysis failed - token format may be invalid');
     }
 
@@ -382,7 +382,7 @@ export class TokenDataProvider {
       try {
         listener(data);
       } catch (error) {
-        console.error('Token listener error:', error);
+        // console.error('Token listener error:', error);
       }
     });
   }
@@ -398,7 +398,7 @@ export class TokenDataProvider {
         });
         listener(allData);
       } catch (error) {
-        console.error('Token listener error:', error);
+        // console.error('Token listener error:', error);
       }
     });
   }
@@ -589,7 +589,7 @@ export class TokenUtils {
         return new Date(decodedPayload.exp * 1000).toISOString();
       }
     } catch (error) {
-      console.warn('Failed to decode JWT payload:', error);
+      // console.warn('Failed to decode JWT payload:', error);
     }
     
     return null;
