@@ -52,7 +52,7 @@ export class NetworkProcessorModule {
     };
 
     this.abortController = new AbortController();
-    console.log('🌐 NetworkProcessorModule: Initialized with IndexedDB storage for all interceptions');
+    // console.log('🌐 NetworkProcessorModule: Initialized with IndexedDB storage for all interceptions');
   }
 
   /**
@@ -71,7 +71,7 @@ export class NetworkProcessorModule {
       }
 
       this.isInitialized = true;
-      console.log('✅ NetworkProcessorModule: Successfully initialized');
+      // console.log('✅ NetworkProcessorModule: Successfully initialized');
     } catch (error) {
       console.error('❌ NetworkProcessorModule: Initialization failed:', error);
       throw error;

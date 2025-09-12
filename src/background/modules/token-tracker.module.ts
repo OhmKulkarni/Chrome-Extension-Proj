@@ -94,7 +94,7 @@ export class TokenTrackerModule {
     };
 
     this.abortController = new AbortController();
-    console.log('🔐 TokenTrackerModule: Initialized with IndexedDB storage for token events');
+    // console.log('🔐 TokenTrackerModule: Initialized with IndexedDB storage for token events');
   }
 
   /**
@@ -113,7 +113,7 @@ export class TokenTrackerModule {
       }
 
       this.isInitialized = true;
-      console.log('✅ TokenTrackerModule: Successfully initialized');
+      // console.log('✅ TokenTrackerModule: Successfully initialized');
     } catch (error) {
       console.error('❌ TokenTrackerModule: Initialization failed:', error);
       throw error;
