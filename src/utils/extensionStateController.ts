@@ -28,8 +28,8 @@ export class ExtensionStateController {
 
   private constructor() {
     // Initialize state asynchronously but don't wait
-    this.initializeState().catch(error => {
-      console.error('Failed to initialize extension state:', error);
+    this.initializeState().catch(_error => {
+      // console.error('Failed to initialize extension state:', error);
     });
     this.startPeriodicCleanup();
   }
@@ -147,7 +147,7 @@ export class ExtensionStateController {
       // Notify all tabs of state change
       await this.notifyAllTabs(enabled);
     } catch (error) {
-      console.error('Failed to set global extension state:', error);
+      // console.error('Failed to set global extension state:', error);
     }
   }
 
@@ -191,7 +191,7 @@ export class ExtensionStateController {
       // Notify the specific tab of site-specific state change
       await this.notifyTabStateChange(tabId, enabled);
     } catch (error) {
-      console.error('Failed to set tab state:', error);
+      // console.error('Failed to set tab state:', error);
     }
   }
 
@@ -203,7 +203,7 @@ export class ExtensionStateController {
       });
     } catch (error) {
       // Tab might not have content script or be invalid, ignore
-      console.log(`Could not notify tab ${tabId} of state change:`, error);
+      // console.log(`Could not notify tab ${tabId} of state change:`, error);
     }
   }
 
@@ -219,7 +219,7 @@ export class ExtensionStateController {
     try {
       await this.storageService.set({ extensionState: this.state });
     } catch (error) {
-      console.error('Failed to remove tab state:', error);
+      // console.error('Failed to remove tab state:', error);
     }
   }
 
@@ -247,7 +247,7 @@ export class ExtensionStateController {
       try {
         await this.storageService.set({ extensionState: this.state });
       } catch (error) {
-        console.error('Failed to cleanup tab states:', error);
+        // console.error('Failed to cleanup tab states:', error);
       }
     }
   }
