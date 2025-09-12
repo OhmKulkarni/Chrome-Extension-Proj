@@ -1,30 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from '../../utils/storage-service';
 
-// Hook to detect dark mode
-const useDarkMode = () => {
-  const [isDark, setIsDark] = React.useState(false);
-
-  React.useEffect(() => {
-    const checkDarkMode = () => {
-      setIsDark(document.documentElement.classList.contains('dark'));
-    };
-
-    checkDarkMode();
-
-    // Watch for class changes
-    const observer = new MutationObserver(checkDarkMode);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class']
-    });
-
-    return () => observer.disconnect();
-  }, []);
-
-  return isDark;
-};
-
 // Essential settings interface - only core functionality
 interface SettingsData {
   networkInterception: {
@@ -52,8 +28,6 @@ const defaultSettings: SettingsData = {
 };
 
 const SettingsInline: React.FC = () => {
-  const isDark = useDarkMode();
-  
   // Storage service for IndexedDB access
   const storageService = React.useMemo(() => new StorageService(), []);
 
@@ -422,7 +396,7 @@ const SettingsInline: React.FC = () => {
                     className="relative group cursor-help"
                     title="This setting prevents memory issues by limiting how much request/response body content is stored. Large payloads are truncated to this size. Set to 0 to disable truncation (not recommended for production use)."
                   >
-                    <div className="w-4 h-4 rounded-full bg-blue-100 dark:bg-blue-900 text-xs flex items-center justify-center text-blue-600 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors">
+                    <div className="w-4 h-4 rounded-full bg-blue-100 dark:bg-blue-900 text-xs flex items-center justify-center text-blue-600 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors shadow-sm">
                       ?
                     </div>
                   </div>
@@ -488,14 +462,14 @@ const SettingsInline: React.FC = () => {
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-sm font-medium">IndexedDB Usage</span>
                     <div className="flex items-center space-x-2">
-                      <span className="text-sm text-gray-600">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
                         {formatBytes(storageUsage.bytes)} / 100 MB
                       </span>
                       <div
                         className="relative group cursor-help"
                         title="Once the 100MB limit is exceeded, automatic data pruning will begin to maintain performance"
                       >
-                        <div className="w-4 h-4 rounded-full bg-gray-300 text-xs flex items-center justify-center text-gray-600">
+                        <div className="w-4 h-4 rounded-full bg-gray-300 dark:bg-gray-600 text-xs flex items-center justify-center text-gray-600 dark:text-gray-400 hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors shadow-sm">
                           ?
                         </div>
                       </div>
@@ -565,7 +539,7 @@ const SettingsInline: React.FC = () => {
                         ...settings.chartSettings,
                         refreshMode: 'auto'
                       })}
-                      className="text-blue-600"
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                     />
                     <label htmlFor="refresh-auto" className="text-sm text-gray-900 dark:text-gray-100">
                       🔄 Automatic (periodic refresh)
@@ -582,7 +556,7 @@ const SettingsInline: React.FC = () => {
                         ...settings.chartSettings,
                         refreshMode: 'manual'
                       })}
-                      className="text-blue-600"
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                     />
                     <label htmlFor="refresh-manual" className="text-sm text-gray-900 dark:text-gray-100">
                       🖱️ Manual (refresh button only)
@@ -606,7 +580,7 @@ const SettingsInline: React.FC = () => {
                         ...settings.chartSettings,
                         refreshInterval: parseInt(e.target.value)
                       })}
-                      className={`flex-1 ${isDark ? 'accent-blue-400' : 'accent-blue-600'}`}
+                      className={`flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600 dark:accent-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800`}
                     />
                     <span className="text-sm font-medium min-w-[4rem] text-gray-900 dark:text-gray-100">
                       {Math.max(settings.chartSettings?.refreshInterval || 30, 15)}s
