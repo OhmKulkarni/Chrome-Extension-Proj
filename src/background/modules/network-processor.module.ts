@@ -465,7 +465,7 @@ export class NetworkProcessorModule {
           );
         }
 
-        console.log(`🗄️ NetworkProcessorModule: Stored network request in IndexedDB`);
+        // console.log(`🗄️ NetworkProcessorModule: Stored network request in IndexedDB`);
 
         // Notify dashboard about new data
         this.sendDataUpdatedNotification('network_request');
@@ -485,7 +485,7 @@ export class NetworkProcessorModule {
 
       this.processedCount++;
 
-      console.log(`🌐 NetworkProcessorModule: Processed ${method} ${status} from ${mainDomain}`);
+      // console.log(`🌐 NetworkProcessorModule: Processed ${method} ${status} from ${mainDomain}`);
 
       return {
         success: true,

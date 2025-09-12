@@ -223,10 +223,10 @@ export class TokenTrackerModule {
 
       // Ensure status is a number for proper comparison
       const statusCode = typeof status === 'string' ? parseInt(status, 10) : status;
-      console.log(`🔍 TokenTrackerModule: Original status: ${status} (${typeof status}), converted: ${statusCode} (${typeof statusCode})`);
+      // console.log(`🔍 TokenTrackerModule: Original status: ${status} (${typeof status}), converted: ${statusCode} (${typeof statusCode})`);
 
       if (isRefreshEndpoint) {
-        console.log(`🔍 TokenTrackerModule: Taking REFRESH path for status ${statusCode}`);
+        // console.log(`🔍 TokenTrackerModule: Taking REFRESH path for status ${statusCode}`);
         if (statusCode >= 200 && statusCode < 300) {
           eventType = 'refresh';
         } else if (statusCode === 401 || statusCode === 403) {
@@ -235,9 +235,9 @@ export class TokenTrackerModule {
           eventType = 'expired';
         }
       } else if (isAcquireEndpoint || isServiceAuth) {
-        console.log(`🔍 TokenTrackerModule: Taking ACQUIRE path for status ${statusCode} (original: ${status})`);
-        console.log(`🔍 TokenTrackerModule: URL: ${url}`);
-        console.log(`🔍 TokenTrackerModule: Method: ${method}`);
+        // console.log(`🔍 TokenTrackerModule: Taking ACQUIRE path for status ${statusCode} (original: ${status})`);
+        // console.log(`🔍 TokenTrackerModule: URL: ${url}`);
+        // console.log(`🔍 TokenTrackerModule: Method: ${method}`);
         if (statusCode >= 200 && statusCode < 300) {
           eventType = 'acquire';
           console.log(`🔍 TokenTrackerModule: Setting eventType to 'acquire' (success) - condition: ${statusCode} >= 200 && ${statusCode} < 300`);

@@ -164,7 +164,7 @@ const DecomposedDashboard: React.FC = () => {
   // MEMORY-OPTIMIZED: Load all data with memory limits and cleanup
   const loadAllNetworkRequests = useCallback(async () => {
     try {
-      console.log('🔄 Loading ALL network requests for sorting')
+      // console.log('🔄 Loading ALL network requests for sorting')
 
       // First, get the total count by making a regular request
       const totalResponse = await sendChromeMessage({
@@ -174,7 +174,7 @@ const DecomposedDashboard: React.FC = () => {
       })
 
       const totalCount = totalResponse?.total || 1000;
-      console.log('📊 Total available records:', totalCount);
+      // console.log('📊 Total available records:', totalCount);
 
       // MEMORY OPTIMIZATION: Enforce reasonable limits
       const MEMORY_LIMIT = 5000; // Max records to load at once
@@ -197,12 +197,12 @@ const DecomposedDashboard: React.FC = () => {
           ...prevData,
           totalRequests: response.total || response.requests.length
         }))
-        console.log(`✅ Loaded ${response.requests.length} total network requests for sorting (${actualLimit}/${totalCount})`)
+        // console.log(`✅ Loaded ${response.requests.length} total network requests for sorting (${actualLimit}/${totalCount})`)
 
         // MEMORY CLEANUP: Schedule automatic cleanup after 2 minutes of inactivity
         setTimeout(() => {
           if (fullNetworkData.length > 0) {
-            console.log('🧹 Auto-cleanup: Clearing full network data cache after inactivity');
+            // console.log('🧹 Auto-cleanup: Clearing full network data cache after inactivity');
             setFullNetworkData([]);
             setNetworkSortMode(false);
           }
@@ -336,7 +336,7 @@ const DecomposedDashboard: React.FC = () => {
   // MEMORY LEAK FIX: Copy exact data loading logic from original dashboard
   const loadNetworkRequestsPage = useCallback(async (page: number, limit: number = 10) => {
     try {
-      console.log(`🔄 Loading network requests page ${page} with limit ${limit}`)
+      // console.log(`🔄 Loading network requests page ${page} with limit ${limit}`)
       const offset = (page - 1) * limit
       const response = await sendChromeMessage({
         action: 'getNetworkRequests',
@@ -344,7 +344,7 @@ const DecomposedDashboard: React.FC = () => {
         offset
       })
 
-      console.log('📊 Network requests response:', response)
+      // console.log('📊 Network requests response:', response)
 
       if (response?.success && response?.requests) {
         setData(prevData => ({
