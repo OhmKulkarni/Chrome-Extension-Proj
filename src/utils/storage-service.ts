@@ -135,7 +135,7 @@ export class StorageService {
         });
       } catch (error) {
         lastError = error as Error;
-        console.warn(`StorageService: Attempt ${attempt + 1} failed:`, error);
+        // console.warn(`StorageService: Attempt ${attempt + 1} failed:`, error);
 
         if (attempt < this.options.retryAttempts! - 1) {
           // Wait before retry with exponential backoff
@@ -159,7 +159,7 @@ export const chromeStorageCompat = {
   get: async (keys?: string | string[] | null): Promise<Record<string, any>> => {
     if (!keys) {
       // Get all data - for now return empty object to prevent issues
-      console.warn('ChromeStorageCompat: Getting all data not yet implemented');
+      // console.warn('ChromeStorageCompat: Getting all data not yet implemented');
       return {};
     }
     return storageService.get(keys);
