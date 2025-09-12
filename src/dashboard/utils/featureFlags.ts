@@ -29,16 +29,16 @@ const DEV_FEATURE_FLAGS: Partial<FeatureFlags> = {
 
 // Feature flag cache to prevent localStorage parsing on every call
 let flagCache: FeatureFlags | null = null;
-let _cacheExpiry = 0;
-const _CACHE_DURATION = 5000; // 5 seconds
+let cacheExpiry = 0;
+const CACHE_DURATION = 5000; // 5 seconds
 
 /**
  * Get current feature flags
  * Can be overridden via localStorage in development
  */
-export const _getFeatureFlags = (): FeatureFlags => {
+export const getFeatureFlags = (): FeatureFlags => {
   // Return cached flags if still valid
-  const _now = Date.now();
+  const now = Date.now();
   if (flagCache && now < cacheExpiry) {
     return flagCache as FeatureFlags;
   }
@@ -46,9 +46,9 @@ export const _getFeatureFlags = (): FeatureFlags => {
   // Check for development override
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
-      const _override = localStorage.getItem('chartOptimizationFlags');
+      const override = localStorage.getItem('chartOptimizationFlags');
       if (override) {
-        const _flags = JSON.parse(override);
+        const flags = JSON.parse(override);
         // console.log('🚩 Using override feature flags:', flags);
         flagCache = { ...DEFAULT_FEATURE_FLAGS, ...flags };
         cacheExpiry = now + CACHE_DURATION;
@@ -60,9 +60,9 @@ export const _getFeatureFlags = (): FeatureFlags => {
   }
 
   // In development, use enhanced flags
-  const _isDevelopment = typeof window !== 'undefined' &&
+  const isDevelopment = typeof window !== 'undefined' &&
     (window.location.hostname === 'localhost' || window.location.hostname.includes('dev'));
-  const _flags = isDevelopment
+  const flags = isDevelopment
     ? { ...DEFAULT_FEATURE_FLAGS, ...DEV_FEATURE_FLAGS }
     : DEFAULT_FEATURE_FLAGS;
 
@@ -78,11 +78,11 @@ export const _getFeatureFlags = (): FeatureFlags => {
 /**
  * Set feature flag override (development only)
  */
-export const _setFeatureFlagOverride = (flags: Partial<FeatureFlags>): void => {
+export const setFeatureFlagOverride = (flags: Partial<FeatureFlags>): void => {
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
-      const _currentFlags = getFeatureFlags();
-      const _newFlags = { ...currentFlags, ...flags };
+      const currentFlags = getFeatureFlags();
+      const newFlags = { ...currentFlags, ...flags };
       localStorage.setItem('chartOptimizationFlags', JSON.stringify(newFlags));
       // console.log('🚩 Feature flags override set:', newFlags);
 
@@ -97,7 +97,7 @@ export const _setFeatureFlagOverride = (flags: Partial<FeatureFlags>): void => {
 /**
  * Clear feature flag overrides
  */
-export const _clearFeatureFlagOverrides = (): void => {
+export const clearFeatureFlagOverrides = (): void => {
   if (typeof window !== 'undefined' && window.localStorage) {
     localStorage.removeItem('chartOptimizationFlags');
     // console.log('🚩 Feature flag overrides cleared');
@@ -108,8 +108,8 @@ export const _clearFeatureFlagOverrides = (): void => {
 /**
  * Check if a specific feature is enabled
  */
-export const _isFeatureEnabled = (feature: keyof FeatureFlags): boolean => {
-  const _flags = getFeatureFlags();
+export const isFeatureEnabled = (feature: keyof FeatureFlags): boolean => {
+  const flags = getFeatureFlags();
   return flags[feature];
 };
 
@@ -117,7 +117,7 @@ export const _isFeatureEnabled = (feature: keyof FeatureFlags): boolean => {
  * Performance monitoring wrapper
  * Only active when enablePerformanceMonitoring is true
  */
-export const _withPerformanceMonitoring = <T extends (...args: any[]) => any>(
+export const withPerformanceMonitoring = <T extends (...args: any[]) => any>(
   _name: string,
   fn: T
 ): T => {
@@ -127,20 +127,20 @@ export const _withPerformanceMonitoring = <T extends (...args: any[]) => any>(
 
   return ((...args: any[]) => {
     // Performance monitoring disabled
-    // const _start = performance.now();
-    const _result = fn(...args);
+    // const start = performance.now();
+    const result = fn(...args);
 
     if (result && typeof result.then === 'function') {
       // Handle async functions
       return result.finally(() => {
         // Performance monitoring disabled
-        // const _duration = performance.now() - start;
+        // const duration = performance.now() - start;
         // console.log(`⏱️ ${name}: ${duration.toFixed(2)}ms`);
       });
     } else {
       // Handle sync functions
       // Performance monitoring disabled
-      // const _duration = performance.now() - start;
+      // const duration = performance.now() - start;
       // console.log(`⏱️ ${name}: ${duration.toFixed(2)}ms`);
       return result;
     }
@@ -150,17 +150,17 @@ export const _withPerformanceMonitoring = <T extends (...args: any[]) => any>(
 /**
  * Development helper - log all feature flags to console
  */
-export const _logFeatureFlags = (): void => {
-  const _isDevelopment = typeof window !== 'undefined' &&
+export const logFeatureFlags = (): void => {
+  const isDevelopment = typeof window !== 'undefined' &&
     (window.location.hostname === 'localhost' || window.location.hostname.includes('dev'));
   if (isDevelopment) {
-    const _flags = getFeatureFlags();
+    const flags = getFeatureFlags();
     console.table(flags);
   }
 };
 
 // Auto-log feature flags in development
-const _isDev = typeof window !== 'undefined' &&
+const isDev = typeof window !== 'undefined' &&
   (window.location.hostname === 'localhost' || window.location.hostname.includes('dev'));
 if (isDev) {
   setTimeout(logFeatureFlags, 1000);

@@ -37,13 +37,13 @@ export class EnvironmentStorageManager implements StorageOperations {
 
   async init(): Promise<void> {
     if (this.enableLogs) {
-      // console.log('[EnvironmentStorageManager] Initializing IndexedDB-only storage (SQLite removed for optimization)')
+      console.log('[EnvironmentStorageManager] Initializing IndexedDB-only storage (SQLite removed for optimization)')
     }
 
     await this.initIndexedDB()
 
     if (this.enableLogs && this.storage) {
-      // console.log('[EnvironmentStorageManager] ✅ IndexedDB initialized successfully')
+      console.log('[EnvironmentStorageManager] ✅ IndexedDB initialized successfully')
     }
 
     if (this.enableMetrics) {
@@ -54,19 +54,19 @@ export class EnvironmentStorageManager implements StorageOperations {
   private async initIndexedDB(): Promise<void> {
     try {
       if (this.enableLogs) {
-        // console.log('[EnvironmentStorageManager] Initializing IndexedDB...')
+        console.log('[EnvironmentStorageManager] Initializing IndexedDB...')
       }
 
-      const _indexedDBStorage = new IndexedDBStorage(this.config)
+      const indexedDBStorage = new IndexedDBStorage(this.config)
       await indexedDBStorage.init()
       this.storage = indexedDBStorage
       this.storageType = 'indexeddb'
 
       if (this.enableLogs) {
-        // console.log('[EnvironmentStorageManager] ✅ IndexedDB initialized successfully')
+        console.log('[EnvironmentStorageManager] ✅ IndexedDB initialized successfully')
       }
     } catch (error) {
-      const _errorMessage = `IndexedDB storage initialization failed: ${ error instanceof Error ? error.message : String(error) }`
+      const errorMessage = `IndexedDB storage initialization failed: ${error instanceof Error ? error.message : String(error)}`
       if (this.enableLogs) {
         console.error('[EnvironmentStorageManager]', errorMessage)
       }
@@ -78,8 +78,8 @@ export class EnvironmentStorageManager implements StorageOperations {
     if (!this.storage) return
 
     try {
-      const _storageInfo = await this.storage.getStorageInfo()
-      const _tableCounts = await this.storage.getTableCounts()
+      const storageInfo = await this.storage.getStorageInfo()
+      const tableCounts = await this.storage.getTableCounts()
 
       console.log('[EnvironmentStorageManager] 📊 Performance Info:', {
         storageType: this.storageType,
@@ -89,7 +89,7 @@ export class EnvironmentStorageManager implements StorageOperations {
       })
     } catch (error) {
       if (this.enableLogs) {
-        // console.warn('[EnvironmentStorageManager] Failed to get performance info:', error)
+        console.warn('[EnvironmentStorageManager] Failed to get performance info:', error)
       }
     }
   }

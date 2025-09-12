@@ -15,11 +15,11 @@ export const EventListPopup: React.FC<EventListPopupProps> = ({
   onBookmarkEvent,
   onSetCompareSlot
 }) => {
-  const _formatTime = (timestamp: number) => {
+  const formatTime = (timestamp: number) => {
     return new Date(timestamp).toLocaleString()
   }
 
-  const _getEventTypeColor = (type: string) => {
+  const getEventTypeColor = (type: string) => {
     switch (type) {
       case 'network': return 'bg-blue-100 text-blue-800'
       case 'console': return 'bg-red-100 text-red-800'  
@@ -28,7 +28,7 @@ export const EventListPopup: React.FC<EventListPopupProps> = ({
     }
   }
 
-  const _getEventTypeIcon = (type: string) => {
+  const getEventTypeIcon = (type: string) => {
     switch (type) {
       case 'network': return '🌐'
       case 'console': return '⚠️'

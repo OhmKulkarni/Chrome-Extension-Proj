@@ -14,10 +14,10 @@ export class TimelineService {
     swimlanes: string[] = ['network', 'console', 'token']
   ): Promise<{ events: TimelineEvent[], metadata: any }> {
     try {
-      // console.log('TimelineService: Fetching timeline events via getAnalysisData', { swimlanes })
+      console.log('TimelineService: Fetching timeline events via getAnalysisData', { swimlanes })
 
       // Use the working getAnalysisData endpoint instead of non-existent getTimelineData
-      const _response = await chrome.runtime.sendMessage({
+      const response = await chrome.runtime.sendMessage({
         action: 'getAnalysisData',
         data: {
           includeNetworkRequests: swimlanes.includes('network'),
@@ -28,16 +28,16 @@ export class TimelineService {
         }
       })
 
-      // console.log('TimelineService: Received response from getAnalysisData', response)
+      console.log('TimelineService: Received response from getAnalysisData', response)
 
       if (!response?.success) {
         throw new Error(response?.error || 'Failed to fetch timeline data')
       }
 
       // Check if no data exists - getAnalysisData returns different structure
-      const _hasNetworkData = response.data?.networkRequests?.length > 0
-      const _hasConsoleData = response.data?.consoleErrors?.length > 0
-      const _hasTokenData = response.data?.tokenEvents?.length > 0
+      const hasNetworkData = response.data?.networkRequests?.length > 0
+      const hasConsoleData = response.data?.consoleErrors?.length > 0
+      const hasTokenData = response.data?.tokenEvents?.length > 0
 
       if (!hasNetworkData && !hasConsoleData && !hasTokenData) {
         return {
@@ -49,8 +49,8 @@ export class TimelineService {
         }
       }
 
-      const _events = this.normalizeEvents(response.data)
-      // console.log('TimelineService: Normalized events', events.length)
+      const events = this.normalizeEvents(response.data)
+      console.log('TimelineService: Normalized events', events.length)
 
       // Restore bookmarks and compare slots from local storage
       this.restoreLocalEventData(events)
@@ -87,7 +87,7 @@ export class TimelineService {
   private normalizeEvents(rawData: any): TimelineEvent[] {
     const events: TimelineEvent[] = []
 
-    // console.log('TimelineService: Normalizing getAnalysisData response', rawData)
+    console.log('TimelineService: Normalizing getAnalysisData response', rawData)
 
     // Process network requests from getAnalysisData format
     if (rawData.networkRequests && Array.isArray(rawData.networkRequests)) {
@@ -104,7 +104,7 @@ export class TimelineService {
           } else {
             // Fallback to current time if no valid timestamp
             timestamp = Date.now()
-            // console.warn('NetworkRequest missing valid timestamp:', req)
+            console.warn('NetworkRequest missing valid timestamp:', req)
           }
 
           events.push({
@@ -117,7 +117,7 @@ export class TimelineService {
             compareSlot: req.compareSlot
           })
         } catch (error) {
-          // console.warn('Failed to normalize network request:', error, req)
+          console.warn('Failed to normalize network request:', error, req)
         }
       })
     }
@@ -136,7 +136,7 @@ export class TimelineService {
             timestamp = error.timestamp.getTime()
           } else {
             timestamp = Date.now()
-            // console.warn('ConsoleError missing valid timestamp:', error)
+            console.warn('ConsoleError missing valid timestamp:', error)
           }
           events.push({
             id: `console_${error.id || error.message || Date.now()}_${timestamp}`,
@@ -148,7 +148,7 @@ export class TimelineService {
             compareSlot: error.compareSlot
           })
         } catch (error) {
-          // console.warn('Failed to normalize console error:', error, error)
+          console.warn('Failed to normalize console error:', error, error)
         }
       })
     }
@@ -167,7 +167,7 @@ export class TimelineService {
             timestamp = token.timestamp.getTime()
           } else {
             timestamp = Date.now()
-            // console.warn('TokenEvent missing valid timestamp:', token)
+            console.warn('TokenEvent missing valid timestamp:', token)
           }
 
           events.push({
@@ -180,12 +180,12 @@ export class TimelineService {
             compareSlot: token.compareSlot
           })
         } catch (error) {
-          // console.warn('Failed to normalize token event:', error, token)
+          console.warn('Failed to normalize token event:', error, token)
         }
       })
     }
 
-    // console.log('TimelineService: Normalized events count', events.length)
+    console.log('TimelineService: Normalized events count', events.length)
     return events.sort((a, b) => a.timestamp - b.timestamp)
   }
 
@@ -194,13 +194,13 @@ export class TimelineService {
     viewport: ViewportRange,
     clusterThreshold: number = 1000 // ms
   ): TimelineCluster[] {
-    const _clusters = new Map<string, TimelineCluster>()
+    const clusters = new Map<string, TimelineCluster>()
 
     events.forEach(event => {
-      const _clusterKey = this.getClusterKey(event.timestamp, event.swimlane, clusterThreshold)
+      const clusterKey = this.getClusterKey(event.timestamp, event.swimlane, clusterThreshold)
 
       if (!clusters.has(clusterKey)) {
-        const _clusterStartTime = Math.floor(event.timestamp / clusterThreshold) * clusterThreshold
+        const clusterStartTime = Math.floor(event.timestamp / clusterThreshold) * clusterThreshold
         clusters.set(clusterKey, {
           id: clusterKey,
           startTime: clusterStartTime,
@@ -216,14 +216,14 @@ export class TimelineService {
         })
       }
 
-      const _cluster = clusters.get(clusterKey)!
+      const cluster = clusters.get(clusterKey)!
       cluster.events.push(event)
       cluster.density = cluster.events.length
       cluster.size = Math.min(5, Math.max(1, Math.ceil(cluster.events.length / 5)))
       cluster.visualType = cluster.events.length > 10 ? 'circle' : 'card'
 
       // Update cluster center based on actual event distribution
-      const _avgTime = cluster.events.reduce((sum, e) => sum + e.timestamp, 0) / cluster.events.length
+      const avgTime = cluster.events.reduce((sum, e) => sum + e.timestamp, 0) / cluster.events.length
       cluster.centerTime = avgTime
       cluster.x = this.timeToX(avgTime, viewport)
     })
@@ -232,13 +232,13 @@ export class TimelineService {
   }
 
   private getClusterKey(timestamp: number, swimlane: string, threshold: number): string {
-    const _bucket = Math.floor(timestamp / threshold)
+    const bucket = Math.floor(timestamp / threshold)
     return `${swimlane}_${bucket}`
   }
 
   private timeToX(timestamp: number, viewport: ViewportRange): number {
-    const _relativeTime = timestamp - viewport.startTime
-    const _percentage = relativeTime / viewport.duration
+    const relativeTime = timestamp - viewport.startTime
+    const percentage = relativeTime / viewport.duration
     return Math.max(0, Math.min(100, percentage * 100))
   }
 
@@ -246,7 +246,7 @@ export class TimelineService {
     try {
       // TODO: Implement backend bookmark storage
       // For now, store bookmarks in local storage as temporary solution
-      const _bookmarks = JSON.parse(localStorage.getItem('timeline-bookmarks') || '{}')
+      const bookmarks = JSON.parse(localStorage.getItem('timeline-bookmarks') || '{}')
       if (isBookmarked) {
         bookmarks[eventId] = { timestamp: Date.now(), isBookmarked: true }
       } else {
@@ -254,7 +254,7 @@ export class TimelineService {
       }
       localStorage.setItem('timeline-bookmarks', JSON.stringify(bookmarks))
 
-      // console.log('TimelineService: Bookmark updated locally', { eventId, isBookmarked })
+      console.log('TimelineService: Bookmark updated locally', { eventId, isBookmarked })
       return true
     } catch (error) {
       console.error('TimelineService: Failed to bookmark event:', error)
@@ -266,7 +266,7 @@ export class TimelineService {
     try {
       // TODO: Implement backend compare slot storage
       // For now, store compare slots in local storage as temporary solution
-      const _compareSlots = JSON.parse(localStorage.getItem('timeline-compare-slots') || '{}')
+      const compareSlots = JSON.parse(localStorage.getItem('timeline-compare-slots') || '{}')
       if (slot !== undefined) {
         compareSlots[eventId] = { slot, timestamp: Date.now() }
       } else {
@@ -274,7 +274,7 @@ export class TimelineService {
       }
       localStorage.setItem('timeline-compare-slots', JSON.stringify(compareSlots))
 
-      // console.log('TimelineService: Compare slot updated locally', { eventId, slot })
+      console.log('TimelineService: Compare slot updated locally', { eventId, slot })
       return true
     } catch (error) {
       console.error('TimelineService: Failed to set compare slot:', error)
@@ -288,8 +288,8 @@ export class TimelineService {
    */
   private restoreLocalEventData(events: TimelineEvent[]): void {
     try {
-      const _bookmarks = JSON.parse(localStorage.getItem('timeline-bookmarks') || '{}')
-      const _compareSlots = JSON.parse(localStorage.getItem('timeline-compare-slots') || '{}')
+      const bookmarks = JSON.parse(localStorage.getItem('timeline-bookmarks') || '{}')
+      const compareSlots = JSON.parse(localStorage.getItem('timeline-compare-slots') || '{}')
 
       events.forEach(event => {
         // Restore bookmark status
@@ -308,7 +308,7 @@ export class TimelineService {
         compareSlots: Object.keys(compareSlots).length
       })
     } catch (error) {
-      // console.warn('TimelineService: Failed to restore local event data:', error)
+      console.warn('TimelineService: Failed to restore local event data:', error)
     }
   }
 }

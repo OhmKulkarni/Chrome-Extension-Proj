@@ -19,7 +19,7 @@ export const NetworkFilters: React.FC<NetworkFiltersProps> = ({
   totalItems,
   filteredItems
 }) => {
-  const _hasActiveFilters = searchTerm || methodFilter !== 'all'
+  const hasActiveFilters = searchTerm || methodFilter !== 'all'
 
   return (
     <div className="mb-4 space-y-4">

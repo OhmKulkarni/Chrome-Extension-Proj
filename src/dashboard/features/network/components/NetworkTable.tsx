@@ -43,7 +43,7 @@ const SortIcon: React.FC<{ column: string; sortConfig: SortConfig }> = ({ column
 }
 
 const StatusBadge: React.FC<{ status: number }> = ({ status }) => {
-  const _getStatusColor = () => {
+  const getStatusColor = () => {
     if (status >= 200 && status < 300) return 'bg-green-100 text-green-800'
     if (status >= 300 && status < 400) return 'bg-yellow-100 text-yellow-800'
     if (status >= 400) return 'bg-red-100 text-red-800'
@@ -58,7 +58,7 @@ const StatusBadge: React.FC<{ status: number }> = ({ status }) => {
 }
 
 const MethodBadge: React.FC<{ method: string }> = ({ method }) => {
-  const _getMethodColor = () => {
+  const getMethodColor = () => {
     switch (method) {
       case 'GET': return 'bg-blue-100 text-blue-800'
       case 'POST': return 'bg-green-100 text-green-800'
@@ -83,10 +83,10 @@ export const NetworkTable: React.FC<NetworkTableProps> = ({
   onRowDoubleClick,
   loading = false
 }) => {
-  const _parseHeaders = (headers: string | object | undefined) => {
+  const parseHeaders = (headers: string | object | undefined) => {
     try {
       if (typeof headers === 'string') {
-        const _parsed = JSON.parse(headers)
+        const parsed = JSON.parse(headers)
         return { ...parsed.request, ...parsed.response }
       }
       return headers || {}
@@ -95,21 +95,21 @@ export const NetworkTable: React.FC<NetworkTableProps> = ({
     }
   }
 
-  const _getHeaderPreview = (request: NetworkRequest) => {
+  const getHeaderPreview = (request: NetworkRequest) => {
     try {
-      const _allHeaders = parseHeaders(request.headers)
-      const _priorityHeaders = ['content-type', 'authorization', 'accept', 'user-agent', 'x-api-key']
+      const allHeaders = parseHeaders(request.headers)
+      const priorityHeaders = ['content-type', 'authorization', 'accept', 'user-agent', 'x-api-key']
 
       for (const priority of priorityHeaders) {
         if (allHeaders[priority]) {
-          const _value = String(allHeaders[priority])
+          const value = String(allHeaders[priority])
           return `${priority}: ${value.substring(0, 30)}${value.length > 30 ? '...' : ''}`
         }
       }
 
-      const _firstHeader = Object.entries(allHeaders)[0]
+      const firstHeader = Object.entries(allHeaders)[0]
       if (firstHeader) {
-        const _value = String(firstHeader[1])
+        const value = String(firstHeader[1])
         return `${firstHeader[0]}: ${value.substring(0, 30)}${value.length > 30 ? '...' : ''}`
       }
 
@@ -226,7 +226,7 @@ export const NetworkTable: React.FC<NetworkTableProps> = ({
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {(() => {
-                    const _size = getStandardizedSize(request);
+                    const size = getStandardizedSize(request);
                     return size > 0 ? `${Math.round(size / 1024)}KB` : '-';
                   })()}
                 </td>

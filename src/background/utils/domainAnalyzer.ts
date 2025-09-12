@@ -72,27 +72,27 @@ export class DomainAnalyzer {
 
   public extractDomain(url: string): string {
     try {
-      const _urlObj = new URL(url)
+      const urlObj = new URL(url)
       return urlObj.hostname
     } catch (error) {
       // Fallback for invalid URLs
-      const _match = url.match(/^https?:\/\/([^\/]+)/)
+      const match = url.match(/^https?:\/\/([^\/]+)/)
       return match ? match[1] : url
     }
   }
 
   public analyzeDomain(url: string): DomainInfo {
-    const _domain = this.extractDomain(url)
-    const _parts = domain.split('.')
+    const domain = this.extractDomain(url)
+    const parts = domain.split('.')
     
     // Extract TLD and root domain
-    const _tld = parts[parts.length - 1]
-    const _rootDomain = parts.length >= 2 
+    const tld = parts[parts.length - 1]
+    const rootDomain = parts.length >= 2 
       ? `${parts[parts.length - 2]}.${tld}`
       : domain
     
     // Extract subdomain
-    const _subdomain = parts.length > 2 
+    const subdomain = parts.length > 2 
       ? parts.slice(0, -2).join('.')
       : undefined
 
@@ -108,7 +108,7 @@ export class DomainAnalyzer {
   }
 
   private isInternalDomain(domain: string): boolean {
-    const _internalPatterns = [
+    const internalPatterns = [
       'localhost',
       '127.0.0.1',
       '0.0.0.0',
@@ -143,7 +143,7 @@ export class DomainAnalyzer {
 
   private assessRisk(domain: string): RiskLevel {
     // High risk patterns
-    const _highRiskPatterns = [
+    const highRiskPatterns = [
       'track',
       'analytics',
       'ads',
@@ -152,7 +152,7 @@ export class DomainAnalyzer {
     ]
     
     // Medium risk patterns  
-    const _mediumRiskPatterns = [
+    const mediumRiskPatterns = [
       'cdn',
       'static',
       'assets'
@@ -170,10 +170,10 @@ export class DomainAnalyzer {
   }
 
   public getDomainStats(domains: string[]): Map<string, number> {
-    const _stats = new Map<string, number>()
+    const stats = new Map<string, number>()
     
     domains.forEach(domain => {
-      const _rootDomain = this.analyzeDomain(domain).rootDomain
+      const rootDomain = this.analyzeDomain(domain).rootDomain
       stats.set(rootDomain, (stats.get(rootDomain) || 0) + 1)
     })
     

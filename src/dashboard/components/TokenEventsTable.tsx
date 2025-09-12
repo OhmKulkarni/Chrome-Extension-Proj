@@ -57,22 +57,22 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
   onViewInTimeline,
   onDelete
 }) => {
-  const _indexOfLastEvent = currentPage * eventsPerPage;
-  const _indexOfFirstEvent = indexOfLastEvent - eventsPerPage;
+  const indexOfLastEvent = currentPage * eventsPerPage;
+  const indexOfFirstEvent = indexOfLastEvent - eventsPerPage;
 
-  const _clearFilters = () => {
+  const clearFilters = () => {
     onSearchChange('');
     onTypeFilterChange('all');
   };
 
-  const _handleDelete = async (event: TokenEvent) => {
+  const handleDelete = async (event: TokenEvent) => {
     try {
       if (!event.id) {
         console.error('Token event has no ID');
         return;
       }
 
-      const _numericId = parseInt(event.id);
+      const numericId = parseInt(event.id);
       if (isNaN(numericId)) {
         console.error('Invalid ID format - cannot parse to number:', event.id);
         return;
@@ -90,7 +90,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
   };
 
   // Helper function to check if a token event is selected
-  const _isTokenSelected = (event: TokenEvent): boolean => {
+  const isTokenSelected = (event: TokenEvent): boolean => {
     if (!selectedToken) return false;
 
     // Compare key properties to determine if it's the same token event
@@ -102,20 +102,20 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
     );
   };
 
-  const _generatePageNumbers = () => {
+  const generatePageNumbers = () => {
     const pageNumbers: (number | string)[] = [];
-    const _maxVisiblePages = 7;
+    const maxVisiblePages = 7;
 
     if (totalPages <= maxVisiblePages) {
       // Show all pages if total is small
-      for (let _i = 1; i <= totalPages; i++) {
+      for (let i = 1; i <= totalPages; i++) {
         pageNumbers.push(i);
       }
     } else {
       // Google-style pagination logic
       if (currentPage <= 4) {
         // Show 1-5 ... totalPages
-        for (let _i = 1; i <= 5; i++) {
+        for (let i = 1; i <= 5; i++) {
           pageNumbers.push(i);
         }
         if (totalPages > 5) {
@@ -126,14 +126,14 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
         // Show 1 ... (totalPages-4)-totalPages
         pageNumbers.push(1);
         pageNumbers.push('...');
-        for (let _i = totalPages - 4; i <= totalPages; i++) {
+        for (let i = totalPages - 4; i <= totalPages; i++) {
           pageNumbers.push(i);
         }
       } else {
         // Show 1 ... (currentPage-1) currentPage (currentPage+1) ... totalPages
         pageNumbers.push(1);
         pageNumbers.push('...');
-        for (let _i = currentPage - 1; i <= currentPage + 1; i++) {
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
           pageNumbers.push(i);
         }
         pageNumbers.push('...');
@@ -144,7 +144,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
     return pageNumbers;
   };
 
-  const _getEventTypeColor = (type: string) => {
+  const getEventTypeColor = (type: string) => {
     switch (type.toLowerCase()) {
       case 'acquire': return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200';
       case 'refresh': return 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200';
@@ -155,7 +155,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
     }
   };
 
-  const _formatHash = (hash: string): string => {
+  const formatHash = (hash: string): string => {
     if (!hash) return 'N/A';
     if (showFullTokenHash) return hash;
     return hash.length > 12 ? `${hash.substring(0, 8)}...${hash.substring(hash.length - 4)}` : hash;
@@ -299,7 +299,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
               </thead>
               <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                 {events.map((event, index) => {
-                  const _isSelected = isTokenSelected(event);
+                  const isSelected = isTokenSelected(event);
                   return (
                     <tr
                       key={index}
@@ -336,7 +336,7 @@ export const TokenEventsTable: React.FC<TokenEventsTableProps> = ({
                       }
                     >
                       {(() => {
-                        const _hashValue = event.valueHash || event.value_hash || '';
+                        const hashValue = event.valueHash || event.value_hash || '';
                         return formatHash(hashValue);
                       })()}
                     </td>

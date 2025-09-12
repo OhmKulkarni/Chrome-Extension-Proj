@@ -31,16 +31,16 @@ export const EventCard: React.FC<EventCardProps> = ({
 }) => {
   const [isHovered, setIsHovered] = useState(false)
 
-  const _handleMouseEnter = () => {
+  const handleMouseEnter = () => {
     setIsHovered(true)
     onHoverChange?.(event.id, true)
   }
 
-  const _handleMouseLeave = () => {
+  const handleMouseLeave = () => {
     setIsHovered(false)
     onHoverChange?.(event.id, false)
   }
-  const _getIcon = () => {
+  const getIcon = () => {
     switch (event.type) {
       case 'network':
         return <Network className="w-3 h-3" />
@@ -51,36 +51,36 @@ export const EventCard: React.FC<EventCardProps> = ({
     }
   }
 
-  const _getEventTitle = () => {
+  const getEventTitle = () => {
     switch (event.type) {
       case 'network':
-        const _url = event.data.url || 'Network Request'
+        const url = event.data.url || 'Network Request'
         try {
-          const _urlObj = new URL(url)
+          const urlObj = new URL(url)
           return urlObj.pathname + urlObj.search || url
         } catch {
           return url
         }
       case 'console':
-        const _message = event.data.message || 'Console Error'
+        const message = event.data.message || 'Console Error'
         return message.length > 50 ? message.substring(0, 50) + '...' : message
       case 'token':
-        const _tokenType = event.data.token_type || event.data.type || 'Token Event'
+        const tokenType = event.data.token_type || event.data.type || 'Token Event'
         return `${tokenType} Token`
     }
   }
 
-  const _getEventSubtitle = () => {
+  const getEventSubtitle = () => {
     switch (event.type) {
       case 'network':
-        const _method = event.data.method || 'GET'
-        const _status = event.data.statusCode || event.data.status
+        const method = event.data.method || 'GET'
+        const status = event.data.statusCode || event.data.status
         return status ? `${method} • ${status}` : method
       case 'console':
-        const _level = event.data.level || event.data.severity || 'error'
+        const level = event.data.level || event.data.severity || 'error'
         return level.toUpperCase()
       case 'token':
-        const _domain = event.data.domain || event.data.url
+        const domain = event.data.domain || event.data.url
         if (domain) {
           try {
             return new URL(domain).hostname
@@ -92,44 +92,44 @@ export const EventCard: React.FC<EventCardProps> = ({
     }
   }
 
-  const _handleBookmarkClick = async (e: React.MouseEvent) => {
+  const handleBookmarkClick = async (e: React.MouseEvent) => {
     e.stopPropagation()
     await onBookmark(event.id, !event.isBookmarked)
   }
 
-  const _handleCompareClick = (e: React.MouseEvent) => {
+  const handleCompareClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     onAddToCompare(event)
   }
 
   // Enhanced card size calculation for stacking mode
-  const _cardDimensions = useMemo(() => {
-    const _baseWidth = zoomLevel > 8 ? 180 : (zoomLevel > 4 ? 160 : 140)
-    const _baseHeight = zoomLevel > 8 ? 70 : (zoomLevel > 4 ? 60 : 50)
+  const cardDimensions = useMemo(() => {
+    const baseWidth = zoomLevel > 8 ? 180 : (zoomLevel > 4 ? 160 : 140)
+    const baseHeight = zoomLevel > 8 ? 70 : (zoomLevel > 4 ? 60 : 50)
 
     // Slightly smaller cards when stacked to fit better
-    const _width = isStacked ? Math.max(120, baseWidth - 20) : baseWidth
-    const _height = isStacked ? Math.max(40, baseHeight - 10) : baseHeight
+    const width = isStacked ? Math.max(120, baseWidth - 20) : baseWidth
+    const height = isStacked ? Math.max(40, baseHeight - 10) : baseHeight
 
     return { width, height }
   }, [zoomLevel, isStacked])
 
-  const _isCompact = cardDimensions.height < 60 || zoomLevel > 5
+  const isCompact = cardDimensions.height < 60 || zoomLevel > 5
 
-  const _cardColors = {
+  const cardColors = {
     network: 'bg-blue-50 dark:bg-blue-900 border-blue-200 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-800 hover:border-blue-300 dark:hover:border-blue-600',
     console: 'bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700 hover:bg-red-100 dark:hover:bg-red-800 hover:border-red-300 dark:hover:border-red-600',
     token: 'bg-green-50 dark:bg-green-900 border-green-200 dark:border-green-700 hover:bg-green-100 dark:hover:bg-green-800 hover:border-green-300 dark:hover:border-green-600'
   }
 
-  const _iconColors = {
+  const iconColors = {
     network: 'text-blue-600 dark:text-blue-400',
     console: 'text-red-600 dark:text-red-400',
     token: 'text-green-600 dark:text-green-400'
   }
 
   // Enhanced shadow for stacked cards
-  const _cardShadow = isStacked
+  const cardShadow = isStacked
     ? `shadow-sm hover:shadow-md ${layerIndex > 0 ? 'shadow-lg' : ''}`
     : 'shadow-sm hover:shadow-lg'
 

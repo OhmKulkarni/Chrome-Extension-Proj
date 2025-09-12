@@ -45,7 +45,7 @@ export interface DomainLibraryStats {
 }
 
 // Library detection patterns with DOM signatures
-const _LIBRARY_PATTERNS = {
+const LIBRARY_PATTERNS = {
   // Major Frameworks
   react: {
     patterns: [/react(?:[-.](\d+\.\d+\.\d+))?/i, /react-dom/i, /react\.production/i, /react\.development/i],
@@ -221,7 +221,7 @@ const _LIBRARY_PATTERNS = {
 };
 
 // CDN provider detection
-const _CDN_PROVIDERS = {
+const CDN_PROVIDERS = {
   'cdnjs.cloudflare.com': 'Cloudflare',
   'unpkg.com': 'UNPKG',
   'jsdelivr.net': 'jsDelivr',
@@ -240,26 +240,26 @@ export class LibraryDetector {
    */
   static classifyThirdPartyDomain(domain: string): { isThirdParty: boolean; thirdPartyType?: 'advertising' | 'tracking' | 'cdn' | 'analytics' | 'social' | 'other' } {
     // CDN domains
-    const _cdnDomains = [
+    const cdnDomains = [
       'cdnjs.cloudflare.com', 'cdn.jsdelivr.net', 'unpkg.com', 'ajax.googleapis.com',
       'code.jquery.com', 'stackpath.bootstrapcdn.com', 'maxcdn.bootstrapcdn.com',
       'use.fontawesome.com', 'fonts.googleapis.com', 'fonts.gstatic.com'
     ];
 
     // Analytics domains
-    const _analyticsDomains = [
+    const analyticsDomains = [
       'google-analytics.com', 'googletagmanager.com', 'hotjar.com', 'mixpanel.com',
       'segment.com', 'amplitude.com', 'browser-intake-datadoghq.com'
     ];
 
     // Social media domains
-    const _socialDomains = [
+    const socialDomains = [
       'facebook.net', 'twitter.com', 'linkedin.com', 'pinterest.com',
       'instagram.com', 'snapchat.com', 'tiktok.com'
     ];
 
     // Ad/tracking domains
-    const _adTrackingDomains = [
+    const adTrackingDomains = [
       'casalemedia.com', 'criteo.com', 'adsrvr.org', 'pubmatic.com', 'doubleclick.net',
       'googlesyndication.com', 'googleadservices.com', 'amazon-adsystem.com',
       'wknd.ai', 'ssp.wknd.ai', 'bidder.criteo.com'
@@ -297,29 +297,29 @@ export class LibraryDetector {
     // console.log('[LibraryDetector] Analyzing request:', { url, hasHeaders: Object.keys(headers).length > 0, hasBody: !!responseBody });
 
     const libraries: LibraryInfo[] = [];
-    const _domain = new URL(url).hostname;
+    const domain = new URL(url).hostname;
 
     // Detect from URL patterns
-    const _urlLibraries = this.detectFromUrl(url);
+    const urlLibraries = this.detectFromUrl(url);
     // console.log('[LibraryDetector] URL pattern detection:', { url, found: urlLibraries.length, libraries: urlLibraries });
     libraries.push(...urlLibraries);
 
     // Detect from headers if available
     if (Object.keys(headers).length > 0) {
-      const _headerLibraries = this.detectFromHeaders(headers, url);
+      const headerLibraries = this.detectFromHeaders(headers, url);
       // console.log('[LibraryDetector] Header detection:', { url, found: headerLibraries.length, libraries: headerLibraries });
       libraries.push(...headerLibraries);
     }
 
     // Detect from response content if available
     if (responseBody) {
-      const _contentLibraries = this.detectFromContent(responseBody, url);
+      const contentLibraries = this.detectFromContent(responseBody, url);
       // console.log('[LibraryDetector] Content detection:', { url, found: contentLibraries.length, libraries: contentLibraries });
       libraries.push(...contentLibraries);
     }
 
     // Deduplicate and set domain for all libraries
-    const _uniqueLibraries = this.deduplicateLibraries(libraries);
+    const uniqueLibraries = this.deduplicateLibraries(libraries);
     uniqueLibraries.forEach(lib => {
       lib.domain = domain;
     });
@@ -333,14 +333,14 @@ export class LibraryDetector {
    */
   private static detectFromUrl(url: string): LibraryInfo[] {
     const libraries: LibraryInfo[] = [];
-    const _urlLower = url.toLowerCase();
+    const urlLower = url.toLowerCase();
 
     // console.log('[LibraryDetector] detectFromUrl starting:', { url, urlLower });
 
     // 🚨 PRIORITY CHECK: Build artifacts (source maps) should be detected FIRST
     // This prevents them from being misclassified as API endpoints or other types
-    const _filename = url.split('/').pop() || '';
-    const _buildArtifactInfo = this.detectBuildArtifact(url, filename);
+    const filename = url.split('/').pop() || '';
+    const buildArtifactInfo = this.detectBuildArtifact(url, filename);
     if (buildArtifactInfo) {
       // console.log('[LibraryDetector] Build artifact detected early:', buildArtifactInfo);
       return [buildArtifactInfo]; // Return immediately - no need for further processing
@@ -349,11 +349,11 @@ export class LibraryDetector {
     // Check against known library patterns
     for (const [libraryName, config] of Object.entries(LIBRARY_PATTERNS)) {
       for (const pattern of config.patterns) {
-        const _match = urlLower.match(pattern);
+        const match = urlLower.match(pattern);
         if (match) {
           // console.log('[LibraryDetector] Pattern match found:', { libraryName, pattern: pattern.source, url });
-          const _version = match[1] || undefined;
-          const _cdnProvider = this.detectCdnProvider(url);
+          const version = match[1] || undefined;
+          const cdnProvider = this.detectCdnProvider(url);
 
           libraries.push({
             name: libraryName,
@@ -373,11 +373,11 @@ export class LibraryDetector {
     // Only try generic library detection if no known patterns matched
     if (libraries.length === 0) {
       // console.log('[LibraryDetector] No pattern matches found, attempting generic detection for:', url);
-      const _genericLibrary = this.detectGenericLibrary(url);
+      const genericLibrary = this.detectGenericLibrary(url);
       if (genericLibrary) {
         // CRITICAL FIX: Override generic detection for known libraries
-        const _filename = url.split('/').pop() || '';
-        const _toolName = filename.replace(/\.(?:min\.)?js(\?.*)?$/i, '').replace(/\?.*$/, '').toLowerCase();
+        const filename = url.split('/').pop() || '';
+        const toolName = filename.replace(/\.(?:min\.)?js(\?.*)?$/i, '').replace(/\?.*$/, '').toLowerCase();
 
         if (/^(d3|vue|react|jquery)$/i.test(toolName)) {
           // console.log('[LibraryDetector] Overriding generic detection for known library:', toolName);
@@ -407,10 +407,10 @@ export class LibraryDetector {
    * Enhanced generic tool detection with intelligent categorization
    */
   private static detectGenericLibrary(url: string): LibraryInfo | null {
-    const _filename = url.split('/').pop() || '';
+    const filename = url.split('/').pop() || '';
 
     // Only filter out obvious non-JavaScript resources
-    const _nonJavaScriptPatterns = [
+    const nonJavaScriptPatterns = [
       /\.(css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|pdf|xml|json)(\?|$)/i,
       /\/images\//, /\/img\//, /\/css\//, /\/fonts\//
     ];
@@ -422,7 +422,7 @@ export class LibraryDetector {
     // Note: Build artifact detection is now handled earlier in detectFromUrl for priority
 
     // Extract tool name from URL - be more flexible about file extensions
-    let _toolName = '';
+    let toolName = '';
 
     // First try to get name from filename
     if (filename) {
@@ -435,15 +435,15 @@ export class LibraryDetector {
 
     // If no good filename, try to get name from path
     if (!toolName || toolName.length < 1) {
-      const _pathParts = url.split('/').filter(part => part && !part.includes('.') && part.length > 0);
+      const pathParts = url.split('/').filter(part => part && !part.includes('.') && part.length > 0);
       toolName = pathParts[pathParts.length - 1] || '';
     }
 
     // If still no name, try to extract from URL path more aggressively
     if (!toolName || toolName.length < 1) {
       try {
-        const _urlPath = new URL(url, 'https://example.com').pathname;
-        const _pathSegments = urlPath.split('/').filter(segment => segment.length > 0);
+        const urlPath = new URL(url, 'https://example.com').pathname;
+        const pathSegments = urlPath.split('/').filter(segment => segment.length > 0);
         toolName = pathSegments[pathSegments.length - 1] || 'unknown-script';
 
         // Clean up the tool name
@@ -465,14 +465,14 @@ export class LibraryDetector {
     // console.log('[LibraryDetector] Generic detection for:', { url, filename, toolName });
 
     // Intelligent categorization based on patterns
-    const _categorization = this.categorizeWebTool(toolName, url);
+    const categorization = this.categorizeWebTool(toolName, url);
 
     // Extract version if available
-    const _versionMatch = url.match(/(\d+\.\d+(?:\.\d+)?)/);
-    const _version = versionMatch ? versionMatch[1] : undefined;
+    const versionMatch = url.match(/(\d+\.\d+(?:\.\d+)?)/);
+    const version = versionMatch ? versionMatch[1] : undefined;
 
     // Calculate confidence based on multiple factors
-    let _confidence = 0.5; // Base confidence
+    let confidence = 0.5; // Base confidence
 
     // Boost confidence for known patterns
     if (version) confidence += 0.2; // Has version
@@ -512,13 +512,13 @@ export class LibraryDetector {
    * These are NOT libraries but bundled/compiled assets from build tools
    */
   private static detectBuildArtifact(url: string, filename: string): LibraryInfo | null {
-    const _urlLower = url.toLowerCase();
-    const _filenameLower = filename.toLowerCase();
+    const urlLower = url.toLowerCase();
+    const filenameLower = filename.toLowerCase();
 
     // 🚨 PRIORITY: Source Maps (highest priority for build artifacts)
     // Enhanced detection for source maps including query parameters
     // Multiple robust detection patterns for source maps
-    const _isSourceMap =
+    const isSourceMap =
       /\.map(\?|$|&)/i.test(url) ||           // .map followed by query, end, or &
       /\.map$/i.test(filename) ||             // filename ends with .map
       /\.map\?/i.test(url) ||                 // .map followed by query params
@@ -528,7 +528,7 @@ export class LibraryDetector {
       /\.map[?&]/i.test(url);                 // .map followed by query params
 
     if (isSourceMap) {
-      let _baseName = filename.replace(/\.map$/i, '').replace(/\?.*$/, '');
+      let baseName = filename.replace(/\.map$/i, '').replace(/\?.*$/, '');
 
       // Handle source maps in query parameters like "tag?...&upapi=true.map"
       if (!baseName || baseName.includes('?')) {
@@ -542,11 +542,11 @@ export class LibraryDetector {
             urlObj = new URL(url, 'https://example.com/');
           }
 
-          let _potentialName = urlObj.pathname.split('/').pop() || '';
+          let potentialName = urlObj.pathname.split('/').pop() || '';
 
           // Check if .map appears in query parameters
           if (urlObj.search.includes('.map')) {
-            const _queryMatch = urlObj.search.match(/(\w+)\.map/);
+            const queryMatch = urlObj.search.match(/(\w+)\.map/);
             if (queryMatch) {
               potentialName = queryMatch[1];
             }
@@ -560,10 +560,10 @@ export class LibraryDetector {
           baseName = potentialName.replace(/\.map.*$/, '') || 'source-map';
         } catch (e) {
           // Fallback parsing for problematic URLs
-          const _parts = url.split(/[?&]/);
+          const parts = url.split(/[?&]/);
           for (const part of parts) {
             if (part.includes('.map')) {
-              const _mapMatch = part.match(/(\w+)\.map/);
+              const mapMatch = part.match(/(\w+)\.map/);
               if (mapMatch) {
                 baseName = mapMatch[1];
                 break;
@@ -593,7 +593,7 @@ export class LibraryDetector {
 
     // Build artifact patterns - files generated by build tools, not actual libraries
     // STRICT PATTERNS: Only match files that clearly have content hashes/build signatures
-    const _buildArtifactPatterns = [
+    const buildArtifactPatterns = [
       // Webpack/Bundle patterns with content hashes - more flexible for version numbers
       /^[a-zA-Z0-9_-]+(?:-v?\d+)?[-_][a-f0-9]{8,}(\.min)?\.(js|br\.js|gz\.js)$/i, // main-v2_59e560d0d47d739292b20b3756404e4f.br.js
       /^[a-zA-Z0-9_-]*[-_]?[a-f0-9]{32,}(\.min)?\.(js|br\.js|gz\.js)$/i, // content hashes
@@ -618,7 +618,7 @@ export class LibraryDetector {
     ];
 
     // URL-based build artifact detection
-    const _urlBuildPatterns = [
+    const urlBuildPatterns = [
       /\/_next\//i,           // Next.js builds
       /\/_nuxt\//i,           // Nuxt.js builds
       /\/build\//i,           // Generic build directories
@@ -630,10 +630,10 @@ export class LibraryDetector {
     ];
 
     // Check filename patterns
-    const _hasContentHash = /[a-f0-9]{ 8,  }/.test(filenameLower);
-    const _isCompressed = /\.(br|brotli|gz|gzip)\.js$/i.test(filenameLower);
-    const _matchesBuildPattern = buildArtifactPatterns.some(pattern => pattern.test(filenameLower));
-    const _matchesUrlPattern = urlBuildPatterns.some(pattern => pattern.test(urlLower));
+    const hasContentHash = /[a-f0-9]{8,}/.test(filenameLower);
+    const isCompressed = /\.(br|brotli|gz|gzip)\.js$/i.test(filenameLower);
+    const matchesBuildPattern = buildArtifactPatterns.some(pattern => pattern.test(filenameLower));
+    const matchesUrlPattern = urlBuildPatterns.some(pattern => pattern.test(urlLower));
 
     if (matchesBuildPattern || (hasContentHash && (isCompressed || matchesUrlPattern))) {
       // console.log('[LibraryDetector] Build artifact detected:', {
@@ -645,10 +645,10 @@ export class LibraryDetector {
       // });
 
       // Extract meaningful name from build artifact
-      let _displayName = filename;
+      let displayName = filename;
 
       // Try to extract base name before hash/version
-      const _hashMatch = filenameLower.match(/^([a-zA-Z0-9_-]+?)[-_.]+[a-f0-9]{ 6,  }/i);
+      const hashMatch = filenameLower.match(/^([a-zA-Z0-9_-]+?)[-_.]+[a-f0-9]{6,}/i);
       if (hashMatch) {
         displayName = hashMatch[1];
       }
@@ -670,7 +670,7 @@ export class LibraryDetector {
       }
 
       // Detect build tool if possible
-      let _buildTool = 'unknown';
+      let buildTool = 'unknown';
       if (urlLower.includes('webpack')) buildTool = 'webpack';
       else if (urlLower.includes('rollup')) buildTool = 'rollup';
       else if (urlLower.includes('vite')) buildTool = 'vite';
@@ -700,8 +700,8 @@ export class LibraryDetector {
    * Categorize web tools based on name and URL patterns
    */
   private static categorizeWebTool(name: string, url: string): { type: LibraryInfo['type']; description: string; serviceType?: string } {
-    const _nameLower = name.toLowerCase();
-    const _urlLower = url.toLowerCase();
+    const nameLower = name.toLowerCase();
+    const urlLower = url.toLowerCase();
 
     // 🚨 PRIORITY 1: SOURCE MAPS (highest priority - should be detected first)
     if (/\.map(\?|$|&)/i.test(urlLower) || /\.map$/i.test(nameLower)) {
@@ -726,8 +726,8 @@ export class LibraryDetector {
     // Handle exact library names that might be misclassified as generic
     if (/^(d3|vue|react|jquery|lodash|axios|moment|dayjs|underscore|backbone|ember)$/i.test(nameLower) &&
         !(/(?:casalemedia|criteo|pubmatic|doubleclick|adsystem|advertising)/i.test(urlLower))) {
-      const _libraryType = /^(d3|react|vue|jquery)$/i.test(nameLower) ? 'framework' : 'utility';
-      const _libraryDesc = nameLower === 'd3' ? 'Data visualization library (D3.js)' :
+      const libraryType = /^(d3|react|vue|jquery)$/i.test(nameLower) ? 'framework' : 'utility';
+      const libraryDesc = nameLower === 'd3' ? 'Data visualization library (D3.js)' :
                          nameLower === 'vue' ? 'Vue.js framework library' :
                          nameLower === 'react' ? 'React framework library' :
                          nameLower === 'jquery' ? 'JavaScript framework library' :
@@ -764,7 +764,7 @@ export class LibraryDetector {
     // Vue.js and D3.js detection by file extension patterns
     if ((/\b(?:vue|d3)(?:\.min)?\.js\b/i.test(urlLower)) &&
         !(/(?:ssp\.wknd\.ai|wknd\.ai|adsrvr|casalemedia|criteo|pubmatic|doubleclick|adsystem)/i.test(urlLower))) {
-      const _isVue = /vue/i.test(nameLower + urlLower);
+      const isVue = /vue/i.test(nameLower + urlLower);
       return {
         type: 'framework',
         description: isVue ? 'Vue.js framework library' : 'Data visualization library (D3.js)',
@@ -925,8 +925,8 @@ export class LibraryDetector {
     // 🚨 IMPROVED FALLBACK: Handle truly generic file names and common build artifacts
     // Check if this is a generic file name that should be marked as build artifact
     // EXCLUDE known library names that might be short (d3, vue, etc.)
-    const _genericFileNames = /^(app|client|main|index|bundle|vendor|runtime|common|shared|core|global|base|js|script|min|compiled|build|public|dist|src|lib|libs|static|assets|web|sodar|vendorhashes|vendorhashes|get|tag|t|v2|ads-v2|onsite-v2|inbox-v2|c)$/i;
-    const _knownLibraryNames = /^(d3|vue|react|angular|jquery|lodash|axios|moment|dayjs|underscore|backbone|ember)$/i;
+    const genericFileNames = /^(app|client|main|index|bundle|vendor|runtime|common|shared|core|global|base|js|script|min|compiled|build|public|dist|src|lib|libs|static|assets|web|sodar|vendorhashes|vendorhashes|get|tag|t|v2|ads-v2|onsite-v2|inbox-v2|c)$/i;
+    const knownLibraryNames = /^(d3|vue|react|angular|jquery|lodash|axios|moment|dayjs|underscore|backbone|ember)$/i;
 
     if (genericFileNames.test(nameLower) && !knownLibraryNames.test(nameLower)) {
       return {
@@ -981,7 +981,7 @@ export class LibraryDetector {
     const libraries: LibraryInfo[] = [];
 
     // Check common headers that might indicate library usage
-    const _headerString = JSON.stringify(headers).toLowerCase();
+    const headerString = JSON.stringify(headers).toLowerCase();
 
     for (const [libraryName, config] of Object.entries(LIBRARY_PATTERNS)) {
       for (const pattern of config.patterns) {
@@ -1028,27 +1028,27 @@ export class LibraryDetector {
    * Remove duplicate libraries based on name and domain
    */
   private static deduplicateLibraries(libraries: LibraryInfo[]): LibraryInfo[] {
-    const _seen = new Map<string, LibraryInfo>();
+    const seen = new Map<string, LibraryInfo>();
 
     for (const lib of libraries) {
       // Create multiple possible keys for better deduplication
-      const _keys = [
+      const keys = [
         `${lib.name}-${lib.domain}`,
         `${lib.name}-${lib.type}`, // Handle same library, different detection methods
         lib.name // Also check just the name for exact library matches
       ];
 
-      let _shouldAdd = true;
-      let _bestKey = keys[0];
+      let shouldAdd = true;
+      let bestKey = keys[0];
 
       // Check if any variant of this library already exists
       for (const key of keys) {
         if (seen.has(key)) {
-          const _existing = seen.get(key)!;
+          const existing = seen.get(key)!;
 
           // Priority: Known library types > generic types
-          const _libTypePriority = this.getTypePriority(lib.type);
-          const _existingTypePriority = this.getTypePriority(existing.type);
+          const libTypePriority = this.getTypePriority(lib.type);
+          const existingTypePriority = this.getTypePriority(existing.type);
 
           if (libTypePriority > existingTypePriority) {
             // This library has higher priority, replace existing
@@ -1083,7 +1083,7 @@ export class LibraryDetector {
 
   private static getTypePriority(type: LibraryInfo['type']): number {
     // Higher number = higher priority
-    const _priorities = {
+    const priorities = {
       'framework': 10,
       'utility': 8,
       'polyfill': 6,
@@ -1107,7 +1107,7 @@ export class LibraryDetector {
     const libraries: LibraryInfo[] = [];
 
     // Native browser APIs that should NOT be detected as libraries
-    const _NATIVE_BROWSER_APIS = new Set([
+    const NATIVE_BROWSER_APIS = new Set([
       'IntersectionObserver', 'MutationObserver', 'ResizeObserver', 'PerformanceObserver',
       'AbortController', 'AbortSignal', 'Blob', 'URL', 'URLSearchParams',
       'FormData', 'Headers', 'Request', 'Response', 'fetch',
@@ -1127,7 +1127,7 @@ export class LibraryDetector {
           }
 
           if (windowObj[signature]) {
-            const _globalObj = windowObj[signature];
+            const globalObj = windowObj[signature];
             let version: string | undefined;
 
             // Try to extract version from common version properties
@@ -1158,7 +1158,7 @@ export class LibraryDetector {
     // console.log('🔍 [LibraryDetector] Scanning for custom libraries with version properties...');
 
     // Look for objects on window that have version properties (common library pattern)
-    const _customLibraryNames = [
+    const customLibraryNames = [
       'MyCustomFramework', 'AnalyticsSDK', 'UIComponents', 'TestFramework',
       'fakeAnalytics', 'customLibrary', 'myLibrary'
     ];
@@ -1183,9 +1183,9 @@ export class LibraryDetector {
       // });
 
       if (windowObj[libName] && typeof windowObj[libName] === 'object') {
-        const _libObj = windowObj[libName];
+        const libObj = windowObj[libName];
         if (libObj.version || libObj.VERSION) {
-          const _version = libObj.version || libObj.VERSION;
+          const version = libObj.version || libObj.VERSION;
 
           // Determine library type from name patterns
           let type: 'framework' | 'utility' | 'data-collector' | 'polyfill' = 'utility';
@@ -1221,7 +1221,7 @@ export class LibraryDetector {
 
     for (const [libraryName, config] of Object.entries(LIBRARY_PATTERNS)) {
       if (config.domSignatures && config.domSignatures.length > 0) {
-        let _foundSignatures = 0;
+        let foundSignatures = 0;
 
         for (const signature of config.domSignatures) {
           try {
@@ -1232,7 +1232,7 @@ export class LibraryDetector {
               }
             } else {
               // Check for CSS classes or element names
-              const _elements = documentObj.querySelectorAll(`[class*="${ signature }"], [id*="${ signature }"]`);
+              const elements = documentObj.querySelectorAll(`[class*="${signature}"], [id*="${signature}"]`);
               if (elements.length > 0) {
                 foundSignatures++;
               }
@@ -1272,7 +1272,7 @@ export class LibraryDetector {
 
     for (const [libraryName, config] of Object.entries(LIBRARY_PATTERNS)) {
       if (config.bundleSignatures) {
-        let _confidence = 0;
+        let confidence = 0;
         let detectedSignatures: string[] = [];
 
         for (const signature of config.bundleSignatures) {
@@ -1323,17 +1323,17 @@ export class LibraryDetector {
 
     if (!sourceMapData || !sourceMapData.sources) return libraries;
 
-    const _sources = sourceMapData.sources || [];
+    const sources = sourceMapData.sources || [];
 
     for (const source of sources) {
-      const _sourceLower = source.toLowerCase();
+      const sourceLower = source.toLowerCase();
 
       for (const [libraryName, config] of Object.entries(LIBRARY_PATTERNS)) {
         if (config.bundleSignatures) {
           for (const signature of config.bundleSignatures) {
             if (sourceLower.includes(signature.toLowerCase())) {
               // Try to extract version from source path
-              const _versionMatch = source.match(/(\d+\.\d+\.\d+)/);
+              const versionMatch = source.match(/(\d+\.\d+\.\d+)/);
 
               libraries.push({
                 name: libraryName,
@@ -1366,9 +1366,9 @@ export class LibraryDetector {
    */
   static toMinifiedLibrary(library: LibraryInfo, domain: string): MinifiedLibrary {
     // Extract source domain from the library URL
-    let _sourceDomain = '';
+    let sourceDomain = '';
     try {
-      const _urlObj = new URL(library.url);
+      const urlObj = new URL(library.url);
       sourceDomain = urlObj.hostname;
 
       // Validate that we have a proper domain
@@ -1382,7 +1382,7 @@ export class LibraryDetector {
     }
 
     // Get third-party classification
-    const _thirdPartyInfo = this.classifyThirdPartyDomain(sourceDomain);
+    const thirdPartyInfo = this.classifyThirdPartyDomain(sourceDomain);
 
     return {
       name: library.name,
@@ -1404,7 +1404,7 @@ export class LibraryDetector {
    * Get default description for resource types
    */
   private static getDefaultDescription(type: LibraryInfo['type']): string {
-    const _descriptions = {
+    const descriptions = {
       'framework': 'JavaScript framework or UI library',
       'utility': 'JavaScript utility library',
       'analytics': 'Analytics and tracking tool',
@@ -1439,10 +1439,10 @@ export class LibraryDetector {
 
     // Pattern 1: Random hash-like strings (e.g., "p8dn7fp1liosd47cq1r3sb455.litix.io")
     if (/^[a-z0-9]{20,}\./.test(originalName)) {
-      const _parts = originalName.split('.');
+      const parts = originalName.split('.');
       if (parts.length >= 2) {
-        const _hash = parts[0];
-        const _domain = parts.slice(1).join('.');
+        const hash = parts[0];
+        const domain = parts.slice(1).join('.');
         // Keep first 8 chars of hash + "..." + domain
         return `${hash.substring(0, 8)}...${domain}`;
       }
@@ -1451,11 +1451,11 @@ export class LibraryDetector {
     // Pattern 2: Query parameter heavy URLs (like the livestream example)
     if (originalName.includes('&') && originalName.includes('=')) {
       // Extract meaningful parts from query string
-      const _parts = originalName.split('&');
-      const _meaningfulParams = [];
+      const parts = originalName.split('&');
+      const meaningfulParams = [];
 
       // Look for key parameters that give context
-      const _keyParams = ['cid', 'conf_csid', 'platform', 'playername', 'tenant', 'device_type'];
+      const keyParams = ['cid', 'conf_csid', 'platform', 'playername', 'tenant', 'device_type'];
 
       for (const part of parts) {
         const [key, value] = part.split('=');
@@ -1465,7 +1465,7 @@ export class LibraryDetector {
       }
 
       if (meaningfulParams.length > 0) {
-        let _result = meaningfulParams.join('&');
+        let result = meaningfulParams.join('&');
         if (result.length > maxLength) {
           // Take first meaningful param and add "..."
           result = meaningfulParams[0] + '&...';
@@ -1480,12 +1480,12 @@ export class LibraryDetector {
     }
 
     // Pattern 4: Version-like patterns (keep version info)
-    const _versionMatch = originalName.match(/(\d+\.\d+(?:\.\d+)?)/);
+    const versionMatch = originalName.match(/(\d+\.\d+(?:\.\d+)?)/);
     if (versionMatch) {
-      const _version = versionMatch[1];
-      const _baseName = originalName.substring(0, originalName.indexOf(version));
+      const version = versionMatch[1];
+      const baseName = originalName.substring(0, originalName.indexOf(version));
       if (baseName.length > 0) {
-        const _maxBaseLength = maxLength - version.length - 1; // -1 for separator
+        const maxBaseLength = maxLength - version.length - 1; // -1 for separator
         if (baseName.length > maxBaseLength) {
           return `${baseName.substring(0, maxBaseLength)}...v${version}`;
         }
@@ -1495,12 +1495,12 @@ export class LibraryDetector {
 
     // Pattern 5: Domain-like structures
     if (originalName.includes('.') && !originalName.includes('/')) {
-      const _parts = originalName.split('.');
+      const parts = originalName.split('.');
       if (parts.length > 2) {
         // Keep first and last part for context
-        const _first = parts[0];
-        const _last = parts[parts.length - 1];
-        const _maxFirstLength = Math.floor((maxLength - last.length - 3) / 2); // -3 for "..."
+        const first = parts[0];
+        const last = parts[parts.length - 1];
+        const maxFirstLength = Math.floor((maxLength - last.length - 3) / 2); // -3 for "..."
 
         if (first.length > maxFirstLength) {
           return `${first.substring(0, maxFirstLength)}...${last}`;
@@ -1511,8 +1511,8 @@ export class LibraryDetector {
 
     // Pattern 6: URL paths (extract meaningful directory/file names)
     if (originalName.includes('/')) {
-      const _pathParts = originalName.split('/');
-      const _fileName = pathParts[pathParts.length - 1];
+      const pathParts = originalName.split('/');
+      const fileName = pathParts[pathParts.length - 1];
 
       // If filename is meaningful and not too long
       if (fileName && fileName.length <= maxLength && !fileName.includes('?')) {
@@ -1521,8 +1521,8 @@ export class LibraryDetector {
 
       // Otherwise, take first part + "..." + filename
       if (pathParts.length > 1) {
-        const _firstPart = pathParts[0];
-        const _maxFirstLength = maxLength - fileName.length - 3; // -3 for "..."
+        const firstPart = pathParts[0];
+        const maxFirstLength = maxLength - fileName.length - 3; // -3 for "..."
 
         if (maxFirstLength > 5) {
           return `${firstPart.substring(0, maxFirstLength)}.../${fileName}`;
@@ -1531,14 +1531,14 @@ export class LibraryDetector {
     }
 
     // Pattern 7: Camelcase or underscore separated (extract key words)
-    const _words = originalName.split(/[_\-\.]+/);
+    const words = originalName.split(/[_\-\.]+/);
     if (words.length > 1) {
       // Take first meaningful word and last word
-      const _meaningfulWords = words.filter(word => word.length > 2);
+      const meaningfulWords = words.filter(word => word.length > 2);
       if (meaningfulWords.length >= 2) {
-        const _first = meaningfulWords[0];
-        const _last = meaningfulWords[meaningfulWords.length - 1];
-        const _combined = `${ first }...${ last }`;
+        const first = meaningfulWords[0];
+        const last = meaningfulWords[meaningfulWords.length - 1];
+        const combined = `${first}...${last}`;
 
         if (combined.length <= maxLength) {
           return combined;
@@ -1555,7 +1555,7 @@ export class LibraryDetector {
    */
   static getDisplayName(library: MinifiedLibrary | { name: string; version?: string; third_party_info?: any }, maxLength: number = 30): string {
     // For known library types, try to extract more meaningful info
-    const _truncatedName = this.truncateLibraryName(library.name, maxLength);
+    const truncatedName = this.truncateLibraryName(library.name, maxLength);
 
     // Add context based on third-party info (if available)
     if (library.third_party_info?.type) {
@@ -1567,7 +1567,7 @@ export class LibraryDetector {
         'unknown': '🔧'
       };
 
-      const _indicator = typeIndicators[library.third_party_info.type] || '🔧';
+      const indicator = typeIndicators[library.third_party_info.type] || '🔧';
 
       // If name is very short after truncation, add type context
       if (truncatedName.length < 15) {

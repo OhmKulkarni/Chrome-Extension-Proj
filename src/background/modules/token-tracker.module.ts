@@ -94,7 +94,7 @@ export class TokenTrackerModule {
     };
 
     this.abortController = new AbortController();
-    // console.log('🔐 TokenTrackerModule: Initialized with IndexedDB storage for token events');
+    console.log('🔐 TokenTrackerModule: Initialized with IndexedDB storage for token events');
   }
 
   /**
@@ -102,7 +102,7 @@ export class TokenTrackerModule {
    */
   async initialize(): Promise<void> {
     if (this.isInitialized) {
-      // console.warn('TokenTrackerModule: Already initialized');
+      console.warn('TokenTrackerModule: Already initialized');
       return;
     }
 
@@ -113,7 +113,7 @@ export class TokenTrackerModule {
       }
 
       this.isInitialized = true;
-      // console.log('✅ TokenTrackerModule: Successfully initialized');
+      console.log('✅ TokenTrackerModule: Successfully initialized');
     } catch (error) {
       console.error('❌ TokenTrackerModule: Initialization failed:', error);
       throw error;
@@ -129,7 +129,7 @@ export class TokenTrackerModule {
     }
 
     this.isInitialized = false;
-    // console.log('🧹 TokenTrackerModule: Cleanup completed');
+    console.log('🧹 TokenTrackerModule: Cleanup completed');
   }
 
   // ===== TOKEN DETECTION =====
@@ -148,69 +148,69 @@ export class TokenTrackerModule {
       // Check if token logging is active for this specific tab
       if (tabId) {
         try {
-          const _isTabTokenLoggingActive = await this.storageManager.getTabTokenState(tabId);
-          // console.log(`🔍 TokenTrackerModule: Tab ${tabId} token logging state: ${isTabTokenLoggingActive}`);
+          const isTabTokenLoggingActive = await this.storageManager.getTabTokenState(tabId);
+          console.log(`🔍 TokenTrackerModule: Tab ${tabId} token logging state: ${isTabTokenLoggingActive}`);
           if (!isTabTokenLoggingActive) {
             // Token logging is disabled for this tab, skip processing
-            // console.log(`⚠️ TokenTrackerModule: Token logging disabled for tab ${tabId}, skipping ${url}`);
+            console.log(`⚠️ TokenTrackerModule: Token logging disabled for tab ${tabId}, skipping ${url}`);
             return null;
           }
         } catch (error) {
-          // console.warn('TokenTrackerModule: Failed to get tab token state, falling back to global settings:', error);
+          console.warn('TokenTrackerModule: Failed to get tab token state, falling back to global settings:', error);
           // Fall through to check global settings
         }
       }
 
       // Also check global settings for token logging
       try {
-        const _settings = await this.storageManager.getSettings();
-        const _tokenConfig = settings?.tokenLogging || {};
-        // console.log(`🔍 TokenTrackerModule: Global token logging enabled: ${tokenConfig.enabled !== false}`);
+        const settings = await this.storageManager.getSettings();
+        const tokenConfig = settings?.tokenLogging || {};
+        console.log(`🔍 TokenTrackerModule: Global token logging enabled: ${tokenConfig.enabled !== false}`);
 
         // If global token logging is disabled, skip
         if (tokenConfig.enabled === false) {
-          // console.log(`⚠️ TokenTrackerModule: Global token logging disabled, skipping ${url}`);
+          console.log(`⚠️ TokenTrackerModule: Global token logging disabled, skipping ${url}`);
           return null;
         }
       } catch (error) {
-        // console.warn('TokenTrackerModule: Failed to get global token settings:', error);
+        console.warn('TokenTrackerModule: Failed to get global token settings:', error);
       }
 
       // Enhanced token endpoint detection - include API calls and other auth patterns
-      const _isAcquireEndpoint = this.isTokenEndpoint(url, 'acquire');
+      const isAcquireEndpoint = this.isTokenEndpoint(url, 'acquire');
       const isRefreshEndpoint = this.isTokenEndpoint(url, 'refresh');
-      const _isApiCall = this.isTokenEndpoint(url, 'api_calls');
-      const _isServiceAuth = this.isTokenEndpoint(url, 'service_auth');
-      const _isTokenValidation = this.isTokenEndpoint(url, 'token_validation');
-      const _isWebSocketAuth = this.isTokenEndpoint(url, 'websocket_auth');
+      const isApiCall = this.isTokenEndpoint(url, 'api_calls');
+      const isServiceAuth = this.isTokenEndpoint(url, 'service_auth');
+      const isTokenValidation = this.isTokenEndpoint(url, 'token_validation');
+      const isWebSocketAuth = this.isTokenEndpoint(url, 'websocket_auth');
 
       // Debug which endpoint type was detected
       if (isAcquireEndpoint || isRefreshEndpoint || isApiCall || isServiceAuth || isTokenValidation || isWebSocketAuth) {
-        // console.log(`🔍 TokenTrackerModule: Endpoint detection for ${url}`);
-        // console.log(`   - isAcquireEndpoint: ${isAcquireEndpoint}`);
-        // console.log(`   - isRefreshEndpoint: ${isRefreshEndpoint}`);
-        // console.log(`   - isApiCall: ${isApiCall}`);
-        // console.log(`   - isServiceAuth: ${isServiceAuth}`);
-        // console.log(`   - isTokenValidation: ${isTokenValidation}`);
-        // console.log(`   - isWebSocketAuth: ${isWebSocketAuth}`);
-        // console.log(`   - status: ${status}`);
+        console.log(`🔍 TokenTrackerModule: Endpoint detection for ${url}`);
+        console.log(`   - isAcquireEndpoint: ${isAcquireEndpoint}`);
+        console.log(`   - isRefreshEndpoint: ${isRefreshEndpoint}`);
+        console.log(`   - isApiCall: ${isApiCall}`);
+        console.log(`   - isServiceAuth: ${isServiceAuth}`);
+        console.log(`   - isTokenValidation: ${isTokenValidation}`);
+        console.log(`   - isWebSocketAuth: ${isWebSocketAuth}`);
+        console.log(`   - status: ${status}`);
       }
 
       // Check if request has authentication (any token-related headers/content/URL params)
-      const _hasAuthHeaders = this.hasAuthenticationHeaders(requestData.headers || {});
-      const _hasAuthContent = this.hasAuthenticationInBody(requestData.body);
-      const _hasAuthInUrl = this.hasAuthenticationInUrl(url);
+      const hasAuthHeaders = this.hasAuthenticationHeaders(requestData.headers || {});
+      const hasAuthContent = this.hasAuthenticationInBody(requestData.body);
+      const hasAuthInUrl = this.hasAuthenticationInUrl(url);
 
       // Debug logging for API calls with potential authentication
       if (isApiCall) {
-        // console.log(`🔍 TokenTrackerModule: API call detected for ${url}`);
-        // console.log(`   - hasAuthHeaders: ${hasAuthHeaders}`);
-        // console.log(`   - hasAuthContent: ${hasAuthContent}`);
-        // console.log(`   - hasAuthInUrl: ${hasAuthInUrl}`);
+        console.log(`🔍 TokenTrackerModule: API call detected for ${url}`);
+        console.log(`   - hasAuthHeaders: ${hasAuthHeaders}`);
+        console.log(`   - hasAuthContent: ${hasAuthContent}`);
+        console.log(`   - hasAuthInUrl: ${hasAuthInUrl}`);
       }
 
       // Determine if this is a token-related request
-      const _isTokenRelated = isAcquireEndpoint || isRefreshEndpoint || isServiceAuth ||
+      const isTokenRelated = isAcquireEndpoint || isRefreshEndpoint || isServiceAuth ||
                            isTokenValidation || isWebSocketAuth ||
                            (isApiCall && (hasAuthHeaders || hasAuthContent || hasAuthInUrl));
 
@@ -222,11 +222,11 @@ export class TokenTrackerModule {
       let eventType: TokenEvent['type'];
 
       // Ensure status is a number for proper comparison
-      const _statusCode = typeof status === 'string' ? parseInt(status, 10) : status;
-      // console.log(`🔍 TokenTrackerModule: Original status: ${status} (${typeof status}), converted: ${statusCode} (${typeof statusCode})`);
+      const statusCode = typeof status === 'string' ? parseInt(status, 10) : status;
+      console.log(`🔍 TokenTrackerModule: Original status: ${status} (${typeof status}), converted: ${statusCode} (${typeof statusCode})`);
 
       if (isRefreshEndpoint) {
-        // console.log(`🔍 TokenTrackerModule: Taking REFRESH path for status ${statusCode}`);
+        console.log(`🔍 TokenTrackerModule: Taking REFRESH path for status ${statusCode}`);
         if (statusCode >= 200 && statusCode < 300) {
           eventType = 'refresh';
         } else if (statusCode === 401 || statusCode === 403) {
@@ -235,20 +235,20 @@ export class TokenTrackerModule {
           eventType = 'expired';
         }
       } else if (isAcquireEndpoint || isServiceAuth) {
-        // console.log(`🔍 TokenTrackerModule: Taking ACQUIRE path for status ${statusCode} (original: ${status})`);
-        // console.log(`🔍 TokenTrackerModule: URL: ${url}`);
-        // console.log(`🔍 TokenTrackerModule: Method: ${method}`);
+        console.log(`🔍 TokenTrackerModule: Taking ACQUIRE path for status ${statusCode} (original: ${status})`);
+        console.log(`🔍 TokenTrackerModule: URL: ${url}`);
+        console.log(`🔍 TokenTrackerModule: Method: ${method}`);
         if (statusCode >= 200 && statusCode < 300) {
           eventType = 'acquire';
-          // console.log(`🔍 TokenTrackerModule: Setting eventType to 'acquire' (success) - condition: ${statusCode} >= 200 && ${statusCode} < 300`);
+          console.log(`🔍 TokenTrackerModule: Setting eventType to 'acquire' (success) - condition: ${statusCode} >= 200 && ${statusCode} < 300`);
         } else if (statusCode === 401 || statusCode === 403) {
           eventType = 'expired';
-          // console.log(`🔍 TokenTrackerModule: Setting eventType to 'expired' (401/403)`);
+          console.log(`🔍 TokenTrackerModule: Setting eventType to 'expired' (401/403)`);
         } else if (statusCode === 400) {
           eventType = 'expired'; // Bad request often means invalid credentials
-          // console.log(`🔍 TokenTrackerModule: Setting eventType to 'expired' (400)`);
+          console.log(`🔍 TokenTrackerModule: Setting eventType to 'expired' (400)`);
         } else {
-          // console.log(`🔍 TokenTrackerModule: Rejecting status ${statusCode} for acquire endpoint - no condition matched`);
+          console.log(`🔍 TokenTrackerModule: Rejecting status ${statusCode} for acquire endpoint - no condition matched`);
           return null; // Don't track other failed acquisition attempts (5xx errors, etc.)
         }
       } else if (isTokenValidation) {
@@ -258,7 +258,7 @@ export class TokenTrackerModule {
           eventType = 'expired';
         } else if (statusCode === 400) {
           eventType = 'expired'; // Bad request often means invalid token format
-          // console.log(`🔍 TokenTrackerModule: Status 400 on validation endpoint, treating as expired`);
+          console.log(`🔍 TokenTrackerModule: Status 400 on validation endpoint, treating as expired`);
         } else {
           return null;
         }
@@ -277,7 +277,7 @@ export class TokenTrackerModule {
         } else if (statusCode === 0) {
           // Status 0 can indicate network error, CORS, or pending request - still log as verified attempt
           eventType = 'verified';
-          // console.log(`⚠️ TokenTrackerModule: Status 0 detected for API call, treating as verified attempt`);
+          console.log(`⚠️ TokenTrackerModule: Status 0 detected for API call, treating as verified attempt`);
         } else {
           return null;
         }
@@ -286,12 +286,12 @@ export class TokenTrackerModule {
       }
 
       // Extract token expiry if available
-      const _expiry = this.extractTokenExpiry(headers);
+      const expiry = this.extractTokenExpiry(headers);
 
       // Generate token hash for identification
-      const _valueHash = await this.generateTokenHash(url, timestamp, eventType, method);
+      const valueHash = await this.generateTokenHash(url, timestamp, eventType, method);
 
-      // console.log(`🔍 TokenTrackerModule: FINAL CHECK - About to create token event with eventType: "${eventType}" for status ${statusCode}`);
+      console.log(`🔍 TokenTrackerModule: FINAL CHECK - About to create token event with eventType: "${eventType}" for status ${statusCode}`);
 
       const tokenEvent: TokenEvent = {
         type: eventType,
@@ -304,19 +304,19 @@ export class TokenTrackerModule {
         ...(expiry && { expiry })
       };
 
-      // console.log(`🔐 TokenTrackerModule: Detected ${eventType} event for ${this.extractDomain(url)}`);
+      console.log(`🔐 TokenTrackerModule: Detected ${eventType} event for ${this.extractDomain(url)}`);
 
       // Store the token event in IndexedDB using the same format as origin/main
       try {
         // Convert eventType to match IndexedDB TokenEvent schema with enhanced classification
-        const _tokenType = this.mapEventTypeToTokenType(eventType, requestData);
+        const tokenType = this.mapEventTypeToTokenType(eventType, requestData);
 
         // Extract tab information (if available from requestData)
-        const _tabId = requestData.tabId;
-        const _tabUrl = requestData.source_url;
-        const _mainDomain = tabUrl ? this.extractDomain(tabUrl) : this.extractDomain(url);
+        const tabId = requestData.tabId;
+        const tabUrl = requestData.source_url;
+        const mainDomain = tabUrl ? this.extractDomain(tabUrl) : this.extractDomain(url);
 
-        const _tokenEventData = {
+        const tokenEventData = {
           type: eventType,  // Store the event type (acquire, expired, etc.) for dashboard display
           tokenType: tokenType as 'jwt_token' | 'session_token' | 'api_key' | 'oauth_token',  // Store the token classification for analysis
           valueHash,
@@ -331,7 +331,7 @@ export class TokenTrackerModule {
           main_domain: mainDomain
         };
 
-        // console.log(`🔍 TokenTrackerModule: STORAGE CHECK - About to store tokenEventData with type: "${tokenEventData.type}" for status ${statusCode}`);
+        console.log(`🔍 TokenTrackerModule: STORAGE CHECK - About to store tokenEventData with type: "${tokenEventData.type}" for status ${statusCode}`);
 
         // Use IndexedDB storage with race condition protection
         if (this.config.enableRaceConditionProtection) {
@@ -339,11 +339,11 @@ export class TokenTrackerModule {
         } else {
           // Fire and forget for performance (not recommended)
           this.indexedDbStorage.insertTokenEvent(tokenEventData).catch(error =>
-            // console.warn('TokenTrackerModule: IndexedDB storage failed:', error)
+            console.warn('TokenTrackerModule: IndexedDB storage failed:', error)
           );
         }
 
-        // console.log(`🗄️ TokenTrackerModule: Stored token event in IndexedDB`);
+        console.log(`🗄️ TokenTrackerModule: Stored token event in IndexedDB`);
 
         // Notify dashboard about new token event
         this.sendTokenEventNotification(tokenEvent);
@@ -365,7 +365,7 @@ export class TokenTrackerModule {
     if (!headers || typeof headers !== 'object') return 'Unknown';
 
     // Parse headers if they're stored as JSON string
-    let _headersObj = headers;
+    let headersObj = headers;
     if (typeof headers === 'string') {
       try {
         headersObj = JSON.parse(headers);
@@ -374,20 +374,20 @@ export class TokenTrackerModule {
       }
     }
 
-    const _authHeader = headersObj.authorization || headersObj.Authorization || '';
-    const _cookieHeader = headersObj.cookie || headersObj.Cookie || '';
-    const _csrfHeader = headersObj['x-csrf-token'] || headersObj['X-CSRF-Token'] ||
+    const authHeader = headersObj.authorization || headersObj.Authorization || '';
+    const cookieHeader = headersObj.cookie || headersObj.Cookie || '';
+    const csrfHeader = headersObj['x-csrf-token'] || headersObj['X-CSRF-Token'] ||
                        headersObj['csrf-token'] || headersObj['CSRF-Token'] || '';
-    const _apiKeyHeader = headersObj['x-api-key'] || headersObj['X-API-Key'] ||
+    const apiKeyHeader = headersObj['x-api-key'] || headersObj['X-API-Key'] ||
                          headersObj['api-key'] || headersObj['API-Key'] ||
                          headersObj['apikey'] || headersObj['ApiKey'] || '';
 
     // Enhanced Bearer Token Analysis
     if (authHeader.startsWith('Bearer ')) {
-      const _token = authHeader.substring(7);
+      const token = authHeader.substring(7);
 
       if (this.isJwt(token)) {
-        const _payload = this.getJwtPayload(token);
+        const payload = this.getJwtPayload(token);
 
         if (payload) {
           // Enhanced ID Token detection (OpenID Connect)
@@ -465,7 +465,7 @@ export class TokenTrackerModule {
 
     // Enhanced Session Token Detection (Cookies)
     if (cookieHeader) {
-      const _sessionPatterns = [
+      const sessionPatterns = [
         'sessionid=', 'session=', 'JSESSIONID=', 'PHPSESSID=',
         'ASP.NET_SessionId=', 'connect.sid=', 'express:sess=',
         'laravel_session=', 'django_session=', 'flask.session='
@@ -484,8 +484,8 @@ export class TokenTrackerModule {
       }
 
       // JWT in cookies
-      const _jwtPattern = /[=\s]([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/;
-      const _jwtMatch = cookieHeader.match(jwtPattern);
+      const jwtPattern = /[=\s]([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/;
+      const jwtMatch = cookieHeader.match(jwtPattern);
       if (jwtMatch) {
         return 'JWT Token (Cookie)';
       }
@@ -498,7 +498,7 @@ export class TokenTrackerModule {
 
     // Enhanced Custom Authorization schemes
     if (authHeader && !authHeader.startsWith('Bearer ') && !authHeader.startsWith('Basic ')) {
-      const _scheme = authHeader.split(' ')[0];
+      const scheme = authHeader.split(' ')[0];
 
       // Common custom schemes
       const knownSchemes: { [key: string]: string } = {
@@ -527,7 +527,7 @@ export class TokenTrackerModule {
    * Check if URL matches token endpoint patterns
    */
   private isTokenEndpoint(url: string, type: keyof TokenEndpoints): boolean {
-    const _patterns = this.TOKEN_ENDPOINTS[type];
+    const patterns = this.TOKEN_ENDPOINTS[type];
     return patterns.some(pattern => url.toLowerCase().includes(pattern));
   }
 
@@ -535,7 +535,7 @@ export class TokenTrackerModule {
    * Check if request headers contain authentication information
    */
   private hasAuthenticationHeaders(headers: Record<string, string>): boolean {
-    const _authHeaders = [
+    const authHeaders = [
       'authorization', 'Authorization',
       'x-api-key', 'X-API-Key', 'x-api-token', 'X-API-Token',
       'x-auth-token', 'X-Auth-Token', 'x-access-token', 'X-Access-Token',
@@ -544,21 +544,21 @@ export class TokenTrackerModule {
     ];
 
     // Check for standard auth headers
-    const _hasStandardAuth = authHeaders.some(header => headers[header] && headers[header].trim().length > 0);
+    const hasStandardAuth = authHeaders.some(header => headers[header] && headers[header].trim().length > 0);
 
     if (hasStandardAuth) {
       return true;
     }
 
     // Enhanced detection for specific token patterns in Authorization header
-    const _authValue = headers['authorization'] || headers['Authorization'] || '';
+    const authValue = headers['authorization'] || headers['Authorization'] || '';
     if (authValue) {
       // Token service prefixes: HuggingFace, OpenAI, GitHub, Slack, etc.
-      const _tokenPrefixes = ['hf_', 'sk-', 'ghp_', 'gho_', 'ghu_', 'ghs_'];
-      const _slackPrefixes = ['xoxb' + '-', 'xoxp' + '-']; // Slack bot/user tokens (split to avoid detection)
-      const _allPrefixes = [...tokenPrefixes, ...slackPrefixes];
+      const tokenPrefixes = ['hf_', 'sk-', 'ghp_', 'gho_', 'ghu_', 'ghs_'];
+      const slackPrefixes = ['xoxb' + '-', 'xoxp' + '-']; // Slack bot/user tokens (split to avoid detection)
+      const allPrefixes = [...tokenPrefixes, ...slackPrefixes];
 
-      const _hasKnownTokenPrefix = allPrefixes.some(prefix =>
+      const hasKnownTokenPrefix = allPrefixes.some(prefix =>
         authValue.includes(`Bearer ${prefix}`) || authValue.includes(prefix)
       );
 
@@ -578,8 +578,8 @@ export class TokenTrackerModule {
 
     try {
       // Check for JSON body with auth fields
-      const _parsed = JSON.parse(body);
-      const _authFields = [
+      const parsed = JSON.parse(body);
+      const authFields = [
         'token', 'access_token', 'refresh_token', 'auth_token',
         'api_key', 'apikey', 'bearer', 'authorization',
         'client_id', 'client_secret', 'grant_type'
@@ -588,7 +588,7 @@ export class TokenTrackerModule {
       return authFields.some(field => parsed[field]);
     } catch {
       // Check for URL-encoded auth parameters
-      const _authParams = [
+      const authParams = [
         'token=', 'access_token=', 'refresh_token=', 'auth_token=',
         'api_key=', 'apikey=', 'client_id=', 'client_secret='
       ];
@@ -604,11 +604,11 @@ export class TokenTrackerModule {
     if (!url) return false;
 
     try {
-      const _urlObj = new URL(url);
-      const _params = urlObj.searchParams;
+      const urlObj = new URL(url);
+      const params = urlObj.searchParams;
 
       // Common API key parameter names
-      const _apiKeyParams = [
+      const apiKeyParams = [
         'key', 'api_key', 'apikey', 'api-key',
         'access_token', 'token', 'auth_token', 'auth-token',
         'client_id', 'app_id', 'appid', 'app-id',
@@ -617,24 +617,24 @@ export class TokenTrackerModule {
 
       // Check if any API key parameters exist and have values
       for (const param of apiKeyParams) {
-        const _value = params.get(param);
+        const value = params.get(param);
         if (value && value.length > 10) { // API keys are typically longer than 10 chars
-          // console.log(`🔍 TokenTrackerModule: Found URL param ${param}=${value.substring(0, 10)}... (length: ${value.length})`);
+          console.log(`🔍 TokenTrackerModule: Found URL param ${param}=${value.substring(0, 10)}... (length: ${value.length})`);
 
           // Skip authuser parameter - it's a user ID, not a token
           if (param === 'authuser' || (param.includes('user') && /^\d+$/.test(value))) {
-            // console.log(`⚠️ TokenTrackerModule: Skipping ${param} - appears to be user ID, not token`);
+            console.log(`⚠️ TokenTrackerModule: Skipping ${param} - appears to be user ID, not token`);
             continue;
           }
 
           // Additional validation for Google API keys (starts with AIza)
           if (param === 'key' && value.startsWith('AIza')) {
-            // console.log(`✅ TokenTrackerModule: Google API key detected in URL`);
+            console.log(`✅ TokenTrackerModule: Google API key detected in URL`);
             return true;
           }
           // Other API key patterns
           if (value.length > 20) { // Most API keys are longer than 20 chars
-            // console.log(`✅ TokenTrackerModule: Long API key detected in URL`);
+            console.log(`✅ TokenTrackerModule: Long API key detected in URL`);
             return true;
           }
         }
@@ -642,17 +642,17 @@ export class TokenTrackerModule {
 
       return false;
     } catch (error) {
-      // console.log(`🔍 TokenTrackerModule: URL parsing failed, using fallback for ${url}`);
+      console.log(`🔍 TokenTrackerModule: URL parsing failed, using fallback for ${url}`);
       // If URL parsing fails, fall back to string matching
-      const _apiKeyPatterns = [
+      const apiKeyPatterns = [
         'key=AIza', // Google API keys
         'api_key=', 'apikey=', 'access_token=',
         'client_id=', 'app_id='
       ];
 
-      const _hasPattern = apiKeyPatterns.some(pattern => url.includes(pattern));
+      const hasPattern = apiKeyPatterns.some(pattern => url.includes(pattern));
       if (hasPattern) {
-        // console.log(`✅ TokenTrackerModule: API key pattern detected in URL via fallback`);
+        console.log(`✅ TokenTrackerModule: API key pattern detected in URL via fallback`);
       }
       return hasPattern;
     }
@@ -662,7 +662,7 @@ export class TokenTrackerModule {
    * Check if token is a JWT (3 parts separated by dots)
    */
   private isJwt(token: string): boolean {
-    const _parts = token.split('.');
+    const parts = token.split('.');
     return parts.length === 3 && parts.every(part => part.length > 0);
   }
 
@@ -672,7 +672,7 @@ export class TokenTrackerModule {
   private getJwtPayload(token: string): any {
     try {
       if (!this.isJwt(token)) return null;
-      const _payload = JSON.parse(atob(token.split('.')[1]));
+      const payload = JSON.parse(atob(token.split('.')[1]));
       return payload;
     } catch {
       return null;
@@ -686,7 +686,7 @@ export class TokenTrackerModule {
     if (!headers || typeof headers !== 'object') return undefined;
 
     // Parse headers if they're stored as JSON string
-    let _headersObj = headers;
+    let headersObj = headers;
     if (typeof headers === 'string') {
       try {
         headersObj = JSON.parse(headers);
@@ -696,7 +696,7 @@ export class TokenTrackerModule {
     }
 
     // Check multiple possible authorization header variations
-    const _authHeaders = [
+    const authHeaders = [
       headersObj.authorization,
       headersObj.Authorization,
       headersObj['Authorization'],
@@ -707,27 +707,27 @@ export class TokenTrackerModule {
       if (typeof authHeader === 'string') {
         // Check for Bearer token (most common for JWT)
         if (authHeader.startsWith('Bearer ')) {
-          const _token = authHeader.substring(7);
-          const _expiry = this.extractJwtExpiry(token);
+          const token = authHeader.substring(7);
+          const expiry = this.extractJwtExpiry(token);
           if (expiry) return expiry;
         }
 
         // Check for other token formats that might contain JWT
         if (authHeader.includes('.') && authHeader.split('.').length === 3) {
-          const _expiry = this.extractJwtExpiry(authHeader);
+          const expiry = this.extractJwtExpiry(authHeader);
           if (expiry) return expiry;
         }
       }
     }
 
     // Also check cookies for JWT tokens
-    const _cookieHeader = headersObj.cookie || headersObj.Cookie || '';
+    const cookieHeader = headersObj.cookie || headersObj.Cookie || '';
     if (cookieHeader) {
       // Look for JWT patterns in cookies
-      const _jwtPattern = /[=\s]([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/g;
+      const jwtPattern = /[=\s]([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/g;
       let match;
       while ((match = jwtPattern.exec(cookieHeader)) !== null) {
-        const _expiry = this.extractJwtExpiry(match[1]);
+        const expiry = this.extractJwtExpiry(match[1]);
         if (expiry) return expiry;
       }
     }
@@ -741,17 +741,17 @@ export class TokenTrackerModule {
   private extractJwtExpiry(token: string): number | undefined {
     try {
       // Check if it's a JWT (3 parts separated by dots)
-      const _parts = token.split('.');
+      const parts = token.split('.');
       if (parts.length !== 3 || parts.some(part => part.length === 0)) {
         return undefined;
       }
 
       // Decode JWT payload (second part)
-      const _payload = JSON.parse(atob(parts[1]));
+      const payload = JSON.parse(atob(parts[1]));
 
       // Extract expiry timestamp (standard 'exp' claim)
       if (payload.exp && typeof payload.exp === 'number') {
-        // console.log('🔐 JWT expiry extracted:', new Date(payload.exp * 1000));
+        console.log('🔐 JWT expiry extracted:', new Date(payload.exp * 1000));
         return payload.exp; // JWT exp is in seconds since epoch
       }
 
@@ -765,7 +765,7 @@ export class TokenTrackerModule {
       }
 
     } catch (error) {
-      // console.log('🔐 Failed to decode JWT for expiry:', error);
+      console.log('🔐 Failed to decode JWT for expiry:', error);
     }
 
     return undefined;
@@ -776,19 +776,19 @@ export class TokenTrackerModule {
    */
   private async generateTokenHash(url: string, timestamp: string, tokenType: string, method: string): Promise<string> {
     // Create a deterministic string from metadata
-    const _dataToHash = `${ url }-${ timestamp }-${ tokenType }-${ method }`;
+    const dataToHash = `${url}-${timestamp}-${tokenType}-${method}`;
 
     // Simple deterministic hash for display purposes
-    let _hash = 0;
-    for (let _i = 0; i < dataToHash.length; i++) {
-      const _char = dataToHash.charCodeAt(i);
+    let hash = 0;
+    for (let i = 0; i < dataToHash.length; i++) {
+      const char = dataToHash.charCodeAt(i);
       hash = ((hash << 5) - hash) + char;
       hash = hash & hash; // Convert to 32-bit integer
     }
 
     // Convert to hex and create a realistic looking hash
-    const _simpleHash = Math.abs(hash).toString(16).padStart(8, '0');
-    const _longHash = simpleHash + (hash * 7).toString(16).slice(-8).padStart(8, '0') +
+    const simpleHash = Math.abs(hash).toString(16).padStart(8, '0');
+    const longHash = simpleHash + (hash * 7).toString(16).slice(-8).padStart(8, '0') +
                      (hash * 13).toString(16).slice(-8).padStart(8, '0') +
                      (hash * 17).toString(16).slice(-8).padStart(8, '0');
 
@@ -800,7 +800,7 @@ export class TokenTrackerModule {
    */
   private extractDomain(url: string): string {
     try {
-      const _urlObj = new URL(url);
+      const urlObj = new URL(url);
       return urlObj.hostname;
     } catch {
       return 'unknown';
@@ -813,7 +813,7 @@ export class TokenTrackerModule {
   private mapEventTypeToTokenType(eventType: string, requestData?: NetworkRequestData): string {
     // If we have request data, try to classify based on actual token content
     if (requestData?.headers) {
-      const _tokenType = this.detectTokenTypeFromHeaders(requestData.headers, requestData.url);
+      const tokenType = this.detectTokenTypeFromHeaders(requestData.headers, requestData.url);
       return this.mapTokenClassificationToDBType(tokenType);
     }
 
@@ -875,11 +875,11 @@ export class TokenTrackerModule {
   async getTokenEvents(limit = 50, offset = 0): Promise<TokenEvent[]> {
     return this.executeWithSafety('getTokenEvents', async () => {
       // Get data from IndexedDB instead of Chrome storage
-      const _tokenEvents = await this.indexedDbStorage.getTokenEvents(limit, offset);
-      // console.log('🚨 TOKEN TRACKER: Retrieved from IndexedDB:', tokenEvents);
+      const tokenEvents = await this.indexedDbStorage.getTokenEvents(limit, offset);
+      console.log('🚨 TOKEN TRACKER: Retrieved from IndexedDB:', tokenEvents);
 
       // Transform IndexedDB TokenEvent format to module TokenEvent format for compatibility
-      const _transformedEvents = tokenEvents.map(event => {
+      const transformedEvents = tokenEvents.map(event => {
         console.log('🚨 TOKEN TRACKER: Processing event:', {
           originalType: event.type,
           tokenType: event.tokenType,
@@ -888,7 +888,7 @@ export class TokenTrackerModule {
 
         // ✅ FIX: Use the event.type directly since we're storing it correctly now
         // No more incorrect mapping based on tokenType!
-        const _transformedEvent = {
+        const transformedEvent = {
           type: event.type as 'acquire' | 'refresh' | 'expired' | 'refresh_error' | 'verified', // Use stored type directly
           url: event.url || '',
           method: event.method || '',
@@ -899,11 +899,11 @@ export class TokenTrackerModule {
           value_hash: event.valueHash
         };
 
-        // console.log('🚨 TOKEN TRACKER: Final transformed event:', transformedEvent);
+        console.log('🚨 TOKEN TRACKER: Final transformed event:', transformedEvent);
         return transformedEvent;
       });
 
-      // console.log('🚨 TOKEN TRACKER: Returning transformed events:', transformedEvents);
+      console.log('🚨 TOKEN TRACKER: Returning transformed events:', transformedEvents);
       return transformedEvents;
     });
   }
@@ -913,7 +913,7 @@ export class TokenTrackerModule {
    */
   async getTokenEventsCount(): Promise<number> {
     return this.executeWithSafety('getTokenEventsCount', async () => {
-      const _counts = await this.indexedDbStorage.getTableCounts();
+      const counts = await this.indexedDbStorage.getTableCounts();
       return counts.tokenEvents || 0;
     });
   }
@@ -929,7 +929,7 @@ export class TokenTrackerModule {
       });
     } catch (error) {
       // This will fail if no dashboard is open, which is normal
-      // console.debug('TokenTrackerModule: Failed to send token event notification:', error);
+      console.debug('TokenTrackerModule: Failed to send token event notification:', error);
     }
   }
 
@@ -947,22 +947,22 @@ export class TokenTrackerModule {
       throw new Error(`TokenTrackerModule: Operation aborted (${operation})`);
     }
 
-    const _startTime = Date.now();
+    const startTime = Date.now();
     let lastError: Error | null = null;
 
-    for (let _attempt = 0; attempt <= this.config.maxRetries; attempt++) {
+    for (let attempt = 0; attempt <= this.config.maxRetries; attempt++) {
       try {
         // Race condition protection
         if (this.config.enableRaceConditionProtection && attempt > 0) {
           await new Promise(resolve => setTimeout(resolve, 100 * attempt));
         }
 
-        const _result = await fn();
+        const result = await fn();
 
         // Log performance for slow operations
-        const _duration = Date.now() - startTime;
+        const duration = Date.now() - startTime;
         if (duration > 500 && attempt === 0) { // Log slow operations only on first attempt
-          // console.warn(`🐌 TokenTrackerModule: ${operation} took ${duration}ms`);
+          console.warn(`🐌 TokenTrackerModule: ${operation} took ${duration}ms`);
         }
 
         return result;
@@ -974,7 +974,7 @@ export class TokenTrackerModule {
           break;
         }
 
-        // console.warn(`⚠️ TokenTrackerModule: ${operation} failed, retrying (${attempt + 1}/${this.config.maxRetries}):`, lastError);
+        console.warn(`⚠️ TokenTrackerModule: ${operation} failed, retrying (${attempt + 1}/${this.config.maxRetries}):`, lastError);
       }
     }
 
@@ -1005,7 +1005,7 @@ export class TokenTrackerModule {
       });
     } catch (error) {
       // Dashboard might not be open, ignore error
-      // console.log('📡 TokenTrackerModule: Could not notify dashboard (dashboard closed?):', error);
+      console.log('📡 TokenTrackerModule: Could not notify dashboard (dashboard closed?):', error);
     }
   }
 

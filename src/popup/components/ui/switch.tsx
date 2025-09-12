@@ -8,12 +8,12 @@ export interface SwitchProps
   onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void
 }
 
-const _Switch = React.forwardRef<HTMLInputElement, SwitchProps>(
+const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(
   ({ className, label, description, checked, onChange, ...props }, ref) => {
-    const _handleClick = () => {
+    const handleClick = () => {
       if (onChange) {
         // Create a synthetic event to match the expected type
-        const _syntheticEvent = {
+        const syntheticEvent = {
           target: { checked: !checked },
           currentTarget: { checked: !checked }
         } as React.ChangeEvent<HTMLInputElement>;

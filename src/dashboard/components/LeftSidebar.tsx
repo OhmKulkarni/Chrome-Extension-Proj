@@ -58,20 +58,20 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
   const [isHovered, setIsHovered] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
 
-  const _handleLockToggle = () => {
-    const _newLockState = !isLocked;
+  const handleLockToggle = () => {
+    const newLockState = !isLocked;
     setIsLocked(newLockState);
     if (onLockStateChange) {
       onLockStateChange(newLockState);
     }
   };
 
-  const _filteredTabs = tabsLoggingStatus.filter(tab =>
+  const filteredTabs = tabsLoggingStatus.filter(tab =>
     tab.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     tab.domain.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const _renderModeSelector = () => (
+  const renderModeSelector = () => (
     <div className="flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1 mb-4">
       <button
         onClick={() => onModeChange('base')}
@@ -96,7 +96,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
     </div>
   );
 
-  const _renderBaseMode = () => (
+  const renderBaseMode = () => (
     <div className="space-y-6">
       {/* Quick Analysis Card */}
       <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
@@ -182,7 +182,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
     </div>
   );
 
-  const _renderLoggingMode = () => (
+  const renderLoggingMode = () => (
     <div className="space-y-4">
       {/* Back Button */}
       <button

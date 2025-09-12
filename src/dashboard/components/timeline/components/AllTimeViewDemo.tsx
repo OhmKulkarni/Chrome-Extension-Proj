@@ -12,7 +12,7 @@ export const AllTimeViewDemo: React.FC<AllTimeViewDemoProps> = ({
   viewport
 }) => {
   // Mock total events count - in production, this would come from your data store
-  const _mockTotalEvents = 2400
+  const mockTotalEvents = 2400
 
   // Convert viewport to TimelineViewport interface
   const timelineViewport: TimelineViewport = useMemo(() => ({
@@ -22,7 +22,7 @@ export const AllTimeViewDemo: React.FC<AllTimeViewDemoProps> = ({
     duration: viewport.duration
   }), [viewport])
 
-  const _optimizedData = useOptimizedTimelineData({
+  const optimizedData = useOptimizedTimelineData({
     viewport: timelineViewport,
     currentScope,
     totalEvents: mockTotalEvents

@@ -33,10 +33,10 @@ export const AllTimeModal: React.FC<AllTimeModalProps> = ({
   const [hoveredCluster, setHoveredCluster] = useState<string | null>(null)
 
   // Calculate time clusters for visualization
-  const _timeClusters = useMemo(() => {
+  const timeClusters = useMemo(() => {
     if (!events || events.length === 0) return []
 
-    const _dataSpan = latestTimestamp - earliestTimestamp
+    const dataSpan = latestTimestamp - earliestTimestamp
     const clusters: TimeCluster[] = []
 
     // Choose appropriate clustering based on data span
@@ -63,18 +63,18 @@ export const AllTimeModal: React.FC<AllTimeModalProps> = ({
     }
 
     // Create clusters
-    for (let _i = 0; i < clusterCount; i++) {
-      const _startTime = earliestTimestamp + (i * clusterDuration)
-      const _endTime = Math.min(startTime + clusterDuration, latestTimestamp)
-      const _centerTime = startTime + (endTime - startTime) / 2
+    for (let i = 0; i < clusterCount; i++) {
+      const startTime = earliestTimestamp + (i * clusterDuration)
+      const endTime = Math.min(startTime + clusterDuration, latestTimestamp)
+      const centerTime = startTime + (endTime - startTime) / 2
 
       // Count events in this cluster
-      const _eventsInCluster = events.filter(event =>
+      const eventsInCluster = events.filter(event =>
         event.timestamp >= startTime && event.timestamp < endTime
       )
 
       if (eventsInCluster.length > 0) {
-        const _date = new Date(centerTime)
+        const date = new Date(centerTime)
         let label: string
 
         if (clusterDuration === 24 * 60 * 60 * 1000) {
@@ -86,7 +86,7 @@ export const AllTimeModal: React.FC<AllTimeModalProps> = ({
           })
         } else if (clusterDuration === 7 * 24 * 60 * 60 * 1000) {
           // Weekly clusters
-          const _weekStart = new Date(startTime)
+          const weekStart = new Date(startTime)
           label = `Week of ${weekStart.toLocaleDateString('en-US', {
             month: 'short',
             day: 'numeric'
@@ -100,13 +100,13 @@ export const AllTimeModal: React.FC<AllTimeModalProps> = ({
         }
 
         // Color based on activity level
-        const _maxEvents = Math.max(...Array.from({ length: clusterCount }, (_, idx) => {
-          const _clusterStart = earliestTimestamp + (idx * clusterDuration)
-          const _clusterEnd = Math.min(clusterStart + clusterDuration, latestTimestamp)
+        const maxEvents = Math.max(...Array.from({length: clusterCount}, (_, idx) => {
+          const clusterStart = earliestTimestamp + (idx * clusterDuration)
+          const clusterEnd = Math.min(clusterStart + clusterDuration, latestTimestamp)
           return events.filter(e => e.timestamp >= clusterStart && e.timestamp < clusterEnd).length
         }))
 
-        const _intensity = eventsInCluster.length / maxEvents
+        const intensity = eventsInCluster.length / maxEvents
         let color: string
         if (intensity > 0.7) color = 'bg-blue-600'
         else if (intensity > 0.4) color = 'bg-blue-500'
@@ -129,10 +129,10 @@ export const AllTimeModal: React.FC<AllTimeModalProps> = ({
     return clusters
   }, [events, earliestTimestamp, latestTimestamp])
 
-  const _totalEvents = events.length
-  const _dataSpanDays = Math.ceil((latestTimestamp - earliestTimestamp) / (24 * 60 * 60 * 1000))
+  const totalEvents = events.length
+  const dataSpanDays = Math.ceil((latestTimestamp - earliestTimestamp) / (24 * 60 * 60 * 1000))
 
-  const _handleClusterClick = (cluster: TimeCluster) => {
+  const handleClusterClick = (cluster: TimeCluster) => {
     onJumpToTime(cluster.centerTime, cluster.scope)
     onClose()
   }

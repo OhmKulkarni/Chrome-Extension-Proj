@@ -13,14 +13,14 @@ export function getChromeStorageBytes(): Promise<number> {
     try {
       chrome.storage.local.getBytesInUse(null, (bytes) => {
         if (chrome.runtime.lastError) {
-          // console.warn('Chrome storage error:', chrome.runtime.lastError.message)
+          console.warn('Chrome storage error:', chrome.runtime.lastError.message)
           resolve(0)
         } else {
           resolve(bytes || 0)
         }
       })
     } catch (error) {
-      // console.warn('Error accessing Chrome storage:', error)
+      console.warn('Error accessing Chrome storage:', error)
       resolve(0)
     }
   })

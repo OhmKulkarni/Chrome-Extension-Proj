@@ -2,18 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { StorageService } from '../../utils/storage-service';
 
 // Hook to detect dark mode
-const _useDarkMode = () => {
+const useDarkMode = () => {
   const [isDark, setIsDark] = React.useState(false);
 
   React.useEffect(() => {
-    const _checkDarkMode = () => {
+    const checkDarkMode = () => {
       setIsDark(document.documentElement.classList.contains('dark'));
     };
 
     checkDarkMode();
 
     // Watch for class changes
-    const _observer = new MutationObserver(checkDarkMode);
+    const observer = new MutationObserver(checkDarkMode);
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['class']
@@ -52,10 +52,10 @@ const defaultSettings: SettingsData = {
 };
 
 const SettingsInline: React.FC = () => {
-  const _isDark = useDarkMode();
+  const isDark = useDarkMode();
   
   // Storage service for IndexedDB access
-  const _storageService = React.useMemo(() => new StorageService(), []);
+  const storageService = React.useMemo(() => new StorageService(), []);
 
   const [settings, setSettings] = useState<SettingsData>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
@@ -82,17 +82,17 @@ const SettingsInline: React.FC = () => {
   }, []);
 
   // Format bytes to human readable format
-  const _formatBytes = (bytes: number): string => {
+  const formatBytes = (bytes: number): string => {
     if (bytes === 0) return '0 B';
-    const _k = 1024;
-    const _sizes = ['B', 'KB', 'MB', 'GB'];
-    const _i = Math.floor(Math.log(bytes) / Math.log(k));
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   // Deep merge function to properly merge nested settings
-  const _deepMerge = (target: any, source: any): any => {
-    const _result = { ...target };
+  const deepMerge = (target: any, source: any): any => {
+    const result = { ...target };
     for (const key in source) {
       if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
         result[key] = deepMerge(target[key] || {}, source[key]);
@@ -104,14 +104,14 @@ const SettingsInline: React.FC = () => {
   };
 
   // Load storage usage - get actual IndexedDB size
-  const _loadStorageUsage = async () => {
+  const loadStorageUsage = async () => {
     try {
       // Check if Chrome extension APIs are available
       if (typeof chrome === 'undefined' || !chrome.runtime) {
-        // console.warn('Chrome extension APIs not available, using mock storage data');
-        const _estimatedBytes = 1024 * 1024 * 5; // 5MB mock
-        const _STORAGE_LIMIT = 100 * 1024 * 1024; // 100MB limit
-        const _percentage = (estimatedBytes / STORAGE_LIMIT) * 100;
+        console.warn('Chrome extension APIs not available, using mock storage data');
+        const estimatedBytes = 1024 * 1024 * 5; // 5MB mock
+        const STORAGE_LIMIT = 100 * 1024 * 1024; // 100MB limit
+        const percentage = (estimatedBytes / STORAGE_LIMIT) * 100;
 
         setStorageUsage({
           bytes: estimatedBytes,
@@ -122,45 +122,45 @@ const SettingsInline: React.FC = () => {
       }
 
       // Try to get actual storage usage first
-      let _actualBytes = 0;
+      let actualBytes = 0;
       try {
         if ('storage' in navigator && 'estimate' in navigator.storage) {
-          const _estimate = await navigator.storage.estimate();
+          const estimate = await navigator.storage.estimate();
           if (estimate.usage) {
             actualBytes = estimate.usage;
-            // console.log('📊 Using actual storage estimate:', actualBytes, 'bytes');
+            console.log('📊 Using actual storage estimate:', actualBytes, 'bytes');
           }
         }
       } catch (storageError) {
-        // console.warn('Could not get storage estimate:', storageError);
+        console.warn('Could not get storage estimate:', storageError);
       }
 
       // If we couldn't get actual usage, fall back to estimation via backend
       if (actualBytes === 0) {
-        // console.log('📊 Falling back to backend storage estimation');
+        console.log('📊 Falling back to backend storage estimation');
 
         // Try the STORAGE_INFO action first (more accurate than table counts)
         try {
-          const _storageResponse = await chrome.runtime.sendMessage({
+          const storageResponse = await chrome.runtime.sendMessage({
             action: 'STORAGE_INFO'
           });
 
           if (storageResponse && storageResponse.success && storageResponse.data?.size) {
             actualBytes = storageResponse.data.size;
-            // console.log('📊 Using backend storage info:', actualBytes, 'bytes');
+            console.log('📊 Using backend storage info:', actualBytes, 'bytes');
           }
         } catch (storageInfoError) {
-          // console.warn('STORAGE_INFO failed, trying table counts:', storageInfoError);
+          console.warn('STORAGE_INFO failed, trying table counts:', storageInfoError);
         }
 
         // Final fallback to table count estimation
         if (actualBytes === 0) {
-          const _response = await chrome.runtime.sendMessage({
+          const response = await chrome.runtime.sendMessage({
             action: 'getTableCounts'
           });
 
           if (response && response.success && response.data) {
-            const _tableCounts = response.data;
+            const tableCounts = response.data;
 
             // More conservative estimation based on actual record analysis
             if (tableCounts.apiCalls) {
@@ -176,15 +176,15 @@ const SettingsInline: React.FC = () => {
               actualBytes += tableCounts.minifiedLibraries * 12000; // ~12KB average
             }
 
-            // console.log('📊 Using table count estimation:', actualBytes, 'bytes');
+            console.log('📊 Using table count estimation:', actualBytes, 'bytes');
           } else {
             throw new Error('All storage estimation methods failed');
           }
         }
       }
 
-      const _STORAGE_LIMIT = 100 * 1024 * 1024; // 100MB limit
-      const _percentage = (actualBytes / STORAGE_LIMIT) * 100;
+      const STORAGE_LIMIT = 100 * 1024 * 1024; // 100MB limit
+      const percentage = (actualBytes / STORAGE_LIMIT) * 100;
 
       setStorageUsage({
         bytes: actualBytes,
@@ -195,9 +195,9 @@ const SettingsInline: React.FC = () => {
     } catch (error) {
       console.error('Failed to load storage usage:', error);
       // Fallback to conservative estimate
-      const _fallbackBytes = 1024 * 1024 * 3; // 3MB conservative fallback
-      const _STORAGE_LIMIT = 100 * 1024 * 1024;
-      const _percentage = (fallbackBytes / STORAGE_LIMIT) * 100;
+      const fallbackBytes = 1024 * 1024 * 3; // 3MB conservative fallback
+      const STORAGE_LIMIT = 100 * 1024 * 1024;
+      const percentage = (fallbackBytes / STORAGE_LIMIT) * 100;
 
       setStorageUsage({
         bytes: fallbackBytes,
@@ -207,11 +207,11 @@ const SettingsInline: React.FC = () => {
     }
   };
 
-  const _loadSettings = async () => {
+  const loadSettings = async () => {
     try {
       // Check if Chrome extension APIs are available
       if (typeof chrome === 'undefined' || !chrome.storage) {
-        // console.warn('Chrome extension APIs not available, using default settings');
+        console.warn('Chrome extension APIs not available, using default settings');
         setSettings(defaultSettings);
         setIsLoading(false);
         return;
@@ -223,12 +223,12 @@ const SettingsInline: React.FC = () => {
         storageService.get(['settings'])
       ]);
 
-      let _loadedSettings = defaultSettings;
+      let loadedSettings = defaultSettings;
 
       // Priority: local storage (used by background script) > sync storage
       if (localResult.settings) {
         // Map from background script format to UI format
-        const _backendSettings = localResult.settings;
+        const backendSettings = localResult.settings;
         loadedSettings = {
           networkInterception: backendSettings.networkInterception || defaultSettings.networkInterception,
           chartSettings: backendSettings.chartSettings || defaultSettings.chartSettings,
@@ -236,7 +236,7 @@ const SettingsInline: React.FC = () => {
       } else if (syncResult.extensionSettings) {
         // Use deep merge to handle partial settings from sync storage
         // Extract only the properties we care about
-        const _syncSettings = syncResult.extensionSettings;
+        const syncSettings = syncResult.extensionSettings;
         loadedSettings = {
           networkInterception: syncSettings.networkInterception || defaultSettings.networkInterception,
           chartSettings: syncSettings.chartSettings || defaultSettings.chartSettings,
@@ -254,7 +254,7 @@ const SettingsInline: React.FC = () => {
     }
   };
 
-  const _saveSettings = async () => {
+  const saveSettings = async () => {
     setIsSaving(true);
     try {
       // Check if Chrome extension APIs are available
@@ -265,7 +265,7 @@ const SettingsInline: React.FC = () => {
 
       // Save to both storage locations for compatibility
       // Background script expects chrome.storage.local with key 'settings'
-      const _backendSettings = {
+      const backendSettings = {
         networkInterception: settings.networkInterception,
         chartSettings: settings.chartSettings,
       };
@@ -280,7 +280,7 @@ const SettingsInline: React.FC = () => {
       setSaveMessage('Settings saved successfully!');
 
       // Track timeout for cleanup
-      const _timeoutId = window.setTimeout(() => {
+      const timeoutId = window.setTimeout(() => {
         setSaveMessage('');
         timeoutsRef.current.delete(timeoutId);
       }, 3000);
@@ -294,12 +294,12 @@ const SettingsInline: React.FC = () => {
     }
   };
 
-  const _resetSettings = () => {
+  const resetSettings = () => {
     setSettings(defaultSettings);
     setSaveMessage('Settings reset to default values. Click Save to apply.');
   };
 
-  const _updateSetting = <K extends keyof SettingsData>(key: K, value: SettingsData[K]) => {
+  const updateSetting = <K extends keyof SettingsData>(key: K, value: SettingsData[K]) => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 
@@ -332,12 +332,12 @@ const SettingsInline: React.FC = () => {
     disabled?: boolean;
     children: React.ReactNode;
   }> = ({ variant = 'default', size = 'default', onClick, disabled, children }) => {
-    const _baseClasses = `font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800`;
-    const _variantClasses = variant === 'outline'
+    const baseClasses = `font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800`;
+    const variantClasses = variant === 'outline'
       ? 'border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
       : 'bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600';
-    const _sizeClasses = size === 'sm' ? 'px-3 py-1.5 text-sm' : 'px-4 py-2 text-sm';
-    const _disabledClasses = disabled ? 'opacity-50 cursor-not-allowed' : '';
+    const sizeClasses = size === 'sm' ? 'px-3 py-1.5 text-sm' : 'px-4 py-2 text-sm';
+    const disabledClasses = disabled ? 'opacity-50 cursor-not-allowed' : '';
 
     return (
       <button

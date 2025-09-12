@@ -51,18 +51,18 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
   onViewInTimeline,
   onDelete
 }) => {
-  const _indexOfLastError = currentPage * errorsPerPage;
-  const _indexOfFirstError = indexOfLastError - errorsPerPage;
+  const indexOfLastError = currentPage * errorsPerPage;
+  const indexOfFirstError = indexOfLastError - errorsPerPage;
 
-  const _clearFilters = () => {
+  const clearFilters = () => {
     onSearchChange('');
     onSeverityFilterChange('all');
   };
 
-  const _handleDelete = async (error: ConsoleError) => {
+  const handleDelete = async (error: ConsoleError) => {
     try {
       // Delete from IndexedDB
-      const _numericId = parseInt(error.id);
+      const numericId = parseInt(error.id);
       if (isNaN(numericId)) {
         console.error('Invalid ID format - cannot parse to number:', error.id);
         return;
@@ -80,7 +80,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
   };
 
   // Helper function to check if an error is selected
-  const _isErrorSelected = (error: ConsoleError): boolean => {
+  const isErrorSelected = (error: ConsoleError): boolean => {
     if (!selectedError) return false;
 
     // Compare key properties to determine if it's the same error
@@ -92,20 +92,20 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
     );
   };
 
-  const _generatePageNumbers = () => {
+  const generatePageNumbers = () => {
     const pageNumbers: (number | string)[] = [];
-    const _maxVisiblePages = 7;
+    const maxVisiblePages = 7;
 
     if (totalPages <= maxVisiblePages) {
       // Show all pages if total is small
-      for (let _i = 1; i <= totalPages; i++) {
+      for (let i = 1; i <= totalPages; i++) {
         pageNumbers.push(i);
       }
     } else {
       // Google-style pagination logic
       if (currentPage <= 4) {
         // Show 1-5 ... totalPages
-        for (let _i = 1; i <= 5; i++) {
+        for (let i = 1; i <= 5; i++) {
           pageNumbers.push(i);
         }
         if (totalPages > 5) {
@@ -116,14 +116,14 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
         // Show 1 ... (totalPages-4)-totalPages
         pageNumbers.push(1);
         pageNumbers.push('...');
-        for (let _i = totalPages - 4; i <= totalPages; i++) {
+        for (let i = totalPages - 4; i <= totalPages; i++) {
           pageNumbers.push(i);
         }
       } else {
         // Show 1 ... (currentPage-1) currentPage (currentPage+1) ... totalPages
         pageNumbers.push(1);
         pageNumbers.push('...');
-        for (let _i = currentPage - 1; i <= currentPage + 1; i++) {
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
           pageNumbers.push(i);
         }
         pageNumbers.push('...');
@@ -134,7 +134,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
     return pageNumbers;
   };
 
-  const _getSeverityColor = (severity: string) => {
+  const getSeverityColor = (severity: string) => {
     switch (severity.toLowerCase()) {
       case 'error': return 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200';
       case 'warn': return 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200';
@@ -279,7 +279,7 @@ export const ConsoleErrorsTable: React.FC<ConsoleErrorsTableProps> = ({
               </thead>
               <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                 {errors.map((error) => {
-                  const _isSelected = isErrorSelected(error);
+                  const isSelected = isErrorSelected(error);
                   return (
                     <tr
                       key={error.id}

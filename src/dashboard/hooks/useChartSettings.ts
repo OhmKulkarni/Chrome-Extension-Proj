@@ -23,17 +23,17 @@ const DEFAULT_CHART_SETTINGS: ChartSettings = {
 };
 
 // Storage service singleton to prevent recreation on every render
-const _storageService = new StorageService();
+const storageService = new StorageService();
 
 /**
  * Hook to manage chart settings with real-time updates
  */
-export const _useChartSettings = () => {
+export const useChartSettings = () => {
   const [settings, setSettings] = useState<ChartSettings>(DEFAULT_CHART_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
 
   // Load settings from storage
-  const _loadSettings = useCallback(async () => {
+  const loadSettings = useCallback(async () => {
     try {
       setIsLoading(true);
 
@@ -43,7 +43,7 @@ export const _useChartSettings = () => {
         storageService.get(['settings'])
       ]);
 
-      let _chartSettings = DEFAULT_CHART_SETTINGS;
+      let chartSettings = DEFAULT_CHART_SETTINGS;
 
       // Priority: local storage > sync storage
       if (localResult.settings?.chartSettings) {
@@ -52,7 +52,7 @@ export const _useChartSettings = () => {
         chartSettings = { ...DEFAULT_CHART_SETTINGS, ...syncResult.extensionSettings.chartSettings };
       }
 
-      // console.log('🔧 Chart settings loaded:', chartSettings);
+      console.log('🔧 Chart settings loaded:', chartSettings);
       setSettings(chartSettings);
     } catch (error) {
       console.error('Failed to load chart settings, using defaults:', error);
@@ -63,8 +63,8 @@ export const _useChartSettings = () => {
   }, []);
 
   // Update settings
-  const _updateSettings = useCallback(async (newSettings: Partial<ChartSettings>) => {
-    const _updatedSettings = { ...settings, ...newSettings };
+  const updateSettings = useCallback(async (newSettings: Partial<ChartSettings>) => {
+    const updatedSettings = { ...settings, ...newSettings };
     setSettings(updatedSettings);
 
     try {
@@ -72,7 +72,7 @@ export const _useChartSettings = () => {
       await Promise.all([
         // Update in local storage for background script
         storageService.get(['settings']).then(result => {
-          const _currentSettings = result.settings || {};
+          const currentSettings = result.settings || {};
           return storageService.set({
             settings: {
               ...currentSettings,
@@ -82,7 +82,7 @@ export const _useChartSettings = () => {
         }),
         // Update in sync storage for UI persistence
         chrome.storage.sync.get(['extensionSettings']).then(result => {
-          const _currentSettings = result.extensionSettings || {};
+          const currentSettings = result.extensionSettings || {};
           return chrome.storage.sync.set({
             extensionSettings: {
               ...currentSettings,
@@ -92,7 +92,7 @@ export const _useChartSettings = () => {
         })
       ]);
 
-      // console.log('🔧 Chart settings updated:', updatedSettings);
+      console.log('🔧 Chart settings updated:', updatedSettings);
     } catch (error) {
       console.error('Failed to save chart settings:', error);
       // Revert on failure
@@ -102,19 +102,19 @@ export const _useChartSettings = () => {
 
   // Listen for storage changes
   useEffect(() => {
-    const _handleStorageChange = (changes: any, namespace: string) => {
+    const handleStorageChange = (changes: any, namespace: string) => {
       if (namespace === 'sync' && changes.extensionSettings) {
-        const _newSettings = changes.extensionSettings.newValue;
+        const newSettings = changes.extensionSettings.newValue;
         if (newSettings?.chartSettings) {
-          // console.log('🔧 Chart settings changed from sync storage');
+          console.log('🔧 Chart settings changed from sync storage');
           setSettings({ ...DEFAULT_CHART_SETTINGS, ...newSettings.chartSettings });
         }
       }
 
       if (namespace === 'local' && changes.settings) {
-        const _newSettings = changes.settings.newValue;
+        const newSettings = changes.settings.newValue;
         if (newSettings?.chartSettings) {
-          // console.log('🔧 Chart settings changed from local storage');
+          console.log('🔧 Chart settings changed from local storage');
           setSettings({ ...DEFAULT_CHART_SETTINGS, ...newSettings.chartSettings });
         }
       }
@@ -142,7 +142,7 @@ export const _useChartSettings = () => {
 /**
  * Helper hook for components that only need to read settings
  */
-export const _useChartSettingsRead = () => {
+export const useChartSettingsRead = () => {
   const { settings, isLoading } = useChartSettings();
   return { settings, isLoading };
 };

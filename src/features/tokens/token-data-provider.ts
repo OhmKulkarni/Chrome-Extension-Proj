@@ -89,15 +89,15 @@ export class TokenDataProvider {
   // Handle incoming token messages
   private async handleTokenMessage(message: any): Promise<void> {
     // Transform raw message data to V1 contract
-    const _tokenEvent = DataAdapters.tokenEventToV1(message.data);
+    const tokenEvent = DataAdapters.tokenEventToV1(message.data);
 
     // Update cache
-    const _cacheKey = `tab_${ tokenEvent.tabId || 'global' }`;
+    const cacheKey = `tab_${tokenEvent.tabId || 'global'}`;
     if (!this.cache.has(cacheKey)) {
       this.cache.set(cacheKey, []);
     }
 
-    const _tabTokens = this.cache.get(cacheKey)!;
+    const tabTokens = this.cache.get(cacheKey)!;
     tabTokens.unshift(tokenEvent); // Add to beginning for recency
 
     // Limit cache size to prevent memory leaks (keep last 100 token events per tab)
@@ -124,12 +124,12 @@ export class TokenDataProvider {
   } = {}): Promise<TokenEventV1[]> {
     try {
       // Get from cache first
-      const _cacheKey = `tab_${ options.tabId || 'global' }`;
-      let _tokens = this.cache.get(cacheKey) || [];
+      const cacheKey = `tab_${options.tabId || 'global'}`;
+      let tokens = this.cache.get(cacheKey) || [];
 
       // If cache is empty, fetch from background
       if (tokens.length === 0) {
-        const _response = await chrome.runtime.sendMessage({
+        const response = await chrome.runtime.sendMessage({
           action: 'getTokenEvents',
           limit: options.limit || 50,
           offset: options.offset || 0,
@@ -149,8 +149,8 @@ export class TokenDataProvider {
       }
 
       // Apply pagination
-      const _start = options.offset || 0;
-      const _end = start + (options.limit || 50);
+      const start = options.offset || 0;
+      const end = start + (options.limit || 50);
 
       return tokens.slice(start, end);
     } catch (error) {
@@ -193,9 +193,9 @@ export class TokenDataProvider {
 
       // Time range filter
       if (filters.timeRange) {
-        const _tokenTime = new Date(token.timestamp);
-        const _startTime = new Date(filters.timeRange.start);
-        const _endTime = new Date(filters.timeRange.end);
+        const tokenTime = new Date(token.timestamp);
+        const startTime = new Date(filters.timeRange.start);
+        const endTime = new Date(filters.timeRange.end);
 
         if (tokenTime < startTime || tokenTime > endTime) {
           return false;
@@ -209,7 +209,7 @@ export class TokenDataProvider {
   // Store new token event
   async storeTokenEvent(token: Partial<TokenEventV1>): Promise<boolean> {
     try {
-      const _response = await TokenMessageBus.sendTokenEvent(token);
+      const response = await TokenMessageBus.sendTokenEvent(token);
       return response.success;
     } catch (error) {
       // console.error('Failed to store token event:', error);
@@ -220,7 +220,7 @@ export class TokenDataProvider {
   // Clear token events
   async clearTokenEvents(tabId?: number): Promise<boolean> {
     try {
-      const _response = await chrome.runtime.sendMessage({
+      const response = await chrome.runtime.sendMessage({
         action: 'clearTokenEvents',
         tabId
       });
@@ -250,16 +250,16 @@ export class TokenDataProvider {
   // Analyze token (JWT decoding, security analysis)
   async analyzeToken(tokenEvent: TokenEventV1): Promise<TokenAnalysisResult> {
     // Check cache first
-    const _cacheKey = `${ tokenEvent.value_hash }_${ tokenEvent.token_type }`;
+    const cacheKey = `${tokenEvent.value_hash}_${tokenEvent.token_type}`;
     if (this.analysisCache.has(cacheKey)) {
       return this.analysisCache.get(cacheKey)!;
     }
 
-    const _analysis = await this.performTokenAnalysis(tokenEvent);
+    const analysis = await this.performTokenAnalysis(tokenEvent);
 
     // Cache result (limit cache size)
     if (this.analysisCache.size > 100) {
-      const _firstKey = this.analysisCache.keys().next().value;
+      const firstKey = this.analysisCache.keys().next().value;
       if (firstKey) {
         this.analysisCache.delete(firstKey);
       }
@@ -287,9 +287,9 @@ export class TokenDataProvider {
 
         // Analyze expiration
         if (tokenEvent.expiry) {
-          const _expiryDate = new Date(tokenEvent.expiry);
-          const _now = new Date();
-          const _timeToExpiry = expiryDate.getTime() - now.getTime();
+          const expiryDate = new Date(tokenEvent.expiry);
+          const now = new Date();
+          const timeToExpiry = expiryDate.getTime() - now.getTime();
 
           analysis.expiresAt = tokenEvent.expiry;
 
@@ -303,7 +303,7 @@ export class TokenDataProvider {
         }
 
         // Analyze URL patterns for issuer hints
-        const _url = tokenEvent.url.toLowerCase();
+        const url = tokenEvent.url.toLowerCase();
         if (url.includes('auth0')) {
           analysis.issuer = 'Auth0';
         } else if (url.includes('okta')) {
@@ -377,7 +377,7 @@ export class TokenDataProvider {
 
   // Notify specific tab listeners
   private notifyListeners(cacheKey: string): void {
-    const _data = this.cache.get(cacheKey) || [];
+    const data = this.cache.get(cacheKey) || [];
     this.listeners.forEach(listener => {
       try {
         listener(data);
@@ -413,7 +413,7 @@ export class TokenDataProvider {
     activeTokens: number;
     expiredTokens: number;
   } {
-    const _cacheKey = tabId ? `tab_${ tabId }` : null;
+    const cacheKey = tabId ? `tab_${tabId}` : null;
     let tokens: TokenEventV1[] = [];
 
     if (cacheKey) {
@@ -426,7 +426,7 @@ export class TokenDataProvider {
     }
 
     // Calculate statistics
-    const _totalTokenEvents = tokens.length;
+    const totalTokenEvents = tokens.length;
 
     // Events by type
     const eventsByType: Record<string, number> = {};
@@ -446,34 +446,34 @@ export class TokenDataProvider {
       domainCounts[t.mainDomain] = (domainCounts[t.mainDomain] || 0) + 1;
     });
 
-    const _topDomains = Object.entries(domainCounts)
+    const topDomains = Object.entries(domainCounts)
       .map(([domain, count]) => ({ domain, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
     // Security score (average of recent tokens)
-    const _recentTokens = tokens.slice(0, 20); // Last 20 tokens
-    let _totalSecurityScore = 0;
-    let _analyzedCount = 0;
+    const recentTokens = tokens.slice(0, 20); // Last 20 tokens
+    let totalSecurityScore = 0;
+    let analyzedCount = 0;
 
     for (const token of recentTokens) {
-      const _cacheKey = `${ token.value_hash }_${ token.token_type }`;
+      const cacheKey = `${token.value_hash}_${token.token_type}`;
       if (this.analysisCache.has(cacheKey)) {
         totalSecurityScore += this.analysisCache.get(cacheKey)!.securityScore;
         analyzedCount++;
       }
     }
 
-    const _securityScore = analyzedCount > 0 ? Math.round(totalSecurityScore / analyzedCount) : 50;
+    const securityScore = analyzedCount > 0 ? Math.round(totalSecurityScore / analyzedCount) : 50;
 
     // Active vs expired tokens
-    const _now = new Date();
-    let _activeTokens = 0;
-    let _expiredTokens = 0;
+    const now = new Date();
+    let activeTokens = 0;
+    let expiredTokens = 0;
 
     tokens.forEach(t => {
       if (t.expiry) {
-        const _expiryDate = new Date(t.expiry);
+        const expiryDate = new Date(t.expiry);
         if (expiryDate > now) {
           activeTokens++;
         } else {
@@ -514,33 +514,33 @@ export class TokenDataProvider {
 }
 
 // Export singleton instance
-export const _tokenDataProvider = TokenDataProvider.getInstance();
+export const tokenDataProvider = TokenDataProvider.getInstance();
 
 // Token utility functions isolated from other features
 export class TokenUtils {
   // Generate secure token hash
   static async generateTokenHash(tokenValue: string, additionalData?: string): Promise<string> {
-    const _encoder = new TextEncoder();
-    const _data = encoder.encode(tokenValue + (additionalData || ''));
-    const _hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const _hashArray = Array.from(new Uint8Array(hashBuffer));
+    const encoder = new TextEncoder();
+    const data = encoder.encode(tokenValue + (additionalData || ''));
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   }
 
   // Check if string looks like a JWT
   static isJwtFormat(tokenValue: string): boolean {
-    const _parts = tokenValue.split('.');
+    const parts = tokenValue.split('.');
     return parts.length === 3 && parts.every(part => part.length > 0);
   }
 
   // Extract token from header
   static extractTokenFromHeader(authHeader: string): string | null {
-    const _bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
+    const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
     if (bearerMatch) {
       return bearerMatch[1];
     }
 
-    const _basicMatch = authHeader.match(/^Basic\s+(.+)$/i);
+    const basicMatch = authHeader.match(/^Basic\s+(.+)$/i);
     if (basicMatch) {
       return basicMatch[1];
     }
@@ -550,7 +550,7 @@ export class TokenUtils {
 
   // Detect token type from context
   static detectTokenType(url: string, headers: Record<string, string> = {}): string {
-    const _authHeader = headers['authorization'] || headers['Authorization'] || '';
+    const authHeader = headers['authorization'] || headers['Authorization'] || '';
 
     if (authHeader.toLowerCase().startsWith('bearer')) {
       return 'jwt_token';
@@ -583,7 +583,7 @@ export class TokenUtils {
 
     try {
       const [, payload] = tokenValue.split('.');
-      const _decodedPayload = JSON.parse(atob(payload));
+      const decodedPayload = JSON.parse(atob(payload));
 
       if (decodedPayload.exp) {
         return new Date(decodedPayload.exp * 1000).toISOString();
@@ -602,7 +602,7 @@ export class TokenUtils {
     }
 
     // Check event type filter
-    const _eventType = tokenEvent.type || 'acquire';
+    const eventType = tokenEvent.type || 'acquire';
     return settings.eventTypes[eventType] !== false;
   }
 }

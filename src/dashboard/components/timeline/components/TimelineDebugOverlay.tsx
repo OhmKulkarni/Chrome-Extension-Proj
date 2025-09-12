@@ -35,7 +35,7 @@ export const TimelineDebugOverlay: React.FC<TimelineDebugOverlayProps> = ({
 }) => {
   if (!enabled || !debugInfo) return null
 
-  const _formatTime = (timestamp: number) => {
+  const formatTime = (timestamp: number) => {
     return new Date(timestamp).toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit',

@@ -20,7 +20,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
 
   // Keyboard shortcuts
   useEffect(() => {
-    const _handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose()
       }
@@ -32,7 +32,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
 
   if (!event) return null
 
-  const _getIcon = () => {
+  const getIcon = () => {
     switch (event.type) {
       case 'network':
         return <Network className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -43,7 +43,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
     }
   }
 
-  const _getTitle = () => {
+  const getTitle = () => {
     switch (event.type) {
       case 'network':
         return event.data.url || 'Network Request'
@@ -54,21 +54,21 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
     }
   }
 
-  const _handleBookmarkClick = async () => {
+  const handleBookmarkClick = async () => {
     await onBookmark(event.id, !event.isBookmarked)
   }
 
-  const _handleCompareClick = () => {
+  const handleCompareClick = () => {
     onAddToCompare(event)
   }
 
-  const _copyToClipboard = (text: string) => {
+  const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text).catch(error => {
-      // console.warn('Failed to copy to clipboard:', error)
+      console.warn('Failed to copy to clipboard:', error)
     })
   }
 
-  const _renderDetailedContent = () => {
+  const renderDetailedContent = () => {
     switch (event.type) {
       case 'network':
         return (
@@ -103,7 +103,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
     }
   }
 
-  const _getAvailableFields = () => {
+  const getAvailableFields = () => {
     switch (event.type) {
       case 'network':
         return ['details', 'headers', 'body', 'response', 'timing', 'performance', 'rawjson']
@@ -116,7 +116,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
     }
   }
 
-  const _getFieldDisplayName = (field: string) => {
+  const getFieldDisplayName = (field: string) => {
     switch (field) {
       case 'rawjson':
         return 'Raw JSON'

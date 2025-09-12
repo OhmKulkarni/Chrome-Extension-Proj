@@ -37,15 +37,15 @@ export const ChartOptimizationDevTools: React.FC = () => {
   const [runningTests, setRunningTests] = useState<Set<string>>(new Set());
 
   // Refresh flags from storage
-  const _refreshFlags = useCallback(() => {
-    const _currentFlags = getFeatureFlags();
+  const refreshFlags = useCallback(() => {
+    const currentFlags = getFeatureFlags();
     setFlags(currentFlags);
     logFeatureFlags();
   }, []);
 
   // Toggle a feature flag
-  const _toggleFlag = useCallback((flagName: keyof FeatureFlags) => {
-    const _newValue = !flags[flagName];
+  const toggleFlag = useCallback((flagName: keyof FeatureFlags) => {
+    const newValue = !flags[flagName];
     setFeatureFlagOverride({ [flagName]: newValue });
 
     // Update local state immediately (will reload after setFeatureFlagOverride)
@@ -53,7 +53,7 @@ export const ChartOptimizationDevTools: React.FC = () => {
   }, [flags]);
 
   // Reset all flags
-  const _resetFlags = useCallback(() => {
+  const resetFlags = useCallback(() => {
     clearFeatureFlagOverrides();
   }, []);
 
@@ -63,10 +63,10 @@ export const ChartOptimizationDevTools: React.FC = () => {
       name: 'Data Processing Speed',
       description: 'Test raw data processing vs shared processing performance',
       run: async () => {
-        const _start = performance.now();
+        const start = performance.now();
 
         // Simulate data processing
-        const _mockData = Array.from({ length: 1000 }, (_, i) => ({
+        const mockData = Array.from({ length: 1000 }, (_, i) => ({
           id: i,
           method: ['GET', 'POST', 'PUT', 'DELETE'][Math.floor(Math.random() * 4)],
           status: 200 + Math.floor(Math.random() * 300),
@@ -74,13 +74,13 @@ export const ChartOptimizationDevTools: React.FC = () => {
         }));
 
         // Process the data
-        const _processed = mockData.reduce((acc, req) => {
+        const processed = mockData.reduce((acc, req) => {
           acc.methodCounts = acc.methodCounts || {};
           acc.methodCounts[req.method] = (acc.methodCounts[req.method] || 0) + 1;
           return acc;
         }, {} as any);
 
-        const _end = performance.now();
+        const end = performance.now();
         return { duration: end - start, result: processed };
       }
     },
@@ -88,13 +88,13 @@ export const ChartOptimizationDevTools: React.FC = () => {
       name: 'Memory Usage Test',
       description: 'Monitor memory consumption during chart rendering',
       run: async () => {
-        const _startMemory = (performance as any).memory?.usedJSHeapSize || 0;
+        const startMemory = (performance as any).memory?.usedJSHeapSize || 0;
 
         // Simulate chart rendering
         await new Promise(resolve => setTimeout(resolve, 100));
 
-        const _endMemory = (performance as any).memory?.usedJSHeapSize || 0;
-        const _memoryIncrease = endMemory - startMemory;
+        const endMemory = (performance as any).memory?.usedJSHeapSize || 0;
+        const memoryIncrease = endMemory - startMemory;
 
         return {
           duration: 100,
@@ -110,20 +110,20 @@ export const ChartOptimizationDevTools: React.FC = () => {
       name: 'Chart Update Performance',
       description: 'Test chart re-rendering performance with different optimization levels',
       run: async () => {
-        const _iterations = 10;
+        const iterations = 10;
         const times: number[] = [];
 
-        for (let _i = 0; i < iterations; i++) {
-          const _start = performance.now();
+        for (let i = 0; i < iterations; i++) {
+          const start = performance.now();
 
           // Simulate chart update
           await new Promise(resolve => setTimeout(resolve, Math.random() * 20 + 5));
 
-          const _end = performance.now();
+          const end = performance.now();
           times.push(end - start);
         }
 
-        const _avgTime = times.reduce((sum, time) => sum + time, 0) / times.length;
+        const avgTime = times.reduce((sum, time) => sum + time, 0) / times.length;
         return {
           duration: avgTime,
           result: {
@@ -138,11 +138,11 @@ export const ChartOptimizationDevTools: React.FC = () => {
   ];
 
   // Run a performance test
-  const _runTest = useCallback(async (test: PerformanceTest) => {
+  const runTest = useCallback(async (test: PerformanceTest) => {
     setRunningTests(prev => new Set(prev).add(test.name));
 
     try {
-      const _result = await test.run();
+      const result = await test.run();
       setTestResults(prev => ({
         ...prev,
         [test.name]: {
@@ -162,7 +162,7 @@ export const ChartOptimizationDevTools: React.FC = () => {
       }));
     } finally {
       setRunningTests(prev => {
-        const _newSet = new Set(prev);
+        const newSet = new Set(prev);
         newSet.delete(test.name);
         return newSet;
       });
@@ -170,14 +170,14 @@ export const ChartOptimizationDevTools: React.FC = () => {
   }, []);
 
   // Run all tests
-  const _runAllTests = useCallback(async () => {
+  const runAllTests = useCallback(async () => {
     for (const test of performanceTests) {
       await runTest(test);
     }
   }, [runTest, performanceTests]);
 
-  const _getFlagColor = (enabled: boolean) => enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600';
-  const _getFlagIcon = (enabled: boolean) => enabled ? '🟢' : '⚫';
+  const getFlagColor = (enabled: boolean) => enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600';
+  const getFlagIcon = (enabled: boolean) => enabled ? '🟢' : '⚫';
 
   return (
     <div className="space-y-6">
@@ -248,8 +248,8 @@ export const ChartOptimizationDevTools: React.FC = () => {
               </h3>
               <div className="space-y-3 mb-4">
                 {performanceTests.map((test) => {
-                  const _isRunning = runningTests.has(test.name);
-                  const _result = testResults[test.name];
+                  const isRunning = runningTests.has(test.name);
+                  const result = testResults[test.name];
 
                   return (
                     <div key={test.name} className="border rounded-lg p-4">

@@ -5,8 +5,8 @@ interface DomainActivityChartProps {
   data: any[];
 }
 
-const DomainActivityChart: React.FC<DomainActivityChartProps> = ({ _data }) => {
-  const _chartData = data.slice(0, 10).map(group => ({
+const DomainActivityChart: React.FC<DomainActivityChartProps> = ({ data }) => {
+  const chartData = data.slice(0, 10).map(group => ({
     domain: group.domain.length > 15 ? group.domain.substring(0, 15) + '...' : group.domain,
     requests: group.analysis.requestCount,
     errors: group.analysis.errorCount

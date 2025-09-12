@@ -46,7 +46,7 @@ export class ConsoleHandlerModule {
     };
 
     this.abortController = new AbortController();
-    // console.log('🔥 ConsoleHandlerModule: Initialized with error processing');
+    console.log('🔥 ConsoleHandlerModule: Initialized with error processing');
   }
 
   /**
@@ -54,7 +54,7 @@ export class ConsoleHandlerModule {
    */
   async initialize(): Promise<void> {
     if (this.isInitialized) {
-      // console.warn('ConsoleHandlerModule: Already initialized');
+      console.warn('ConsoleHandlerModule: Already initialized');
       return;
     }
 
@@ -65,7 +65,7 @@ export class ConsoleHandlerModule {
       }
 
       this.isInitialized = true;
-      // console.log('✅ ConsoleHandlerModule: Successfully initialized');
+      console.log('✅ ConsoleHandlerModule: Successfully initialized');
     } catch (error) {
       console.error('❌ ConsoleHandlerModule: Initialization failed:', error);
       throw error;
@@ -82,7 +82,7 @@ export class ConsoleHandlerModule {
 
     this.isInitialized = false;
     this.processedCount = 0;
-    // console.log('🧹 ConsoleHandlerModule: Cleanup completed');
+    console.log('🧹 ConsoleHandlerModule: Cleanup completed');
   }
 
   // ===== CONSOLE ERROR PROCESSING =====
@@ -109,17 +109,17 @@ export class ConsoleHandlerModule {
       }
 
       // Get tab information - prioritize data from content script over sender
-      const _tabId = errorData.tabId || sender?.tab?.id;
-      const _tabUrl = errorData.tabUrl || sender?.tab?.url;
+      const tabId = errorData.tabId || sender?.tab?.id;
+      const tabUrl = errorData.tabUrl || sender?.tab?.url;
 
       // CHECK PERMISSIONS: Use unified permission system to check if console logging is allowed
       if (tabId && tabUrl) {
         // CRITICAL FIX: Initialize tab permissions from existing user preferences before checking
         await this.unifiedPermissionService.initializeTabPermissions(tabId, tabUrl);
 
-        const _permissionCheck = await this.unifiedPermissionService.canInterceptOnTab(tabId, 'console');
+        const permissionCheck = await this.unifiedPermissionService.canInterceptOnTab(tabId, 'console');
         if (!permissionCheck.canIntercept) {
-          // console.log(`🚫 ConsoleHandler: Error blocked - ${permissionCheck.reason}`);
+          console.log(`🚫 ConsoleHandler: Error blocked - ${permissionCheck.reason}`);
           return {
             success: false,
             reason: permissionCheck.reason || 'Console logging disabled',
@@ -129,8 +129,8 @@ export class ConsoleHandlerModule {
       }
 
       // Get current settings for validation
-      const _settings = await this.storageManager.getSettings();
-      const _errorLoggingConfig = settings.errorLogging || {};
+      const settings = await this.storageManager.getSettings();
+      const errorLoggingConfig = settings.errorLogging || {};
 
       // Check if error logging is globally enabled
       if (errorLoggingConfig.enabled === false) {
@@ -138,18 +138,18 @@ export class ConsoleHandlerModule {
       }
 
       // Apply severity filtering (matching original background script)
-      const _allowedSeverities = errorLoggingConfig.severity || ['error', 'warn', 'info'];
-      const _errorSeverity = this.normalizeSeverity(severity);
+      const allowedSeverities = errorLoggingConfig.severity || ['error', 'warn', 'info'];
+      const errorSeverity = this.normalizeSeverity(severity);
 
       if (!allowedSeverities.includes(errorSeverity)) {
         return { success: false, reason: `Severity '${errorSeverity}' filtered out` };
       }
 
       // Extract main domain for intelligent grouping
-      const _mainDomain = tabUrl ? this.extractMainDomain(tabUrl) : this.extractMainDomain(url || 'unknown');
+      const mainDomain = tabUrl ? this.extractMainDomain(tabUrl) : this.extractMainDomain(url || 'unknown');
 
       // Create validated console error data
-      const _uniqueId = `console_${ Date.now() }_${ Math.random().toString(36).substr(2, 9) }`;
+      const uniqueId = `console_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const validatedErrorData: ConsoleErrorData = {
         id: uniqueId,
         message: this.sanitizeMessage(message),
@@ -165,7 +165,7 @@ export class ConsoleHandlerModule {
 
       // Store the console error in IndexedDB using the same format as origin/main
       try {
-        const _consoleErrorData = {
+        const consoleErrorData = {
           message: validatedErrorData.message,
           stack_trace: validatedErrorData.stack || '',
           timestamp: new Date(validatedErrorData.timestamp).getTime(),
@@ -182,11 +182,11 @@ export class ConsoleHandlerModule {
         } else {
           // Fire and forget for performance (not recommended)
           this.indexedDbStorage.insertConsoleError(consoleErrorData).catch(error =>
-            // console.warn('ConsoleHandlerModule: IndexedDB storage failed:', error)
+            console.warn('ConsoleHandlerModule: IndexedDB storage failed:', error)
           );
         }
 
-        // console.log(`🗄️ ConsoleHandlerModule: Stored console error in IndexedDB`);
+        console.log(`🗄️ ConsoleHandlerModule: Stored console error in IndexedDB`);
 
         // Notify dashboard about new data
         this.sendDataUpdatedNotification('console_error');
@@ -197,7 +197,7 @@ export class ConsoleHandlerModule {
 
       this.processedCount++;
 
-      // console.log(`🔥 ConsoleHandlerModule: Processed ${errorSeverity} error from ${mainDomain}`);
+      console.log(`🔥 ConsoleHandlerModule: Processed ${errorSeverity} error from ${mainDomain}`);
 
       return { success: true };
     });
@@ -211,7 +211,7 @@ export class ConsoleHandlerModule {
   async getConsoleErrors(limit = 50, offset = 0): Promise<ConsoleErrorData[]> {
     return this.executeWithSafety('getConsoleErrors', async () => {
       // Get data from IndexedDB instead of Chrome storage
-      const _consoleErrors = await this.indexedDbStorage.getConsoleErrors(limit, offset);
+      const consoleErrors = await this.indexedDbStorage.getConsoleErrors(limit, offset);
 
       // Transform IndexedDB ConsoleError format to ConsoleErrorData format for compatibility
       return consoleErrors.map(error => ({
@@ -232,7 +232,7 @@ export class ConsoleHandlerModule {
    */
   async getConsoleErrorsCount(): Promise<number> {
     return this.executeWithSafety('getConsoleErrorsCount', async () => {
-      const _counts = await this.indexedDbStorage.getTableCounts();
+      const counts = await this.indexedDbStorage.getTableCounts();
       return counts.consoleErrors || 0;
     });
   }
@@ -249,7 +249,7 @@ export class ConsoleHandlerModule {
       });
     } catch (error) {
       // Dashboard might not be open, ignore error
-      // console.log('📡 ConsoleHandlerModule: Could not notify dashboard (dashboard closed?):', error);
+      console.log('📡 ConsoleHandlerModule: Could not notify dashboard (dashboard closed?):', error);
     }
   }
 
@@ -261,13 +261,13 @@ export class ConsoleHandlerModule {
   async toggleTabErrorLogging(tabId: number): Promise<{ success: boolean; newState: boolean }> {
     return this.executeWithSafety('toggleTabErrorLogging', async () => {
       // Get current state
-      const _currentState = await this.storageManager.getTabErrorState(tabId);
-      const _newState = !currentState;
+      const currentState = await this.storageManager.getTabErrorState(tabId);
+      const newState = !currentState;
 
       // Set new state
       await this.storageManager.setTabErrorState(tabId, newState);
 
-      // console.log(`🔥 ConsoleHandlerModule: Tab ${tabId} error logging ${newState ? 'enabled' : 'disabled'}`);
+      console.log(`🔥 ConsoleHandlerModule: Tab ${tabId} error logging ${newState ? 'enabled' : 'disabled'}`);
 
       return { success: true, newState };
     });
@@ -279,7 +279,7 @@ export class ConsoleHandlerModule {
    * Normalize severity levels
    */
   private normalizeSeverity(severity: any): 'error' | 'warn' | 'info' {
-    const _validSeverities = ['error', 'warn', 'info'] as const;
+    const validSeverities = ['error', 'warn', 'info'] as const;
 
     if (typeof severity === 'string' && validSeverities.includes(severity as any)) {
       return severity as 'error' | 'warn' | 'info';
@@ -305,7 +305,7 @@ export class ConsoleHandlerModule {
     }
 
     // Limit message length to prevent memory issues
-    const _maxLength = 1000;
+    const maxLength = 1000;
     if (message.length > maxLength) {
       return message.substring(0, maxLength) + `... [truncated, original length: ${message.length}]`;
     }
@@ -319,10 +319,10 @@ export class ConsoleHandlerModule {
   private sanitizeStack(stack: any): string | undefined {
     if (!stack) return undefined;
 
-    const _stackStr = typeof stack === 'string' ? stack : String(stack);
+    const stackStr = typeof stack === 'string' ? stack : String(stack);
 
     // Limit stack trace length to prevent memory issues
-    const _maxLength = 2000;
+    const maxLength = 2000;
     if (stackStr.length > maxLength) {
       return stackStr.substring(0, maxLength) + `... [truncated, original length: ${stackStr.length}]`;
     }
@@ -335,21 +335,21 @@ export class ConsoleHandlerModule {
    */
   private extractMainDomain(url: string): string {
     try {
-      const _urlObj = new URL(url);
-      const _hostname = urlObj.hostname;
+      const urlObj = new URL(url);
+      const hostname = urlObj.hostname;
 
       // Remove 'www.' prefix if present
-      const _withoutWww = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
+      const withoutWww = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
 
       // For most cases, return the base domain
-      const _parts = withoutWww.split('.');
+      const parts = withoutWww.split('.');
       if (parts.length >= 2) {
         return parts.slice(-2).join('.');
       }
 
       return withoutWww;
     } catch (error) {
-      // console.warn('ConsoleHandlerModule: Failed to extract main domain from URL:', url, error);
+      console.warn('ConsoleHandlerModule: Failed to extract main domain from URL:', url, error);
       return 'unknown';
     }
   }
@@ -386,8 +386,8 @@ export class ConsoleHandlerModule {
     };
   }> {
     return this.executeWithSafety('getErrorLoggingConfig', async () => {
-      const _settings = await this.storageManager.getSettings();
-      const _errorLoggingConfig = settings.errorLogging || {};
+      const settings = await this.storageManager.getSettings();
+      const errorLoggingConfig = settings.errorLogging || {};
 
       return {
         enabled: errorLoggingConfig.enabled !== false, // Default to true
@@ -413,22 +413,22 @@ export class ConsoleHandlerModule {
       throw new Error(`ConsoleHandlerModule: Operation aborted (${operation})`);
     }
 
-    const _startTime = Date.now();
+    const startTime = Date.now();
     let lastError: Error | null = null;
 
-    for (let _attempt = 0; attempt <= this.config.maxRetries; attempt++) {
+    for (let attempt = 0; attempt <= this.config.maxRetries; attempt++) {
       try {
         // Race condition protection
         if (this.config.enableRaceConditionProtection && attempt > 0) {
           await new Promise(resolve => setTimeout(resolve, 100 * attempt));
         }
 
-        const _result = await fn();
+        const result = await fn();
 
         // Log performance for slow operations
-        const _duration = Date.now() - startTime;
+        const duration = Date.now() - startTime;
         if (duration > 500 && attempt === 0) {
-          // console.warn(`🐌 ConsoleHandlerModule: ${operation} took ${duration}ms`);
+          console.warn(`🐌 ConsoleHandlerModule: ${operation} took ${duration}ms`);
         }
 
         return result;
@@ -440,7 +440,7 @@ export class ConsoleHandlerModule {
           break;
         }
 
-        // console.warn(`⚠️ ConsoleHandlerModule: ${operation} failed, retrying (${attempt + 1}/${this.config.maxRetries}):`, lastError);
+        console.warn(`⚠️ ConsoleHandlerModule: ${operation} failed, retrying (${attempt + 1}/${this.config.maxRetries}):`, lastError);
       }
     }
 

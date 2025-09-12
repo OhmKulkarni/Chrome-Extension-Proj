@@ -21,15 +21,15 @@ export class ViewedStateService {
   // Load viewed events from storage
   loadViewedEvents(): Map<string, number> {
     try {
-      const _stored = localStorage.getItem(this.storageKey)
+      const stored = localStorage.getItem(this.storageKey)
       if (!stored) return new Map()
 
       const data: ViewedEventData[] = JSON.parse(stored)
-      const _now = Date.now()
-      const _settings = this.loadSettings()
+      const now = Date.now()
+      const settings = this.loadSettings()
 
       // Filter out expired events based on current settings
-      const _validEvents = data.filter(item => {
+      const validEvents = data.filter(item => {
         return this.isViewedEventValid(item.viewedAt, item.persistenceLevel, settings, now)
       })
 
@@ -37,14 +37,14 @@ export class ViewedStateService {
       this.saveViewedEventsData(validEvents)
 
       // Convert to Map
-      const _viewedMap = new Map<string, number>()
+      const viewedMap = new Map<string, number>()
       validEvents.forEach(item => {
         viewedMap.set(item.eventId, item.viewedAt)
       })
 
       return viewedMap
     } catch (error) {
-      // console.warn('Failed to load viewed events from storage:', error)
+      console.warn('Failed to load viewed events from storage:', error)
       return new Map()
     }
   }
@@ -60,7 +60,7 @@ export class ViewedStateService {
 
       this.saveViewedEventsData(data)
     } catch (error) {
-      // console.warn('Failed to save viewed events to storage:', error)
+      console.warn('Failed to save viewed events to storage:', error)
     }
   }
 
@@ -70,7 +70,7 @@ export class ViewedStateService {
 
   // Mark single event as viewed
   markEventAsViewed(eventId: string, settings: ViewedTrackingSettings): void {
-    const _viewedEvents = this.loadViewedEvents()
+    const viewedEvents = this.loadViewedEvents()
     viewedEvents.set(eventId, Date.now())
     this.saveViewedEvents(viewedEvents, settings)
   }
@@ -79,8 +79,8 @@ export class ViewedStateService {
   isEventViewed(eventId: string, settings: ViewedTrackingSettings): boolean {
     if (!settings.enabled) return false
 
-    const _viewedEvents = this.loadViewedEvents()
-    const _viewedTime = viewedEvents.get(eventId)
+    const viewedEvents = this.loadViewedEvents()
+    const viewedTime = viewedEvents.get(eventId)
     if (!viewedTime) return false
 
     return this.isViewedEventValid(viewedTime, settings.persistenceLevel, settings, Date.now())
@@ -112,7 +112,7 @@ export class ViewedStateService {
   // Load settings from storage
   loadSettings(): ViewedTrackingSettings {
     try {
-      const _stored = localStorage.getItem(this.settingsKey)
+      const stored = localStorage.getItem(this.settingsKey)
       if (!stored) {
         // Return default settings
         return {
@@ -124,7 +124,7 @@ export class ViewedStateService {
       }
       return JSON.parse(stored)
     } catch (error) {
-      // console.warn('Failed to load viewed tracking settings:', error)
+      console.warn('Failed to load viewed tracking settings:', error)
       return {
         enabled: true,
         persistenceLevel: 'session',
@@ -139,7 +139,7 @@ export class ViewedStateService {
     try {
       localStorage.setItem(this.settingsKey, JSON.stringify(settings))
     } catch (error) {
-      // console.warn('Failed to save viewed tracking settings:', error)
+      console.warn('Failed to save viewed tracking settings:', error)
     }
   }
 
@@ -148,20 +148,20 @@ export class ViewedStateService {
     try {
       localStorage.removeItem(this.storageKey)
     } catch (error) {
-      // console.warn('Failed to clear viewed events:', error)
+      console.warn('Failed to clear viewed events:', error)
     }
   }
 
   // Clear expired events (cleanup utility)
   cleanupExpiredEvents(settings: ViewedTrackingSettings): void {
-    const _viewedEvents = this.loadViewedEvents()
+    const viewedEvents = this.loadViewedEvents()
     this.saveViewedEvents(viewedEvents, settings) // This will filter out expired events
   }
 
   // Get count of stored viewed events
   getViewedEventsCount(): number {
     try {
-      const _stored = localStorage.getItem(this.storageKey)
+      const stored = localStorage.getItem(this.storageKey)
       if (!stored) return 0
       const data: ViewedEventData[] = JSON.parse(stored)
       return data.length
@@ -171,4 +171,4 @@ export class ViewedStateService {
   }
 }
 
-export const _viewedStateService = ViewedStateService.getInstance()
+export const viewedStateService = ViewedStateService.getInstance()

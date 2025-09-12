@@ -37,7 +37,7 @@ const SortIcon: React.FC<{ column: string; sortConfig: SortConfig }> = ({ column
 }
 
 const SeverityBadge: React.FC<{ severity: string }> = ({ severity }) => {
-  const _getSeverityColor = () => {
+  const getSeverityColor = () => {
     switch (severity) {
       case 'error': return 'bg-red-100 text-red-800'
       case 'warn': return 'bg-yellow-100 text-yellow-800'

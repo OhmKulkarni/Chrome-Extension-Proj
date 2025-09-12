@@ -16,15 +16,15 @@ export class TimelineDataService {
     zoomLevel: number,
     totalEvents: number
   ): Promise<TimelineEventSummary[]> {
-    const _cacheKey = this.getCacheKey(viewport, zoomLevel);
+    const cacheKey = this.getCacheKey(viewport, zoomLevel);
     
     if (this.cache.has(cacheKey)) {
       return this.cache.get(cacheKey)!;
     }
 
     // Calculate sampling strategy based on zoom level and event density
-    const _samplingStrategy = this.calculateSamplingStrategy(viewport, zoomLevel, totalEvents);
-    const _summaries = await this.sampleEvents(viewport, samplingStrategy);
+    const samplingStrategy = this.calculateSamplingStrategy(viewport, zoomLevel, totalEvents);
+    const summaries = await this.sampleEvents(viewport, samplingStrategy);
     
     this.cache.set(cacheKey, summaries);
     return summaries;
@@ -40,7 +40,7 @@ export class TimelineDataService {
 
     // In a real implementation, this would fetch from your data store
     // For now, we'll simulate the data structure
-    const _details = await this.fetchEventDetails(eventId);
+    const details = await this.fetchEventDetails(eventId);
     
     if (details) {
       this.detailsCache.set(eventId, details);
@@ -59,18 +59,18 @@ export class TimelineDataService {
     const distribution: TimelineEventSummary[] = [];
     
     // Always include first and last events
-    const _firstEvent = await this.getFirstEvent();
-    const _lastEvent = await this.getLastEvent();
+    const firstEvent = await this.getFirstEvent();
+    const lastEvent = await this.getLastEvent();
     
     if (firstEvent) distribution.push(firstEvent);
     
     // Calculate time span and create representative samples
     if (firstEvent && lastEvent && firstEvent.timestamp !== lastEvent.timestamp) {
-      const _timeSpan = lastEvent.timestamp - firstEvent.timestamp;
-      const _samplePoints = this.calculateAllTimeSamplePoints(timeSpan, totalEvents);
+      const timeSpan = lastEvent.timestamp - firstEvent.timestamp;
+      const samplePoints = this.calculateAllTimeSamplePoints(timeSpan, totalEvents);
       
       for (const sampleTime of samplePoints) {
-        const _event = await this.getRepresentativeEventAt(sampleTime);
+        const event = await this.getRepresentativeEventAt(sampleTime);
         if (event && event.id !== firstEvent.id && event.id !== lastEvent.id) {
           distribution.push(event);
         }
@@ -103,8 +103,8 @@ export class TimelineDataService {
     zoomLevel: number,
     totalEvents: number
   ): SamplingStrategy {
-    const _viewportDuration = viewport.endTime - viewport.startTime;
-    const _eventsPerMs = totalEvents / viewportDuration;
+    const viewportDuration = viewport.endTime - viewport.startTime;
+    const eventsPerMs = totalEvents / viewportDuration;
     
     // Determine optimal sample size based on zoom level
     let targetSampleSize: number;
@@ -135,10 +135,10 @@ export class TimelineDataService {
     // For now, return a mock structure
     const mockEvents: TimelineEventSummary[] = [];
     
-    const _timeStep = (viewport.endTime - viewport.startTime) / strategy.targetCount;
+    const timeStep = (viewport.endTime - viewport.startTime) / strategy.targetCount;
     
-    for (let _i = 0; i < strategy.targetCount; i++) {
-      const _timestamp = viewport.startTime + (i * timeStep);
+    for (let i = 0; i < strategy.targetCount; i++) {
+      const timestamp = viewport.startTime + (i * timeStep);
       mockEvents.push({
         id: `event-${i}-${timestamp}`,
         timestamp,
@@ -199,11 +199,11 @@ export class TimelineDataService {
 
   private calculateAllTimeSamplePoints(timeSpan: number, totalEvents: number): number[] {
     // Create 8-12 representative time points across the full timeline
-    const _sampleCount = Math.min(10, Math.max(8, Math.floor(totalEvents / 200)));
+    const sampleCount = Math.min(10, Math.max(8, Math.floor(totalEvents / 200)));
     const points: number[] = [];
     
-    const _step = timeSpan / (sampleCount + 1);
-    for (let _i = 1; i <= sampleCount; i++) {
+    const step = timeSpan / (sampleCount + 1);
+    for (let i = 1; i <= sampleCount; i++) {
       points.push(step * i);
     }
     
@@ -230,4 +230,4 @@ interface SamplingStrategy {
 }
 
 // Singleton instance
-export const _timelineDataService = new TimelineDataService();
+export const timelineDataService = new TimelineDataService();

@@ -29,7 +29,7 @@ export class StorageEventBus {
   }
 
   emit(event: string, data: any): void {
-    const _eventListeners = this.listeners.get(event);
+    const eventListeners = this.listeners.get(event);
     if (eventListeners) {
       eventListeners.forEach(callback => {
         try {
@@ -53,7 +53,7 @@ export class NetworkRequestsStorage {
   async store(request: NetworkRequest): Promise<StorageOperationResult> {
     try {
       // Send to background storage
-      const _response = await this.sendChromeMessage({
+      const response = await this.sendChromeMessage({
         action: 'storeNetworkRequest',
         data: request
       });
@@ -77,7 +77,7 @@ export class NetworkRequestsStorage {
 
   async getPage(page: number, limit: number = 10): Promise<PaginatedResult<NetworkRequest>> {
     try {
-      const _response = await this.sendChromeMessage({
+      const response = await this.sendChromeMessage({
         action: 'getNetworkRequests',
         limit,
         offset: (page - 1) * limit
@@ -100,7 +100,7 @@ export class NetworkRequestsStorage {
 
   async clear(): Promise<StorageOperationResult> {
     try {
-      const _response = await this.sendChromeMessage({
+      const response = await this.sendChromeMessage({
         action: 'clearNetworkRequests'
       });
 
@@ -133,7 +133,7 @@ export class ConsoleErrorsStorage {
 
   async store(error: ConsoleError): Promise<StorageOperationResult> {
     try {
-      const _response = await this.sendChromeMessage({
+      const response = await this.sendChromeMessage({
         action: 'storeConsoleError',
         data: error
       });
@@ -156,7 +156,7 @@ export class ConsoleErrorsStorage {
 
   async getPage(page: number, limit: number = 10): Promise<PaginatedResult<ConsoleError>> {
     try {
-      const _response = await this.sendChromeMessage({
+      const response = await this.sendChromeMessage({
         action: 'getConsoleErrors',
         limit,
         offset: (page - 1) * limit
@@ -179,7 +179,7 @@ export class ConsoleErrorsStorage {
 
   async clear(): Promise<StorageOperationResult> {
     try {
-      const _response = await this.sendChromeMessage({
+      const response = await this.sendChromeMessage({
         action: 'clearConsoleErrors'
       });
 
@@ -212,7 +212,7 @@ export class TokenEventsStorage {
 
   async store(token: TokenEvent): Promise<StorageOperationResult> {
     try {
-      const _response = await this.sendChromeMessage({
+      const response = await this.sendChromeMessage({
         action: 'storeTokenEvent',
         data: token
       });
@@ -235,7 +235,7 @@ export class TokenEventsStorage {
 
   async getPage(page: number, limit: number = 10): Promise<PaginatedResult<TokenEvent>> {
     try {
-      const _response = await this.sendChromeMessage({
+      const response = await this.sendChromeMessage({
         action: 'getTokenEvents',
         limit,
         offset: (page - 1) * limit
@@ -258,7 +258,7 @@ export class TokenEventsStorage {
 
   async clear(): Promise<StorageOperationResult> {
     try {
-      const _response = await this.sendChromeMessage({
+      const response = await this.sendChromeMessage({
         action: 'clearTokenEvents'
       });
 
@@ -312,7 +312,7 @@ export class UnifiedStorageManager {
   }
 
   async clearAll(): Promise<{ success: boolean; errors: string[] }> {
-    const _results = await Promise.allSettled([
+    const results = await Promise.allSettled([
       this.networkStorage.clear(),
       this.errorsStorage.clear(),
       this.tokensStorage.clear()
@@ -327,7 +327,7 @@ export class UnifiedStorageManager {
       }
     });
 
-    const _success = errors.length === 0;
+    const success = errors.length === 0;
     if (success) {
       this.eventBus.emit('all_data_cleared', {});
     }

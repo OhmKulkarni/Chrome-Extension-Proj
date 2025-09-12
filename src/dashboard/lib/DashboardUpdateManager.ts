@@ -103,7 +103,7 @@ export class DashboardUpdateManager {
   }
 
   private scheduleUpdate(reason: string): void {
-    const _now = Date.now();
+    const now = Date.now();
     
     // Clear any pending update
     if (this.pendingUpdate) {
@@ -115,7 +115,7 @@ export class DashboardUpdateManager {
       this.performUpdate(reason);
     } else {
       // Schedule update for later
-      const _delay = this.updateThrottle - (now - this.lastUpdateTime);
+      const delay = this.updateThrottle - (now - this.lastUpdateTime);
       this.pendingUpdate = setTimeout(() => {
         this.performUpdate(reason);
       }, delay);
@@ -123,7 +123,7 @@ export class DashboardUpdateManager {
   }
 
   private async performUpdate(reason: string): Promise<void> {
-    // console.log(`📊 DashboardUpdateManager: Performing update (${reason})`);
+    console.log(`📊 DashboardUpdateManager: Performing update (${reason})`);
     
     this.lastUpdateTime = Date.now();
     this.pendingUpdate = null;
@@ -227,7 +227,7 @@ export class DashboardUpdateManager {
     this.updateState({ loading: true });
     
     try {
-      const _result = await this.storageManager.clearAll();
+      const result = await this.storageManager.clearAll();
       this.updateState({ loading: false });
       return result;
     } catch (error) {

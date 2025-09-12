@@ -57,19 +57,19 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
   const contentRef = useRef<HTMLDivElement>(null)
 
   // Positioning helper functions for proper viewport-based calculations
-  const _calculateEventPositionWithFade = useCallback((timestamp: number): {
+  const calculateEventPositionWithFade = useCallback((timestamp: number): {
     position: number,
     opacity: number,
     isVisible: boolean
   } => {
     if (!viewport) return { position: 0, opacity: 0, isVisible: false }
 
-    const _relativeTime = timestamp - viewport.startTime
-    const _percentage = (relativeTime / viewport.duration) * 100
+    const relativeTime = timestamp - viewport.startTime
+    const percentage = (relativeTime / viewport.duration) * 100
 
     // Calculate fade based on proximity to viewport edges (5% fade zone)
-    let _opacity = 1
-    const _fadeZone = 5
+    let opacity = 1
+    const fadeZone = 5
 
     if (percentage < 0) {
       opacity = 0
@@ -82,19 +82,19 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
     }
 
     // Render buffer zone for smooth transitions
-    const _isVisible = percentage >= -10 && percentage <= 110
+    const isVisible = percentage >= -10 && percentage <= 110
 
     return { position: percentage, opacity, isVisible }
   }, [viewport])
 
-  const _calculateEventPosition = useCallback((timestamp: number): number => {
+  const calculateEventPosition = useCallback((timestamp: number): number => {
     if (!viewport) return 0
-    const _relativeTime = timestamp - viewport.startTime
+    const relativeTime = timestamp - viewport.startTime
     return (relativeTime / viewport.duration) * 100
   }, [viewport])
 
   // Handle event hover state for z-index management
-  const _handleEventHover = useCallback((eventId: string, isHovered: boolean) => {
+  const handleEventHover = useCallback((eventId: string, isHovered: boolean) => {
     setHoveredEventId(isHovered ? eventId : null)
   }, [])
 
@@ -109,8 +109,8 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
     }
 
     // Sort by timestamp, then by ID for consistent ordering
-    const _sortedEvents = [...events].sort((a, b) => {
-      const _timeDiff = a.timestamp - b.timestamp
+    const sortedEvents = [...events].sort((a, b) => {
+      const timeDiff = a.timestamp - b.timestamp
       if (timeDiff === 0) {
         // Same timestamp - use ID for consistent ordering
         return a.id.localeCompare(b.id)
@@ -126,12 +126,12 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
       }>
       yOffset: number
     }> = []
-    const _CARD_WIDTH_PERCENT = 8
-    const _LAYER_HEIGHT = 35
-    const _MIN_SPACING = 0.5 // Minimum spacing between cards
+    const CARD_WIDTH_PERCENT = 8
+    const LAYER_HEIGHT = 35
+    const MIN_SPACING = 0.5 // Minimum spacing between cards
 
     // Debug information
-    const _debugData = {
+    const debugData = {
       totalEvents: sortedEvents.length,
       sameTimestampGroups: new Map<number, number>(),
       layerDistribution: [] as number[],
@@ -148,19 +148,19 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
       if (opacity < 1) debugData.fadedEvents++
 
       // Track same-timestamp events
-      const _timestampKey = event.timestamp
+      const timestampKey = event.timestamp
       debugData.sameTimestampGroups.set(
         timestampKey,
         (debugData.sameTimestampGroups.get(timestampKey) || 0) + 1
       )
 
       // Find the first layer where this event doesn't overlap
-      let _layerIndex = 0
-      let _placed = false
+      let layerIndex = 0
+      let placed = false
 
       while (layerIndex < layers.length && !placed) {
-        const _layer = layers[layerIndex]
-        let _hasOverlap = false
+        const layer = layers[layerIndex]
+        let hasOverlap = false
 
         for (const existingEvent of layer.events) {
           // Same timestamp always needs new layer (vertical stacking)
@@ -170,7 +170,7 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
           }
 
           // Check spatial overlap
-          const _distance = Math.abs(position - existingEvent.position)
+          const distance = Math.abs(position - existingEvent.position)
           if (distance < CARD_WIDTH_PERCENT + MIN_SPACING) {
             hasOverlap = true
             break
@@ -197,15 +197,15 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
     debugData.layerDistribution = layers.map(l => l.events.length)
 
     // Enhanced height analysis for smart resizing
-    const _totalContentHeight = layers.length * LAYER_HEIGHT + 40 // layers + header + padding
-    const _currentContainerHeight = (height / 100) * window.innerHeight
-    const _needsScrolling = totalContentHeight > currentContainerHeight - 50
+    const totalContentHeight = layers.length * LAYER_HEIGHT + 40 // layers + header + padding
+    const currentContainerHeight = (height / 100) * window.innerHeight
+    const needsScrolling = totalContentHeight > currentContainerHeight - 50
 
     // Calculate optimal height recommendation
-    const _optimalHeightPx = Math.min(totalContentHeight + 60, window.innerHeight * 0.6) // Max 60% of screen
-    const _recommendedHeightPercent = Math.max(20, Math.min(80, (optimalHeightPx / window.innerHeight) * 100))
+    const optimalHeightPx = Math.min(totalContentHeight + 60, window.innerHeight * 0.6) // Max 60% of screen
+    const recommendedHeightPercent = Math.max(20, Math.min(80, (optimalHeightPx / window.innerHeight) * 100))
 
-    const _heightAnalysis = {
+    const heightAnalysis = {
       totalHeight: totalContentHeight,
       recommendedHeight: recommendedHeightPercent,
       needsScrolling,
@@ -220,10 +220,10 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
   }, [events, shouldCluster, height, viewport, calculateEventPositionWithFade])
 
   // Time markers for this swimlane
-  const _timeMarkers = useMemo(() => {
+  const timeMarkers = useMemo(() => {
     if (!viewport) return []
 
-    const _getMarkerCount = (zoomLevel: number): number => {
+    const getMarkerCount = (zoomLevel: number): number => {
       if (zoomLevel >= 8) return 8
       if (zoomLevel >= 5) return 6
       if (zoomLevel >= 2) return 5
@@ -231,8 +231,8 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
       return 3
     }
 
-    const _formatTimeLabel = (timestamp: number, zoomLevel: number): string => {
-      const _date = new Date(timestamp)
+    const formatTimeLabel = (timestamp: number, zoomLevel: number): string => {
+      const date = new Date(timestamp)
 
       if (zoomLevel >= 8) {
         return date.toLocaleTimeString('en-US', {
@@ -263,13 +263,13 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
       }
     }
 
-    const _markerCount = getMarkerCount(zoomLevel)
-    const _timeInterval = viewport.duration / markerCount
+    const markerCount = getMarkerCount(zoomLevel)
+    const timeInterval = viewport.duration / markerCount
 
-    const _markerData = []
-    for (let _i = 0; i <= markerCount; i++) {
-      const _timestamp = viewport.startTime + (i * timeInterval)
-      const _position = (i / markerCount) * 100
+    const markerData = []
+    for (let i = 0; i <= markerCount; i++) {
+      const timestamp = viewport.startTime + (i * timeInterval)
+      const position = (i / markerCount) * 100
 
       markerData.push({
         id: i,
@@ -282,11 +282,11 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
     return markerData
   }, [viewport, zoomLevel])
 
-  const _handleScroll = useCallback((direction: 'up' | 'down') => {
+  const handleScroll = useCallback((direction: 'up' | 'down') => {
     if (!contentRef.current) return
 
-    const _scrollAmount = 50
-    const _newPosition = direction === 'down'
+    const scrollAmount = 50
+    const newPosition = direction === 'down'
       ? scrollPosition + scrollAmount
       : Math.max(0, scrollPosition - scrollAmount)
 
@@ -455,8 +455,8 @@ export const Swimlane: React.FC<SwimlaneProps> = ({
           {events
             .filter(e => e.isBookmarked || e.compareSlot !== undefined)
             .map(event => {
-              const _isCompare = event.compareSlot !== undefined
-              const _position = calculateEventPosition(event.timestamp)
+              const isCompare = event.compareSlot !== undefined
+              const position = calculateEventPosition(event.timestamp)
               return (
                 <div
                   key={`ghost_${event.id}`}

@@ -30,10 +30,10 @@ interface PaginationConfig {
 }
 
 // Chrome message utility
-const _sendChromeMessage = async (message: any): Promise<any> => {
+const sendChromeMessage = async (message: any): Promise<any> => {
   try {
-    const _response = await chrome.runtime.sendMessage(message)
-    const _result = response ? { ...response } : null
+    const response = await chrome.runtime.sendMessage(message)
+    const result = response ? { ...response } : null
     return result
   } catch (error) {
     console.error('Chrome message failed:', error)
@@ -60,7 +60,7 @@ interface UseTokenDataReturn {
   }
 }
 
-export const _useTokenData = (
+export const useTokenData = (
   initialPage: number = 1,
   itemsPerPage: number = 10
 ): UseTokenDataReturn => {
@@ -79,14 +79,14 @@ export const _useTokenData = (
   })
 
   // Load token events with pagination
-  const _loadTokenEvents = useCallback(async (page: number, limit: number = itemsPerPage) => {
+  const loadTokenEvents = useCallback(async (page: number, limit: number = itemsPerPage) => {
     try {
-      // console.log(`🔄 Loading token events page ${page} with limit ${limit}`)
+      console.log(`🔄 Loading token events page ${page} with limit ${limit}`)
       setLoading(true)
       setError(null)
       
-      const _offset = (page - 1) * limit
-      const _response = await sendChromeMessage({ 
+      const offset = (page - 1) * limit
+      const response = await sendChromeMessage({ 
         action: 'getTokenEvents', 
         limit, 
         offset 
@@ -95,10 +95,10 @@ export const _useTokenData = (
       if (response?.success && response?.events) {
         setTokens(response.events)
         setTotalTokens(response.total || 0)
-        // console.log(`✅ Loaded ${response.events.length} token events, total: ${response.total}`)
+        console.log(`✅ Loaded ${response.events.length} token events, total: ${response.total}`)
       } else {
         setError('Failed to load token events')
-        // console.warn('⚠️ Token events response missing success/events:', response)
+        console.warn('⚠️ Token events response missing success/events:', response)
       }
     } catch (err) {
       setError('Error loading token events')
@@ -109,13 +109,13 @@ export const _useTokenData = (
   }, [itemsPerPage])
 
   // Load page
-  const _loadPage = useCallback(async (page: number) => {
+  const loadPage = useCallback(async (page: number) => {
     setCurrentPage(page)
     await loadTokenEvents(page, itemsPerPage)
   }, [loadTokenEvents, itemsPerPage])
 
   // Set sorting
-  const _setSort = useCallback((key: string) => {
+  const setSort = useCallback((key: string) => {
     setSortConfig((prev: SortConfig) => ({
       key,
       direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
@@ -124,13 +124,13 @@ export const _useTokenData = (
   }, [])
 
   // Set filters
-  const _setFilters = useCallback((newFilters: { searchTerm?: string; tokenType?: string }) => {
+  const setFilters = useCallback((newFilters: { searchTerm?: string; tokenType?: string }) => {
     setFiltersState(prev => ({ ...prev, ...newFilters }))
     setCurrentPage(1)
   }, [])
 
   // Refresh data
-  const _refresh = useCallback(async () => {
+  const refresh = useCallback(async () => {
     await loadTokenEvents(currentPage, itemsPerPage)
   }, [loadTokenEvents, currentPage, itemsPerPage])
 
@@ -140,7 +140,7 @@ export const _useTokenData = (
   }, [loadTokenEvents, currentPage, itemsPerPage])
 
   // Calculate pagination
-  const _totalPages = Math.ceil(totalTokens / itemsPerPage)
+  const totalPages = Math.ceil(totalTokens / itemsPerPage)
   const pagination: PaginationConfig = {
     currentPage,
     itemsPerPage,

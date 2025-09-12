@@ -5,19 +5,19 @@ interface ErrorSeverityDistributionChartProps {
   data: any[];
 }
 
-const ErrorSeverityDistributionChart: React.FC<ErrorSeverityDistributionChartProps> = ({ _data }) => {
-  const _severityData = data.reduce((acc, error) => {
-    const _severity = error.severity || 'unknown';
+const ErrorSeverityDistributionChart: React.FC<ErrorSeverityDistributionChartProps> = ({ data }) => {
+  const severityData = data.reduce((acc, error) => {
+    const severity = error.severity || 'unknown';
     acc[severity] = (acc[severity] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  const _chartData = Object.entries(severityData).map(([severity, count]) => ({
+  const chartData = Object.entries(severityData).map(([severity, count]) => ({
     name: severity,
     value: count
   }));
 
-  const _colors = {
+  const colors = {
     error: '#EF4444',
     warn: '#F59E0B',
     info: '#3B82F6',

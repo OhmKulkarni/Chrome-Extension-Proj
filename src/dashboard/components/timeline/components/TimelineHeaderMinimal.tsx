@@ -1,3 +1,3 @@
-export const _TimelineHeader = () => {
+export const TimelineHeader = () => {
   return <div>Timeline Header</div>
 }

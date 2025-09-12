@@ -6,28 +6,28 @@ export const RequestDetailContent: React.FC<{
   selectedField: string;
   settings?: any;
 }> = ({ request, selectedField, settings }) => {
-  const _copyToClipboard = (text: string) => {
+  const copyToClipboard = (text: string) => {
     // Use settings-based limit or fallback to 10KB
-    const _maxClipboardSize = settings?.networkInterception?.bodyCapture?.maxBodySize || 10000;
-    const _safeSize = maxClipboardSize === 0 ? 50000 : maxClipboardSize; // 0 means no limit, but use 50KB safety
+    const maxClipboardSize = settings?.networkInterception?.bodyCapture?.maxBodySize || 10000;
+    const safeSize = maxClipboardSize === 0 ? 50000 : maxClipboardSize; // 0 means no limit, but use 50KB safety
 
-    const _copyText = text.length > safeSize ?
+    const copyText = text.length > safeSize ?
       text.substring(0, safeSize) + '\n[Truncated for clipboard - check settings to adjust limit]' :
       text;
 
     navigator.clipboard.writeText(copyText).catch(error => {
-      // console.warn('Failed to copy to clipboard:', error);
+      console.warn('Failed to copy to clipboard:', error);
     });
   };
 
-  const _formatJSON = (obj: any) => {
+  const formatJSON = (obj: any) => {
     try {
       // Use settings-based safety limits
-      const _maxDisplaySize = settings?.networkInterception?.bodyCapture?.maxBodySize || 5000;
-      const _safeSize = maxDisplaySize === 0 ? 50000 : maxDisplaySize; // 0 means no limit, but use 50KB safety
+      const maxDisplaySize = settings?.networkInterception?.bodyCapture?.maxBodySize || 5000;
+      const safeSize = maxDisplaySize === 0 ? 50000 : maxDisplaySize; // 0 means no limit, but use 50KB safety
 
-      const _seen = new WeakSet();
-      const _safeStringify = (_key: string, value: any) => {
+      const seen = new WeakSet();
+      const safeStringify = (_key: string, value: any) => {
         if (typeof value === 'object' && value !== null) {
           if (seen.has(value)) {
             return '[Circular Reference]';
@@ -38,7 +38,7 @@ export const RequestDetailContent: React.FC<{
       };
 
       // Enhanced JSON formatting with proper indentation
-      const _jsonString = JSON.stringify(obj, safeStringify, 2);
+      const jsonString = JSON.stringify(obj, safeStringify, 2);
       return jsonString.length > safeSize ? jsonString.substring(0, safeSize) + '...\n[Truncated - check settings to adjust limit]' : jsonString;
     } catch (e) {
       // If JSON.stringify fails, return a readable string representation
@@ -46,29 +46,29 @@ export const RequestDetailContent: React.FC<{
     }
   };
 
-  const _formatRequestDetailsOnly = (request: any) => {
-    const _parseSize = (value: any): number => {
+  const formatRequestDetailsOnly = (request: any) => {
+    const parseSize = (value: any): number => {
       if (value === null || value === undefined) return 0;
-      const _parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
+      const parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
       return isNaN(parsed) || parsed < 0 ? 0 : parsed;
     };
 
-    const _formatSize = (bytes: number): string =>
+    const formatSize = (bytes: number): string =>
       bytes > 0 ? `${(bytes / 1024).toFixed(2)}KB (${bytes} bytes)` : '0KB (0 bytes)';
 
     // Calculate sizes the same way as displayed
-    const _payloadSize = parseSize(request.payload_size);
-    const _requestSize = parseSize(request.requestSize || request.request_size);
-    const _responseSize = parseSize(request.responseSize || request.response_size);
+    const payloadSize = parseSize(request.payload_size);
+    const requestSize = parseSize(request.requestSize || request.request_size);
+    const responseSize = parseSize(request.responseSize || request.response_size);
 
     // Calculate stored sizes (same logic as UI)
-    const _calculateStoredSize = () => {
-      let _storedRequestSize = 0;
-      let _storedResponseSize = 0;
-      let _storedHeaderSize = 0;
+    const calculateStoredSize = () => {
+      let storedRequestSize = 0;
+      let storedResponseSize = 0;
+      let storedHeaderSize = 0;
 
-      const _requestBody = request.requestBody || request.request_body;
-      const _responseBody = request.responseBody || request.response_body;
+      const requestBody = request.requestBody || request.request_body;
+      const responseBody = request.responseBody || request.response_body;
 
       if (requestBody && typeof requestBody === 'string') {
         storedRequestSize = new Blob([requestBody]).size;
@@ -81,7 +81,7 @@ export const RequestDetailContent: React.FC<{
       // Add header size (same calculation as stored size column)
       if (request.headers) {
         try {
-          const _headerStr = typeof request.headers === 'string' ? request.headers : JSON.stringify(request.headers);
+          const headerStr = typeof request.headers === 'string' ? request.headers : JSON.stringify(request.headers);
           storedHeaderSize = new Blob([headerStr]).size;
         } catch (e) {
           // Ignore header size calculation errors
@@ -98,7 +98,7 @@ export const RequestDetailContent: React.FC<{
 
     const { storedRequestSize, storedResponseSize, storedHeaderSize, totalStored } = calculateStoredSize();
 
-    const _details = {
+    const details = {
       method: request.method || 'N/A',
       url: request.url || 'N/A',
       status: request.status || 'N/A',
@@ -179,27 +179,27 @@ export const RequestDetailContent: React.FC<{
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Size Breakdown:</span>
                 <div className="mt-1 space-y-2">
                   {(() => {
-                    const _parseSize = (value: any): number => {
+                    const parseSize = (value: any): number => {
                       if (value === null || value === undefined) return 0;
-                      const _parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
+                      const parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
                       return isNaN(parsed) || parsed < 0 ? 0 : parsed;
                     };
 
-                    const _formatSize = (bytes: number): string =>
+                    const formatSize = (bytes: number): string =>
                       bytes > 0 ? `${(bytes / 1024).toFixed(2)}KB (${bytes} bytes)` : '0KB (0 bytes)';
 
-                    const _payloadSize = parseSize(request.payload_size);
-                    const _requestSize = parseSize(request.requestSize || request.request_size);
-                    const _responseSize = parseSize(request.responseSize || request.response_size);
+                    const payloadSize = parseSize(request.payload_size);
+                    const requestSize = parseSize(request.requestSize || request.request_size);
+                    const responseSize = parseSize(request.responseSize || request.response_size);
 
                     // Calculate stored sizes (size of truncated bodies actually stored)
-                    const _calculateStoredSize = () => {
-                      let _storedRequestSize = 0;
-                      let _storedResponseSize = 0;
-                      let _storedHeaderSize = 0;
+                    const calculateStoredSize = () => {
+                      let storedRequestSize = 0;
+                      let storedResponseSize = 0;
+                      let storedHeaderSize = 0;
 
-                      const _requestBody = request.requestBody || request.request_body;
-                      const _responseBody = request.responseBody || request.response_body;
+                      const requestBody = request.requestBody || request.request_body;
+                      const responseBody = request.responseBody || request.response_body;
 
                       if (requestBody && typeof requestBody === 'string') {
                         storedRequestSize = new Blob([requestBody]).size;
@@ -212,7 +212,7 @@ export const RequestDetailContent: React.FC<{
                       // Add header size (same calculation as stored size column)
                       if (request.headers) {
                         try {
-                          const _headerStr = typeof request.headers === 'string' ? request.headers : JSON.stringify(request.headers);
+                          const headerStr = typeof request.headers === 'string' ? request.headers : JSON.stringify(request.headers);
                           storedHeaderSize = new Blob([headerStr]).size;
                         } catch (e) {
                           // Ignore header size calculation errors
@@ -292,11 +292,11 @@ export const RequestDetailContent: React.FC<{
                       );
                     } else {
                       // Try to estimate from body content
-                      const _requestBody = request.requestBody || request.request_body;
-                      const _responseBody = request.responseBody || request.response_body;
+                      const requestBody = request.requestBody || request.request_body;
+                      const responseBody = request.responseBody || request.response_body;
 
-                      let _estimatedRequest = 0;
-                      let _estimatedResponse = 0;
+                      let estimatedRequest = 0;
+                      let estimatedResponse = 0;
 
                       if (requestBody) estimatedRequest = new Blob([requestBody]).size;
                       if (responseBody) estimatedResponse = new Blob([responseBody]).size;
@@ -348,13 +348,13 @@ export const RequestDetailContent: React.FC<{
   }
 
   if (selectedField === 'headers') {
-    let _requestHeaders = {};
-    let _responseHeaders = {};
+    let requestHeaders = {};
+    let responseHeaders = {};
 
     try {
       // Try the new unified format first
       if (request.headers) {
-        const _headerData = typeof request.headers === 'string' ? JSON.parse(request.headers) : request.headers;
+        const headerData = typeof request.headers === 'string' ? JSON.parse(request.headers) : request.headers;
         requestHeaders = headerData.request || {};
         responseHeaders = headerData.response || {};
       }
@@ -376,8 +376,8 @@ export const RequestDetailContent: React.FC<{
     // Component for expandable header values
     const ExpandableHeaderValue: React.FC<{ value: string }> = ({ value }) => {
       const [expanded, setExpanded] = useState(false);
-      const _stringValue = String(value);
-      const _shouldTruncate = stringValue.length > 50;
+      const stringValue = String(value);
+      const shouldTruncate = stringValue.length > 50;
 
       return (
         <div className="space-y-1">
@@ -531,11 +531,11 @@ export const RequestDetailContent: React.FC<{
   }
 
   if (selectedField === 'body') {
-    const _requestBody = request.request_body || request.requestBody;
-    const _responseBody = request.response_body || request.responseBody || request.response_data;
+    const requestBody = request.request_body || request.requestBody;
+    const responseBody = request.response_body || request.responseBody || request.response_data;
 
     // Enhanced JSON pretty-printing with better formatting
-    const _prettyPrintIfJson = (str: any) => {
+    const prettyPrintIfJson = (str: any) => {
       if (typeof str !== 'string') {
         // If it's already an object, stringify it with proper formatting
         try {
@@ -547,15 +547,15 @@ export const RequestDetailContent: React.FC<{
 
       // If it's a string, try to parse and reformat it
       try {
-        const _obj = JSON.parse(str);
+        const obj = JSON.parse(str);
         return JSON.stringify(obj, null, 2);
       } catch {
         // If parsing fails, check if it's a formatted JSON string that just needs cleaning
-        const _cleaned = str.trim();
+        const cleaned = str.trim();
         if (cleaned.startsWith('{') || cleaned.startsWith('[')) {
           try {
             // Try to parse after some basic cleanup
-            const _obj = JSON.parse(cleaned);
+            const obj = JSON.parse(cleaned);
             return JSON.stringify(obj, null, 2);
           } catch {
             return str; // Return original if all parsing attempts fail
@@ -566,7 +566,7 @@ export const RequestDetailContent: React.FC<{
     };
 
     // Get context-specific common reasons for status-only responses
-    const _getCommonReasons = (body: any, status?: number): string[] => {
+    const getCommonReasons = (body: any, status?: number): string[] => {
       // Check if it's an 'ok' response
       if (typeof body === 'string' && body.trim().toLowerCase() === 'ok') {
         return [
@@ -620,10 +620,10 @@ export const RequestDetailContent: React.FC<{
         "Non-text content types"
       ];
     };
-    const _isStatusOnlyResponse = (body: any): boolean => {
+    const isStatusOnlyResponse = (body: any): boolean => {
       if (!body || typeof body !== 'string') return false;
 
-      const _trimmedBody = body.trim();
+      const trimmedBody = body.trim();
 
       // If it's empty or very short, it might be a status response
       if (trimmedBody.length === 0 || trimmedBody.length > 200) {
@@ -640,7 +640,7 @@ export const RequestDetailContent: React.FC<{
       }
 
       // Check if the entire body is just a status message (no additional content)
-      const _statusOnlyPatterns = [
+      const statusOnlyPatterns = [
         // Simple success responses
         /^(ok|OK|Ok)\s*$/,
         // Exact status format matches (entire string)
@@ -658,7 +658,7 @@ export const RequestDetailContent: React.FC<{
       ];
 
       // More specific JSON indicator check - look for actual JSON structure, not just colons
-      const _hasActualJsonStructure = /^[\s]*[{ \[].*[ }\]][\s]*$/.test(trimmedBody) ||
+      const hasActualJsonStructure = /^[\s]*[{\[].*[}\]][\s]*$/.test(trimmedBody) ||
                                    /^[\s]*".*"[\s]*$/.test(trimmedBody) ||
                                    /[{}\[\]]/.test(trimmedBody);
 
@@ -671,7 +671,7 @@ export const RequestDetailContent: React.FC<{
     };
 
     // Get explanation for why we can't show JSON content
-    const _getBodyExplanation = (body: any, status?: number): string => {
+    const getBodyExplanation = (body: any, status?: number): string => {
       if (isStatusOnlyResponse(body)) {
         // Special handling for 'ok' response
         if (typeof body === 'string' && body.trim().toLowerCase() === 'ok') {
@@ -723,7 +723,7 @@ export const RequestDetailContent: React.FC<{
         }
 
         // Generic explanations for status-only responses without status code
-        const _explanations = [
+        const explanations = [
           "🔒 Response content may be encrypted, compressed, or binary",
           "📄 Server returned content in HTML, XML, or other non-JSON format",
           "📡 Content-Type indicates binary or encoded response",
@@ -839,7 +839,7 @@ export const RequestDetailContent: React.FC<{
   }
 
   if (selectedField === 'performance') {
-    const _metrics = request.performanceMetrics;
+    const metrics = request.performanceMetrics;
 
     if (!metrics) {
       return (
@@ -853,7 +853,7 @@ export const RequestDetailContent: React.FC<{
     }
 
     // Calculate percentages for visualization - now includes requestWaiting
-    const _total = metrics.totalTime || (
+    const total = metrics.totalTime || (
       metrics.dnsLookup +
       metrics.tcpConnect +
       metrics.sslHandshake +
@@ -863,7 +863,7 @@ export const RequestDetailContent: React.FC<{
     );
 
     // Helper to format size with proper units
-    const _formatSize = (bytes: number): string => {
+    const formatSize = (bytes: number): string => {
       if (bytes === 0) return '0 B';
       if (bytes < 1024) return `${bytes} B`;
       if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
@@ -872,7 +872,7 @@ export const RequestDetailContent: React.FC<{
 
     // Helper to create progress bars
     const ProgressBar: React.FC<{ value: number; total: number; color: string; label: string }> = ({ value, total, color, label }) => {
-      const _percentage = total > 0 ? (value / total) * 100 : 0;
+      const percentage = total > 0 ? (value / total) * 100 : 0;
       return (
         <div className="flex items-center space-x-3">
           <div className="w-32 text-sm font-medium text-gray-700 dark:text-gray-300">{label}:</div>
@@ -1015,25 +1015,25 @@ export const RequestDetailContent: React.FC<{
 
         {/* Size Metrics Comparison */}
         {(() => {
-          const _parseSize = (value: any): number => {
+          const parseSize = (value: any): number => {
             if (value === null || value === undefined) return 0;
-            const _parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
+            const parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
             return isNaN(parsed) || parsed < 0 ? 0 : parsed;
           };
 
-          const _payloadSize = parseSize(request.payload_size);
-          const _requestSize = parseSize(request.requestSize || request.request_size);
-          const _responseSize = parseSize(request.responseSize || request.response_size);
-          const _transferSize = metrics.transferSize || 0;
-          const _encodedBodySize = metrics.encodedBodySize || 0;
-          const _decodedBodySize = metrics.decodedBodySize || 0;
+          const payloadSize = parseSize(request.payload_size);
+          const requestSize = parseSize(request.requestSize || request.request_size);
+          const responseSize = parseSize(request.responseSize || request.response_size);
+          const transferSize = metrics.transferSize || 0;
+          const encodedBodySize = metrics.encodedBodySize || 0;
+          const decodedBodySize = metrics.decodedBodySize || 0;
 
           // Show section if we have any size data
           if (payloadSize > 0 || requestSize > 0 || responseSize > 0 || transferSize > 0 || encodedBodySize > 0 || decodedBodySize > 0) {
-            const _maxSize = Math.max(payloadSize, requestSize, responseSize, transferSize, encodedBodySize, decodedBodySize);
+            const maxSize = Math.max(payloadSize, requestSize, responseSize, transferSize, encodedBodySize, decodedBodySize);
 
             const SizeBar: React.FC<{ value: number; label: string; color: string; tooltip: string }> = ({ value, label, color, tooltip }) => {
-              const _percentage = maxSize > 0 ? (value / maxSize) * 100 : 0;
+              const percentage = maxSize > 0 ? (value / maxSize) * 100 : 0;
               return (
                 <div className="flex items-center space-x-3" title={tooltip}>
                   <div className="w-32 text-sm font-medium text-gray-700">{label}:</div>
@@ -1132,13 +1132,13 @@ export const RequestDetailContent: React.FC<{
 
   // Response field - focused on response data
   if (selectedField === 'response') {
-    const _responseBody = request.response_body || request.responseBody || request.response_data;
-    let _responseHeaders = {};
+    const responseBody = request.response_body || request.responseBody || request.response_data;
+    let responseHeaders = {};
 
     try {
       // Parse response headers
       if (request.headers) {
-        const _headerData = typeof request.headers === 'string' ? JSON.parse(request.headers) : request.headers;
+        const headerData = typeof request.headers === 'string' ? JSON.parse(request.headers) : request.headers;
         responseHeaders = headerData.response || {};
       } else if (request.response_headers) {
         responseHeaders = typeof request.response_headers === 'string' ? JSON.parse(request.response_headers) : request.response_headers;
@@ -1180,7 +1180,7 @@ export const RequestDetailContent: React.FC<{
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Response Size:</span>
               <p className="text-sm text-gray-900 dark:text-gray-300 mt-1">
                 {(() => {
-                  const _size = request.responseSize || request.response_size;
+                  const size = request.responseSize || request.response_size;
                   return typeof size === 'number' ? `${(size / 1024).toFixed(2)}KB (${size} bytes)` : size;
                 })()}
               </p>
@@ -1212,7 +1212,7 @@ export const RequestDetailContent: React.FC<{
                 {(() => {
                   try {
                     // Try to pretty-print JSON
-                    const _parsed = JSON.parse(responseBody);
+                    const parsed = JSON.parse(responseBody);
                     return JSON.stringify(parsed, null, 2);
                   } catch {
                     // Return as-is if not JSON
@@ -1349,20 +1349,20 @@ export const ErrorDetailContent: React.FC<{
   error: any;
   selectedField: string;
 }> = ({ error, selectedField }) => {
-  const _copyToClipboard = (text: string) => {
+  const copyToClipboard = (text: string) => {
     // For errors, use smaller limits since raw JSON is not as useful
-    const _maxClipboardSize = 5000;
-    const _copyText = text.length > maxClipboardSize ?
+    const maxClipboardSize = 5000;
+    const copyText = text.length > maxClipboardSize ?
       text.substring(0, maxClipboardSize) + '\n[Truncated for clipboard]' :
       text;
 
     navigator.clipboard.writeText(copyText).catch(error => {
-      // console.warn('Failed to copy to clipboard:', error);
+      console.warn('Failed to copy to clipboard:', error);
     });
   };
 
-  const _formatConsoleErrorDetailsOnly = (error: any) => {
-    const _details = {
+  const formatConsoleErrorDetailsOnly = (error: any) => {
+    const details = {
       message: error.message || 'N/A',
       ...(error.url) && { url: error.url },
       ...(error.line) && { line: error.line },
@@ -1466,11 +1466,11 @@ export const ErrorDetailContent: React.FC<{
   }
 
   if (selectedField === 'message') {
-    const _formatJSON = (obj: any) => {
+    const formatJSON = (obj: any) => {
       try {
-        const _maxDisplaySize = 10000; // 10KB limit for console error message display
-        const _seen = new WeakSet();
-        const _safeStringify = (_key: string, value: any) => {
+        const maxDisplaySize = 10000; // 10KB limit for console error message display
+        const seen = new WeakSet();
+        const safeStringify = (_key: string, value: any) => {
           if (typeof value === 'object' && value !== null) {
             if (seen.has(value)) {
               return '[Circular Reference]';
@@ -1480,7 +1480,7 @@ export const ErrorDetailContent: React.FC<{
           return value;
         };
 
-        const _jsonString = JSON.stringify(obj, safeStringify, 2);
+        const jsonString = JSON.stringify(obj, safeStringify, 2);
         return jsonString.length > maxDisplaySize ?
           jsonString.substring(0, maxDisplaySize) + '...\n[Truncated for display]' :
           jsonString;
@@ -1543,12 +1543,12 @@ export const ErrorDetailContent: React.FC<{
 };
 
 // Enhanced token event analysis utilities
-export const _analyzeTokenEvent = (event: any) => {
-  const _url = (event.url || event.source_url || '').toLowerCase();
-  const _headers = (() => {
+export const analyzeTokenEvent = (event: any) => {
+  const url = (event.url || event.source_url || '').toLowerCase();
+  const headers = (() => {
     try {
       if (event.headers) {
-        const _parsed = JSON.parse(event.headers);
+        const parsed = JSON.parse(event.headers);
         return parsed.request || parsed.response || parsed;
       }
       return {};
@@ -1558,11 +1558,11 @@ export const _analyzeTokenEvent = (event: any) => {
   })();
 
   // Enhanced event type detection based on comprehensive analysis
-  const _getEventType = (): string => {
-    const _method = (event.method || event.request_method || '').toUpperCase();
-    const _status = event.status || event.response_status;
-    const _responseBody = event.response_body || event.responseBody || '';
-    const _requestBody = event.request_body || event.requestBody || '';
+  const getEventType = (): string => {
+    const method = (event.method || event.request_method || '').toUpperCase();
+    const status = event.status || event.response_status;
+    const responseBody = event.response_body || event.responseBody || '';
+    const requestBody = event.request_body || event.requestBody || '';
 
     // Check for Login events
     if (method === 'POST' && (url.includes('/auth/login') || url.includes('/login') || url.includes('/signin'))) {
@@ -1632,22 +1632,22 @@ export const _analyzeTokenEvent = (event: any) => {
   };
 
   // Enhanced token type detection based on comprehensive analysis
-  const _getTokenType = (): string => {
-    const _authHeader = headers['authorization'] || headers['Authorization'] || '';
-    const _cookieHeader = headers['cookie'] || headers['Cookie'] || '';
-    const _csrfHeader = headers['x-csrf-token'] || headers['X-CSRF-Token'] || '';
-    const _apiKeyHeader = headers['x-api-key'] || headers['X-API-Key'] || headers['api-key'] || '';
-    const _contentType = headers['content-type'] || headers['Content-Type'] || '';
+  const getTokenType = (): string => {
+    const authHeader = headers['authorization'] || headers['Authorization'] || '';
+    const cookieHeader = headers['cookie'] || headers['Cookie'] || '';
+    const csrfHeader = headers['x-csrf-token'] || headers['X-CSRF-Token'] || '';
+    const apiKeyHeader = headers['x-api-key'] || headers['X-API-Key'] || headers['api-key'] || '';
+    const contentType = headers['content-type'] || headers['Content-Type'] || '';
 
     // Helper function to check if token is JWT format
-    const _isJwt = (token: string): boolean => token.split('.').length === 3;
+    const isJwt = (token: string): boolean => token.split('.').length === 3;
 
     // Helper function to decode JWT header for additional analysis
-    const _getJwtInfo = (token: string): any => {
+    const getJwtInfo = (token: string): any => {
       try {
         if (!isJwt(token)) return null;
-        const _header = JSON.parse(atob(token.split('.')[0]));
-        const _payload = JSON.parse(atob(token.split('.')[1]));
+        const header = JSON.parse(atob(token.split('.')[0]));
+        const payload = JSON.parse(atob(token.split('.')[1]));
         return { header, payload };
       } catch {
         return null;
@@ -1688,10 +1688,10 @@ export const _analyzeTokenEvent = (event: any) => {
 
     // 1. Bearer Token Analysis (for existing tokens in requests)
     if (authHeader.startsWith('Bearer ')) {
-      const _token = authHeader.substring(7);
+      const token = authHeader.substring(7);
 
       if (isJwt(token)) {
-        const _jwtInfo = getJwtInfo(token);
+        const jwtInfo = getJwtInfo(token);
 
         // ID Token detection (OIDC)
         if (jwtInfo?.payload && ('sub' in jwtInfo.payload && 'email' in jwtInfo.payload || 'aud' in jwtInfo.payload)) {
@@ -1726,7 +1726,7 @@ export const _analyzeTokenEvent = (event: any) => {
 
     // 4. Custom API Key Headers
     if (apiKeyHeader) {
-      const _key = apiKeyHeader;
+      const key = apiKeyHeader;
       if (key.startsWith('sk_') || key.includes('proj_') || key.includes('key_')) {
         return 'API Key';
       }
@@ -1761,7 +1761,7 @@ export const _analyzeTokenEvent = (event: any) => {
 
     // 8. Custom Authorization schemes
     if (authHeader && !authHeader.startsWith('Bearer ') && !authHeader.startsWith('Basic ')) {
-      const _scheme = authHeader.split(' ')[0];
+      const scheme = authHeader.split(' ')[0];
       return `${scheme} Token`;
     }
 
@@ -1775,9 +1775,9 @@ export const _analyzeTokenEvent = (event: any) => {
   };
 
   // Check if token is present in headers
-  const _hasToken = (headers: any): boolean => {
-    const _authHeader = headers['authorization'] || headers['Authorization'] || '';
-    const _cookieHeader = headers['cookie'] || headers['Cookie'] || '';
+  const hasToken = (headers: any): boolean => {
+    const authHeader = headers['authorization'] || headers['Authorization'] || '';
+    const cookieHeader = headers['cookie'] || headers['Cookie'] || '';
     return !!(authHeader || cookieHeader || headers['x-api-key'] || headers['X-API-Key']);
   };
 
@@ -1803,27 +1803,27 @@ export const TokenDetailContent: React.FC<{
 }> = ({ tokenEvent, selectedField, showFullTokenHash = false, settings, networkRequests = [] }) => {
   const [activeNetworkView, setActiveNetworkView] = useState<string>('details');
 
-  const _copyToClipboard = (text: string) => {
+  const copyToClipboard = (text: string) => {
     // Use settings-based limit for tokens
-    const _maxClipboardSize = settings?.networkInterception?.bodyCapture?.maxBodySize || 10000;
-    const _safeSize = maxClipboardSize === 0 ? 50000 : maxClipboardSize;
+    const maxClipboardSize = settings?.networkInterception?.bodyCapture?.maxBodySize || 10000;
+    const safeSize = maxClipboardSize === 0 ? 50000 : maxClipboardSize;
 
-    const _copyText = text.length > safeSize ?
+    const copyText = text.length > safeSize ?
       text.substring(0, safeSize) + '\n[Truncated for clipboard - check settings]' :
       text;
 
     navigator.clipboard.writeText(copyText).catch(error => {
-      // console.warn('Failed to copy to clipboard:', error);
+      console.warn('Failed to copy to clipboard:', error);
     });
   };
 
-  const _formatJSON = (obj: any) => {
+  const formatJSON = (obj: any) => {
     try {
-      const _maxDisplaySize = settings?.networkInterception?.bodyCapture?.maxBodySize || 5000;
-      const _safeSize = maxDisplaySize === 0 ? 50000 : maxDisplaySize;
+      const maxDisplaySize = settings?.networkInterception?.bodyCapture?.maxBodySize || 5000;
+      const safeSize = maxDisplaySize === 0 ? 50000 : maxDisplaySize;
 
-      const _seen = new WeakSet();
-      const _safeStringify = (_key: string, value: any) => {
+      const seen = new WeakSet();
+      const safeStringify = (_key: string, value: any) => {
         if (typeof value === 'object' && value !== null) {
           if (seen.has(value)) {
             return '[Circular Reference]';
@@ -1833,7 +1833,7 @@ export const TokenDetailContent: React.FC<{
         return value;
       };
 
-      const _jsonString = JSON.stringify(obj, safeStringify, 2);
+      const jsonString = JSON.stringify(obj, safeStringify, 2);
       return jsonString.length > safeSize ?
         jsonString.substring(0, safeSize) + '...[Truncated - check settings]' :
         jsonString;
@@ -1843,7 +1843,7 @@ export const TokenDetailContent: React.FC<{
   };
 
   // Helper function to format hash values in git-style
-  const _formatHashValue = (hash: string | null | undefined): string => {
+  const formatHashValue = (hash: string | null | undefined): string => {
     if (!hash) return 'N/A';
 
     // Handle special status cases - keep them as-is
@@ -1862,13 +1862,13 @@ export const TokenDetailContent: React.FC<{
     return hash;
   };
 
-  const _formatGitStyleHash = (hash: string): string => {
+  const formatGitStyleHash = (hash: string): string => {
     if (hash.length < 8) return hash; // If hash is too short, return as-is
     return hash.substring(0, 8); // Show first 8 characters like git
   };
 
-  const _formatTokenEventDetailsOnly = (tokenEvent: any) => {
-    const _details = {
+  const formatTokenEventDetailsOnly = (tokenEvent: any) => {
+    const details = {
       ...(tokenEvent.url) && { url: tokenEvent.url },
       ...(tokenEvent.method || tokenEvent.request_method) && {
         method: tokenEvent.method || tokenEvent.request_method
@@ -1888,21 +1888,21 @@ export const TokenDetailContent: React.FC<{
   };
 
   // Enhanced matching logic for finding related network request
-  const _findMatchingNetworkRequest = (tokenEvent: any) => {
+  const findMatchingNetworkRequest = (tokenEvent: any) => {
     if (!networkRequests || networkRequests.length === 0) return null;
 
-    const _tokenUrl = tokenEvent.url;
-    const _tokenMethod = (tokenEvent.method || tokenEvent.request_method || '').toUpperCase();
-    const _tokenStatus = tokenEvent.status || tokenEvent.response_status;
-    const _tokenTimestamp = new Date(tokenEvent.timestamp).getTime();
+    const tokenUrl = tokenEvent.url;
+    const tokenMethod = (tokenEvent.method || tokenEvent.request_method || '').toUpperCase();
+    const tokenStatus = tokenEvent.status || tokenEvent.response_status;
+    const tokenTimestamp = new Date(tokenEvent.timestamp).getTime();
 
     // Enhanced matching with multiple strategies
-    const _candidates = networkRequests.filter(req => {
+    const candidates = networkRequests.filter(req => {
       // Must have same URL (exact match)
       if (req.url !== tokenUrl) return false;
 
       // Must have same method (case-insensitive)
-      const _reqMethod = (req.method || '').toUpperCase();
+      const reqMethod = (req.method || '').toUpperCase();
       if (reqMethod !== tokenMethod) return false;
 
       return true;
@@ -1911,10 +1911,10 @@ export const TokenDetailContent: React.FC<{
     if (candidates.length === 0) return null;
 
     // Strategy 1: Find exact timestamp + status match (within 2 seconds)
-    let _match = candidates.find(req => {
-      const _reqTimestamp = new Date(req.timestamp).getTime();
-      const _timeDiff = Math.abs(reqTimestamp - tokenTimestamp);
-      const _statusMatch = req.status === tokenStatus || req.response_status === tokenStatus;
+    let match = candidates.find(req => {
+      const reqTimestamp = new Date(req.timestamp).getTime();
+      const timeDiff = Math.abs(reqTimestamp - tokenTimestamp);
+      const statusMatch = req.status === tokenStatus || req.response_status === tokenStatus;
 
       return timeDiff <= 2000 && statusMatch; // 2 second tolerance + status match
     });
@@ -1922,9 +1922,9 @@ export const TokenDetailContent: React.FC<{
     if (match) return match;
 
     // Strategy 2: Find closest timestamp match (within 10 seconds)
-    const _closeMatches = candidates.filter(req => {
-      const _reqTimestamp = new Date(req.timestamp).getTime();
-      const _timeDiff = Math.abs(reqTimestamp - tokenTimestamp);
+    const closeMatches = candidates.filter(req => {
+      const reqTimestamp = new Date(req.timestamp).getTime();
+      const timeDiff = Math.abs(reqTimestamp - tokenTimestamp);
       return timeDiff <= 10000; // 10 second tolerance
     });
 
@@ -1933,17 +1933,17 @@ export const TokenDetailContent: React.FC<{
     // Strategy 3: Find best timestamp match with status preference
     if (closeMatches.length > 1) {
       // Prefer status matches
-      const _statusMatches = closeMatches.filter(req =>
+      const statusMatches = closeMatches.filter(req =>
         req.status === tokenStatus || req.response_status === tokenStatus
       );
 
       if (statusMatches.length > 0) {
         // Return closest timestamp among status matches
         return statusMatches.reduce((closest, req) => {
-          const _reqTime = new Date(req.timestamp).getTime();
-          const _closestTime = new Date(closest.timestamp).getTime();
-          const _reqDiff = Math.abs(reqTime - tokenTimestamp);
-          const _closestDiff = Math.abs(closestTime - tokenTimestamp);
+          const reqTime = new Date(req.timestamp).getTime();
+          const closestTime = new Date(closest.timestamp).getTime();
+          const reqDiff = Math.abs(reqTime - tokenTimestamp);
+          const closestDiff = Math.abs(closestTime - tokenTimestamp);
 
           return reqDiff < closestDiff ? req : closest;
         });
@@ -1951,19 +1951,19 @@ export const TokenDetailContent: React.FC<{
 
       // No status matches, return closest by time
       return closeMatches.reduce((closest, req) => {
-        const _reqTime = new Date(req.timestamp).getTime();
-        const _closestTime = new Date(closest.timestamp).getTime();
-        const _reqDiff = Math.abs(reqTime - tokenTimestamp);
-        const _closestDiff = Math.abs(closestTime - tokenTimestamp);
+        const reqTime = new Date(req.timestamp).getTime();
+        const closestTime = new Date(closest.timestamp).getTime();
+        const reqDiff = Math.abs(reqTime - tokenTimestamp);
+        const closestDiff = Math.abs(closestTime - tokenTimestamp);
 
         return reqDiff < closestDiff ? req : closest;
       });
     }
 
     // Strategy 4: Last resort - any URL/method match (expand tolerance to 30 seconds)
-    const _anyMatch = candidates.find(req => {
-      const _reqTimestamp = new Date(req.timestamp).getTime();
-      const _timeDiff = Math.abs(reqTimestamp - tokenTimestamp);
+    const anyMatch = candidates.find(req => {
+      const reqTimestamp = new Date(req.timestamp).getTime();
+      const timeDiff = Math.abs(reqTimestamp - tokenTimestamp);
       return timeDiff <= 30000; // 30 second tolerance
     });
 
@@ -2033,7 +2033,7 @@ export const TokenDetailContent: React.FC<{
 
         {/* Enhanced Related Network Request Section */}
         {(() => {
-          const _matchingRequest = findMatchingNetworkRequest(tokenEvent);
+          const matchingRequest = findMatchingNetworkRequest(tokenEvent);
           return matchingRequest ? (
             <div>
               <div className="flex items-center justify-between mb-3">
@@ -2118,7 +2118,7 @@ export const TokenDetailContent: React.FC<{
 
   if (selectedField === 'headers') {
     // Get headers from various possible locations in the token event
-    const _headers = tokenEvent.headers ||
+    const headers = tokenEvent.headers ||
                    tokenEvent.request_headers ||
                    tokenEvent.response_headers ||
                    {};

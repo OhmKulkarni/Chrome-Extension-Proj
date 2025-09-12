@@ -8,7 +8,7 @@
  */
 
 // Prevent memory leaks with proper message typing
-export const _MESSAGE_TYPES = {
+export const MESSAGE_TYPES = {
   // Network feature messages - isolated channel
   NETWORK_REQUEST: 'NETWORK_REQUEST_V1',
   NETWORK_RESPONSE: 'NETWORK_RESPONSE_V1',

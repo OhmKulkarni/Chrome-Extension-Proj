@@ -76,8 +76,8 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
 
   // Load viewed events on component mount
   useEffect(() => {
-    const _loadViewedState = async () => {
-      const _persistentViewed = viewedStateService.loadViewedEvents()
+    const loadViewedState = async () => {
+      const persistentViewed = viewedStateService.loadViewedEvents()
       setViewedEvents(persistentViewed)
     }
     loadViewedState()
@@ -96,10 +96,10 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
       return
     }
 
-    const _interval = setInterval(() => {
+    const interval = setInterval(() => {
       viewedStateService.cleanupExpiredEvents(viewedTrackingSettings)
       // Refresh local state
-      const _updatedViewed = viewedStateService.loadViewedEvents()
+      const updatedViewed = viewedStateService.loadViewedEvents()
       setViewedEvents(updatedViewed)
     }, 60000) // Check every minute
 
@@ -107,11 +107,11 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   }, [viewedTrackingSettings])
 
   // Enrich events with viewed state
-  const _enrichEventsWithViewedState = useCallback((events: TimelineEvent[]): TimelineEvent[] => {
+  const enrichEventsWithViewedState = useCallback((events: TimelineEvent[]): TimelineEvent[] => {
     if (!viewedTrackingSettings.enabled) return events
 
     return events.map(event => {
-      const _isViewed = viewedTrackingSettings.persistenceLevel === 'session'
+      const isViewed = viewedTrackingSettings.persistenceLevel === 'session'
         ? sessionViewedEvents.has(event.id)
         : viewedStateService.isEventViewed(event.id, viewedTrackingSettings)
 
@@ -124,20 +124,20 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   }, [viewedTrackingSettings, sessionViewedEvents, viewedEvents])
 
   // Calculate visible swimlane heights
-  const _visibleSwimlanes = swimlanes.filter(lane => lane.isVisible)
-  const _adjustedSwimlanes = useCallback(() => {
-    const _totalHeight = 100
-    const _visibleCount = visibleSwimlanes.length
+  const visibleSwimlanes = swimlanes.filter(lane => lane.isVisible)
+  const adjustedSwimlanes = useCallback(() => {
+    const totalHeight = 100
+    const visibleCount = visibleSwimlanes.length
     if (visibleCount === 0) return []
 
-    const _heightPerLane = totalHeight / visibleCount
+    const heightPerLane = totalHeight / visibleCount
     return swimlanes.map(lane => ({
       ...lane,
       height: lane.isVisible ? heightPerLane : 0
     }))
   }, [swimlanes, visibleSwimlanes.length])
 
-  const _handleToggleSwimlane = useCallback((laneId: string) => {
+  const handleToggleSwimlane = useCallback((laneId: string) => {
     onUpdateSwimlanes(swimlanes.map(lane =>
       lane.id === laneId ? { ...lane, isVisible: !lane.isVisible } : lane
     ))
@@ -145,11 +145,11 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
 
 
 
-  const _handleClusterClick = useCallback((cluster: TimelineCluster) => {
+  const handleClusterClick = useCallback((cluster: TimelineCluster) => {
     setSelectedCluster(cluster)
   }, [])
 
-  const _handleEventClick = useCallback((event: TimelineEvent) => {
+  const handleEventClick = useCallback((event: TimelineEvent) => {
     // Mark event as viewed if tracking is enabled
     if (viewedTrackingSettings.enabled) {
       if (viewedTrackingSettings.persistenceLevel === 'session') {
@@ -159,7 +159,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
         // Persistent: use service
         viewedStateService.markEventAsViewed(event.id, viewedTrackingSettings)
         // Refresh local state for immediate UI update
-        const _updatedViewed = viewedStateService.loadViewedEvents()
+        const updatedViewed = viewedStateService.loadViewedEvents()
         setViewedEvents(updatedViewed)
       }
     }
@@ -168,28 +168,28 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
     setSelectedEvent(event)
   }, [viewedTrackingSettings])
 
-  const _handleViewedSettingsChange = useCallback((newSettings: ViewedTrackingSettings) => {
+  const handleViewedSettingsChange = useCallback((newSettings: ViewedTrackingSettings) => {
     setViewedTrackingSettings(newSettings)
     viewedStateService.saveSettings(newSettings)
   }, [])
 
-  const _handleSidebarEventClick = useCallback((event: TimelineEvent) => {
+  const handleSidebarEventClick = useCallback((event: TimelineEvent) => {
     // Open the event detail modal, same as clicking a minicard
     handleEventClick(event)
   }, [handleEventClick])
 
-  const _handleNavigateToEvent = useCallback((event: TimelineEvent) => {
+  const handleNavigateToEvent = useCallback((event: TimelineEvent) => {
     // Navigate to the event's position on the timeline
     if (onJumpToTime) {
       onJumpToTime(event.timestamp)
     }
   }, [onJumpToTime])
 
-  const _handleSlotSelection = useCallback(async (targetSlot: number) => {
+  const handleSlotSelection = useCallback(async (targetSlot: number) => {
     if (!queuedEventForSlotSelection) return
 
     // Get slot range for this event type
-    const _getSlotRange = (eventType: string) => {
+    const getSlotRange = (eventType: string) => {
       switch (eventType) {
         case 'network': return { start: 0, end: 3 }
         case 'console': return { start: 10, end: 13 }
@@ -198,15 +198,15 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
       }
     }
 
-    const _slotRange = getSlotRange(queuedEventForSlotSelection.type)
-    const _actualSlot = slotRange.start + targetSlot // Convert 0-3 UI slot to actual slot number
+    const slotRange = getSlotRange(queuedEventForSlotSelection.type)
+    const actualSlot = slotRange.start + targetSlot // Convert 0-3 UI slot to actual slot number
 
     // Get current events to find what needs to be replaced
-    const _viewportEvents = visualizationData.shouldShowCards ?
+    const viewportEvents = visualizationData.shouldShowCards ?
       visualizationData.individualEvents :
       visualizationData.densityClusters.flatMap(cluster => cluster.events)
 
-    const _eventToReplace = viewportEvents.find(e => e.compareSlot === actualSlot)
+    const eventToReplace = viewportEvents.find(e => e.compareSlot === actualSlot)
 
     if (eventToReplace) {
       // Move the replaced event to the queue (it will get compareSlot = -1)
@@ -221,13 +221,13 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
     setQueuedEventForSlotSelection(null)
   }, [queuedEventForSlotSelection, visualizationData, onSetCompareSlot])
 
-  const _handleMoveToQueue = useCallback(async (event: TimelineEvent) => {
+  const handleMoveToQueue = useCallback(async (event: TimelineEvent) => {
     // Move an active compare event to the queue
     if (event.compareSlot !== undefined && event.compareSlot >= 0) {
       await onSetCompareSlot(event.id, -1)
 
       // Get slot range for this event type
-      const _getSlotRange = (eventType: string) => {
+      const getSlotRange = (eventType: string) => {
         switch (eventType) {
           case 'network': return { start: 0, end: 3 }
           case 'console': return { start: 10, end: 13 }
@@ -236,14 +236,14 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
         }
       }
 
-      const _slotRange = getSlotRange(event.type)
+      const slotRange = getSlotRange(event.type)
 
       // Compact remaining slots to remove gaps within the type's range
-      const _viewportEvents = visualizationData.shouldShowCards ?
+      const viewportEvents = visualizationData.shouldShowCards ?
         visualizationData.individualEvents :
         visualizationData.densityClusters.flatMap(cluster => cluster.events)
 
-      const _remainingCompareEvents = viewportEvents.filter(e =>
+      const remainingCompareEvents = viewportEvents.filter(e =>
         e.compareSlot !== undefined &&
         e.compareSlot >= slotRange.start &&
         e.compareSlot <= slotRange.end &&
@@ -251,18 +251,18 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
       ).sort((a, b) => (a.compareSlot || 0) - (b.compareSlot || 0))
 
       // Reassign consecutive slot numbers within the type's range
-      for (let _i = 0; i < remainingCompareEvents.length; i++) {
-        const _expectedSlot = slotRange.start + i
+      for (let i = 0; i < remainingCompareEvents.length; i++) {
+        const expectedSlot = slotRange.start + i
         if (remainingCompareEvents[i].compareSlot !== expectedSlot) {
           await onSetCompareSlot(remainingCompareEvents[i].id, expectedSlot)
         }
       }
 
       // If there are queued events of the same type, promote the first one to fill the gap
-      const _queuedEventsOfType = events.filter(e => e.compareSlot === -1 && e.type === event.type)
+      const queuedEventsOfType = events.filter(e => e.compareSlot === -1 && e.type === event.type)
       if (queuedEventsOfType.length > 0) {
-        const _nextInQueue = queuedEventsOfType[0] // Get first in queue of same type
-        const _newSlot = slotRange.start + remainingCompareEvents.length
+        const nextInQueue = queuedEventsOfType[0] // Get first in queue of same type
+        const newSlot = slotRange.start + remainingCompareEvents.length
         if (newSlot <= slotRange.end) {
           await onSetCompareSlot(nextInQueue.id, newSlot)
         }
@@ -270,9 +270,9 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
     }
   }, [visualizationData, onSetCompareSlot, events])
 
-  const _handleDensityClusterZoom = useCallback((cluster: DensityCluster) => {
+  const handleDensityClusterZoom = useCallback((cluster: DensityCluster) => {
     // Center viewport on the cluster's center time when zooming in
-    const _clusterCenterTime = cluster.startTime + (cluster.endTime - cluster.startTime) / 2
+    const clusterCenterTime = cluster.startTime + (cluster.endTime - cluster.startTime) / 2
 
     // First zoom in to get more detailed view
     onZoomIn()
@@ -285,33 +285,33 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
       }, 100)
     }
 
-    // console.log('Zooming in on cluster at time:', new Date(clusterCenterTime))
+    console.log('Zooming in on cluster at time:', new Date(clusterCenterTime))
   }, [onZoomIn, onJumpToTime])
 
-  const _handleDensityClusterList = useCallback((cluster: DensityCluster) => {
+  const handleDensityClusterList = useCallback((cluster: DensityCluster) => {
     // Show event list popup for density cluster
     setSelectedDensityCluster(cluster)
   }, [])
 
-  const _handleCloseDensityClusterList = useCallback(() => {
+  const handleCloseDensityClusterList = useCallback(() => {
     setSelectedDensityCluster(null)
   }, [])
 
-  const _handleAddToCompare = useCallback(async (event: TimelineEvent) => {
+  const handleAddToCompare = useCallback(async (event: TimelineEvent) => {
     // Check if event is already in compare (either in active slots or queued)
     if (event.compareSlot !== undefined && event.compareSlot >= -1) {
       // Event is already in compare, remove it
-      const _removedSlot = event.compareSlot
+      const removedSlot = event.compareSlot
       await onSetCompareSlot(event.id, undefined)
 
       // If it was in an active slot, compact remaining slots to remove gaps
       if (removedSlot >= 0) {
-        const _viewportEvents = visualizationData.shouldShowCards ?
+        const viewportEvents = visualizationData.shouldShowCards ?
           visualizationData.individualEvents :
           visualizationData.densityClusters.flatMap(cluster => cluster.events)
 
         // Get slot range for this event type
-        const _getSlotRange = (eventType: string) => {
+        const getSlotRange = (eventType: string) => {
           switch (eventType) {
             case 'network': return { start: 0, end: 3 }
             case 'console': return { start: 10, end: 13 }
@@ -320,9 +320,9 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
           }
         }
 
-        const _slotRange = getSlotRange(event.type)
+        const slotRange = getSlotRange(event.type)
 
-        const _remainingCompareEvents = viewportEvents.filter(e =>
+        const remainingCompareEvents = viewportEvents.filter(e =>
           e.compareSlot !== undefined &&
           e.compareSlot >= slotRange.start &&
           e.compareSlot <= slotRange.end &&
@@ -330,18 +330,18 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
         ).sort((a, b) => (a.compareSlot || 0) - (b.compareSlot || 0))
 
         // Reassign consecutive slot numbers within the type's range
-        for (let _i = 0; i < remainingCompareEvents.length; i++) {
-          const _expectedSlot = slotRange.start + i
+        for (let i = 0; i < remainingCompareEvents.length; i++) {
+          const expectedSlot = slotRange.start + i
           if (remainingCompareEvents[i].compareSlot !== expectedSlot) {
             await onSetCompareSlot(remainingCompareEvents[i].id, expectedSlot)
           }
         }
 
         // If there are queued events of the same type, promote the first one to fill the gap
-        const _queuedEventsOfType = events.filter(e => e.compareSlot === -1 && e.type === event.type)
+        const queuedEventsOfType = events.filter(e => e.compareSlot === -1 && e.type === event.type)
         if (queuedEventsOfType.length > 0) {
-          const _nextInQueue = queuedEventsOfType[0] // Get first in queue of same type
-          const _newSlot = slotRange.start + remainingCompareEvents.length
+          const nextInQueue = queuedEventsOfType[0] // Get first in queue of same type
+          const newSlot = slotRange.start + remainingCompareEvents.length
           if (newSlot <= slotRange.end) {
             await onSetCompareSlot(nextInQueue.id, newSlot)
           }
@@ -351,7 +351,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
     }
 
     // Get slot range for this event type
-    const _getSlotRange = (eventType: string) => {
+    const getSlotRange = (eventType: string) => {
       switch (eventType) {
         case 'network': return { start: 0, end: 3 }
         case 'console': return { start: 10, end: 13 }
@@ -360,10 +360,10 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
       }
     }
 
-    const _slotRange = getSlotRange(event.type)
+    const slotRange = getSlotRange(event.type)
 
     // Check how many active slots are currently occupied for this event type
-    const _currentTypeCompareEvents = events.filter(e =>
+    const currentTypeCompareEvents = events.filter(e =>
       e.compareSlot !== undefined &&
       e.compareSlot >= slotRange.start &&
       e.compareSlot <= slotRange.end
@@ -371,8 +371,8 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
 
     if (currentTypeCompareEvents.length < 4) {
       // There's space in active slots for this type - add directly to next available slot
-      const _occupiedSlots = new Set(currentTypeCompareEvents.map(e => e.compareSlot))
-      let _targetSlot = slotRange.start
+      const occupiedSlots = new Set(currentTypeCompareEvents.map(e => e.compareSlot))
+      let targetSlot = slotRange.start
       while (occupiedSlots.has(targetSlot) && targetSlot <= slotRange.end) {
         targetSlot++
       }
@@ -383,9 +383,9 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
     }
   }, [visualizationData, onSetCompareSlot, events])
 
-  const _handleMoveFromQueue = useCallback(async (event: TimelineEvent) => {
+  const handleMoveFromQueue = useCallback(async (event: TimelineEvent) => {
     // Get slot range for this event type
-    const _getSlotRange = (eventType: string) => {
+    const getSlotRange = (eventType: string) => {
       switch (eventType) {
         case 'network': return { start: 0, end: 3 }
         case 'console': return { start: 10, end: 13 }
@@ -394,10 +394,10 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
       }
     }
 
-    const _slotRange = getSlotRange(event.type)
+    const slotRange = getSlotRange(event.type)
 
     // Check if there are available slots for this event type
-    const _currentTypeCompareEvents = events.filter(e =>
+    const currentTypeCompareEvents = events.filter(e =>
       e.compareSlot !== undefined &&
       e.compareSlot >= slotRange.start &&
       e.compareSlot <= slotRange.end
@@ -405,8 +405,8 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
 
     if (currentTypeCompareEvents.length < 4) {
       // There's space for this type - add directly to next available slot
-      const _occupiedSlots = new Set(currentTypeCompareEvents.map(e => e.compareSlot))
-      let _targetSlot = slotRange.start
+      const occupiedSlots = new Set(currentTypeCompareEvents.map(e => e.compareSlot))
+      let targetSlot = slotRange.start
       while (occupiedSlots.has(targetSlot) && targetSlot <= slotRange.end) {
         targetSlot++
       }
@@ -418,16 +418,16 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
     }
   }, [events, onSetCompareSlot])
 
-  const _handleRemoveFromCompare = useCallback(async (eventId: string) => {
+  const handleRemoveFromCompare = useCallback(async (eventId: string) => {
     // Find the event to get its type
-    const _event = events.find(e => e.id === eventId)
+    const event = events.find(e => e.id === eventId)
     if (!event || event.compareSlot === undefined || event.compareSlot < 0) return
 
     // Use the same logic as handleMoveToQueue but without moving to queue
     await onSetCompareSlot(event.id, undefined)
 
     // Get slot range for this event type
-    const _getSlotRange = (eventType: string) => {
+    const getSlotRange = (eventType: string) => {
       switch (eventType) {
         case 'network': return { start: 0, end: 3 }
         case 'console': return { start: 10, end: 13 }
@@ -436,14 +436,14 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
       }
     }
 
-    const _slotRange = getSlotRange(event.type)
+    const slotRange = getSlotRange(event.type)
 
     // Compact remaining slots to remove gaps within the type's range
-    const _viewportEvents = visualizationData.shouldShowCards ?
+    const viewportEvents = visualizationData.shouldShowCards ?
       visualizationData.individualEvents :
       visualizationData.densityClusters.flatMap(cluster => cluster.events)
 
-    const _remainingCompareEvents = viewportEvents.filter(e =>
+    const remainingCompareEvents = viewportEvents.filter(e =>
       e.compareSlot !== undefined &&
       e.compareSlot >= slotRange.start &&
       e.compareSlot <= slotRange.end &&
@@ -451,18 +451,18 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
     ).sort((a, b) => (a.compareSlot || 0) - (b.compareSlot || 0))
 
     // Reassign consecutive slot numbers within the type's range
-    for (let _i = 0; i < remainingCompareEvents.length; i++) {
-      const _expectedSlot = slotRange.start + i
+    for (let i = 0; i < remainingCompareEvents.length; i++) {
+      const expectedSlot = slotRange.start + i
       if (remainingCompareEvents[i].compareSlot !== expectedSlot) {
         await onSetCompareSlot(remainingCompareEvents[i].id, expectedSlot)
       }
     }
 
     // If there are queued events of the same type, promote the first one to fill the gap
-    const _queuedEventsOfType = events.filter(e => e.compareSlot === -1 && e.type === event.type)
+    const queuedEventsOfType = events.filter(e => e.compareSlot === -1 && e.type === event.type)
     if (queuedEventsOfType.length > 0) {
-      const _nextInQueue = queuedEventsOfType[0] // Get first in queue of same type
-      const _newSlot = slotRange.start + remainingCompareEvents.length
+      const nextInQueue = queuedEventsOfType[0] // Get first in queue of same type
+      const newSlot = slotRange.start + remainingCompareEvents.length
       if (newSlot <= slotRange.end) {
         await onSetCompareSlot(nextInQueue.id, newSlot)
       }
@@ -470,10 +470,10 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
   }, [events, visualizationData, onSetCompareSlot])
 
   // Get bookmarked events for sidebar
-  const _bookmarkedEvents = events.filter(e => e.isBookmarked)
+  const bookmarkedEvents = events.filter(e => e.isBookmarked)
 
   // Get compare events (both active and queued) - includes all event types with their slots
-  const _activeCompareEvents = events.filter(e => {
+  const activeCompareEvents = events.filter(e => {
     if (e.compareSlot === undefined) return false
     // Network: slots 0-3, Console: slots 10-13, Token: slots 20-23
     return (e.compareSlot >= 0 && e.compareSlot <= 3) ||
@@ -481,7 +481,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
            (e.compareSlot >= 20 && e.compareSlot <= 23)
   }).sort((a, b) => (a.compareSlot || 0) - (b.compareSlot || 0))
 
-  const _queuedCompareEvents = events.filter(e => e.compareSlot === -1)
+  const queuedCompareEvents = events.filter(e => e.compareSlot === -1)
 
   return (
     <div className="flex h-full bg-gray-50 dark:bg-gray-900">

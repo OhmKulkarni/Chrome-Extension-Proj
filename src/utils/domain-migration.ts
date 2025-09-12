@@ -18,13 +18,13 @@ export class DomainGroupingMigration {
   }> {
     // console.log('🔄 Starting domain grouping migration...');
 
-    let _processed = 0;
-    let _migrated = 0;
-    let _errors = 0;
+    let processed = 0;
+    let migrated = 0;
+    let errors = 0;
 
     try {
       // Get all network requests from IndexedDB
-      const _response = await chrome.runtime.sendMessage({
+      const response = await chrome.runtime.sendMessage({
         action: 'getNetworkRequests',
         limit: 10000 // Get a large batch
       });
@@ -33,7 +33,7 @@ export class DomainGroupingMigration {
         throw new Error('Failed to fetch network requests');
       }
 
-      const _networkRequests = response.data || [];
+      const networkRequests = response.data || [];
       // console.log(`📊 Found ${networkRequests.length} network requests to process`);
 
       for (const request of networkRequests) {
@@ -41,10 +41,10 @@ export class DomainGroupingMigration {
 
         try {
           // Check if this request needs migration
-          const _needsMigration = this.needsDomainMigration(request);
+          const needsMigration = this.needsDomainMigration(request);
 
           if (needsMigration) {
-            const _correctedMainDomain = this.extractCorrectMainDomain(request);
+            const correctedMainDomain = this.extractCorrectMainDomain(request);
 
             if (correctedMainDomain !== request.main_domain) {
               // Update the request in the database
@@ -85,14 +85,14 @@ export class DomainGroupingMigration {
 
     // Skip if main_domain is already correct
     if (request.main_domain && request.tab_url) {
-      const _tabMainDomain = this.extractDomainFromUrl(request.tab_url);
+      const tabMainDomain = this.extractDomainFromUrl(request.tab_url);
       if (request.main_domain === tabMainDomain) return false;
     }
 
     // Skip if request URL and tab URL have same domain (not iframe request)
     if (request.url && request.tab_url) {
-      const _requestDomain = this.extractDomainFromUrl(request.url);
-      const _tabDomain = this.extractDomainFromUrl(request.tab_url);
+      const requestDomain = this.extractDomainFromUrl(request.url);
+      const tabDomain = this.extractDomainFromUrl(request.tab_url);
       if (requestDomain === tabDomain) return false;
     }
 
@@ -118,14 +118,14 @@ export class DomainGroupingMigration {
    */
   private static extractDomainFromUrl(url: string): string {
     try {
-      const _urlObj = new URL(url);
-      const _hostname = urlObj.hostname;
+      const urlObj = new URL(url);
+      const hostname = urlObj.hostname;
 
       // Remove 'www.' prefix if present
-      const _withoutWww = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
+      const withoutWww = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
 
       // For most cases, return the base domain
-      const _parts = withoutWww.split('.');
+      const parts = withoutWww.split('.');
       if (parts.length >= 2) {
         return parts.slice(-2).join('.');
       }

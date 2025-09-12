@@ -23,16 +23,16 @@ export interface DomainGroup {
 }
 
 // Extract main domain from URL
-export const _extractMainDomain = (url: string): string => {
+export const extractMainDomain = (url: string): string => {
   try {
-    const _urlObj = new URL(url);
-    const _hostname = urlObj.hostname;
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname;
 
     // Remove 'www.' prefix if present
-    const _withoutWww = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
+    const withoutWww = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
 
     // For most cases, return the base domain (e.g., 'reddit.com' from 'api.reddit.com')
-    const _parts = withoutWww.split('.');
+    const parts = withoutWww.split('.');
     if (parts.length >= 2) {
       return parts.slice(-2).join('.');
     }
@@ -45,7 +45,7 @@ export const _extractMainDomain = (url: string): string => {
 };
 
 // Group data by domain
-export const _groupDataByDomain = (
+export const groupDataByDomain = (
   networkRequests: NetworkRequestV1[],
   consoleErrors: ConsoleErrorV1[],
   tokenEvents: TokenEventV1[]
@@ -62,9 +62,9 @@ export const _groupDataByDomain = (
   // })));
 
   // Transform raw data to ensure proper field mapping (main_domain -> mainDomain)
-  const _transformedRequests = networkRequests.map(req => DataAdapters.networkRequestToV1(req));
-  const _transformedErrors = consoleErrors.map(err => DataAdapters.consoleErrorToV1(err));
-  const _transformedTokens = tokenEvents.map(token => DataAdapters.tokenEventToV1(token));
+  const transformedRequests = networkRequests.map(req => DataAdapters.networkRequestToV1(req));
+  const transformedErrors = consoleErrors.map(err => DataAdapters.consoleErrorToV1(err));
+  const transformedTokens = tokenEvents.map(token => DataAdapters.tokenEventToV1(token));
 
   // Log transformed data
   // console.log('📤 Transformed data sample (first 3 requests):', transformedRequests.slice(0, 3).map(req => ({
@@ -80,11 +80,11 @@ export const _groupDataByDomain = (
   //   tokens: transformedTokens.length
   // });
 
-  const _domainMap = new Map<string, DomainGroup>();
+  const domainMap = new Map<string, DomainGroup>();
 
   // Process network requests
   transformedRequests.forEach(request => {
-    const _domain = request.mainDomain || extractMainDomain(request.url);
+    const domain = request.mainDomain || extractMainDomain(request.url);
 
     // DEBUG: Log domain grouping decisions
     if (request.mainDomain !== extractMainDomain(request.url)) {
@@ -119,7 +119,7 @@ export const _groupDataByDomain = (
       });
     }
 
-    const _group = domainMap.get(domain)!;
+    const group = domainMap.get(domain)!;
     group.networkRequests.push(request);
     group.analysis.requestCount++;
     group.analysis.lastActivity = Math.max(group.analysis.lastActivity, new Date(request.timestamp).getTime());
@@ -136,7 +136,7 @@ export const _groupDataByDomain = (
 
     // Track unique endpoints
     try {
-      const _endpoint = new URL(request.url).pathname;
+      const endpoint = new URL(request.url).pathname;
       if (!group.analysis.endpoints.includes(endpoint)) {
         group.analysis.endpoints.push(endpoint);
       }
@@ -147,7 +147,7 @@ export const _groupDataByDomain = (
 
   // Process console errors
   transformedErrors.forEach(error => {
-    const _domain = extractMainDomain(error.url);
+    const domain = extractMainDomain(error.url);
 
     if (!domainMap.has(domain)) {
       domainMap.set(domain, {
@@ -171,7 +171,7 @@ export const _groupDataByDomain = (
       });
     }
 
-    const _group = domainMap.get(domain)!;
+    const group = domainMap.get(domain)!;
     group.consoleErrors.push(error);
     group.analysis.errorCount++;
     group.analysis.lastActivity = Math.max(group.analysis.lastActivity, new Date(error.timestamp).getTime());
@@ -184,7 +184,7 @@ export const _groupDataByDomain = (
 
   // Process token events
   transformedTokens.forEach(event => {
-    const _domain = extractMainDomain(event.url);
+    const domain = extractMainDomain(event.url);
 
     if (!domainMap.has(domain)) {
       domainMap.set(domain, {
@@ -208,7 +208,7 @@ export const _groupDataByDomain = (
       });
     }
 
-    const _group = domainMap.get(domain)!;
+    const group = domainMap.get(domain)!;
     group.tokenEvents.push(event);
     group.analysis.tokenEventCount++;
     group.analysis.lastActivity = Math.max(group.analysis.lastActivity, new Date(event.timestamp).getTime());

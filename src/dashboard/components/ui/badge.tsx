@@ -11,7 +11,7 @@ export const Badge: React.FC<BadgeProps> = ({
   className = '',
   children
 }) => {
-  const _variants = {
+  const variants = {
     default: 'bg-blue-600 text-white',
     secondary: 'bg-gray-200 text-gray-800',
     outline: 'border border-gray-300 text-gray-700 bg-white'

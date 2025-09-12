@@ -18,7 +18,7 @@ interface ChartProps {
 
 // Simple Status Code Chart
 export const SimpleStatusCodeChart: React.FC<ChartProps> = ({ networkRequests }) => {
-  // console.log('SimpleStatusCodeChart - input:', networkRequests?.length);
+  console.log('SimpleStatusCodeChart - input:', networkRequests?.length);
 
   if (!networkRequests || networkRequests.length === 0) {
     return <div className="p-4 text-center text-gray-500">No data available</div>;
@@ -28,19 +28,19 @@ export const SimpleStatusCodeChart: React.FC<ChartProps> = ({ networkRequests })
   const statusCounts: { [key: string]: number } = {};
   
   networkRequests.forEach(req => {
-    const _status = req.status ?? req.response_status ?? req.response?.status ?? req.statusCode ?? 'Unknown';
-    const _key = String(status);
+    const status = req.status ?? req.response_status ?? req.response?.status ?? req.statusCode ?? 'Unknown';
+    const key = String(status);
     statusCounts[key] = (statusCounts[key] || 0) + 1;
   });
 
-  // console.log('SimpleStatusCodeChart - statusCounts:', statusCounts);
+  console.log('SimpleStatusCodeChart - statusCounts:', statusCounts);
 
-  const _data = Object.entries(statusCounts).map(([status, count]) => ({
+  const data = Object.entries(statusCounts).map(([status, count]) => ({
     name: status,
     value: count
   }));
 
-  const _colors = ['#10B981', '#EF4444', '#F59E0B', '#3B82F6', '#9CA3AF'];
+  const colors = ['#10B981', '#EF4444', '#F59E0B', '#3B82F6', '#9CA3AF'];
 
   return (
     <div>
@@ -48,7 +48,7 @@ export const SimpleStatusCodeChart: React.FC<ChartProps> = ({ networkRequests })
       <ResponsiveContainer width="100%" height={300}>
         <PieChart>
           <Pie
-            data={ _data }
+            data={data}
             dataKey="value"
             nameKey="name"
             cx="50%"
@@ -69,7 +69,7 @@ export const SimpleStatusCodeChart: React.FC<ChartProps> = ({ networkRequests })
 
 // Simple Traffic by Endpoint Chart
 export const SimpleTrafficChart: React.FC<ChartProps> = ({ networkRequests }) => {
-  // console.log('SimpleTrafficChart - input:', networkRequests?.length);
+  console.log('SimpleTrafficChart - input:', networkRequests?.length);
 
   if (!networkRequests || networkRequests.length === 0) {
     return <div className="p-4 text-center text-gray-500">No data available</div>;
@@ -81,8 +81,8 @@ export const SimpleTrafficChart: React.FC<ChartProps> = ({ networkRequests }) =>
   networkRequests.forEach(req => {
     if (req.url) {
       try {
-        const _url = new URL(req.url);
-        const _endpoint = url.pathname || '/';
+        const url = new URL(req.url);
+        const endpoint = url.pathname || '/';
         endpointCounts[endpoint] = (endpointCounts[endpoint] || 0) + 1;
       } catch {
         endpointCounts['invalid-url'] = (endpointCounts['invalid-url'] || 0) + 1;
@@ -90,9 +90,9 @@ export const SimpleTrafficChart: React.FC<ChartProps> = ({ networkRequests }) =>
     }
   });
 
-  // console.log('SimpleTrafficChart - endpointCounts:', endpointCounts);
+  console.log('SimpleTrafficChart - endpointCounts:', endpointCounts);
 
-  const _data = Object.entries(endpointCounts)
+  const data = Object.entries(endpointCounts)
     .map(([endpoint, count]) => ({
       name: endpoint.length > 20 ? endpoint.substring(0, 20) + '...' : endpoint,
       value: count
@@ -100,13 +100,13 @@ export const SimpleTrafficChart: React.FC<ChartProps> = ({ networkRequests }) =>
     .sort((a, b) => b.value - a.value)
     .slice(0, 10);
 
-  // console.log('SimpleTrafficChart - chart data:', data);
+  console.log('SimpleTrafficChart - chart data:', data);
 
   return (
     <div>
       <h3 className="text-lg font-semibold mb-4">Traffic by Endpoint</h3>
       <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={ _data } margin={ { top: 20, right: 30, left: 20, bottom: 5 }}>
+        <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
           <YAxis />

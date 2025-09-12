@@ -7,14 +7,14 @@ interface TimeMarkersProps {
 }
 
 export const TimeMarkers: React.FC<TimeMarkersProps> = ({ viewport, zoomLevel }) => {
-  const _markers = useMemo(() => {
-    const _markerCount = getMarkerCount(zoomLevel)
-    const _timeInterval = viewport.duration / markerCount
+  const markers = useMemo(() => {
+    const markerCount = getMarkerCount(zoomLevel)
+    const timeInterval = viewport.duration / markerCount
     
-    const _markerData = []
-    for (let _i = 0; i <= markerCount; i++) {
-      const _timestamp = viewport.startTime + (i * timeInterval)
-      const _position = (i / markerCount) * 100 // Percentage position
+    const markerData = []
+    for (let i = 0; i <= markerCount; i++) {
+      const timestamp = viewport.startTime + (i * timeInterval)
+      const position = (i / markerCount) * 100 // Percentage position
       
       markerData.push({
         id: i,
@@ -56,7 +56,7 @@ function getMarkerCount(zoomLevel: number): number {
 }
 
 function formatTimeLabel(timestamp: number, zoomLevel: number): string {
-  const _date = new Date(timestamp)
+  const date = new Date(timestamp)
   
   // Format based on zoom level for optimal readability
   if (zoomLevel >= 8) {

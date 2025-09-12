@@ -18,7 +18,7 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
   className = ''
 }) => {
   // Helper function to create time buckets (same as global chart)
-  const _getTimeKey = (timestamp: Date, interval: 'hour' | 'day' | 'minute'): number => {
+  const getTimeKey = (timestamp: Date, interval: 'hour' | 'day' | 'minute'): number => {
     if (interval === 'minute') {
       return new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(),
                       timestamp.getHours(), timestamp.getMinutes()).getTime();
@@ -30,37 +30,37 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
     }
   };
   // Filter data for this specific domain - IMPROVED FILTERING LOGIC
-  const _domainData = useMemo(() => {
+  const domainData = useMemo(() => {
     // console.log(`[DomainChartsPanel] Filtering data for domain: ${domain}`);
 
-    const _matchesDomain = (itemDomain: string) => {
+    const matchesDomain = (itemDomain: string) => {
       if (!itemDomain) return false;
 
-      const _normalizeForComparison = (d: string) => d.toLowerCase().replace(/^www\./, '');
-      const _normalizedTarget = normalizeForComparison(domain);
-      const _normalizedItem = normalizeForComparison(itemDomain);
+      const normalizeForComparison = (d: string) => d.toLowerCase().replace(/^www\./, '');
+      const normalizedTarget = normalizeForComparison(domain);
+      const normalizedItem = normalizeForComparison(itemDomain);
 
       return normalizedItem === normalizedTarget ||
              normalizedItem.endsWith('.' + normalizedTarget) ||
              normalizedTarget.endsWith('.' + normalizedItem);
     };
 
-    const _filteredRequests = networkRequests.filter(req => {
-      const _reqDomain = req.main_domain ||
+    const filteredRequests = networkRequests.filter(req => {
+      const reqDomain = req.main_domain ||
                        req.domain ||
                        (req.url ? req.url.match(/https?:\/\/([^\/]+)/)?.[1] : '') || '';
       return matchesDomain(reqDomain);
     });
 
-    const _filteredErrors = consoleErrors.filter(error => {
-      const _errorDomain = error.main_domain ||
+    const filteredErrors = consoleErrors.filter(error => {
+      const errorDomain = error.main_domain ||
                          error.domain ||
                          (error.url ? error.url.match(/https?:\/\/([^\/]+)/)?.[1] : '') || '';
       return matchesDomain(errorDomain);
     });
 
-    const _filteredTokens = tokenEvents.filter(token => {
-      const _tokenDomain = token.main_domain ||
+    const filteredTokens = tokenEvents.filter(token => {
+      const tokenDomain = token.main_domain ||
                          token.domain ||
                          (token.url ? token.url.match(/https?:\/\/([^\/]+)/)?.[1] : '') || '';
       return matchesDomain(tokenDomain);
@@ -76,7 +76,7 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
   }, [domain, networkRequests, consoleErrors, tokenEvents]);
 
   // Chart data preparation - PERFORMANCE: Memoized calculations
-  const _chartData = useMemo(() => {
+  const chartData = useMemo(() => {
     const { requests } = domainData;
 
     if (requests.length === 0) {
@@ -97,23 +97,23 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
     }
 
     // Calculate success rate - FIXED CALCULATION to match column value
-    const _successfulRequests = requests.filter(req => {
-      const _status = req.status ?? req.response_status ?? req.response?.status ?? req.statusCode ?? 200;
+    const successfulRequests = requests.filter(req => {
+      const status = req.status ?? req.response_status ?? req.response?.status ?? req.statusCode ?? 200;
       return status >= 200 && status < 400;
     }).length;
-    const _successRate = (successfulRequests / requests.length) * 100;
+    const successRate = (successfulRequests / requests.length) * 100;
 
     // Calculate average response time
-    const _responseTimes = requests
+    const responseTimes = requests
       .map(req => req.response_time || req.responseTime || 0)
       .filter(time => time > 0);
-    const _avgResponseTime = responseTimes.length > 0
+    const avgResponseTime = responseTimes.length > 0
       ? responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length
       : 0;
 
     // 1. Requests Over Time - SPAN ALL RECORDS (like global chart)
     // Collect ALL timestamps from requests, errors, and tokens
-    const _allTimestamps = [
+    const allTimestamps = [
       ...requests.map(req => req.timestamp ? new Date(req.timestamp).getTime() : Date.now()),
       ...domainData.errors.map(error => error.timestamp ? new Date(error.timestamp).getTime() : Date.now()),
       ...domainData.tokens.map(token => token.timestamp ? new Date(token.timestamp).getTime() : Date.now())
@@ -129,9 +129,9 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
     }> = [];
 
     if (allTimestamps.length > 0) {
-      const _oldestTime = allTimestamps[0];
-      const _newestTime = allTimestamps[allTimestamps.length - 1];
-      const _timeSpan = newestTime - oldestTime;
+      const oldestTime = allTimestamps[0];
+      const newestTime = allTimestamps[allTimestamps.length - 1];
+      const timeSpan = newestTime - oldestTime;
 
       // Choose appropriate time interval (same logic as global chart)
       let interval: 'hour' | 'day' | 'minute' = 'hour';
@@ -149,7 +149,7 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
       }
 
       // Group ALL data by time intervals
-      const _timeGroups = {} as { [key: number]: {
+      const timeGroups = {} as { [key: number]: {
         timestamp: number;
         requests: number;
         errors: number;
@@ -159,8 +159,8 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
 
       // Process requests
       requests.forEach(req => {
-        const _timestamp = req.timestamp ? new Date(req.timestamp) : new Date();
-        const _timeKey = getTimeKey(timestamp, interval);
+        const timestamp = req.timestamp ? new Date(req.timestamp) : new Date();
+        const timeKey = getTimeKey(timestamp, interval);
 
         if (!timeGroups[timeKey]) {
           timeGroups[timeKey] = { timestamp: timeKey, requests: 0, errors: 0, tokens: 0, total: 0 };
@@ -171,8 +171,8 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
 
       // Process errors
       domainData.errors.forEach(error => {
-        const _timestamp = error.timestamp ? new Date(error.timestamp) : new Date();
-        const _timeKey = getTimeKey(timestamp, interval);
+        const timestamp = error.timestamp ? new Date(error.timestamp) : new Date();
+        const timeKey = getTimeKey(timestamp, interval);
 
         if (!timeGroups[timeKey]) {
           timeGroups[timeKey] = { timestamp: timeKey, requests: 0, errors: 0, tokens: 0, total: 0 };
@@ -183,8 +183,8 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
 
       // Process tokens
       domainData.tokens.forEach(token => {
-        const _timestamp = token.timestamp ? new Date(token.timestamp) : new Date();
-        const _timeKey = getTimeKey(timestamp, interval);
+        const timestamp = token.timestamp ? new Date(token.timestamp) : new Date();
+        const timeKey = getTimeKey(timestamp, interval);
 
         if (!timeGroups[timeKey]) {
           timeGroups[timeKey] = { timestamp: timeKey, requests: 0, errors: 0, tokens: 0, total: 0 };
@@ -209,21 +209,21 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
     // 2. Status Code Distribution - Using proven chart patterns
     const statusCounts: { [status: string]: number } = {};
     requests.forEach(req => {
-      const _status = req.status ?? req.response_status ?? 200;
-      const _statusGroup = status < 300 ? '2xx Success' :
+      const status = req.status ?? req.response_status ?? 200;
+      const statusGroup = status < 300 ? '2xx Success' :
                          status < 400 ? '3xx Redirect' :
                          status < 500 ? '4xx Client Error' : '5xx Server Error';
       statusCounts[statusGroup] = (statusCounts[statusGroup] || 0) + 1;
     });
 
-    const _statusData = Object.entries(statusCounts).map(([status, count]) => ({
+    const statusData = Object.entries(statusCounts).map(([status, count]) => ({
       name: status,
       value: count,
       percentage: ((count / requests.length) * 100).toFixed(1)
     }));
 
     // 3. Response Time Breakdown - More granular histogram for better accuracy
-    const _responseTimeBuckets = {
+    const responseTimeBuckets = {
       '0-50ms': 0,
       '50-100ms': 0,
       '100-200ms': 0,
@@ -234,13 +234,13 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
       '2000ms+': 0
     };
 
-    let _totalResponseTimes = 0;
-    let _sumResponseTimes = 0;
-    let _minResponseTime = Infinity;
-    let _maxResponseTime = 0;
+    let totalResponseTimes = 0;
+    let sumResponseTimes = 0;
+    let minResponseTime = Infinity;
+    let maxResponseTime = 0;
 
     requests.forEach(req => {
-      const _responseTime = req.response_time || req.responseTime || 0;
+      const responseTime = req.response_time || req.responseTime || 0;
       if (responseTime > 0) {
         totalResponseTimes++;
         sumResponseTimes += responseTime;
@@ -267,10 +267,10 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
       }
     });
 
-    const _chartAvgResponseTime = totalResponseTimes > 0 ? (sumResponseTimes / totalResponseTimes).toFixed(1) : '0';
-    const _minTime = minResponseTime === Infinity ? 0 : minResponseTime;
+    const chartAvgResponseTime = totalResponseTimes > 0 ? (sumResponseTimes / totalResponseTimes).toFixed(1) : '0';
+    const minTime = minResponseTime === Infinity ? 0 : minResponseTime;
 
-    const _responseTimeData = Object.entries(responseTimeBuckets)
+    const responseTimeData = Object.entries(responseTimeBuckets)
       .map(([range, count]) => ({
         name: range,
         count,
@@ -286,15 +286,15 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
     const endpointCounts: { [endpoint: string]: number } = {};
     requests.forEach(req => {
       try {
-        const _endpoint = new URL(req.url || '').pathname || '/';
-        const _shortEndpoint = endpoint.length > 20 ? endpoint.substring(0, 17) + '...' : endpoint;
+        const endpoint = new URL(req.url || '').pathname || '/';
+        const shortEndpoint = endpoint.length > 20 ? endpoint.substring(0, 17) + '...' : endpoint;
         endpointCounts[shortEndpoint] = (endpointCounts[shortEndpoint] || 0) + 1;
       } catch {
         endpointCounts['/'] = (endpointCounts['/'] || 0) + 1;
       }
     });
 
-    const _endpointsData = Object.entries(endpointCounts)
+    const endpointsData = Object.entries(endpointCounts)
       .map(([endpoint, count]) => ({
         name: endpoint,
         count,
@@ -352,7 +352,7 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
   }
 
   // Color schemes for consistency
-  const _colors = {
+  const colors = {
     primary: '#3B82F6',
     secondary: '#10B981',
     accent: '#F59E0B',

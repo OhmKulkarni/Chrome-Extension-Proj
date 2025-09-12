@@ -4,9 +4,9 @@ import type { StorageOperations, ApiCall, ConsoleError, TokenEvent, MinifiedLibr
 // MEMORY LEAK FIX: Extract Promise constructor functions outside class to prevent context capture
 function createOpenRequestPromise(request: IDBOpenDBRequest): Promise<IDBDatabase> {
   return new Promise<IDBDatabase>((resolve, reject) => {
-    let _resolved = false
+    let resolved = false
 
-    const _handleError = () => {
+    const handleError = () => {
       if (!resolved) {
         resolved = true
         cleanup()
@@ -15,7 +15,7 @@ function createOpenRequestPromise(request: IDBOpenDBRequest): Promise<IDBDatabas
       }
     }
 
-    const _handleSuccess = () => {
+    const handleSuccess = () => {
       if (!resolved) {
         resolved = true
         cleanup()
@@ -23,7 +23,7 @@ function createOpenRequestPromise(request: IDBOpenDBRequest): Promise<IDBDatabas
       }
     }
 
-    const _cleanup = () => {
+    const cleanup = () => {
       try {
         request.removeEventListener('error', handleError)
         request.removeEventListener('success', handleSuccess)
@@ -39,19 +39,19 @@ function createOpenRequestPromise(request: IDBOpenDBRequest): Promise<IDBDatabas
 
 function createRequestPromise<T>(request: IDBRequest<T>, transaction: IDBTransaction): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    let _resolved = false
+    let resolved = false
 
-    const _handleTransactionError = () => {
+    const handleTransactionError = () => {
       if (!resolved) {
         resolved = true
         cleanup()
-        const _error = transaction.error?.message || 'Transaction failed'
+        const error = transaction.error?.message || 'Transaction failed'
         console.error(`IndexedDB transaction error: ${error}`)
         reject(new Error(`Transaction failed: ${error}`))
       }
     }
 
-    const _handleTransactionAbort = () => {
+    const handleTransactionAbort = () => {
       if (!resolved) {
         resolved = true
         cleanup()
@@ -60,7 +60,7 @@ function createRequestPromise<T>(request: IDBRequest<T>, transaction: IDBTransac
       }
     }
 
-    const _handleRequestSuccess = () => {
+    const handleRequestSuccess = () => {
       if (!resolved) {
         resolved = true
         cleanup()
@@ -68,17 +68,17 @@ function createRequestPromise<T>(request: IDBRequest<T>, transaction: IDBTransac
       }
     }
 
-    const _handleRequestError = () => {
+    const handleRequestError = () => {
       if (!resolved) {
         resolved = true
         cleanup()
-        const _error = request.error?.message || 'Request failed'
+        const error = request.error?.message || 'Request failed'
         console.error(`IndexedDB request error: ${error}`)
         reject(new Error(`Request failed: ${error}`))
       }
     }
 
-    const _cleanup = () => {
+    const cleanup = () => {
       try {
         transaction.removeEventListener('error', handleTransactionError)
         transaction.removeEventListener('abort', handleTransactionAbort)
@@ -104,23 +104,23 @@ function createCursorPromise<T extends any[]>(
 ): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const results: any[] = []
-    let _collected = 0
-    let _resolved = false
-    let _skipCompleted = false
+    let collected = 0
+    let resolved = false
+    let skipCompleted = false
 
-    // console.log(`📖 Cursor: Starting pagination - offset=${offset}, limit=${limit}`)
+    console.log(`📖 Cursor: Starting pagination - offset=${offset}, limit=${limit}`)
 
-    const _handleTransactionError = () => {
+    const handleTransactionError = () => {
       if (!resolved) {
         resolved = true
         cleanup()
-        const _error = transaction.error?.message || 'Transaction failed'
+        const error = transaction.error?.message || 'Transaction failed'
         console.error(`IndexedDB transaction error: ${error}`)
         reject(new Error(`Transaction failed: ${error}`))
       }
     }
 
-    const _handleTransactionAbort = () => {
+    const handleTransactionAbort = () => {
       if (!resolved) {
         resolved = true
         cleanup()
@@ -129,19 +129,19 @@ function createCursorPromise<T extends any[]>(
       }
     }
 
-    const _handleRequestSuccess = () => {
+    const handleRequestSuccess = () => {
       if (resolved) {
         // Already resolved, ignore this event
         return
       }
 
-      const _cursor = request.result
+      const cursor = request.result
 
       if (!cursor) {
         // No more records
         resolved = true
         cleanup()
-        // console.log(`📖 Cursor: Finished - collected ${results.length} results`)
+        console.log(`📖 Cursor: Finished - collected ${results.length} results`)
         resolve(results as T)
         return
       }
@@ -149,7 +149,7 @@ function createCursorPromise<T extends any[]>(
       // First time: skip to the offset position using advance()
       if (!skipCompleted && offset > 0) {
         skipCompleted = true
-        // console.log(`📖 Cursor: Skipping ${offset} records using advance()`)
+        console.log(`📖 Cursor: Skipping ${offset} records using advance()`)
         cursor.advance(offset)
         return
       }
@@ -158,7 +158,7 @@ function createCursorPromise<T extends any[]>(
       if (collected >= limit) {
         resolved = true
         cleanup()
-        // console.log(`📖 Cursor: Limit reached - collected ${results.length} results`)
+        console.log(`📖 Cursor: Limit reached - collected ${results.length} results`)
         resolve(results as T)
         return
       }
@@ -169,7 +169,7 @@ function createCursorPromise<T extends any[]>(
 
       // Log progress every 50 records or at the end to reduce console spam
       if (collected % 50 === 0 || collected === limit) {
-        // console.log(`📖 Cursor: Progress ${collected}/${limit} records`)
+        console.log(`📖 Cursor: Progress ${collected}/${limit} records`)
       }
 
       // Check if we need more records
@@ -179,22 +179,22 @@ function createCursorPromise<T extends any[]>(
         // We have enough records
         resolved = true
         cleanup()
-        // console.log(`📖 Cursor: Completed - collected ${results.length} results`)
+        console.log(`📖 Cursor: Completed - collected ${results.length} results`)
         resolve(results as T)
       }
     }
 
-    const _handleRequestError = () => {
+    const handleRequestError = () => {
       if (!resolved) {
         resolved = true
         cleanup()
-        const _error = request.error?.message || 'Cursor request failed'
+        const error = request.error?.message || 'Cursor request failed'
         console.error(`IndexedDB cursor error: ${error}`)
         reject(new Error(`Cursor failed: ${error}`))
       }
     }
 
-    const _cleanup = () => {
+    const cleanup = () => {
       try {
         transaction.removeEventListener('error', handleTransactionError)
         transaction.removeEventListener('abort', handleTransactionAbort)
@@ -214,11 +214,11 @@ function createCursorPromise<T extends any[]>(
 
 function createDeleteCursorPromise(request: IDBRequest<IDBCursorWithValue | null>): Promise<void> {
   return new Promise<void>((resolve, reject) => {
-    let _resolved = false
+    let resolved = false
 
-    const _handleSuccess = () => {
+    const handleSuccess = () => {
       if (!resolved) {
-        const _cursor = request.result
+        const cursor = request.result
         if (cursor) {
           cursor.delete()
           cursor.continue()
@@ -230,7 +230,7 @@ function createDeleteCursorPromise(request: IDBRequest<IDBCursorWithValue | null
       }
     }
 
-    const _handleError = () => {
+    const handleError = () => {
       if (!resolved) {
         resolved = true
         cleanup()
@@ -238,7 +238,7 @@ function createDeleteCursorPromise(request: IDBRequest<IDBCursorWithValue | null
       }
     }
 
-    const _cleanup = () => {
+    const cleanup = () => {
       try {
         request.removeEventListener('success', handleSuccess)
         request.removeEventListener('error', handleError)
@@ -254,12 +254,12 @@ function createDeleteCursorPromise(request: IDBRequest<IDBCursorWithValue | null
 
 function createPruneCursorPromise(request: IDBRequest<IDBCursorWithValue | null>, maxDeletes: number): Promise<void> {
   return new Promise<void>((resolve, reject) => {
-    let _deleted = 0
-    let _resolved = false
+    let deleted = 0
+    let resolved = false
 
-    const _handleSuccess = () => {
+    const handleSuccess = () => {
       if (!resolved) {
-        const _cursor = request.result
+        const cursor = request.result
         if (cursor && deleted < maxDeletes) {
           cursor.delete()
           deleted++
@@ -272,7 +272,7 @@ function createPruneCursorPromise(request: IDBRequest<IDBCursorWithValue | null>
       }
     }
 
-    const _handleError = () => {
+    const handleError = () => {
       if (!resolved) {
         resolved = true
         cleanup()
@@ -280,7 +280,7 @@ function createPruneCursorPromise(request: IDBRequest<IDBCursorWithValue | null>
       }
     }
 
-    const _cleanup = () => {
+    const cleanup = () => {
       try {
         request.removeEventListener('success', handleSuccess)
         request.removeEventListener('error', handleError)
@@ -309,14 +309,14 @@ class BackgroundPerformanceTracker {
 
   trackOperation(operation: string, duration: number): void {
     // MEMORY LEAK FIX: Aggressive cleanup every 15 seconds
-    const _now = Date.now()
+    const now = Date.now()
     if (now - this.lastCleanup > BackgroundPerformanceTracker.CLEANUP_INTERVAL) {
       this.performCleanup()
       this.lastCleanup = now
     }
 
     // MEMORY LEAK FIX: Cap in-memory buffers to prevent unbounded growth
-    const _operationKeys = Object.keys(this.operationCounts)
+    const operationKeys = Object.keys(this.operationCounts)
     if (operationKeys.length >= BackgroundPerformanceTracker.MAX_OPERATION_TYPES) {
       // Immediately clear everything and start fresh - drop oldest
       this.operationCounts = {}
@@ -340,17 +340,17 @@ class BackgroundPerformanceTracker {
     // MEMORY LEAK FIX: Lightweight memory monitoring with heap size tracking
     if (Object.values(this.operationCounts).reduce((a, b) => a + b, 0) % 10 === 0) {
       if ('memory' in performance) {
-        const _memory = (performance as any).memory
-        const _heapUsed = memory.usedJSHeapSize
-        const _heapLimit = memory.jsHeapSizeLimit
-        const _heapPercentage = (heapUsed / heapLimit) * 100
+        const memory = (performance as any).memory
+        const heapUsed = memory.usedJSHeapSize
+        const heapLimit = memory.jsHeapSizeLimit
+        const heapPercentage = (heapUsed / heapLimit) * 100
 
         // Log current heap usage for monitoring
-        // console.log(`📊 JS Heap Used: ${(heapUsed / 1024 / 1024).toFixed(1)} MB (${heapPercentage.toFixed(1)}%)`)
+        console.log(`📊 JS Heap Used: ${(heapUsed / 1024 / 1024).toFixed(1)} MB (${heapPercentage.toFixed(1)}%)`)
 
         // MEMORY LEAK FIX: Emergency cleanup at 70% instead of 80%
         if (heapPercentage > 70) {
-          // console.log(`🚨 Memory pressure at ${heapPercentage.toFixed(1)}% - emergency cleanup`)
+          console.log(`🚨 Memory pressure at ${heapPercentage.toFixed(1)}% - emergency cleanup`)
           this.emergencyReset()
         }
 
@@ -362,10 +362,10 @@ class BackgroundPerformanceTracker {
 
     // Restored logging for debugging memory issues
     if (this.operationCounts[operation] % 50 === 0) {
-      const _times = this.operationTimes[operation] || []
+      const times = this.operationTimes[operation] || []
       if (times.length > 0) {
-        const _avg = times.reduce((a, b) => a + b, 0) / times.length
-        // console.log(`[IndexedDB-Perf] ${operation}: ${avg.toFixed(2)}ms avg (${this.operationCounts[operation]} ops)`)
+        const avg = times.reduce((a, b) => a + b, 0) / times.length
+        console.log(`[IndexedDB-Perf] ${operation}: ${avg.toFixed(2)}ms avg (${this.operationCounts[operation]} ops)`)
       }
     }
   }
@@ -381,7 +381,7 @@ class BackgroundPerformanceTracker {
 
   // MEMORY LEAK FIX: Aggressive cleanup method
   private performCleanup(): void {
-    // console.log('🧹 [IndexedDB-Perf] Performing aggressive cleanup...')
+    console.log('🧹 [IndexedDB-Perf] Performing aggressive cleanup...')
 
     // Complete reset instead of partial cleanup
     this.operationCounts = {}
@@ -390,7 +390,7 @@ class BackgroundPerformanceTracker {
     // Reset memory tracking
     this.memoryPeak = 0
 
-    // console.log(`🧹 [IndexedDB-Perf] Cleanup complete.`)
+    console.log(`🧹 [IndexedDB-Perf] Cleanup complete.`)
   }
 
   getStats(): PerformanceStats {
@@ -398,13 +398,13 @@ class BackgroundPerformanceTracker {
     this.performCleanup()
 
     // MEMORY LEAK FIX: Return minimal stats without calculations that could retain data
-    const _totalOperations = 0 // Don't calculate to avoid accessing data structures
-    const _averageOperationTime = 0 // Don't calculate to avoid creating arrays
+    const totalOperations = 0 // Don't calculate to avoid accessing data structures
+    const averageOperationTime = 0 // Don't calculate to avoid creating arrays
 
     // Get current memory usage if available
-    let _currentMemory = 0
+    let currentMemory = 0
     if ('memory' in performance) {
-      const _memory = (performance as any).memory
+      const memory = (performance as any).memory
       currentMemory = memory.usedJSHeapSize
     }
 
@@ -435,7 +435,7 @@ class BackgroundPerformanceTracker {
 
   // MEMORY LEAK FIX: Method to completely reset tracker
   public reset(): void {
-    // console.log('🧹 [IndexedDB-Perf] Resetting performance tracker...')
+    console.log('🧹 [IndexedDB-Perf] Resetting performance tracker...')
     this.operationCounts = {}
     this.operationTimes = {}
     this.startTime = Date.now()
@@ -444,7 +444,7 @@ class BackgroundPerformanceTracker {
   }
 }
 
-const _perfTracker = new BackgroundPerformanceTracker()
+const perfTracker = new BackgroundPerformanceTracker()
 
 export class IndexedDBStorage implements StorageOperations {
   private db: IDBDatabase | null = null
@@ -458,7 +458,7 @@ export class IndexedDBStorage implements StorageOperations {
   async init(): Promise<void> {
     // Prevent concurrent initialization
     if (this.initPromise) {
-      // console.log('🔄 IndexedDB: Initialization already in progress, waiting...')
+      console.log('🔄 IndexedDB: Initialization already in progress, waiting...')
       return this.initPromise
     }
 
@@ -467,11 +467,11 @@ export class IndexedDBStorage implements StorageOperations {
       try {
         // Quick health check
         if (this.db.objectStoreNames.length > 0) {
-          // console.log('✅ IndexedDB: Database already initialized and healthy')
+          console.log('✅ IndexedDB: Database already initialized and healthy')
           return Promise.resolve()
         }
       } catch (error) {
-        // console.warn('🔄 IndexedDB: Health check failed, reinitializing...')
+        console.warn('🔄 IndexedDB: Health check failed, reinitializing...')
         this.db = null
       }
     }
@@ -483,86 +483,86 @@ export class IndexedDBStorage implements StorageOperations {
 
   private async initializeDatabase(): Promise<void> {
     try {
-      // console.log('🔧 IndexedDB: Starting database initialization...')
+      console.log('🔧 IndexedDB: Starting database initialization...')
 
       // MEMORY LEAK FIX: Replace Promise constructor with direct event-to-promise pattern
-      const _request = indexedDB.open('DevToolsExtension', 6) // Increment version to add new indexes for library deduplication
+      const request = indexedDB.open('DevToolsExtension', 6) // Increment version to add new indexes for library deduplication
 
       // Handle database upgrade first
       request.onupgradeneeded = (event) => {
-        const _db = request.result
-        const _transaction = (event.target as IDBOpenDBRequest).transaction!
-        // console.log('🔄 IndexedDB: Database upgrade needed, current version:', db.version)
-        // console.log('🔄 IndexedDB: Existing stores:', Array.from(db.objectStoreNames))
+        const db = request.result
+        const transaction = (event.target as IDBOpenDBRequest).transaction!
+        console.log('🔄 IndexedDB: Database upgrade needed, current version:', db.version)
+        console.log('🔄 IndexedDB: Existing stores:', Array.from(db.objectStoreNames))
 
         // Create object stores
         if (!db.objectStoreNames.contains('apiCalls')) {
-          const _apiStore = db.createObjectStore('apiCalls', { keyPath: 'id', autoIncrement: true })
+          const apiStore = db.createObjectStore('apiCalls', { keyPath: 'id', autoIncrement: true })
           apiStore.createIndex('timestamp', 'timestamp', { unique: false })
           apiStore.createIndex('domain', 'domain', { unique: false })
-          // console.log('📦 IndexedDB: Created apiCalls store with auto-increment')
+          console.log('📦 IndexedDB: Created apiCalls store with auto-increment')
         }
 
         if (!db.objectStoreNames.contains('consoleErrors')) {
-          const _errorStore = db.createObjectStore('consoleErrors', { keyPath: 'id', autoIncrement: true })
+          const errorStore = db.createObjectStore('consoleErrors', { keyPath: 'id', autoIncrement: true })
           errorStore.createIndex('timestamp', 'timestamp', { unique: false })
           errorStore.createIndex('domain', 'domain', { unique: false })
-          // console.log('📦 IndexedDB: Created consoleErrors store with auto-increment')
+          console.log('📦 IndexedDB: Created consoleErrors store with auto-increment')
         }
 
         if (!db.objectStoreNames.contains('tokenEvents')) {
-          const _tokenStore = db.createObjectStore('tokenEvents', { keyPath: 'id', autoIncrement: true })
+          const tokenStore = db.createObjectStore('tokenEvents', { keyPath: 'id', autoIncrement: true })
           tokenStore.createIndex('timestamp', 'timestamp', { unique: false })
           tokenStore.createIndex('domain', 'domain', { unique: false })
-          // console.log('📦 IndexedDB: Created tokenEvents store with auto-increment')
+          console.log('📦 IndexedDB: Created tokenEvents store with auto-increment')
         }
 
         if (!db.objectStoreNames.contains('minifiedLibraries')) {
-          const _libraryStore = db.createObjectStore('minifiedLibraries', { keyPath: 'id', autoIncrement: true })
+          const libraryStore = db.createObjectStore('minifiedLibraries', { keyPath: 'id', autoIncrement: true })
           libraryStore.createIndex('domain', 'domain', { unique: false })
           libraryStore.createIndex('timestamp', 'timestamp', { unique: false })
           libraryStore.createIndex('uniqueKey', ['name', 'version', 'main_domain'], { unique: false })
-          // console.log('📦 IndexedDB: Created minifiedLibraries store with auto-increment and indexes')
+          console.log('📦 IndexedDB: Created minifiedLibraries store with auto-increment and indexes')
         } else {
           // Upgrade existing minifiedLibraries store to add missing indexes
-          const _libraryStore = transaction.objectStore('minifiedLibraries')
+          const libraryStore = transaction.objectStore('minifiedLibraries')
 
           // Add timestamp index if it doesn't exist
           if (!libraryStore.indexNames.contains('timestamp')) {
             libraryStore.createIndex('timestamp', 'timestamp', { unique: false })
-            // console.log('📦 IndexedDB: Added timestamp index to minifiedLibraries')
+            console.log('📦 IndexedDB: Added timestamp index to minifiedLibraries')
           }
 
           // Add uniqueKey index if it doesn't exist
           if (!libraryStore.indexNames.contains('uniqueKey')) {
             libraryStore.createIndex('uniqueKey', ['name', 'version', 'main_domain'], { unique: false })
-            // console.log('📦 IndexedDB: Added uniqueKey index to minifiedLibraries')
+            console.log('📦 IndexedDB: Added uniqueKey index to minifiedLibraries')
           }
         }
 
         // Add settings store
         if (!db.objectStoreNames.contains('settings')) {
           db.createObjectStore('settings', { keyPath: 'key' })
-          // console.log('📦 IndexedDB: Created settings store')
+          console.log('📦 IndexedDB: Created settings store')
         } else {
-          // console.log('📦 IndexedDB: Settings store already exists')
+          console.log('📦 IndexedDB: Settings store already exists')
         }
 
         // Remove tabStates store if it exists (cleanup from previous versions)
         if (db.objectStoreNames.contains('tabStates')) {
           db.deleteObjectStore('tabStates')
-          // console.log('🧹 IndexedDB: Removed tabStates store (no longer used)')
+          console.log('🧹 IndexedDB: Removed tabStates store (no longer used)')
         }
 
-        // console.log('🔄 IndexedDB: Final stores after upgrade:', Array.from(db.objectStoreNames))
+        console.log('🔄 IndexedDB: Final stores after upgrade:', Array.from(db.objectStoreNames))
       }
 
       // MEMORY LEAK FIX: Use helper method instead of Promise constructor
-      const _db = await this.promiseFromOpenRequest(request)
+      const db = await this.promiseFromOpenRequest(request)
 
       this.db = db
-      // console.log('✅ IndexedDB: Database opened successfully')
-      // console.log('📊 IndexedDB: Available stores:', Array.from(db.objectStoreNames))
+      console.log('✅ IndexedDB: Database opened successfully')
+      console.log('📊 IndexedDB: Available stores:', Array.from(db.objectStoreNames))
       this.startAutoPruning()
       this.initPromise = null
     } catch (error) {
@@ -610,7 +610,7 @@ export class IndexedDBStorage implements StorageOperations {
       clearInterval(this.autoPruneInterval);
     }
 
-    const _intervalMs = this.config.pruneIntervalHours * 60 * 60 * 1000
+    const intervalMs = this.config.pruneIntervalHours * 60 * 60 * 1000
     this.autoPruneInterval = setInterval(() => {
       this.pruneOldData().catch(console.error)
     }, intervalMs)
@@ -630,21 +630,21 @@ export class IndexedDBStorage implements StorageOperations {
 
     if (!this.db) return
 
-    const _stores = ['apiCalls', 'consoleErrors', 'tokenEvents', 'minifiedLibraries']
+    const stores = ['apiCalls', 'consoleErrors', 'tokenEvents', 'minifiedLibraries']
 
     for (const storeName of stores) {
       try {
-        const _transaction = this.db.transaction([storeName], 'readwrite')
-        const _store = transaction.objectStore(storeName)
-        const _countRequest = store.count()
+        const transaction = this.db.transaction([storeName], 'readwrite')
+        const store = transaction.objectStore(storeName)
+        const countRequest = store.count()
 
-        const _count = await this.promiseFromRequest<number>(countRequest, transaction)
+        const count = await this.promiseFromRequest<number>(countRequest, transaction)
 
         if (count > 500) { // Ultra-aggressive - keep only 500 records max
           // Delete all but the newest 500 records
-          const _excess = count - 500
-          const _index = store.index('timestamp')
-          const _request = index.openCursor(null, 'next') // Oldest first
+          const excess = count - 500
+          const index = store.index('timestamp')
+          const request = index.openCursor(null, 'next') // Oldest first
 
           await this.promiseFromPruneCursor(request, excess)
         }
@@ -665,17 +665,17 @@ export class IndexedDBStorage implements StorageOperations {
     try {
       // Test if we can access basic database properties
       if (!this.db.objectStoreNames || this.db.objectStoreNames.length === 0) {
-        // console.warn('🔄 Database appears to be in invalid state, reinitializing...')
+        console.warn('🔄 Database appears to be in invalid state, reinitializing...')
         await this.init()
       }
     } catch (error) {
-      // console.warn('🔄 Database connection test failed, reinitializing...', error)
+      console.warn('🔄 Database connection test failed, reinitializing...', error)
       await this.init()
     }
 
     // Check if database connection is still valid by checking if it has the expected store
     if (!this.db.objectStoreNames.contains(storeName)) {
-      // console.warn(`Database missing expected store '${storeName}', reinitializing...`)
+      console.warn(`Database missing expected store '${storeName}', reinitializing...`)
       await this.init()
       if (!this.db || !this.db.objectStoreNames.contains(storeName)) {
         throw new Error(`Database initialization failed - store '${storeName}' not found`)
@@ -684,9 +684,9 @@ export class IndexedDBStorage implements StorageOperations {
 
     // MEMORY LEAK FIX: Convert Promise constructor to helper method
     try {
-      const _transaction = this.db!.transaction([storeName], mode)
-      const _store = transaction.objectStore(storeName)
-      const _request = operation(store)
+      const transaction = this.db!.transaction([storeName], mode)
+      const store = transaction.objectStore(storeName)
+      const request = operation(store)
 
       return await this.promiseFromRequest<T>(request, transaction)
 
@@ -698,27 +698,27 @@ export class IndexedDBStorage implements StorageOperations {
 
   // API Calls
   async insertApiCall(data: Omit<ApiCall, 'id'>): Promise<number> {
-    const _startTime = performance.now()
+    const startTime = performance.now()
     try {
       // MEMORY LEAK FIX: Check memory pressure before inserting
       await this.checkMemoryPressure()
 
-      // console.log('📝 InsertApiCall: Attempting to store data:', { url: data.url, method: data.method, timestamp: data.timestamp })
+      console.log('📝 InsertApiCall: Attempting to store data:', { url: data.url, method: data.method, timestamp: data.timestamp })
 
       // DUPLICATE DETECTION: Check for similar requests in the last 5 seconds
       try {
-        const _recentThreshold = Date.now() - 5000; // 5 seconds ago
-        const _transaction = this.db!.transaction(['apiCalls'], 'readonly')
-        const _store = transaction.objectStore('apiCalls')
-        const _index = store.index('timestamp')
+        const recentThreshold = Date.now() - 5000; // 5 seconds ago
+        const transaction = this.db!.transaction(['apiCalls'], 'readonly')
+        const store = transaction.objectStore('apiCalls')
+        const index = store.index('timestamp')
 
         // Get recent requests
         const recentRequests: ApiCall[] = []
-        const _request = index.openCursor(IDBKeyRange.lowerBound(recentThreshold))
+        const request = index.openCursor(IDBKeyRange.lowerBound(recentThreshold))
 
         await new Promise<void>((resolve, reject) => {
           request.onsuccess = (event) => {
-            const _cursor = (event.target as IDBRequest).result
+            const cursor = (event.target as IDBRequest).result
             if (cursor) {
               recentRequests.push(cursor.value)
               cursor.continue()
@@ -730,7 +730,7 @@ export class IndexedDBStorage implements StorageOperations {
         })
 
         // Check for duplicates (same URL, method, and similar timestamp within 5s)
-        const _duplicates = recentRequests.filter(existing =>
+        const duplicates = recentRequests.filter(existing =>
           existing.url === data.url &&
           existing.method === data.method &&
           existing.tab_id === data.tab_id &&
@@ -738,20 +738,20 @@ export class IndexedDBStorage implements StorageOperations {
         )
 
         if (duplicates.length > 0) {
-          // console.log(`🔄 IndexedDB: Duplicate network request skipped (${duplicates.length} similar requests found in last 5s)`)
+          console.log(`🔄 IndexedDB: Duplicate network request skipped (${duplicates.length} similar requests found in last 5s)`)
           perfTracker.trackOperation('insertApiCall_duplicate_skipped', performance.now() - startTime)
           return duplicates[0].id || 0 // Return ID of existing request
         }
       } catch (deduplicationError) {
         // If deduplication check fails, proceed with insertion anyway
-        // console.warn('⚠️ IndexedDB: Deduplication check failed, proceeding with insertion:', deduplicationError)
+        console.warn('⚠️ IndexedDB: Deduplication check failed, proceeding with insertion:', deduplicationError)
       }
 
-      const _result = await this.performTransaction('apiCalls', 'readwrite',
+      const result = await this.performTransaction('apiCalls', 'readwrite',
         (store) => store.add(data)
       )
 
-      // console.log('✅ InsertApiCall: Successfully stored with ID:', result)
+      console.log('✅ InsertApiCall: Successfully stored with ID:', result)
 
       // MEMORY LEAK FIX: Release references after DB write
       // Clear any internal references to the data object
@@ -771,10 +771,10 @@ export class IndexedDBStorage implements StorageOperations {
   // MEMORY LEAK FIX: Ultra-aggressive memory pressure monitoring
   private async checkMemoryPressure(): Promise<void> {
     if ('memory' in performance) {
-      const _memory = (performance as any).memory
-      const _heapUsed = memory.usedJSHeapSize
-      const _heapLimit = memory.jsHeapSizeLimit
-      const _heapPercentage = (heapUsed / heapLimit) * 100
+      const memory = (performance as any).memory
+      const heapUsed = memory.usedJSHeapSize
+      const heapLimit = memory.jsHeapSizeLimit
+      const heapPercentage = (heapUsed / heapLimit) * 100
 
       if (heapPercentage > 60) { // Lowered from 80% to 60%
         await this.emergencyCleanup()
@@ -791,29 +791,29 @@ export class IndexedDBStorage implements StorageOperations {
   }
 
   async getApiCalls(limit = 100, offset = 0): Promise<ApiCall[]> {
-    const _startTime = performance.now()
+    const startTime = performance.now()
     if (!this.db) throw new Error('Database not initialized')
 
-    // console.log(`📖 GetApiCalls: Requesting ${limit} records with offset ${offset}`)
+    console.log(`📖 GetApiCalls: Requesting ${limit} records with offset ${offset}`)
 
     // MEMORY LEAK FIX: Convert Promise constructor to async/await pattern
     try {
-      const _transaction = this.db!.transaction(['apiCalls'], 'readonly')
-      const _store = transaction.objectStore('apiCalls')
-      const _index = store.index('timestamp')
+      const transaction = this.db!.transaction(['apiCalls'], 'readonly')
+      const store = transaction.objectStore('apiCalls')
+      const index = store.index('timestamp')
 
       // Always use cursor for consistent latest-first ordering
       // Fast path with getAll can cause ordering issues, so use cursor consistently
 
       // Use cursor for consistent latest-first ordering
-      const _request = index.openCursor(null, 'prev') // Latest first
+      const request = index.openCursor(null, 'prev') // Latest first
 
       // MEMORY LEAK FIX: Use helper method for cursor Promise
-      const _results = await this.promiseFromCursor<ApiCall[]>(request, transaction, limit, offset)
+      const results = await this.promiseFromCursor<ApiCall[]>(request, transaction, limit, offset)
 
       perfTracker.trackOperation('getApiCalls_cursor', performance.now() - startTime)
 
-      // console.log(`✅ GetApiCalls (cursor): Retrieved ${results.length} records`)
+      console.log(`✅ GetApiCalls (cursor): Retrieved ${results.length} records`)
 
       // MEMORY LEAK FIX: Check memory pressure after data retrieval
       await this.checkMemoryPressure()
@@ -844,31 +844,31 @@ export class IndexedDBStorage implements StorageOperations {
 
     // MEMORY LEAK FIX: Convert Promise constructor to async/await pattern
     try {
-      const _transaction = this.db!.transaction(['apiCalls'], 'readonly')
-      const _store = transaction.objectStore('apiCalls')
+      const transaction = this.db!.transaction(['apiCalls'], 'readonly')
+      const store = transaction.objectStore('apiCalls')
 
       // First get the highest key to determine range
-      const _countRequest = store.count()
+      const countRequest = store.count()
 
       // MEMORY LEAK FIX: Use helper method instead of Promise constructor
-      const _totalCount = await this.promiseFromRequest<number>(countRequest, transaction)
+      const totalCount = await this.promiseFromRequest<number>(countRequest, transaction)
 
       if (totalCount === 0) {
         return []
       }
 
       // Calculate key range for most recent records
-      const _startKey = Math.max(1, totalCount - limit + 1)
-      const _keyRange = IDBKeyRange.lowerBound(startKey)
+      const startKey = Math.max(1, totalCount - limit + 1)
+      const keyRange = IDBKeyRange.lowerBound(startKey)
 
       // Get records using key range on primary key for maximum speed
-      const _request = store.getAll(keyRange)
+      const request = store.getAll(keyRange)
 
       // MEMORY LEAK FIX: Use helper method instead of Promise constructor
-      const _results = await this.promiseFromRequest<ApiCall[]>(request, transaction)
+      const results = await this.promiseFromRequest<ApiCall[]>(request, transaction)
 
       // Sort by ID descending and limit
-      const _sorted = results
+      const sorted = results
         .sort((a, b) => (b.id || 0) - (a.id || 0))
         .slice(0, limit)
 
@@ -889,24 +889,24 @@ export class IndexedDBStorage implements StorageOperations {
 
     // DEDUPLICATION: Check for similar errors within the last 5 seconds
     try {
-      const _recentTimeRange = 5000; // 5 seconds in milliseconds
-      const _currentTime = data.timestamp;
-      const _timeRangeStart = currentTime - recentTimeRange;
+      const recentTimeRange = 5000; // 5 seconds in milliseconds
+      const currentTime = data.timestamp;
+      const timeRangeStart = currentTime - recentTimeRange;
 
       // Query recent errors with same message and severity
-      const _transaction = this.db!.transaction(['consoleErrors'], 'readonly');
-      const _store = transaction.objectStore('consoleErrors');
-      const _index = store.index('timestamp');
-      const _range = IDBKeyRange.lowerBound(timeRangeStart);
+      const transaction = this.db!.transaction(['consoleErrors'], 'readonly');
+      const store = transaction.objectStore('consoleErrors');
+      const index = store.index('timestamp');
+      const range = IDBKeyRange.lowerBound(timeRangeStart);
 
       const recentErrors: ConsoleError[] = [];
 
       await new Promise<void>((resolve, reject) => {
-        const _request = index.openCursor(range);
+        const request = index.openCursor(range);
         request.onsuccess = () => {
-          const _cursor = request.result;
+          const cursor = request.result;
           if (cursor) {
-            const _error = cursor.value as ConsoleError;
+            const error = cursor.value as ConsoleError;
             // Only check errors within our time range and with same message/severity
             if (error.timestamp >= timeRangeStart &&
                 error.message === data.message &&
@@ -924,15 +924,15 @@ export class IndexedDBStorage implements StorageOperations {
 
       // If we found identical errors recently, skip insertion
       if (recentErrors.length > 0) {
-        // console.log(`🔄 IndexedDB: Duplicate console error skipped (${recentErrors.length} similar errors found in last 5s)`);
+        console.log(`🔄 IndexedDB: Duplicate console error skipped (${recentErrors.length} similar errors found in last 5s)`);
         return recentErrors[0].id!; // Return ID of existing similar error
       }
     } catch (deduplicationError) {
       // If deduplication check fails, proceed with insertion anyway
-      // console.warn('⚠️ IndexedDB: Deduplication check failed, proceeding with insertion:', deduplicationError);
+      console.warn('⚠️ IndexedDB: Deduplication check failed, proceeding with insertion:', deduplicationError);
     }
 
-    const _result = await this.performTransaction('consoleErrors', 'readwrite',
+    const result = await this.performTransaction('consoleErrors', 'readwrite',
       (store) => store.add(data)
     )
 
@@ -945,22 +945,22 @@ export class IndexedDBStorage implements StorageOperations {
   }
 
   async getConsoleErrors(limit = 100, offset = 0): Promise<ConsoleError[]> {
-    const _startTime = performance.now()
+    const startTime = performance.now()
     if (!this.db) throw new Error('Database not initialized')
 
-    // console.log(`📖 GetConsoleErrors: Requesting ${limit} records with offset ${offset}`)
+    console.log(`📖 GetConsoleErrors: Requesting ${limit} records with offset ${offset}`)
 
     // MEMORY LEAK FIX: Convert Promise constructor to helper method
-    const _transaction = this.db!.transaction(['consoleErrors'], 'readonly')
-    const _store = transaction.objectStore('consoleErrors')
-    const _index = store.index('timestamp')
-    const _request = index.openCursor(null, 'prev') // Latest first
+    const transaction = this.db!.transaction(['consoleErrors'], 'readonly')
+    const store = transaction.objectStore('consoleErrors')
+    const index = store.index('timestamp')
+    const request = index.openCursor(null, 'prev') // Latest first
 
-    const _results = await this.promiseFromCursor<ConsoleError[]>(request, transaction, limit, offset)
+    const results = await this.promiseFromCursor<ConsoleError[]>(request, transaction, limit, offset)
 
     perfTracker.trackOperation('getConsoleErrors_cursor', performance.now() - startTime)
 
-    // console.log(`✅ GetConsoleErrors (cursor): Retrieved ${results.length} records`)
+    console.log(`✅ GetConsoleErrors (cursor): Retrieved ${results.length} records`)
 
     // MEMORY LEAK FIX: Check memory pressure after data retrieval
     await this.checkMemoryPressure()
@@ -979,7 +979,7 @@ export class IndexedDBStorage implements StorageOperations {
     // MEMORY LEAK FIX: Check memory pressure before inserting
     await this.checkMemoryPressure()
 
-    const _result = await this.performTransaction('tokenEvents', 'readwrite',
+    const result = await this.performTransaction('tokenEvents', 'readwrite',
       (store) => store.add(data)
     )
 
@@ -992,17 +992,17 @@ export class IndexedDBStorage implements StorageOperations {
   }
 
   async getTokenEvents(limit = 100, offset = 0): Promise<TokenEvent[]> {
-    // console.log(`🚨 INDEXEDDB DEBUG: getTokenEvents called with limit=${limit}, offset=${offset}`);
+    console.log(`🚨 INDEXEDDB DEBUG: getTokenEvents called with limit=${limit}, offset=${offset}`);
     if (!this.db) throw new Error('Database not initialized')
 
     // MEMORY LEAK FIX: Convert Promise constructor to helper method
-    const _transaction = this.db!.transaction(['tokenEvents'], 'readonly')
-    const _store = transaction.objectStore('tokenEvents')
-    const _index = store.index('timestamp')
-    const _request = index.openCursor(null, 'prev') // Latest first
+    const transaction = this.db!.transaction(['tokenEvents'], 'readonly')
+    const store = transaction.objectStore('tokenEvents')
+    const index = store.index('timestamp')
+    const request = index.openCursor(null, 'prev') // Latest first
 
-    const _results = await this.promiseFromCursor<TokenEvent[]>(request, transaction, limit, offset)
-    // console.log(`🚨 INDEXEDDB DEBUG: Retrieved ${results.length} token events:`, results);
+    const results = await this.promiseFromCursor<TokenEvent[]>(request, transaction, limit, offset)
+    console.log(`🚨 INDEXEDDB DEBUG: Retrieved ${results.length} token events:`, results);
 
     // MEMORY LEAK FIX: Check memory pressure after data retrieval
     await this.checkMemoryPressure()
@@ -1020,8 +1020,8 @@ export class IndexedDBStorage implements StorageOperations {
   async insertMinifiedLibrary(data: Omit<MinifiedLibrary, 'id'>): Promise<number> {
     // Check for existing library with same name, version, and main_domain
     try {
-      const _version = data.version || 'unknown'
-      const _existingLibrary = await this.findExistingLibrary(data.name, version, data.main_domain || '')
+      const version = data.version || 'unknown'
+      const existingLibrary = await this.findExistingLibrary(data.name, version, data.main_domain || '')
 
       if (existingLibrary) {
         // Update existing library with new timestamp and URL if different
@@ -1032,18 +1032,18 @@ export class IndexedDBStorage implements StorageOperations {
         }
 
         await this.updateMinifiedLibrary(updatedData)
-        // console.log(`🔄 IndexedDB: Updated existing library ${data.name}@${version} for ${data.main_domain}`)
+        console.log(`🔄 IndexedDB: Updated existing library ${data.name}@${version} for ${data.main_domain}`)
         return existingLibrary.id!
       }
     } catch (error) {
-      // console.warn('⚠️ IndexedDB: Error checking for existing library, proceeding with insertion:', error)
+      console.warn('⚠️ IndexedDB: Error checking for existing library, proceeding with insertion:', error)
     }
 
     // Insert new library
-    const _result = await this.performTransaction('minifiedLibraries', 'readwrite',
+    const result = await this.performTransaction('minifiedLibraries', 'readwrite',
       (store) => store.add(data)
     )
-    // console.log(`✅ IndexedDB: Inserted new library ${data.name}@${data.version || 'unknown'} for ${data.main_domain}`)
+    console.log(`✅ IndexedDB: Inserted new library ${data.name}@${data.version || 'unknown'} for ${data.main_domain}`)
     return result as number
   }
 
@@ -1051,13 +1051,13 @@ export class IndexedDBStorage implements StorageOperations {
     if (!this.db) throw new Error('Database not initialized')
 
     return new Promise<MinifiedLibrary | null>((resolve, reject) => {
-      const _transaction = this.db!.transaction(['minifiedLibraries'], 'readonly')
-      const _store = transaction.objectStore('minifiedLibraries')
+      const transaction = this.db!.transaction(['minifiedLibraries'], 'readonly')
+      const store = transaction.objectStore('minifiedLibraries')
 
       // Try to use uniqueKey index if it exists
       if (store.indexNames.contains('uniqueKey')) {
-        const _index = store.index('uniqueKey')
-        const _request = index.get([name, version, main_domain])
+        const index = store.index('uniqueKey')
+        const request = index.get([name, version, main_domain])
 
         request.onsuccess = () => {
           resolve(request.result || null)
@@ -1068,13 +1068,13 @@ export class IndexedDBStorage implements StorageOperations {
         }
       } else {
         // Fallback: scan all libraries for match (for backward compatibility)
-        const _request = store.openCursor()
+        const request = store.openCursor()
         let found: MinifiedLibrary | null = null
 
         request.onsuccess = () => {
-          const _cursor = request.result
+          const cursor = request.result
           if (cursor) {
-            const _library = cursor.value as MinifiedLibrary
+            const library = cursor.value as MinifiedLibrary
             if (library.name === name &&
                 library.version === version &&
                 library.main_domain === main_domain) {
@@ -1105,12 +1105,12 @@ export class IndexedDBStorage implements StorageOperations {
     if (!this.db) throw new Error('Database not initialized')
 
     // MEMORY LEAK FIX: Convert Promise constructor to helper method
-    const _transaction = this.db!.transaction(['minifiedLibraries'], 'readonly')
-    const _store = transaction.objectStore('minifiedLibraries')
-    const _index = store.index('timestamp')
-    const _request = index.openCursor(null, 'prev') // Latest first
+    const transaction = this.db!.transaction(['minifiedLibraries'], 'readonly')
+    const store = transaction.objectStore('minifiedLibraries')
+    const index = store.index('timestamp')
+    const request = index.openCursor(null, 'prev') // Latest first
 
-    const _results = await this.promiseFromCursor<MinifiedLibrary[]>(request, transaction, limit, offset)
+    const results = await this.promiseFromCursor<MinifiedLibrary[]>(request, transaction, limit, offset)
 
     // MEMORY LEAK FIX: Check memory pressure after data retrieval
     await this.checkMemoryPressure()
@@ -1128,8 +1128,8 @@ export class IndexedDBStorage implements StorageOperations {
   async pruneOldData(): Promise<void> {
     if (!this.db) throw new Error('Database not initialized')
 
-    const _cutoffTime = Date.now() - (this.config.maxAgeInDays * 24 * 60 * 60 * 1000)
-    const _stores = ['apiCalls', 'consoleErrors', 'tokenEvents', 'minifiedLibraries']
+    const cutoffTime = Date.now() - (this.config.maxAgeInDays * 24 * 60 * 60 * 1000)
+    const stores = ['apiCalls', 'consoleErrors', 'tokenEvents', 'minifiedLibraries']
 
     for (const storeName of stores) {
       await this.pruneStore(storeName, cutoffTime)
@@ -1140,32 +1140,32 @@ export class IndexedDBStorage implements StorageOperations {
   async clearAllData(): Promise<void> {
     if (!this.db) throw new Error('Database not initialized')
 
-    const _stores = ['apiCalls', 'consoleErrors', 'tokenEvents', 'minifiedLibraries', 'settings']
-    // console.log('🧹 Starting clearAllData operation for stores:', stores)
+    const stores = ['apiCalls', 'consoleErrors', 'tokenEvents', 'minifiedLibraries', 'settings']
+    console.log('🧹 Starting clearAllData operation for stores:', stores)
 
     // Get initial counts for logging
     try {
-      const _initialCounts = await this.getTableCounts()
-      // console.log('📊 Initial store counts:', initialCounts)
+      const initialCounts = await this.getTableCounts()
+      console.log('📊 Initial store counts:', initialCounts)
     } catch (error) {
-      // console.warn('Could not get initial counts:', error)
+      console.warn('Could not get initial counts:', error)
     }
 
     for (const storeName of stores) {
-      // console.log(`🧹 Clearing store: ${storeName}`)
+      console.log(`🧹 Clearing store: ${storeName}`)
       await this.clearStore(storeName)
-      // console.log(`✅ Cleared store: ${storeName}`)
+      console.log(`✅ Cleared store: ${storeName}`)
     }
 
     // Get final counts for verification
     try {
-      const _finalCounts = await this.getTableCounts()
-      // console.log('📊 Final store counts after clear:', finalCounts)
+      const finalCounts = await this.getTableCounts()
+      console.log('📊 Final store counts after clear:', finalCounts)
     } catch (error) {
-      // console.warn('Could not get final counts:', error)
+      console.warn('Could not get final counts:', error)
     }
 
-    // console.log('✅ clearAllData operation completed')
+    console.log('✅ clearAllData operation completed')
   }
 
   private async pruneStore(storeName: string, cutoffTime: number): Promise<void> {
@@ -1173,13 +1173,13 @@ export class IndexedDBStorage implements StorageOperations {
 
     // MEMORY LEAK FIX: Convert Promise constructor to async/await pattern
     try {
-      const _transaction = this.db!.transaction([storeName], 'readwrite')
-      const _store = transaction.objectStore(storeName)
-      const _index = store.index('timestamp')
+      const transaction = this.db!.transaction([storeName], 'readwrite')
+      const store = transaction.objectStore(storeName)
+      const index = store.index('timestamp')
 
       // Delete old records using helper method instead of Promise constructor
-      const _deleteRange = IDBKeyRange.upperBound(cutoffTime)
-      const _deleteRequest = index.openCursor(deleteRange)
+      const deleteRange = IDBKeyRange.upperBound(cutoffTime)
+      const deleteRequest = index.openCursor(deleteRange)
 
       await this.promiseFromDeleteCursor(deleteRequest)
 
@@ -1195,16 +1195,16 @@ export class IndexedDBStorage implements StorageOperations {
 
     // MEMORY LEAK FIX: Convert Promise constructor to async/await pattern
     try {
-      const _transaction = this.db!.transaction([storeName], 'readwrite')
-      const _store = transaction.objectStore(storeName)
-      const _countRequest = store.count()
+      const transaction = this.db!.transaction([storeName], 'readwrite')
+      const store = transaction.objectStore(storeName)
+      const countRequest = store.count()
 
-      const _count = await this.promiseFromRequest<number>(countRequest, transaction)
+      const count = await this.promiseFromRequest<number>(countRequest, transaction)
 
       if (count > this.config.maxRecordsPerTable) {
-        const _excess = count - this.config.maxRecordsPerTable
-        const _index = store.index('timestamp')
-        const _request = index.openCursor(null, 'next') // Oldest first
+        const excess = count - this.config.maxRecordsPerTable
+        const index = store.index('timestamp')
+        const request = index.openCursor(null, 'next') // Oldest first
 
         await this.promiseFromPruneCursor(request, excess)
       }
@@ -1224,7 +1224,7 @@ export class IndexedDBStorage implements StorageOperations {
   async getTableCounts(): Promise<{[table: string]: number}> {
     if (!this.db) throw new Error('Database not initialized')
 
-    const _stores = ['apiCalls', 'consoleErrors', 'tokenEvents', 'minifiedLibraries', 'settings']
+    const stores = ['apiCalls', 'consoleErrors', 'tokenEvents', 'minifiedLibraries', 'settings']
     const counts: {[table: string]: number} = {}
 
     for (const storeName of stores) {
@@ -1238,8 +1238,8 @@ export class IndexedDBStorage implements StorageOperations {
 
   async getStorageInfo(): Promise<{type: 'indexeddb', size?: number}> {
     // IndexedDB doesn't provide easy size calculation, but we can estimate
-    let _estimatedSize = 0
-    const _counts = await this.getTableCounts()
+    let estimatedSize = 0
+    const counts = await this.getTableCounts()
 
     // Rough estimation: each record is approximately 1KB
     for (const count of Object.values(counts)) {
@@ -1252,9 +1252,9 @@ export class IndexedDBStorage implements StorageOperations {
   async getPerformanceStats(): Promise<PerformanceStats> {
     try {
       // MEMORY LEAK FIX: Get ultra-minimal stats without any data copying or calculations
-      let _currentMemory = 0
+      let currentMemory = 0
       if ('memory' in performance) {
-        const _memory = (performance as any).memory
+        const memory = (performance as any).memory
         currentMemory = memory.usedJSHeapSize
       }
 
@@ -1342,17 +1342,17 @@ export class IndexedDBStorage implements StorageOperations {
       return
     }
 
-    // console.log('🔍 IndexedDB: Database structure verification:')
-    // console.log('📊 Database version:', this.db.version)
-    // console.log('📊 Available stores:', Array.from(this.db.objectStoreNames))
+    console.log('🔍 IndexedDB: Database structure verification:')
+    console.log('📊 Database version:', this.db.version)
+    console.log('📊 Available stores:', Array.from(this.db.objectStoreNames))
 
     // Test each store
-    const _stores = ['apiCalls', 'consoleErrors', 'tokenEvents', 'minifiedLibraries', 'settings']
+    const stores = ['apiCalls', 'consoleErrors', 'tokenEvents', 'minifiedLibraries', 'settings']
 
     for (const storeName of stores) {
       try {
-        const _count = await this.performTransaction(storeName, 'readonly', (store) => store.count())
-        // console.log(`📊 ${storeName}:`, count, 'records')
+        const count = await this.performTransaction(storeName, 'readonly', (store) => store.count())
+        console.log(`📊 ${storeName}:`, count, 'records')
       } catch (error) {
         console.error(`❌ ${storeName} store error:`, error)
       }
@@ -1364,8 +1364,8 @@ export class IndexedDBStorage implements StorageOperations {
   async setSetting(key: string, value: any, type: string = 'extension'): Promise<void> {
     if (!this.db) throw new Error('Database not initialized')
 
-    const _transaction = this.db.transaction(['settings'], 'readwrite')
-    const _store = transaction.objectStore('settings')
+    const transaction = this.db.transaction(['settings'], 'readwrite')
+    const store = transaction.objectStore('settings')
 
     const settingData: SettingsData = {
       key,
@@ -1374,27 +1374,27 @@ export class IndexedDBStorage implements StorageOperations {
       type: type as any
     }
 
-    const _request = store.put(settingData)
+    const request = store.put(settingData)
     await createRequestPromise(request, transaction)
   }
 
   async getSetting(key: string): Promise<any> {
     if (!this.db) throw new Error('Database not initialized')
 
-    const _transaction = this.db.transaction(['settings'], 'readonly')
-    const _store = transaction.objectStore('settings')
-    const _request = store.get(key)
+    const transaction = this.db.transaction(['settings'], 'readonly')
+    const store = transaction.objectStore('settings')
+    const request = store.get(key)
 
-    const _result = await createRequestPromise(request, transaction)
+    const result = await createRequestPromise(request, transaction)
     return result?.value || null
   }
 
   async getAllSettings(): Promise<SettingsData[]> {
     if (!this.db) throw new Error('Database not initialized')
 
-    const _transaction = this.db.transaction(['settings'], 'readonly')
-    const _store = transaction.objectStore('settings')
-    const _request = store.getAll()
+    const transaction = this.db.transaction(['settings'], 'readonly')
+    const store = transaction.objectStore('settings')
+    const request = store.getAll()
 
     return await createRequestPromise(request, transaction) || []
   }
@@ -1402,9 +1402,9 @@ export class IndexedDBStorage implements StorageOperations {
   async deleteSetting(key: string): Promise<void> {
     if (!this.db) throw new Error('Database not initialized')
 
-    const _transaction = this.db.transaction(['settings'], 'readwrite')
-    const _store = transaction.objectStore('settings')
-    const _request = store.delete(key)
+    const transaction = this.db.transaction(['settings'], 'readwrite')
+    const store = transaction.objectStore('settings')
+    const request = store.delete(key)
 
     await createRequestPromise(request, transaction)
   }

@@ -19,8 +19,8 @@ export const SlotSelectionModal: React.FC<SlotSelectionModalProps> = ({
 }) => {
   if (!isOpen || !queuedEvent) return null
 
-  const _getEventTitle = (event: TimelineEvent) => {
-    let _title = ''
+  const getEventTitle = (event: TimelineEvent) => {
+    let title = ''
     switch (event.type) {
       case 'network':
         title = event.data.url?.split('/').pop() || 'Network Request'
@@ -38,7 +38,7 @@ export const SlotSelectionModal: React.FC<SlotSelectionModalProps> = ({
     return title.length > 80 ? title.substring(0, 80) + '...' : title
   }
 
-  const _getEventIcon = (event: TimelineEvent) => {
+  const getEventIcon = (event: TimelineEvent) => {
     switch (event.type) {
       case 'network':
         return '🌐'
@@ -93,7 +93,7 @@ export const SlotSelectionModal: React.FC<SlotSelectionModalProps> = ({
             <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Replace which {queuedEvent.type} compare slot?</h4>
             {[0, 1, 2, 3].map((slot) => {
               // Get slot range for the queued event type
-              const _getSlotRange = (eventType: string) => {
+              const getSlotRange = (eventType: string) => {
                 switch (eventType) {
                   case 'network': return { start: 0, end: 3 }
                   case 'console': return { start: 10, end: 13 }
@@ -102,9 +102,9 @@ export const SlotSelectionModal: React.FC<SlotSelectionModalProps> = ({
                 }
               }
 
-              const _slotRange = getSlotRange(queuedEvent.type)
-              const _actualSlot = slotRange.start + slot
-              const _eventInSlot = activeCompareEvents.find(e => e.compareSlot === actualSlot)
+              const slotRange = getSlotRange(queuedEvent.type)
+              const actualSlot = slotRange.start + slot
+              const eventInSlot = activeCompareEvents.find(e => e.compareSlot === actualSlot)
 
               return (
                 <button

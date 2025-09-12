@@ -25,13 +25,13 @@ interface ExportModalProps {
   };
 }
 
-const _tableDisplayNames = {
+const tableDisplayNames = {
   network: 'Network Requests',
   errors: 'Console Errors',
   tokens: 'Token Events'
 };
 
-const _tableIcons = {
+const tableIcons = {
   network: (
     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9v-9m0-9v9" />
@@ -76,7 +76,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     }
   }, [isOpen]);
 
-  const _handleTableToggle = (table: 'network' | 'errors' | 'tokens') => {
+  const handleTableToggle = (table: 'network' | 'errors' | 'tokens') => {
     setSelectedTables(prev =>
       prev.includes(table)
         ? prev.filter(t => t !== table)
@@ -96,14 +96,14 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     }));
   };
 
-  const _handleDetailToggle = (table: string) => {
+  const handleDetailToggle = (table: string) => {
     setIncludeDetails(prev => ({
       ...prev,
       [table]: !prev[table]
     }));
   };
 
-  const _handlePageRangeChange = (table: string, field: 'from' | 'to', value: string) => {
+  const handlePageRangeChange = (table: string, field: 'from' | 'to', value: string) => {
     setPageRanges(prev => ({
       ...prev,
       [table]: {
@@ -117,38 +117,38 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
 
 
-  const _hasActiveFilters = (table: 'network' | 'errors' | 'tokens'): boolean => {
-    const _filters = activeFilters[table];
+  const hasActiveFilters = (table: 'network' | 'errors' | 'tokens'): boolean => {
+    const filters = activeFilters[table];
     switch (table) {
       case 'network':
-        const _networkFilters = filters as { search: string; method: string };
+        const networkFilters = filters as { search: string; method: string };
         return !!(networkFilters.search?.trim() || (networkFilters.method && networkFilters.method !== 'all'));
       case 'errors':
-        const _errorFilters = filters as { search: string; severity: string };
+        const errorFilters = filters as { search: string; severity: string };
         return !!(errorFilters.search?.trim() || (errorFilters.severity && errorFilters.severity !== 'all'));
       case 'tokens':
-        const _tokenFilters = filters as { search: string; type: string };
+        const tokenFilters = filters as { search: string; type: string };
         return !!(tokenFilters.search?.trim() || (tokenFilters.type && tokenFilters.type !== 'all'));
       default:
         return false;
     }
   };
 
-  const _validateExport = (): string | null => {
+  const validateExport = (): string | null => {
     if (selectedTables.length === 0) {
       return 'Please select at least one table to export.';
     }
 
     if (pageSelection === 'range') {
       for (const table of selectedTables) {
-        const _range = pageRanges[table];
+        const range = pageRanges[table];
         if (!range || !range.from || !range.to) {
           return `Please specify page range for ${tableDisplayNames[table]}.`;
         }
 
-        const _fromNum = parseInt(range.from);
-        const _toNum = parseInt(range.to);
-        const _maxPage = tableStats[table].totalPages;
+        const fromNum = parseInt(range.from);
+        const toNum = parseInt(range.to);
+        const maxPage = tableStats[table].totalPages;
 
         if (isNaN(fromNum) || isNaN(toNum) || fromNum < 1 || toNum < 1) {
           return `Page numbers for ${tableDisplayNames[table]} must be positive integers.`;
@@ -167,8 +167,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     return null;
   };
 
-  const _handleExport = async () => {
-    const _validationError = validateExport();
+  const handleExport = async () => {
+    const validationError = validateExport();
     if (validationError) {
       setExportError(validationError);
       return;
@@ -186,7 +186,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         pageRanges: pageSelection === 'range'
           ? Object.fromEntries(
               selectedTables.map(table => {
-                const _range = pageRanges[table];
+                const range = pageRanges[table];
                 return [table, range ? { from: parseInt(range.from), to: parseInt(range.to) } : { from: 1, to: 1 }];
               })
             )

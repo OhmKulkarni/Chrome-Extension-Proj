@@ -9,7 +9,7 @@ interface ThemeToggleProps {
 export const ThemeToggle: React.FC<ThemeToggleProps> = ({ className = '' }) => {
   const { themeMode, setThemeMode } = useTheme();
 
-  const _getIcon = (mode: ThemeMode) => {
+  const getIcon = (mode: ThemeMode) => {
     switch (mode) {
       case 'light':
         return <Sun className="w-4 h-4" />;
@@ -20,7 +20,7 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({ className = '' }) => {
     }
   };
 
-  const _getLabel = (mode: ThemeMode) => {
+  const getLabel = (mode: ThemeMode) => {
     switch (mode) {
       case 'light':
         return 'Light';
@@ -31,10 +31,10 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({ className = '' }) => {
     }
   };
 
-  const _cycleTheme = () => {
+  const cycleTheme = () => {
     const modes: ThemeMode[] = ['light', 'auto', 'dark'];
-    const _currentIndex = modes.indexOf(themeMode);
-    const _nextIndex = (currentIndex + 1) % modes.length;
+    const currentIndex = modes.indexOf(themeMode);
+    const nextIndex = (currentIndex + 1) % modes.length;
     setThemeMode(modes[nextIndex]);
   };
 

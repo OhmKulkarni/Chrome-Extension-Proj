@@ -1,3 +1,3 @@
 import TimelineHeader from './components/TimelineHeader'
 
-// console.log(TimelineHeader)
+console.log(TimelineHeader)

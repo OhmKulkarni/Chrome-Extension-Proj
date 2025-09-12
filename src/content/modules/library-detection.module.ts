@@ -21,7 +21,7 @@ export class ContentLibraryDetectionModule {
   static initialize(): void {
     if (this.isInitialized) return;
 
-    // console.log('📚 [ContentLibraryDetection] Initializing advanced library detection...');
+    console.log('📚 [ContentLibraryDetection] Initializing advanced library detection...');
 
     // Start detection immediately for already loaded content
     this.performInitialDetection();
@@ -38,50 +38,50 @@ export class ContentLibraryDetectionModule {
   private static async performInitialDetection(): Promise<void> {
     try {
       // Check if any logging is enabled before proceeding with library detection
-      const _hasLoggingPermission = await this.checkLoggingPermissions();
+      const hasLoggingPermission = await this.checkLoggingPermissions();
       if (!hasLoggingPermission) {
-        // console.log('🚫 [ContentLibraryDetection] Skipping detection - no logging enabled for this tab');
+        console.log('🚫 [ContentLibraryDetection] Skipping detection - no logging enabled for this tab');
         return;
       }
 
       // DOMAIN CONSISTENCY FIX: Use same domain extraction logic as network processor
       // This ensures libraries are grouped under the same main domain (e.g., yahoo.com instead of finance.yahoo.com)
-      const _mainDomain = this.extractMainDomain(window.location.href);
+      const mainDomain = this.extractMainDomain(window.location.href);
 
       const detectedLibraries: LibraryInfo[] = [];
 
       // 1. 🌍 DOM Global Detection - Check window objects
-      // console.log('🌍 [ContentLibraryDetection] Analyzing global objects...');
-      const _globalLibraries = LibraryDetector.detectFromDOMGlobals(window as any, mainDomain);
+      console.log('🌍 [ContentLibraryDetection] Analyzing global objects...');
+      const globalLibraries = LibraryDetector.detectFromDOMGlobals(window as any, mainDomain);
       detectedLibraries.push(...globalLibraries);
 
       // 2. Wait a bit for inline scripts to execute and create global objects
-      // console.log('⏳ [ContentLibraryDetection] Waiting for inline scripts to complete...');
+      console.log('⏳ [ContentLibraryDetection] Waiting for inline scripts to complete...');
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // 3. Re-run DOM global detection to catch dynamically created libraries
-      // console.log('🔄 [ContentLibraryDetection] Re-analyzing globals for inline libraries...');
-      const _delayedGlobalLibraries = LibraryDetector.detectFromDOMGlobals(window as any, mainDomain);
+      console.log('🔄 [ContentLibraryDetection] Re-analyzing globals for inline libraries...');
+      const delayedGlobalLibraries = LibraryDetector.detectFromDOMGlobals(window as any, mainDomain);
       detectedLibraries.push(...delayedGlobalLibraries);
 
       // 4. 🎨 DOM Structure Detection - Check DOM patterns
-      // console.log('🎨 [ContentLibraryDetection] Analyzing DOM structure...');
-      const _domLibraries = LibraryDetector.detectFromDOMStructure(document, mainDomain);
+      console.log('🎨 [ContentLibraryDetection] Analyzing DOM structure...');
+      const domLibraries = LibraryDetector.detectFromDOMStructure(document, mainDomain);
       detectedLibraries.push(...domLibraries);
 
       // 5. 📦 Script Analysis - Analyze existing script tags
-      // console.log('📦 [ContentLibraryDetection] Analyzing script content...');
+      console.log('📦 [ContentLibraryDetection] Analyzing script content...');
       this.analyzeExistingScripts(mainDomain, detectedLibraries);
 
       // 6. 🗺️ Source Map Analysis - Check for source maps
-      // console.log('🗺️ [ContentLibraryDetection] Checking for source maps...');
+      console.log('🗺️ [ContentLibraryDetection] Checking for source maps...');
       this.analyzeSourceMaps(mainDomain, detectedLibraries);
 
       // Store results and send to background
       this.detectionResults = detectedLibraries;
       this.sendDetectionResults(detectedLibraries);
 
-      // console.log(`📚 [ContentLibraryDetection] Initial detection complete: ${detectedLibraries.length} libraries found`);
+      console.log(`📚 [ContentLibraryDetection] Initial detection complete: ${detectedLibraries.length} libraries found`);
 
     } catch (error) {
       console.error('❌ [ContentLibraryDetection] Error during initial detection:', error);
@@ -95,21 +95,21 @@ export class ContentLibraryDetectionModule {
     try {
       // In content script context, we can't access chrome.tabs.query
       // Instead, send a message to background script to check permissions
-      const _response = await chrome.runtime.sendMessage({
+      const response = await chrome.runtime.sendMessage({
         action: 'CHECK_LOGGING_PERMISSIONS',
         url: window.location.href
       });
 
       if (response?.hasLogging) {
-        // console.log('✅ [ContentLibraryDetection] Logging enabled - proceeding with detection');
+        console.log('✅ [ContentLibraryDetection] Logging enabled - proceeding with detection');
         return true;
       } else {
-        // console.log('🚫 [ContentLibraryDetection] No logging enabled - skipping detection');
+        console.log('🚫 [ContentLibraryDetection] No logging enabled - skipping detection');
         return false;
       }
 
     } catch (error) {
-      // console.warn('⚠️ [ContentLibraryDetection] Error checking permissions:', error);
+      console.warn('⚠️ [ContentLibraryDetection] Error checking permissions:', error);
       return false; // If we can't check, don't run library detection
     }
   }
@@ -119,21 +119,21 @@ export class ContentLibraryDetectionModule {
    */
   private static extractMainDomain(url: string): string {
     try {
-      const _urlObj = new URL(url);
-      const _hostname = urlObj.hostname;
+      const urlObj = new URL(url);
+      const hostname = urlObj.hostname;
 
       // Remove 'www.' prefix if present
-      const _withoutWww = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
+      const withoutWww = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
 
       // For most cases, return the base domain
-      const _parts = withoutWww.split('.');
+      const parts = withoutWww.split('.');
       if (parts.length >= 2) {
         return parts.slice(-2).join('.');
       }
 
       return withoutWww;
     } catch (error) {
-      // console.warn('[ContentLibraryDetection] Failed to extract main domain from URL:', url, error);
+      console.warn('[ContentLibraryDetection] Failed to extract main domain from URL:', url, error);
       return 'unknown';
     }
   }
@@ -142,19 +142,19 @@ export class ContentLibraryDetectionModule {
    * Analyze existing script tags for library signatures
    */
   private static analyzeExistingScripts(domain: string, results: LibraryInfo[]): void {
-    const _scripts = document.querySelectorAll('script[src]');
+    const scripts = document.querySelectorAll('script[src]');
 
     for (const script of scripts) {
-      const _src = (script as HTMLScriptElement).src;
+      const src = (script as HTMLScriptElement).src;
       if (!src || src.startsWith('chrome-extension:') || src.startsWith('moz-extension:')) continue;
 
       try {
-        // console.log('📄 [ContentLibraryDetection] Found script:', src.substring(0, 100));
+        console.log('📄 [ContentLibraryDetection] Found script:', src.substring(0, 100));
 
         // Use LibraryDetector to analyze the script URL
-        const _urlLibraries = LibraryDetector.detectFromRequest(src, {});
+        const urlLibraries = LibraryDetector.detectFromRequest(src, {});
         if (urlLibraries.length > 0) {
-          // console.log(`� [ContentLibraryDetection] Detected ${urlLibraries.length} libraries from URL: ${src.substring(0, 80)}`);
+          console.log(`� [ContentLibraryDetection] Detected ${urlLibraries.length} libraries from URL: ${src.substring(0, 80)}`);
           results.push(...urlLibraries);
         }
 
@@ -163,16 +163,16 @@ export class ContentLibraryDetectionModule {
           this.fetchAndAnalyzeScript(src, domain, results);
         }
       } catch (error) {
-        // console.warn('⚠️ [ContentLibraryDetection] Could not analyze script:', src, error);
+        console.warn('⚠️ [ContentLibraryDetection] Could not analyze script:', src, error);
       }
     }
 
     // Also check inline scripts
-    const _inlineScripts = document.querySelectorAll('script:not([src])');
+    const inlineScripts = document.querySelectorAll('script:not([src])');
     for (const script of inlineScripts) {
-      const _content = script.textContent || script.innerHTML;
+      const content = script.textContent || script.innerHTML;
       if (content && content.length > 1000) { // Only analyze substantial inline scripts
-        const _libraries = LibraryDetector.detectFromBundleAnalysis(content, `${ domain }/inline-script`, domain);
+        const libraries = LibraryDetector.detectFromBundleAnalysis(content, `${domain}/inline-script`, domain);
         results.push(...libraries);
       }
     }
@@ -183,18 +183,18 @@ export class ContentLibraryDetectionModule {
    */
   private static async fetchAndAnalyzeScript(url: string, domain: string, results: LibraryInfo[]): Promise<void> {
     try {
-      const _response = await fetch(url);
+      const response = await fetch(url);
       if (response.ok) {
-        const _content = await response.text();
-        const _libraries = LibraryDetector.detectFromBundleAnalysis(content, url, domain);
+        const content = await response.text();
+        const libraries = LibraryDetector.detectFromBundleAnalysis(content, url, domain);
         results.push(...libraries);
 
         if (libraries.length > 0) {
-          // console.log(`📦 [ContentLibraryDetection] Found ${libraries.length} libraries in ${url.substring(0, 80)}`);
+          console.log(`📦 [ContentLibraryDetection] Found ${libraries.length} libraries in ${url.substring(0, 80)}`);
         }
       }
     } catch (error) {
-      // console.warn('⚠️ [ContentLibraryDetection] Failed to fetch script:', url, error);
+      console.warn('⚠️ [ContentLibraryDetection] Failed to fetch script:', url, error);
     }
   }
 
@@ -202,14 +202,14 @@ export class ContentLibraryDetectionModule {
    * Check for and analyze source maps
    */
   private static analyzeSourceMaps(domain: string, results: LibraryInfo[]): void {
-    const _scripts = document.querySelectorAll('script[src]');
+    const scripts = document.querySelectorAll('script[src]');
 
     for (const script of scripts) {
-      const _src = (script as HTMLScriptElement).src;
+      const src = (script as HTMLScriptElement).src;
       if (!src) continue;
 
       // Check if there's a source map reference
-      const _mapUrl = src + '.map';
+      const mapUrl = src + '.map';
       this.fetchSourceMap(mapUrl, domain, results);
     }
   }
@@ -219,19 +219,19 @@ export class ContentLibraryDetectionModule {
    */
   private static async fetchSourceMap(mapUrl: string, domain: string, results: LibraryInfo[]): Promise<void> {
     try {
-      const _response = await fetch(mapUrl);
+      const response = await fetch(mapUrl);
       if (response.ok) {
-        const _sourceMapData = await response.json();
-        const _libraries = LibraryDetector.detectFromSourceMaps(sourceMapData, domain);
+        const sourceMapData = await response.json();
+        const libraries = LibraryDetector.detectFromSourceMaps(sourceMapData, domain);
         results.push(...libraries);
 
         if (libraries.length > 0) {
-          // console.log(`🗺️ [ContentLibraryDetection] Found ${libraries.length} libraries from source map: ${mapUrl.substring(0, 80)}`);
+          console.log(`🗺️ [ContentLibraryDetection] Found ${libraries.length} libraries from source map: ${mapUrl.substring(0, 80)}`);
         }
       }
     } catch (error) {
       // Source maps often don't exist or are inaccessible, this is normal
-      // console.debug('🗺️ [ContentLibraryDetection] No source map found at:', mapUrl);
+      console.debug('🗺️ [ContentLibraryDetection] No source map found at:', mapUrl);
     }
   }
 
@@ -240,12 +240,12 @@ export class ContentLibraryDetectionModule {
    */
   private static setupDynamicDetection(): void {
     // Watch for new script elements being added
-    const _observer = new MutationObserver((mutations) => {
+    const observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
         if (mutation.type === 'childList') {
           for (const node of mutation.addedNodes) {
             if (node.nodeType === Node.ELEMENT_NODE) {
-              const _element = node as Element;
+              const element = node as Element;
 
               // Check for new script tags
               if (element.tagName === 'SCRIPT') {
@@ -253,7 +253,7 @@ export class ContentLibraryDetectionModule {
               }
 
               // Check for scripts within added elements
-              const _scripts = element.querySelectorAll('script');
+              const scripts = element.querySelectorAll('script');
               for (const script of scripts) {
                 this.handleNewScript(script as HTMLScriptElement);
               }
@@ -269,31 +269,31 @@ export class ContentLibraryDetectionModule {
     });
 
     // Also watch for changes that might indicate new libraries loaded via AJAX/modules
-    let _lastGlobalCheck = Date.now();
-    const _globalCheckInterval = setInterval(async () => {
-      const _now = Date.now();
+    let lastGlobalCheck = Date.now();
+    const globalCheckInterval = setInterval(async () => {
+      const now = Date.now();
       if (now - lastGlobalCheck > 10000) { // Check every 10 seconds
 
         // SECURITY FIX: Check permissions before dynamic detection
-        const _hasLoggingPermission = await this.checkLoggingPermissions();
+        const hasLoggingPermission = await this.checkLoggingPermissions();
         if (!hasLoggingPermission) {
-          // console.log('🚫 [ContentLibraryDetection] Dynamic detection skipped - no logging enabled');
+          console.log('🚫 [ContentLibraryDetection] Dynamic detection skipped - no logging enabled');
           lastGlobalCheck = now;
           return;
         }
 
-        const _mainDomain = this.extractMainDomain(window.location.href);
-        const _newGlobalLibraries = LibraryDetector.detectFromDOMGlobals(window as any, mainDomain);
+        const mainDomain = this.extractMainDomain(window.location.href);
+        const newGlobalLibraries = LibraryDetector.detectFromDOMGlobals(window as any, mainDomain);
 
         // Only send new detections
-        const _newLibraries = newGlobalLibraries.filter(lib =>
+        const newLibraries = newGlobalLibraries.filter(lib =>
           !this.detectionResults.some(existing =>
             existing.name === lib.name && existing.detectionMethod === lib.detectionMethod
           )
         );
 
         if (newLibraries.length > 0) {
-          // console.log(`🔄 [ContentLibraryDetection] Detected ${newLibraries.length} new dynamically loaded libraries`);
+          console.log(`🔄 [ContentLibraryDetection] Detected ${newLibraries.length} new dynamically loaded libraries`);
           this.detectionResults.push(...newLibraries);
           this.sendDetectionResults(newLibraries);
         }
@@ -312,11 +312,11 @@ export class ContentLibraryDetectionModule {
    * Handle a newly detected script element
    */
   private static handleNewScript(script: HTMLScriptElement): void {
-    const _mainDomain = this.extractMainDomain(window.location.href);
-    const _src = script.src;
+    const mainDomain = this.extractMainDomain(window.location.href);
+    const src = script.src;
 
     if (src && !src.startsWith('chrome-extension:') && !src.startsWith('moz-extension:')) {
-      // console.log('📄 [ContentLibraryDetection] New script detected:', src.substring(0, 100));
+      console.log('📄 [ContentLibraryDetection] New script detected:', src.substring(0, 100));
 
       // For same-origin scripts, try to analyze content
       if (src.startsWith(window.location.origin)) {
@@ -324,11 +324,11 @@ export class ContentLibraryDetectionModule {
       }
     } else if (script.textContent || script.innerHTML) {
       // Analyze inline script content
-      const _content = script.textContent || script.innerHTML;
+      const content = script.textContent || script.innerHTML;
       if (content.length > 500) { // Only analyze substantial scripts
-        const _libraries = LibraryDetector.detectFromBundleAnalysis(content, `${ mainDomain }/dynamic-inline-script`, mainDomain);
+        const libraries = LibraryDetector.detectFromBundleAnalysis(content, `${mainDomain}/dynamic-inline-script`, mainDomain);
         if (libraries.length > 0) {
-          // console.log(`📦 [ContentLibraryDetection] Found ${libraries.length} libraries in dynamic inline script`);
+          console.log(`📦 [ContentLibraryDetection] Found ${libraries.length} libraries in dynamic inline script`);
           this.detectionResults.push(...libraries);
           this.sendDetectionResults(libraries);
         }
@@ -351,10 +351,10 @@ export class ContentLibraryDetectionModule {
         domain: this.extractMainDomain(window.location.href),
         timestamp: Date.now()
       }).catch(error => {
-        // console.warn('📚 [ContentLibraryDetection] Failed to send results to background:', error);
+        console.warn('📚 [ContentLibraryDetection] Failed to send results to background:', error);
       });
 
-      // console.log(`📤 [ContentLibraryDetection] Sent ${libraries.length} library detections to background script`);
+      console.log(`📤 [ContentLibraryDetection] Sent ${libraries.length} library detections to background script`);
 
     } catch (error) {
       console.error('❌ [ContentLibraryDetection] Error sending detection results:', error);
@@ -372,7 +372,7 @@ export class ContentLibraryDetectionModule {
    * Force a re-detection of libraries
    */
   static redetect(): void {
-    // console.log('🔄 [ContentLibraryDetection] Forcing re-detection...');
+    console.log('🔄 [ContentLibraryDetection] Forcing re-detection...');
     this.detectionResults = [];
     this.performInitialDetection();
   }

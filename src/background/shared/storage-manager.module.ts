@@ -110,7 +110,7 @@ export class StorageManagerModule {
       // Store in IndexedDB as primary storage
       try {
         // Convert NetworkRequestData to ApiCall format
-        const _apiCallData = {
+        const apiCallData = {
           url: requestData.url,
           method: requestData.method,
           headers: JSON.stringify(requestData.headers || {}),
@@ -129,12 +129,12 @@ export class StorageManagerModule {
         // console.warn('StorageManagerModule: Failed to store network request in IndexedDB, falling back to Chrome storage:', error);
 
         // Fallback to Chrome storage for backward compatibility
-        const _existing = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.NETWORK_REQUESTS);
-        const _requests = existing[this.STORAGE_KEYS.NETWORK_REQUESTS] || [];
+        const existing = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.NETWORK_REQUESTS);
+        const requests = existing[this.STORAGE_KEYS.NETWORK_REQUESTS] || [];
         requests.unshift(requestData);
 
         // Limit array size to prevent memory issues
-        const _maxRequests = 1000;
+        const maxRequests = 1000;
         if (requests.length > maxRequests) {
           requests.splice(maxRequests);
         }
@@ -153,7 +153,7 @@ export class StorageManagerModule {
     return this.executeWithSafety('getNetworkRequests', async () => {
       // Try IndexedDB first
       try {
-        const _apiCalls = await this.indexedDbStorage.getApiCalls(limit, offset);
+        const apiCalls = await this.indexedDbStorage.getApiCalls(limit, offset);
 
         // Convert ApiCall format back to NetworkRequestData format
         return apiCalls.map(apiCall => ({
@@ -182,8 +182,8 @@ export class StorageManagerModule {
         // console.warn('StorageManagerModule: Failed to get network requests from IndexedDB, falling back to Chrome storage:', error);
 
         // Fallback to Chrome storage
-        const _result = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.NETWORK_REQUESTS);
-        const _requests = result[this.STORAGE_KEYS.NETWORK_REQUESTS] || [];
+        const result = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.NETWORK_REQUESTS);
+        const requests = result[this.STORAGE_KEYS.NETWORK_REQUESTS] || [];
         return requests.slice(offset, offset + limit);
       }
     });
@@ -204,7 +204,7 @@ export class StorageManagerModule {
       // Store in IndexedDB as primary storage
       try {
         // Convert ConsoleErrorData to ConsoleError format
-        const _consoleErrorData = {
+        const consoleErrorData = {
           message: errorData.message,
           stack_trace: errorData.stack,
           timestamp: new Date(errorData.timestamp).getTime(),
@@ -221,12 +221,12 @@ export class StorageManagerModule {
         // console.warn('StorageManagerModule: Failed to store console error in IndexedDB, falling back to Chrome storage:', error);
 
         // Fallback to Chrome storage for backward compatibility
-        const _existing = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.CONSOLE_ERRORS);
-        const _errors = existing[this.STORAGE_KEYS.CONSOLE_ERRORS] || [];
+        const existing = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.CONSOLE_ERRORS);
+        const errors = existing[this.STORAGE_KEYS.CONSOLE_ERRORS] || [];
         errors.unshift(errorData);
 
         // Limit array size to prevent memory issues
-        const _maxErrors = 1000;
+        const maxErrors = 1000;
         if (errors.length > maxErrors) {
           errors.splice(maxErrors);
         }
@@ -245,7 +245,7 @@ export class StorageManagerModule {
     return this.executeWithSafety('getConsoleErrors', async () => {
       // Try IndexedDB first
       try {
-        const _consoleErrors = await this.indexedDbStorage.getConsoleErrors(limit, offset);
+        const consoleErrors = await this.indexedDbStorage.getConsoleErrors(limit, offset);
 
         // Convert ConsoleError format back to ConsoleErrorData format
         return consoleErrors.map(error => ({
@@ -262,8 +262,8 @@ export class StorageManagerModule {
         // console.warn('StorageManagerModule: Failed to get console errors from IndexedDB, falling back to Chrome storage:', error);
 
         // Fallback to Chrome storage
-        const _result = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.CONSOLE_ERRORS);
-        const _errors = result[this.STORAGE_KEYS.CONSOLE_ERRORS] || [];
+        const result = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.CONSOLE_ERRORS);
+        const errors = result[this.STORAGE_KEYS.CONSOLE_ERRORS] || [];
         return errors.slice(offset, offset + limit);
       }
     });
@@ -284,7 +284,7 @@ export class StorageManagerModule {
       // Store in IndexedDB as primary storage
       try {
         // Convert background TokenEvent to storage TokenEvent format
-        const _storageTokenEvent = {
+        const storageTokenEvent = {
           type: tokenEvent.type,  // Store event type directly now
           valueHash: tokenEvent.valueHash || '',
           timestamp: new Date(tokenEvent.timestamp).getTime(),
@@ -302,12 +302,12 @@ export class StorageManagerModule {
         // console.warn('StorageManagerModule: Failed to store token event in IndexedDB, falling back to Chrome storage:', error);
 
         // Fallback to Chrome storage for backward compatibility
-        const _existing = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.TOKEN_EVENTS);
-        const _events = existing[this.STORAGE_KEYS.TOKEN_EVENTS] || [];
+        const existing = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.TOKEN_EVENTS);
+        const events = existing[this.STORAGE_KEYS.TOKEN_EVENTS] || [];
         events.unshift(tokenEvent);
 
         // Limit array size to prevent memory issues
-        const _maxEvents = 1000;
+        const maxEvents = 1000;
         if (events.length > maxEvents) {
           events.splice(maxEvents);
         }
@@ -328,11 +328,11 @@ export class StorageManagerModule {
       // Try IndexedDB first
       try {
         // console.log(`� CRITICAL DEBUG: Attempting to retrieve from IndexedDB...`);
-        const _storageTokenEvents = await this.indexedDbStorage.getTokenEvents(limit, offset);
+        const storageTokenEvents = await this.indexedDbStorage.getTokenEvents(limit, offset);
         // console.log(`� CRITICAL DEBUG: Retrieved ${storageTokenEvents.length} events from IndexedDB:`, storageTokenEvents);
 
         // Convert storage TokenEvent format back to background TokenEvent format
-        const _convertedEvents = storageTokenEvents.map(event => ({
+        const convertedEvents = storageTokenEvents.map(event => ({
           type: event.type,  // Event type is stored directly now
           url: event.url || '',
           method: event.method || 'GET',
@@ -349,8 +349,8 @@ export class StorageManagerModule {
         // console.warn('🚨 CRITICAL DEBUG: Failed to get token events from IndexedDB, falling back to Chrome storage:', error);
 
         // Fallback to Chrome storage
-        const _result = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.TOKEN_EVENTS);
-        const _events = result[this.STORAGE_KEYS.TOKEN_EVENTS] || [];
+        const result = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.TOKEN_EVENTS);
+        const events = result[this.STORAGE_KEYS.TOKEN_EVENTS] || [];
         // console.log(`� CRITICAL DEBUG: Using Chrome storage fallback - found ${events.length} events:`, events);
         return events.slice(offset, offset + limit);
       }
@@ -365,9 +365,9 @@ export class StorageManagerModule {
   async getTabNetworkState(tabId: number): Promise<boolean> {
     return this.executeWithSafety('getTabNetworkState', async () => {
       // MAJOR FIX: Use ONLY Chrome storage, not IndexedDB
-      const _key = `${ this.STORAGE_KEYS.TAB_NETWORK_LOGGING }_${ tabId }`;
-      const _result = await this.chromeApi.getFromStorage(key);
-      const _tabState = result[key];
+      const key = `${this.STORAGE_KEYS.TAB_NETWORK_LOGGING}_${tabId}`;
+      const result = await this.chromeApi.getFromStorage(key);
+      const tabState = result[key];
 
       if (typeof tabState === 'boolean') {
         return tabState;
@@ -376,8 +376,8 @@ export class StorageManagerModule {
       }
 
       // If no specific tab state exists, check global settings for default behavior
-      const _settings = await this.getSettings();
-      const _defaultState = settings.networkInterception?.tabSpecific?.defaultState || 'paused';
+      const settings = await this.getSettings();
+      const defaultState = settings.networkInterception?.tabSpecific?.defaultState || 'paused';
       return defaultState === 'active';
     });
   }
@@ -388,7 +388,7 @@ export class StorageManagerModule {
   async setTabNetworkState(tabId: number, active: boolean): Promise<void> {
     return this.executeWithSafety('setTabNetworkState', async () => {
       // MAJOR FIX: Use ONLY Chrome storage, not IndexedDB
-      const _chromeKey = `${ this.STORAGE_KEYS.TAB_NETWORK_LOGGING }_${ tabId }`;
+      const chromeKey = `${this.STORAGE_KEYS.TAB_NETWORK_LOGGING}_${tabId}`;
       await this.chromeApi.setInStorage({
         [chromeKey]: {
           active,
@@ -405,9 +405,9 @@ export class StorageManagerModule {
   async getTabErrorState(tabId: number): Promise<boolean> {
     return this.executeWithSafety('getTabErrorState', async () => {
       // MAJOR FIX: Use ONLY Chrome storage, not IndexedDB
-      const _key = `${ this.STORAGE_KEYS.TAB_ERROR_LOGGING }_${ tabId }`;
-      const _result = await this.chromeApi.getFromStorage(key);
-      const _tabState = result[key];
+      const key = `${this.STORAGE_KEYS.TAB_ERROR_LOGGING}_${tabId}`;
+      const result = await this.chromeApi.getFromStorage(key);
+      const tabState = result[key];
 
       if (typeof tabState === 'boolean') {
         return tabState;
@@ -428,7 +428,7 @@ export class StorageManagerModule {
   async setTabErrorState(tabId: number, active: boolean): Promise<void> {
     return this.executeWithSafety('setTabErrorState', async () => {
       // MAJOR FIX: Use ONLY Chrome storage, not IndexedDB
-      const _chromeKey = `${ this.STORAGE_KEYS.TAB_ERROR_LOGGING }_${ tabId }`;
+      const chromeKey = `${this.STORAGE_KEYS.TAB_ERROR_LOGGING}_${tabId}`;
       await this.chromeApi.setInStorage({
         [chromeKey]: {
           active,
@@ -447,9 +447,9 @@ export class StorageManagerModule {
   async getTabTokenState(tabId: number): Promise<boolean> {
     return this.executeWithSafety('getTabTokenState', async () => {
       // MAJOR FIX: Use ONLY Chrome storage, not IndexedDB
-      const _key = `${ this.STORAGE_KEYS.TAB_TOKEN_LOGGING }_${ tabId }`;
-      const _result = await this.chromeApi.getFromStorage(key);
-      const _tabState = result[key];
+      const key = `${this.STORAGE_KEYS.TAB_TOKEN_LOGGING}_${tabId}`;
+      const result = await this.chromeApi.getFromStorage(key);
+      const tabState = result[key];
 
       if (typeof tabState === 'boolean') {
         return tabState;
@@ -472,7 +472,7 @@ export class StorageManagerModule {
       }
 
       // Use Chrome storage only
-      const _chromeKey = `${ this.STORAGE_KEYS.TAB_TOKEN_LOGGING }_${ tabId }`;
+      const chromeKey = `${this.STORAGE_KEYS.TAB_TOKEN_LOGGING}_${tabId}`;
       await this.chromeApi.setInStorage({
         [chromeKey]: {
           active,
@@ -492,10 +492,10 @@ export class StorageManagerModule {
     return this.executeWithSafety('getSettings', async () => {
       // Try to get settings from IndexedDB first
       try {
-        const _settings = await this.indexedDbStorage.getSetting('extensionSettings');
+        const settings = await this.indexedDbStorage.getSetting('extensionSettings');
         if (settings) {
           // Check if migration needed and update if so
-          const _migratedSettings = await this.migrateSettingsIfNeeded(settings);
+          const migratedSettings = await this.migrateSettingsIfNeeded(settings);
           if (migratedSettings !== settings) {
             // Save migrated settings back to IndexedDB
             await this.indexedDbStorage.setSetting('extensionSettings', migratedSettings, 'extension');
@@ -507,11 +507,11 @@ export class StorageManagerModule {
       }
 
       // Fallback to Chrome storage for backward compatibility
-      const _result = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.SETTINGS);
-      const _settings = result[this.STORAGE_KEYS.SETTINGS] || {};
+      const result = await this.chromeApi.getFromStorage(this.STORAGE_KEYS.SETTINGS);
+      const settings = result[this.STORAGE_KEYS.SETTINGS] || {};
 
       // Check if migration needed and save back to IndexedDB if so
-      const _migratedSettings = await this.migrateSettingsIfNeeded(settings);
+      const migratedSettings = await this.migrateSettingsIfNeeded(settings);
       if (migratedSettings !== settings || Object.keys(migratedSettings).length > 0) {
         // Save migrated settings to IndexedDB as primary storage
         await this.indexedDbStorage.setSetting('extensionSettings', migratedSettings, 'extension');
@@ -546,7 +546,7 @@ export class StorageManagerModule {
     if (typeof settings.filterNoise === 'boolean' && !settings.noiseFilters) {
       // console.log('StorageManagerModule: Migrating settings from filterNoise to noiseFilters');
 
-      const _migratedSettings = {
+      const migratedSettings = {
         ...settings,
         noiseFilters: {
           analytics: settings.filterNoise,
@@ -574,7 +574,7 @@ export class StorageManagerModule {
   async clearAllData(): Promise<void> {
     return this.executeWithSafety('clearAllData', async () => {
       // Get all current storage data
-      const _allStorage = await this.chromeApi.getFromStorage(null);
+      const allStorage = await this.chromeApi.getFromStorage(null);
 
       // Prepare updates object for batch operation
       const updates: { [key: string]: any } = {};
@@ -585,12 +585,12 @@ export class StorageManagerModule {
       updates[this.STORAGE_KEYS.TOKEN_EVENTS] = [];
 
       // Reset tab network logging counts while preserving states
-      const _tabNetworkLoggingKeys = Object.keys(allStorage).filter(key =>
+      const tabNetworkLoggingKeys = Object.keys(allStorage).filter(key =>
         key.startsWith(this.STORAGE_KEYS.TAB_NETWORK_LOGGING)
       );
 
       for (const key of tabNetworkLoggingKeys) {
-        const _tabState = allStorage[key];
+        const tabState = allStorage[key];
         if (tabState && typeof tabState === 'object') {
           updates[key] = {
             ...tabState,
@@ -607,12 +607,12 @@ export class StorageManagerModule {
       }
 
       // Reset tab error logging counts while preserving states
-      const _tabErrorLoggingKeys = Object.keys(allStorage).filter(key =>
+      const tabErrorLoggingKeys = Object.keys(allStorage).filter(key =>
         key.startsWith(this.STORAGE_KEYS.TAB_ERROR_LOGGING)
       );
 
       for (const key of tabErrorLoggingKeys) {
-        const _tabState = allStorage[key];
+        const tabState = allStorage[key];
         if (tabState && typeof tabState === 'object') {
           updates[key] = {
             ...tabState,
@@ -646,15 +646,15 @@ export class StorageManagerModule {
     activeTabStates: number;
   }> {
     return this.executeWithSafety('getStorageAnalysis', async () => {
-      const _allStorage = await this.chromeApi.getFromStorage(null);
+      const allStorage = await this.chromeApi.getFromStorage(null);
 
-      const _networkRequests = (allStorage[this.STORAGE_KEYS.NETWORK_REQUESTS] || []).length;
-      const _consoleErrors = (allStorage[this.STORAGE_KEYS.CONSOLE_ERRORS] || []).length;
-      const _tokenEvents = (allStorage[this.STORAGE_KEYS.TOKEN_EVENTS] || []).length;
-      const _totalStorageKeys = Object.keys(allStorage).length;
+      const networkRequests = (allStorage[this.STORAGE_KEYS.NETWORK_REQUESTS] || []).length;
+      const consoleErrors = (allStorage[this.STORAGE_KEYS.CONSOLE_ERRORS] || []).length;
+      const tokenEvents = (allStorage[this.STORAGE_KEYS.TOKEN_EVENTS] || []).length;
+      const totalStorageKeys = Object.keys(allStorage).length;
 
       // Count active tab states
-      const _activeTabStates = Object.keys(allStorage).filter(key =>
+      const activeTabStates = Object.keys(allStorage).filter(key =>
         (key.startsWith(this.STORAGE_KEYS.TAB_NETWORK_LOGGING) ||
          key.startsWith(this.STORAGE_KEYS.TAB_ERROR_LOGGING)) &&
         ((typeof allStorage[key] === 'boolean' && allStorage[key]) ||
@@ -696,7 +696,7 @@ export class StorageManagerModule {
       return;
     }
 
-    const _currentBatch = { ...this.batchQueue };
+    const currentBatch = { ...this.batchQueue };
     this.batchQueue = {}; // Clear queue
 
     try {
@@ -741,20 +741,20 @@ export class StorageManagerModule {
       throw new Error(`StorageManagerModule: Operation aborted (${operation})`);
     }
 
-    const _startTime = Date.now();
+    const startTime = Date.now();
     let lastError: Error | null = null;
 
-    for (let _attempt = 0; attempt <= this.config.maxRetries; attempt++) {
+    for (let attempt = 0; attempt <= this.config.maxRetries; attempt++) {
       try {
         // Race condition protection
         if (this.config.enableRaceConditionProtection && attempt > 0) {
           await new Promise(resolve => setTimeout(resolve, 100 * attempt));
         }
 
-        const _result = await fn();
+        const result = await fn();
 
         // Log performance for slow operations
-        const _duration = Date.now() - startTime;
+        const duration = Date.now() - startTime;
         if (duration > 1000) { // Log operations taking more than 1 second
           // console.warn(`🐌 StorageManagerModule: ${operation} took ${duration}ms`);
         }
@@ -794,8 +794,8 @@ export class StorageManagerModule {
       ]);
 
       // Count tab states by checking settings or using a default
-      const _settings = await this.getSettings();
-      const _tabStatesCount = Object.keys(settings).filter(key =>
+      const settings = await this.getSettings();
+      const tabStatesCount = Object.keys(settings).filter(key =>
         key.startsWith('tabLogging_') ||
         key.startsWith('tabErrorLogging_') ||
         key.startsWith('tabTokenLogging_')

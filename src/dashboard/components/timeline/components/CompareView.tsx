@@ -30,10 +30,10 @@ export const CompareView: React.FC<CompareViewProps> = ({
     token: []
   })
 
-  const _handleScroll = (index: number, eventType: EventType) => {
+  const handleScroll = (index: number, eventType: EventType) => {
     if (!syncScroll) return
 
-    const _scrollTop = scrollRefs.current[eventType][index]?.scrollTop || 0
+    const scrollTop = scrollRefs.current[eventType][index]?.scrollTop || 0
     scrollRefs.current[eventType].forEach((ref, i) => {
       if (ref && i !== index) {
         ref.scrollTop = scrollTop
@@ -41,8 +41,8 @@ export const CompareView: React.FC<CompareViewProps> = ({
     })
   }
 
-  const _handleFieldSelection = (eventType: EventType, index: number, field: string) => {
-    const _newSelectedFields = { ...selectedFields }
+  const handleFieldSelection = (eventType: EventType, index: number, field: string) => {
+    const newSelectedFields = { ...selectedFields }
 
     if (syncSelect) {
       // Update all slots for this event type to the same field
@@ -62,9 +62,9 @@ export const CompareView: React.FC<CompareViewProps> = ({
     token: events.filter(e => e.type === 'token')
   }
 
-  const _currentEvents = eventsByType[selectedEventType]
+  const currentEvents = eventsByType[selectedEventType]
 
-  const _getIcon = (event: TimelineEvent) => {
+  const getIcon = (event: TimelineEvent) => {
     switch (event.type) {
       case 'network':
         return <Network className="w-4 h-4 text-blue-600 dark:text-blue-400" />
@@ -77,7 +77,7 @@ export const CompareView: React.FC<CompareViewProps> = ({
     }
   }
 
-  const _getTitle = (event: TimelineEvent) => {
+  const getTitle = (event: TimelineEvent) => {
     switch (event.type) {
       case 'network':
         return event.data.url || 'Network Request'
@@ -90,7 +90,7 @@ export const CompareView: React.FC<CompareViewProps> = ({
     }
   }
 
-  const _getAvailableFields = (event: TimelineEvent) => {
+  const getAvailableFields = (event: TimelineEvent) => {
     switch (event.type) {
       case 'network':
         return ['details', 'headers', 'body', 'response', 'timing', 'performance', 'rawjson']
@@ -103,7 +103,7 @@ export const CompareView: React.FC<CompareViewProps> = ({
     }
   }
 
-  const _getFieldDisplayName = (field: string) => {
+  const getFieldDisplayName = (field: string) => {
     switch (field) {
       case 'rawjson':
         return 'Raw JSON'
@@ -128,7 +128,7 @@ export const CompareView: React.FC<CompareViewProps> = ({
     }
   }
 
-  const _renderDetailedContent = (event: TimelineEvent, selectedField: string) => {
+  const renderDetailedContent = (event: TimelineEvent, selectedField: string) => {
     switch (event.type) {
       case 'network':
         return (
@@ -163,15 +163,15 @@ export const CompareView: React.FC<CompareViewProps> = ({
     }
   }
 
-  const _copyToClipboard = (text: string) => {
+  const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text).catch(error => {
-      // console.warn('Failed to copy to clipboard:', error)
+      console.warn('Failed to copy to clipboard:', error)
     })
   }
 
-  const _renderEventPanel = (event: TimelineEvent, index: number) => {
-    const _selectedField = selectedFields[selectedEventType][index]
-    const _availableFields = getAvailableFields(event)
+  const renderEventPanel = (event: TimelineEvent, index: number) => {
+    const selectedField = selectedFields[selectedEventType][index]
+    const availableFields = getAvailableFields(event)
 
     return (
       <div className="h-full flex flex-col min-h-0">
@@ -334,7 +334,7 @@ export const CompareView: React.FC<CompareViewProps> = ({
         {/* Grid */}
         <div className="flex-1 grid grid-cols-2 grid-rows-2 gap-2 p-2 bg-gray-100 dark:bg-gray-700 min-h-0">
           {Array.from({ length: 4 }, (_, index) => {
-            const _event = currentEvents[index]
+            const event = currentEvents[index]
             if (event) {
               return (
                 <div key={event.id} className="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-800 min-h-0 h-full">

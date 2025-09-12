@@ -19,36 +19,36 @@ export const StickyDateIndicator: React.FC<StickyDateIndicatorProps> = ({
   viewport,
   zoomLevel
 }) => {
-  const _dateMarkers = useMemo(() => {
+  const dateMarkers = useMemo(() => {
     // Show date indicators for all zoom levels - dates provide important context even for short periods
     // No filtering by zoom level - dates are always useful for temporal context
 
     const markers: DateMarker[] = []
 
     // Find all midnight (00:00) timestamps within and around the viewport
-    const _startDate = new Date(viewport.startTime)
-    const _endDate = new Date(viewport.endTime)
+    const startDate = new Date(viewport.startTime)
+    const endDate = new Date(viewport.endTime)
 
     // Start from the day before viewport start to catch sticky dates
-    const _searchStart = new Date(startDate)
+    const searchStart = new Date(startDate)
     searchStart.setDate(searchStart.getDate() - 1)
     searchStart.setHours(0, 0, 0, 0)
 
     // End a day after viewport end
-    const _searchEnd = new Date(endDate)
+    const searchEnd = new Date(endDate)
     searchEnd.setDate(searchEnd.getDate() + 2)
 
     // Iterate through each day to find midnight markers
-    const _currentDate = new Date(searchStart)
+    const currentDate = new Date(searchStart)
     while (currentDate <= searchEnd) {
-      const _timestamp = currentDate.getTime()
-      const _relativeTime = timestamp - viewport.startTime
-      const _position = (relativeTime / viewport.duration) * 100
+      const timestamp = currentDate.getTime()
+      const relativeTime = timestamp - viewport.startTime
+      const position = (relativeTime / viewport.duration) * 100
 
       // Determine if this date should be visible and where
-      let _isVisible = false
+      let isVisible = false
       let shouldStick: 'left' | 'none' = 'none'
-      let _isCurrentTimeMarker = false
+      let isCurrentTimeMarker = false
 
       if (position >= 0 && position <= 100) {
         // Date is within viewport - show normally
@@ -91,7 +91,7 @@ export const StickyDateIndicator: React.FC<StickyDateIndicatorProps> = ({
       })
     } else {
       // If we have markers but no current time marker visible, ensure there's always one sticky on the left
-      const _hasCurrentTimeMarker = markers.some(m => m.isCurrentTimeMarker)
+      const hasCurrentTimeMarker = markers.some(m => m.isCurrentTimeMarker)
       if (!hasCurrentTimeMarker) {
         // Create a synthetic current time marker for the viewport start
         markers.unshift({
@@ -155,11 +155,11 @@ export const StickyDateIndicator: React.FC<StickyDateIndicatorProps> = ({
 }
 
 function formatDateLabel(timestamp: number): string {
-  const _date = new Date(timestamp)
-  const _today = new Date()
+  const date = new Date(timestamp)
+  const today = new Date()
 
   // Always show the actual date, not relative terms
-  const _isCurrentYear = date.getFullYear() === today.getFullYear()
+  const isCurrentYear = date.getFullYear() === today.getFullYear()
   return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',

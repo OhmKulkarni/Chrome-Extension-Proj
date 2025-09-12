@@ -15,7 +15,7 @@ interface TimelineDataState {
   hasNewUpdates: boolean
 }
 
-export const _useTimelineData = ({ swimlanes, zoomLevel }: UseTimelineDataProps) => {
+export const useTimelineData = ({ swimlanes, zoomLevel }: UseTimelineDataProps) => {
   const [data, setData] = useState<TimelineDataState>({
     events: [],
     clusters: [],
@@ -24,22 +24,22 @@ export const _useTimelineData = ({ swimlanes, zoomLevel }: UseTimelineDataProps)
     hasNewUpdates: false
   })
 
-  const _service = useRef(TimelineService.getInstance())
+  const service = useRef(TimelineService.getInstance())
   const loadingRef = useRef(false)
 
   // Determine if we should use clustering based on zoom level
-  const _shouldCluster = zoomLevel <= 3 // Cluster for 30m, 1h, 6h, 24h views
+  const shouldCluster = zoomLevel <= 3 // Cluster for 30m, 1h, 6h, 24h views
 
-  const _loadData = useCallback(async (force: boolean = false) => {
+  const loadData = useCallback(async (force: boolean = false) => {
     if (loadingRef.current && !force) return
     
     loadingRef.current = true
     setData(prev => ({ ...prev, loading: true, error: null }))
 
     try {
-      // console.log('useTimelineData: Loading data (data-driven)', { swimlanes })
+      console.log('useTimelineData: Loading data (data-driven)', { swimlanes })
 
-      const _result = await service.current.fetchTimelineEvents(swimlanes)
+      const result = await service.current.fetchTimelineEvents(swimlanes)
 
       // Handle empty data case
       if (result.metadata.isEmpty) {
@@ -54,7 +54,7 @@ export const _useTimelineData = ({ swimlanes, zoomLevel }: UseTimelineDataProps)
       }
 
       // All events are relevant - no viewport filtering needed for data-driven approach
-      const _events = result.events
+      const events = result.events
 
       // Skip clustering for now in data-driven approach
       const clusters: TimelineCluster[] = []
@@ -80,12 +80,12 @@ export const _useTimelineData = ({ swimlanes, zoomLevel }: UseTimelineDataProps)
 
   // Load data when dependencies change - make dependencies stable
   useEffect(() => {
-    // console.log('useTimelineData: Effect triggered, loading data...')
+    console.log('useTimelineData: Effect triggered, loading data...')
     loadData()
   }, [swimlanes.join(','), zoomLevel]) // Use stable dependencies instead of loadData function
 
-  const _bookmarkEvent = useCallback(async (eventId: string, isBookmarked: boolean) => {
-    const _success = await service.current.bookmarkEvent(eventId, isBookmarked)
+  const bookmarkEvent = useCallback(async (eventId: string, isBookmarked: boolean) => {
+    const success = await service.current.bookmarkEvent(eventId, isBookmarked)
     if (success) {
       setData(prev => ({
         ...prev,
@@ -97,8 +97,8 @@ export const _useTimelineData = ({ swimlanes, zoomLevel }: UseTimelineDataProps)
     return success
   }, [])
 
-  const _setCompareSlot = useCallback(async (eventId: string, slot: number | undefined) => {
-    const _success = await service.current.setCompareSlot(eventId, slot)
+  const setCompareSlot = useCallback(async (eventId: string, slot: number | undefined) => {
+    const success = await service.current.setCompareSlot(eventId, slot)
     if (success) {
       setData(prev => ({
         ...prev,
@@ -110,17 +110,17 @@ export const _useTimelineData = ({ swimlanes, zoomLevel }: UseTimelineDataProps)
     return success
   }, [])
 
-  const _refreshData = useCallback(() => {
+  const refreshData = useCallback(() => {
     loadData(true)
   }, [loadData])
 
-  const _checkForUpdates = useCallback(async () => {
+  const checkForUpdates = useCallback(async () => {
     // Check if there are new events since last load
-    const _latestEvent = data.events[data.events.length - 1]
+    const latestEvent = data.events[data.events.length - 1]
     if (!latestEvent) return
 
     try {
-      const _result = await service.current.fetchTimelineEvents(swimlanes)
+      const result = await service.current.fetchTimelineEvents(swimlanes)
       
       if (result.events.length > data.events.length) {
         setData(prev => ({ ...prev, hasNewUpdates: true }))
@@ -130,7 +130,7 @@ export const _useTimelineData = ({ swimlanes, zoomLevel }: UseTimelineDataProps)
     }
   }, [data.events, swimlanes])
 
-  const _acknowledgeUpdates = useCallback(() => {
+  const acknowledgeUpdates = useCallback(() => {
     setData(prev => ({ ...prev, hasNewUpdates: false }))
     refreshData()
   }, [refreshData])

@@ -33,25 +33,25 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
 }) => {
   // Fallback to local state if parent doesn't manage collapsed state
   const [localCollapsed, setLocalCollapsed] = useState(false)
-  const _collapsed = onToggleCollapsed ? isCollapsed : localCollapsed
-  const _toggleCollapsed = onToggleCollapsed || (() => setLocalCollapsed(!localCollapsed))
+  const collapsed = onToggleCollapsed ? isCollapsed : localCollapsed
+  const toggleCollapsed = onToggleCollapsed || (() => setLocalCollapsed(!localCollapsed))
 
   // Selected queue type for filtering
   const [selectedQueueType, setSelectedQueueType] = useState<'network' | 'console' | 'token'>('network')
 
   // Helper function to extract domain from URL
-  const _getDomainFromEvent = (event: TimelineEvent): string | null => {
+  const getDomainFromEvent = (event: TimelineEvent): string | null => {
     try {
       if (event.type === 'network' && event.data.url) {
-        const _url = new URL(event.data.url)
+        const url = new URL(event.data.url)
         return url.hostname
       }
       if (event.type === 'console' && event.data.source) {
-        const _url = new URL(event.data.source)
+        const url = new URL(event.data.source)
         return url.hostname
       }
       if (event.type === 'token' && event.data.origin) {
-        const _url = new URL(event.data.origin)
+        const url = new URL(event.data.origin)
         return url.hostname
       }
     } catch (error) {
@@ -61,14 +61,14 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
   }
 
   // Group queue events by type
-  const _queueEventsByType = {
+  const queueEventsByType = {
     network: compareQueue.filter(e => e.type === 'network'),
     console: compareQueue.filter(e => e.type === 'console'),
     token: compareQueue.filter(e => e.type === 'token')
   }
 
   // Get icon for event type
-  const _getEventTypeIcon = (eventType: string) => {
+  const getEventTypeIcon = (eventType: string) => {
     switch (eventType) {
       case 'network': return <Network className="w-3 h-3 text-blue-600 dark:text-blue-400" />
       case 'console': return <AlertTriangle className="w-3 h-3 text-red-600 dark:text-red-400" />
@@ -77,14 +77,14 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
     }
   }
 
-  const _renderEventCard = (event: TimelineEvent, type: 'bookmark' | 'compare' | 'queue') => {
-    const _typeConfig = {
+  const renderEventCard = (event: TimelineEvent, type: 'bookmark' | 'compare' | 'queue') => {
+    const typeConfig = {
       network: { color: 'bg-blue-50 dark:bg-blue-900 border-blue-200 dark:border-blue-700', icon: '🌐' },
       console: { color: 'bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700', icon: '⚠️' },
       token: { color: 'bg-green-50 dark:bg-green-900 border-green-200 dark:border-green-700', icon: '🔑' }
     }
 
-    const _config = typeConfig[event.type]
+    const config = typeConfig[event.type]
 
     return (
       <div
@@ -268,11 +268,11 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
               {(compareQueue.length > 0 || compareEvents.length > 0) && (
                 <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1 mr-2">
                   {(['network', 'console', 'token'] as const).map(type => {
-                    const _queueCount = queueEventsByType[type].length
-                    const _compareCount = compareEvents.filter(e => e.type === type).length
-                    const _totalCount = queueCount + compareCount
-                    const _isSelected = selectedQueueType === type
-                    const _typeConfig = {
+                    const queueCount = queueEventsByType[type].length
+                    const compareCount = compareEvents.filter(e => e.type === type).length
+                    const totalCount = queueCount + compareCount
+                    const isSelected = selectedQueueType === type
+                    const typeConfig = {
                       network: { icon: <Network className="w-3 h-3" />, color: 'text-blue-600 dark:text-blue-400', label: 'Network' },
                       console: { icon: <AlertTriangle className="w-3 h-3" />, color: 'text-red-600 dark:text-red-400', label: 'Console' },
                       token: { icon: <Key className="w-3 h-3" />, color: 'text-green-600 dark:text-green-400', label: 'Token' }
@@ -319,9 +319,9 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
         <div className="flex-1 overflow-y-auto p-4 bg-white dark:bg-gray-800">
           {(() => {
             // Filter compare events by selected type
-            const _filteredCompareEvents = compareEvents.filter(event => event.type === selectedQueueType)
-            const _queueEvents = queueEventsByType[selectedQueueType]
-            const _hasAnyEvents = filteredCompareEvents.length > 0 || queueEvents.length > 0
+            const filteredCompareEvents = compareEvents.filter(event => event.type === selectedQueueType)
+            const queueEvents = queueEventsByType[selectedQueueType]
+            const hasAnyEvents = filteredCompareEvents.length > 0 || queueEvents.length > 0
 
             if (!hasAnyEvents) {
               return (
@@ -381,9 +381,9 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
             <div className="flex flex-col items-center space-y-3">
               {/* Show each event type with slots/queue count */}
               {(['network', 'console', 'token'] as const).map(eventType => {
-                const _queueCount = queueEventsByType[eventType].length
-                const _compareCount = compareEvents.filter(e => e.type === eventType).length
-                const _typeConfig = {
+                const queueCount = queueEventsByType[eventType].length
+                const compareCount = compareEvents.filter(e => e.type === eventType).length
+                const typeConfig = {
                   network: { icon: <Network className="w-4 h-4" />, color: 'text-blue-600 dark:text-blue-400' },
                   console: { icon: <AlertTriangle className="w-4 h-4" />, color: 'text-red-600 dark:text-red-400' },
                   token: { icon: <Key className="w-4 h-4" />, color: 'text-green-600 dark:text-green-400' }
