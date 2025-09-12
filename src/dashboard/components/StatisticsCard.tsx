@@ -488,7 +488,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
 
   // Manual refresh function
   const triggerManualRefresh = useCallback(() => {
-    console.log('🔄 StatisticsCard: Manual refresh triggered by user');
+    // console.log('🔄 StatisticsCard: Manual refresh triggered by user');
     setManualRefreshTrigger(prev => prev + 1);
   }, []);
 
@@ -777,10 +777,10 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   const globalStats: GlobalStats = useMemo(() => {
     // Check if we should abort processing
     const isAborted = abortControllerRef.current?.signal.aborted;
-    console.log('🔍 GlobalStats useMemo starting:', { isAborted, analysisDataLoaded: analysisData.loaded });
+    // console.log('🔍 GlobalStats useMemo starting:', { isAborted, analysisDataLoaded: analysisData.loaded });
 
     if (isAborted) {
-      console.log('⚠️ GlobalStats calculation aborted');
+      // console.log('⚠️ GlobalStats calculation aborted');
       return {
         totalRequests: 0,
         totalErrors: 0,
@@ -1000,26 +1000,26 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
         const allData = [...effectiveNetworkRequests, ...effectiveConsoleErrors, ...effectiveTokenEvents];
 
         // DEBUG: Very visible logging to check data structure
-        console.log('🚨🚨🚨 DASHBOARD DEBUG START 🚨🚨🚨');
-        console.log('📊 Analysis data loaded:', analysisData.loaded);
-        console.log('📊 Use analysis data:', useAnalysisData);
-        console.log('📊 Total items before domain grouping:', allData.length);
-        console.log('📊 Network requests count:', effectiveNetworkRequests.length);
-        console.log('📊 Analysis data network requests:', analysisData.networkRequests?.length);
+        // console.log('🚨🚨🚨 DASHBOARD DEBUG START 🚨🚨🚨');
+        // console.log('📊 Analysis data loaded:', analysisData.loaded);
+        // console.log('📊 Use analysis data:', useAnalysisData);
+        // console.log('📊 Total items before domain grouping:', allData.length);
+        // console.log('📊 Network requests count:', effectiveNetworkRequests.length);
+        // console.log('📊 Analysis data network requests:', analysisData.networkRequests?.length);
 
         // DEBUG: Log actual URLs to see if CNN.io requests are present
-        console.log('📊 Network request URLs:', effectiveNetworkRequests.map(req => req.url?.substring(0, 60)));
+        // console.log('📊 Network request URLs:', effectiveNetworkRequests.map(req => req.url?.substring(0, 60)));
 
-        console.log('🔍 BEFORE DOMAIN GROUPING - First 3 items structure:', allData.slice(0, 3).map(item => ({
-          url: item.url?.substring(0, 60),
-          itemKeys: Object.keys(item),
-          hasMainDomain: 'mainDomain' in item,
-          hasMain_domain: 'main_domain' in item,
-          mainDomainValue: item.mainDomain,
-          main_domainValue: (item as any).main_domain,
-          type: item.type || 'unknown'
-        })));
-        console.log('🚨🚨🚨 DASHBOARD DEBUG END 🚨🚨🚨');
+        // console.log('🔍 BEFORE DOMAIN GROUPING - First 3 items structure:', allData.slice(0, 3).map(item => ({
+        //   url: item.url?.substring(0, 60),
+        //   itemKeys: Object.keys(item),
+        //   hasMainDomain: 'mainDomain' in item,
+        //   hasMain_domain: 'main_domain' in item,
+        //   mainDomainValue: item.mainDomain,
+        //   main_domainValue: (item as any).main_domain,
+        //   type: item.type || 'unknown'
+        // })));
+        // console.log('🚨🚨🚨 DASHBOARD DEBUG END 🚨🚨🚨');
 
         const stats = await groupDataByDomain(allData);
         setDomainStats(stats);
