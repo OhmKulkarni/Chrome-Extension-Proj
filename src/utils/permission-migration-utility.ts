@@ -42,7 +42,7 @@ export class PermissionMigrationUtility {
   }
 
   private async performMigration(): Promise<{ success: boolean; migrated: any; errors: any[] }> {
-    console.log('🔄 Starting permission system migration...');
+    // console.log('🔄 Starting permission system migration...');
 
     const migrated: any = {};
     const errors: any[] = [];
@@ -70,13 +70,13 @@ export class PermissionMigrationUtility {
       // Step 6: Verify migration
       await this.verifyMigration();
 
-      console.log('✅ Permission migration completed successfully');
-      console.log('📊 Migration summary:', migrated);
+      // console.log('✅ Permission migration completed successfully');
+      // console.log('📊 Migration summary:', migrated);
 
       return { success: true, migrated, errors };
 
     } catch (error) {
-      console.error('❌ Permission migration failed:', error);
+      // console.error('❌ Permission migration failed:', error);
       errors.push({ step: 'migration', error: String(error) });
 
       return { success: false, migrated, errors };
@@ -91,22 +91,22 @@ export class PermissionMigrationUtility {
       // Check chrome.storage.local first
       const localResult = await chrome.storage.local.get(['extensionEnabled']);
       if (localResult.extensionEnabled !== undefined) {
-        console.log('📥 Found global state in chrome.storage.local:', localResult.extensionEnabled);
+        // console.log('📥 Found global state in chrome.storage.local:', localResult.extensionEnabled);
         return localResult.extensionEnabled;
       }
 
       // Check old ExtensionState system
       const stateResult = await chrome.storage.local.get(['extensionState']);
       if (stateResult.extensionState?.enabled !== undefined) {
-        console.log('📥 Found global state in extensionState:', stateResult.extensionState.enabled);
+        // console.log('📥 Found global state in extensionState:', stateResult.extensionState.enabled);
         return stateResult.extensionState.enabled;
       }
 
-      console.log('📥 No existing global state found, using default: true');
+      // console.log('📥 No existing global state found, using default: true');
       return true; // Safe default
 
     } catch (error) {
-      console.warn('⚠️ Error migrating global state:', error);
+      // console.warn('⚠️ Error migrating global state:', error);
       return true; // Safe fallback
     }
   }
@@ -130,11 +130,11 @@ export class PermissionMigrationUtility {
           };
         }
 
-        console.log('📥 Migrated site permissions:', Object.keys(sitePermissions));
+        // console.log('📥 Migrated site permissions:', Object.keys(sitePermissions));
       }
 
     } catch (error) {
-      console.warn('⚠️ Error migrating site permissions:', error);
+      // console.warn('⚠️ Error migrating site permissions:', error);
     }
 
     return sitePermissions;
@@ -178,10 +178,10 @@ export class PermissionMigrationUtility {
         };
       }
 
-      console.log(`📥 Migrated ${allTabIds.size} tab controls`);
+      // console.log(`📥 Migrated ${allTabIds.size} tab controls`);
 
     } catch (error) {
-      console.warn('⚠️ Error migrating tab controls:', error);
+      // console.warn('⚠️ Error migrating tab controls:', error);
     }
 
     return tabControls;
@@ -216,13 +216,13 @@ export class PermissionMigrationUtility {
           defaults.tokens = settings.tokenLogging.tabSpecific.defaultState === 'active';
         }
 
-        console.log('📥 Migrated feature defaults from IndexedDB:', defaults);
+        // console.log('📥 Migrated feature defaults from IndexedDB:', defaults);
       } else {
-        console.log('📥 No IndexedDB settings found, using safe defaults:', defaults);
+        // console.log('📥 No IndexedDB settings found, using safe defaults:', defaults);
       }
 
     } catch (error) {
-      console.warn('⚠️ Error migrating feature defaults:', error);
+      // console.warn('⚠️ Error migrating feature defaults:', error);
     }
 
     return defaults;
@@ -232,7 +232,7 @@ export class PermissionMigrationUtility {
    * Step 5: Apply migrated data to unified manager
    */
   private async applyMigratedData(migrated: any): Promise<void> {
-    console.log('🔄 Applying migrated data to unified permission manager...');
+    // console.log('🔄 Applying migrated data to unified permission manager...');
 
     // Initialize unified manager
     await this.unifiedManager.initialize();
@@ -261,7 +261,7 @@ export class PermissionMigrationUtility {
       }
     }
 
-    console.log('✅ Successfully applied migrated data');
+    // console.log('✅ Successfully applied migrated data');
   }
 
   /**
@@ -283,7 +283,7 @@ export class PermissionMigrationUtility {
         issues.push('Unified permissions not found in storage');
       }
 
-      console.log(issues.length === 0 ? '✅ Migration verification passed' : '⚠️ Migration verification issues:', issues);
+      // console.log(issues.length === 0 ? '✅ Migration verification passed' : '⚠️ Migration verification issues:', issues);
 
     } catch (error) {
       issues.push(`Verification error: ${String(error)}`);
@@ -297,7 +297,7 @@ export class PermissionMigrationUtility {
    */
   async createBackup(): Promise<{ success: boolean; backup?: any; error?: string }> {
     try {
-      console.log('💾 Creating backup of current permission system...');
+      // console.log('💾 Creating backup of current permission system...');
 
       // Backup chrome.storage.local permission-related data
       const allLocal = await chrome.storage.local.get(null);
@@ -320,7 +320,7 @@ export class PermissionMigrationUtility {
         const settingsResult = await this.storageService.get(['settings']);
         indexedDbBackup = settingsResult?.settings;
       } catch (error) {
-        console.warn('Could not backup IndexedDB settings:', error);
+        // console.warn('Could not backup IndexedDB settings:', error);
       }
 
       const backup = {
@@ -333,11 +333,11 @@ export class PermissionMigrationUtility {
       // Store backup
       await chrome.storage.local.set({ 'permissionSystemBackup': backup });
 
-      console.log('✅ Backup created successfully');
+      // console.log('✅ Backup created successfully');
       return { success: true, backup };
 
     } catch (error) {
-      console.error('❌ Failed to create backup:', error);
+      // console.error('❌ Failed to create backup:', error);
       return { success: false, error: String(error) };
     }
   }
@@ -362,11 +362,11 @@ export class PermissionMigrationUtility {
       // Remove unified system
       await chrome.storage.local.remove(['unifiedPermissions']);
 
-      console.log('✅ Successfully restored from backup');
+      // console.log('✅ Successfully restored from backup');
       return { success: true };
 
     } catch (error) {
-      console.error('❌ Failed to restore from backup:', error);
+      // console.error('❌ Failed to restore from backup:', error);
       return { success: false, error: String(error) };
     }
   }
