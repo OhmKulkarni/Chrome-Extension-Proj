@@ -47,7 +47,7 @@ export class NetworkDataProvider {
           messageId: message.id || 'unknown'
         };
       } catch (error) {
-        console.error('Network message handler error:', error);
+        // console.error('Network message handler error:', error);
         return { 
           success: false, 
           error: error instanceof Error ? error.message : 'Network handler error',
@@ -132,7 +132,7 @@ export class NetworkDataProvider {
       
       return requests.slice(start, end);
     } catch (error) {
-      console.error('Failed to get network requests:', error);
+      // console.error('Failed to get network requests:', error);
       return [];
     }
   }
@@ -184,7 +184,7 @@ export class NetworkDataProvider {
       const response = await NetworkMessageBus.sendNetworkRequest(request);
       return response.success;
     } catch (error) {
-      console.error('Failed to store network request:', error);
+      // console.error('Failed to store network request:', error);
       return false;
     }
   }
@@ -212,7 +212,7 @@ export class NetworkDataProvider {
       
       return false;
     } catch (error) {
-      console.error('Failed to clear network requests:', error);
+      // console.error('Failed to clear network requests:', error);
       return false;
     }
   }
@@ -234,7 +234,7 @@ export class NetworkDataProvider {
       try {
         listener(data);
       } catch (error) {
-        console.error('Network listener error:', error);
+        // console.error('Network listener error:', error);
       }
     });
   }
@@ -250,7 +250,7 @@ export class NetworkDataProvider {
         });
         listener(allData);
       } catch (error) {
-        console.error('Network listener error:', error);
+        // console.error('Network listener error:', error);
       }
     });
   }
@@ -419,7 +419,7 @@ export class NetworkUtils {
         };
       }
     } catch (error) {
-      console.warn('Failed to parse headers:', error);
+      // console.warn('Failed to parse headers:', error);
     }
     
     return defaultHeaders;
