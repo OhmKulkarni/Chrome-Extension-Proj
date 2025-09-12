@@ -140,10 +140,10 @@ export class DomainGroupingMigration {
   /**
    * Update a request's main_domain in the database
    */
-  private static async updateRequestMainDomain(requestId: number, newMainDomain: string): Promise<void> {
+  private static async updateRequestMainDomain(_requestId: number, _newMainDomain: string): Promise<void> {
     // Note: This would require adding an update method to the background script
     // For now, we'll just log what would be updated
-    console.log(`Would update request ${requestId} main_domain to: ${newMainDomain}`);
+    // console.log(`Would update request ${requestId} main_domain to: ${newMainDomain}`);
 
     // TODO: Implement actual database update when update API is available
     // await chrome.runtime.sendMessage({
