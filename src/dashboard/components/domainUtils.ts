@@ -331,7 +331,7 @@ function parseDomainInfo(url: string, _tabContext?: TabContext): DomainInfo {
 
 export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
   // Simple and reliable grouping based on the main_domain field recorded at capture time
-  console.log('🎯 Using simplified domain grouping with main_domain field approach');
+  // console.log('🎯 Using simplified domain grouping with main_domain field approach');
 
   // Fetch library data from background script
   let libraryData: any[] = [];
@@ -340,7 +340,7 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
       const response = await chrome.runtime.sendMessage({ action: 'getMinifiedLibraries', limit: 1000 });
       if (response && response.success && response.libraries) {
         libraryData = response.libraries;
-        console.log('📚 domainUtils: Loaded', libraryData.length, 'libraries from storage');
+        // console.log('📚 domainUtils: Loaded', libraryData.length, 'libraries from storage');
       }
     }
   } catch (error) {
@@ -379,33 +379,33 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
     // DOMAIN AFFILIATION: Group affiliated domains under their parent domain
     const parentDomain = getParentDomain(mainDomain);
     if (parentDomain !== mainDomain) {
-      console.log(`🔗 [DomainAffiliation] Grouping ${mainDomain} under parent domain ${parentDomain}`);
+      // console.log(`🔗 [DomainAffiliation] Grouping ${mainDomain} under parent domain ${parentDomain}`);
       mainDomain = parentDomain;
     }
 
     // DEBUG: Log every item to see what's being processed
-    console.log('🔍 Processing item:', {
-      itemUrl: itemUrl.substring(0, 80) + '...',
-      storedMainDomain: item.main_domain,
-      extractedMainDomain: extractBaseDomain(itemUrl),
-      parentDomain: parentDomain,
-      finalMainDomain: mainDomain,
-      hasMainDomainField: 'main_domain' in item,
-      itemKeys: Object.keys(item)
-    });
+    // console.log('🔍 Processing item:', {
+    //   itemUrl: itemUrl.substring(0, 80) + '...',
+    //   storedMainDomain: item.main_domain,
+    //   extractedMainDomain: extractBaseDomain(itemUrl),
+    //   parentDomain: parentDomain,
+    //   finalMainDomain: mainDomain,
+    //   hasMainDomainField: 'main_domain' in item,
+    //   itemKeys: Object.keys(item)
+    // });
 
     // DEBUG: Log domain grouping for problematic domains
-    if (itemUrl.includes('dianomi.com') || itemUrl.includes('dataviz.cnn.io')) {
-      console.log('🎯 Dashboard Domain Grouping:', {
-        itemUrl: itemUrl.substring(0, 80) + '...',
-        storedMainDomain: item.main_domain,
-        extractedMainDomain: extractBaseDomain(itemUrl),
-        parentDomain: parentDomain,
-        finalMainDomain: mainDomain,
-        tabUrl: tabUrl ? tabUrl.substring(0, 80) + '...' : 'MISSING',
-        hasMainDomainField: !!item.main_domain
-      });
-    }
+    // if (itemUrl.includes('dianomi.com') || itemUrl.includes('dataviz.cnn.io')) {
+    //   console.log('🎯 Dashboard Domain Grouping:', {
+    //     itemUrl: itemUrl.substring(0, 80) + '...',
+    //     storedMainDomain: item.main_domain,
+    //     extractedMainDomain: extractBaseDomain(itemUrl),
+    //     parentDomain: parentDomain,
+    //     finalMainDomain: mainDomain,
+    //     tabUrl: tabUrl ? tabUrl.substring(0, 80) + '...' : 'MISSING',
+    //     hasMainDomainField: !!item.main_domain
+    //   });
+    // }
 
     // Skip if we can't determine a valid main domain
     if (!mainDomain || mainDomain === 'unknown' || mainDomain === 'Unknown') return;
@@ -485,7 +485,7 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
   });
 
   // LIBRARY-ONLY DOMAINS: Add domains that only have library data (no network events)
-  console.log('📚 Processing library-only domains...');
+  // console.log('📚 Processing library-only domains...');
   const existingDomains = new Set(domainMap.keys());
 
   // Group libraries by main_domain to find domains with libraries but no events
@@ -496,7 +496,7 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
       let mainDomain = lib.main_domain;
       const parentDomain = getParentDomain(mainDomain);
       if (parentDomain !== mainDomain) {
-        console.log(`🔗 [LibraryAffiliation] Grouping library domain ${mainDomain} under parent ${parentDomain}`);
+        // console.log(`🔗 [LibraryAffiliation] Grouping library domain ${mainDomain} under parent ${parentDomain}`);
         mainDomain = parentDomain;
       }
 
@@ -508,7 +508,7 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
 
   // Create domain entries for library-only domains
   libraryDomains.forEach(domain => {
-    console.log(`📚 Adding library-only domain: ${domain}`);
+    // console.log(`📚 Adding library-only domain: ${domain}`);
 
     // Create a minimal domain info for library-only domains
     const domainInfo: DomainInfo = {
@@ -532,7 +532,7 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
     });
   });
 
-  console.log(`📚 Added ${libraryDomains.size} library-only domains to stats`);
+  // console.log(`📚 Added ${libraryDomains.size} library-only domains to stats`);
 
   // Convert to DomainStats array
   const results = Array.from(domainMap.entries()).map(([mainDomain, group]) => {
@@ -718,17 +718,17 @@ export async function groupDataByDomain(data: any[]): Promise<DomainStats[]> {
     return b.totalRequests - a.totalRequests;
   });
 
-  console.log(`✅ Grouped ${data.length} items into ${results.length} main domains:`, results.map(r => `${r.domain} (${r.totalRequests} requests)`));
+  // console.log(`✅ Grouped ${data.length} items into ${results.length} main domains:`, results.map(r => `${r.domain} (${r.totalRequests} requests)`));
 
   return results;
 }
 
 // Tab domain tracker for context awareness (simplified)
 export const tabDomainTracker = {
-  trackTabDomain: (tabId: number, requestUrl: string, tabUrl?: string) => {
+  trackTabDomain: (_tabId: number, _requestUrl: string, _tabUrl?: string) => {
     // Simplified tracking - just log for debugging
-    const requestDomain = extractBaseDomain(requestUrl);
-    const tabDomain = tabUrl ? extractBaseDomain(tabUrl) : 'unknown';
-    console.log(`📍 Tab ${tabId}: Request from ${requestDomain} on page ${tabDomain}`);
+    // const requestDomain = extractBaseDomain(requestUrl);
+    // const tabDomain = tabUrl ? extractBaseDomain(tabUrl) : 'unknown';
+    // console.log(`📍 Tab ${tabId}: Request from ${requestDomain} on page ${tabDomain}`);
   }
 };

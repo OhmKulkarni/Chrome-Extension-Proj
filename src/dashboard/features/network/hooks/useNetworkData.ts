@@ -106,7 +106,7 @@ export const useNetworkData = (
       // Check memory pressure before loading
       const { shouldThrottle } = checkMemoryPressure()
       if (shouldThrottle) {
-        console.warn('🚨 High memory pressure, reducing request load')
+        // console.warn('🚨 High memory pressure, reducing request load')
         limit = Math.min(limit, 5) // Reduce load under pressure
       }
 
@@ -124,7 +124,7 @@ export const useNetworkData = (
         // console.log(`✅ Loaded ${response.requests.length} network requests, total: ${response.total}`)
       } else {
         setError('Failed to load network requests')
-        console.warn('⚠️ Network requests response missing success/requests:', response)
+        // console.warn('⚠️ Network requests response missing success/requests:', response)
       }
     } catch (err) {
       setError('Error loading network requests')

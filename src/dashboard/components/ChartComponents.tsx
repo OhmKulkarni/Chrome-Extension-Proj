@@ -82,9 +82,9 @@ export const HttpMethodDistributionChart: React.FC<ChartProps> = ({ data, shared
       }));
 
   // Log performance info
-  if (useSharedData) {
-    console.log('📊 HttpMethodDistributionChart: Using shared processed data');
-  }
+  // if (useSharedData) {
+  //   console.log('📊 HttpMethodDistributionChart: Using shared processed data');
+  // }
 
   return (
     <ResponsiveContainer width="100%" height={400}>
@@ -112,7 +112,7 @@ export const HttpMethodDistributionChart: React.FC<ChartProps> = ({ data, shared
 
 // Status Code Breakdown (Donut Chart)
 export const StatusCodeBreakdownChart: React.FC<ChartProps> = ({ networkRequests }) => {
-  console.log('StatusCodeBreakdownChart - networkRequests:', networkRequests.length);
+  // console.log('StatusCodeBreakdownChart - networkRequests:', networkRequests.length);
 
   if (!networkRequests || networkRequests.length === 0) {
     return (
@@ -129,13 +129,13 @@ export const StatusCodeBreakdownChart: React.FC<ChartProps> = ({ networkRequests
     const DEBUG_INDIVIDUAL_STATUS_PROCESSING = false;
 
     if (DEBUG_INDIVIDUAL_STATUS_PROCESSING) {
-      console.log('Processing request status:', {
-        url: req.url,
-        status: req.status,
-        response_status: req.response_status,
-        statusType: typeof req.status,
-        responseStatusType: typeof req.response_status
-      });
+      // console.log('Processing request status:', {
+      //   url: req.url,
+      //   status: req.status,
+      //   response_status: req.response_status,
+      //   statusType: typeof req.status,
+      //   responseStatusType: typeof req.response_status
+      // });
     }
 
     // Try multiple status field names and convert to number
@@ -149,7 +149,7 @@ export const StatusCodeBreakdownChart: React.FC<ChartProps> = ({ networkRequests
     // Default to 200 if no valid status found
     if (!status || isNaN(status)) {
       if (DEBUG_INDIVIDUAL_STATUS_PROCESSING) {
-        console.log('Using default status 200 for request:', req.url);
+        // console.log('Using default status 200 for request:', req.url);
       }
       status = 200;
     }
@@ -162,14 +162,14 @@ export const StatusCodeBreakdownChart: React.FC<ChartProps> = ({ networkRequests
     else if (status >= 500) group = '5xx Server Error';
 
     if (DEBUG_INDIVIDUAL_STATUS_PROCESSING) {
-      console.log('Status', status, 'mapped to group:', group);
+      // console.log('Status', status, 'mapped to group:', group);
     }
 
     acc[group] = (acc[group] || 0) + 1;
     return acc;
   }, {} as { [key: string]: number });
 
-  console.log('StatusCodeBreakdownChart - statusGroups:', statusGroups);
+  // console.log('StatusCodeBreakdownChart - statusGroups:', statusGroups);
 
   const chartData = Object.entries(statusGroups).map(([group, count]) => ({
     name: group,
@@ -177,7 +177,7 @@ export const StatusCodeBreakdownChart: React.FC<ChartProps> = ({ networkRequests
     percentage: (((count as number) / networkRequests.length) * 100).toFixed(1)
   }));
 
-  console.log('StatusCodeBreakdownChart - chartData:', chartData);
+  // console.log('StatusCodeBreakdownChart - chartData:', chartData);
 
   if (chartData.length === 0) {
     return (
@@ -274,7 +274,7 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
   const [viewMode, setViewMode] = React.useState<'routes' | 'domains'>('routes');
   const isDark = useDarkMode();
 
-  console.log('AvgResponseTimePerRouteChart - networkRequests:', networkRequests.length);
+  // console.log('AvgResponseTimePerRouteChart - networkRequests:', networkRequests.length);
 
   if (!networkRequests || networkRequests.length === 0) {
     return (
@@ -332,14 +332,14 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
     // Only log in development if needed for debugging
     const DEBUG_INDIVIDUAL_REQUESTS = false;
     if (DEBUG_INDIVIDUAL_REQUESTS) {
-      console.log('Processing request for response time:', {
-        url: url,
-        response_time: req.response_time,
-        responseTime: req.responseTime,
-        finalResponseTime: responseTime,
-        response_time_type: typeof req.response_time,
-        responseTime_type: typeof req.responseTime
-      });
+      // console.log('Processing request for response time:', {
+      //   url: url,
+      //   response_time: req.response_time,
+      //   responseTime: req.responseTime,
+      //   finalResponseTime: responseTime,
+      //   response_time_type: typeof req.response_time,
+      //   responseTime_type: typeof req.responseTime
+      // });
     }
 
     if (responseTime <= 0) {
@@ -390,15 +390,15 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
     // PERFORMANCE FIX: Remove excessive per-request logging
     // Only log in development if needed for debugging
     if (DEBUG_INDIVIDUAL_REQUESTS) {
-      console.log('Added response time', responseTime, 'for route', route, 'and domain', mainDomain);
+      // console.log('Added response time', responseTime, 'for route', route, 'and domain', mainDomain);
     }
   });
 
   // PERFORMANCE FIX: Single summary log instead of 200+ individual logs
-  console.log(`📊 AvgResponseTimePerRouteChart: Processed ${processedCount} requests, skipped ${skippedCount}, found ${Object.keys(routeGroups).length} routes, ${Object.keys(domainGroups).length} domains`);
+  // console.log(`📊 AvgResponseTimePerRouteChart: Processed ${processedCount} requests, skipped ${skippedCount}, found ${Object.keys(routeGroups).length} routes, ${Object.keys(domainGroups).length} domains`);
 
-  console.log('AvgResponseTimePerRouteChart - routeGroups:', routeGroups);
-  console.log('AvgResponseTimePerRouteChart - domainGroups:', domainGroups);
+  // console.log('AvgResponseTimePerRouteChart - routeGroups:', routeGroups);
+  // console.log('AvgResponseTimePerRouteChart - domainGroups:', domainGroups);
 
   // Process data based on view mode
   const activeGroups = viewMode === 'routes' ? routeGroups : domainGroups;
@@ -423,7 +423,7 @@ export const AvgResponseTimePerRouteChart: React.FC<ChartProps> = ({ networkRequ
 
   const chartData = allChartData.slice(0, topN);
 
-  console.log('AvgResponseTimePerRouteChart - chartData:', chartData);
+  // console.log('AvgResponseTimePerRouteChart - chartData:', chartData);
 
   if (chartData.length === 0) {
     return (
@@ -650,8 +650,8 @@ export const AuthFailuresVsSuccessChart: React.FC<ChartProps> = ({ tokenEvents }
 // Top 5 Frequent Errors (Horizontal Bar Chart)
 // Top 5 Frequent Errors (Enhanced Bar Chart with Alternative Donut Chart)
 export const TopFrequentErrorsChart: React.FC<ChartProps> = ({ consoleErrors }) => {
-  console.log('TopFrequentErrorsChart - consoleErrors:', consoleErrors);
-  console.log('TopFrequentErrorsChart - consoleErrors length:', consoleErrors?.length || 0);
+  // console.log('TopFrequentErrorsChart - consoleErrors:', consoleErrors);
+  // console.log('TopFrequentErrorsChart - consoleErrors length:', consoleErrors?.length || 0);
 
   if (!consoleErrors || consoleErrors.length === 0) {
     return (
@@ -706,7 +706,7 @@ export const TopFrequentErrorsChart: React.FC<ChartProps> = ({ consoleErrors }) 
     return acc;
   }, {} as { [key: string]: { count: number; severity: string; fullMessages: string[] } });
 
-  console.log('TopFrequentErrorsChart - errorGroups:', errorGroups);
+  // console.log('TopFrequentErrorsChart - errorGroups:', errorGroups);
 
   const chartData = Object.entries(errorGroups)
     .sort(([, a], [, b]) => (b as any).count - (a as any).count)
@@ -721,7 +721,7 @@ export const TopFrequentErrorsChart: React.FC<ChartProps> = ({ consoleErrors }) 
             (data as any).severity === 'warning' ? '#F59E0B' : '#6B7280'
     }));
 
-  console.log('TopFrequentErrorsChart - chartData:', chartData);
+  // console.log('TopFrequentErrorsChart - chartData:', chartData);
 
   if (chartData.length === 0) {
     return (
@@ -848,7 +848,7 @@ export const TopFrequentErrorsChart: React.FC<ChartProps> = ({ consoleErrors }) 
 // Requests Over Time (Line/Area Chart)
 export const RequestsOverTimeChart: React.FC<ChartProps> = ({ networkRequests }) => {
   const isDark = useDarkMode();
-  console.log('RequestsOverTimeChart - networkRequests:', networkRequests?.length || 0);
+  // console.log('RequestsOverTimeChart - networkRequests:', networkRequests?.length || 0);
 
   if (!networkRequests || networkRequests.length === 0) {
     return (
@@ -885,7 +885,7 @@ export const RequestsOverTimeChart: React.FC<ChartProps> = ({ networkRequests })
     timeFormat = { month: 'short', day: 'numeric' };
   }
 
-  console.log('RequestsOverTimeChart - Time span:', timeSpan, 'Interval:', interval);
+  // console.log('RequestsOverTimeChart - Time span:', timeSpan, 'Interval:', interval);
 
   // Group requests by time intervals and HTTP methods
   const timeGroups = networkRequests.reduce((acc, req) => {
@@ -943,7 +943,7 @@ export const RequestsOverTimeChart: React.FC<ChartProps> = ({ networkRequests })
     other: number;
   } });
 
-  console.log('RequestsOverTimeChart - timeGroups:', timeGroups);
+  // console.log('RequestsOverTimeChart - timeGroups:', timeGroups);
 
   // Convert to chart data and sort by time
   const chartData = Object.values(timeGroups)
@@ -965,7 +965,7 @@ export const RequestsOverTimeChart: React.FC<ChartProps> = ({ networkRequests })
       };
     });
 
-  console.log('RequestsOverTimeChart - chartData:', chartData);
+  // console.log('RequestsOverTimeChart - chartData:', chartData);
 
   if (chartData.length === 0) {
     return (
@@ -982,7 +982,7 @@ export const RequestsOverTimeChart: React.FC<ChartProps> = ({ networkRequests })
   const activeMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS', 'other']
     .filter(method => chartData.some(item => (item as any)[method] > 0));
 
-  console.log('RequestsOverTimeChart - activeMethods:', activeMethods);
+  // console.log('RequestsOverTimeChart - activeMethods:', activeMethods);
 
   // Method colors - theme aware
   const methodColors = {
@@ -1090,7 +1090,7 @@ export const RequestsOverTimeChart: React.FC<ChartProps> = ({ networkRequests })
 // Error Frequency Over Time (Line Chart)
 export const ErrorFrequencyOverTimeChart: React.FC<ChartProps> = ({ consoleErrors }) => {
   const isDark = useDarkMode();
-  console.log('ErrorFrequencyOverTimeChart - consoleErrors:', consoleErrors?.length || 0);
+  // console.log('ErrorFrequencyOverTimeChart - consoleErrors:', consoleErrors?.length || 0);
 
   if (!consoleErrors || consoleErrors.length === 0) {
     return (
@@ -1127,7 +1127,7 @@ export const ErrorFrequencyOverTimeChart: React.FC<ChartProps> = ({ consoleError
     timeFormat = { month: 'short', day: 'numeric' };
   }
 
-  console.log('ErrorFrequencyOverTimeChart - Time span:', timeSpan, 'Interval:', interval);
+  // console.log('ErrorFrequencyOverTimeChart - Time span:', timeSpan, 'Interval:', interval);
 
   // Group errors by time intervals and severity levels
   const timeGroups = consoleErrors.reduce((acc, error) => {
@@ -1181,7 +1181,7 @@ export const ErrorFrequencyOverTimeChart: React.FC<ChartProps> = ({ consoleError
     other: number;
   } });
 
-  console.log('ErrorFrequencyOverTimeChart - timeGroups:', timeGroups);
+  // console.log('ErrorFrequencyOverTimeChart - timeGroups:', timeGroups);
 
   // Convert to chart data and sort by time
   const chartData = Object.values(timeGroups)
@@ -1201,7 +1201,7 @@ export const ErrorFrequencyOverTimeChart: React.FC<ChartProps> = ({ consoleError
       };
     });
 
-  console.log('ErrorFrequencyOverTimeChart - chartData:', chartData);
+  // console.log('ErrorFrequencyOverTimeChart - chartData:', chartData);
 
   if (chartData.length === 0) {
     return (
@@ -1318,7 +1318,7 @@ export const ErrorFrequencyOverTimeChart: React.FC<ChartProps> = ({ consoleError
 
 // Latency Over Time (Line Chart)
 export const LatencyOverTimeChart: React.FC<ChartProps> = ({ networkRequests }) => {
-  console.log('LatencyOverTimeChart - networkRequests:', networkRequests?.length || 0);
+  // console.log('LatencyOverTimeChart - networkRequests:', networkRequests?.length || 0);
 
   if (!networkRequests || networkRequests.length === 0) {
     return (
@@ -1337,7 +1337,7 @@ export const LatencyOverTimeChart: React.FC<ChartProps> = ({ networkRequests }) 
     return responseTime && typeof responseTime === 'number' && responseTime > 0;
   });
 
-  console.log('LatencyOverTimeChart - requestsWithLatency:', requestsWithLatency.length);
+  // console.log('LatencyOverTimeChart - requestsWithLatency:', requestsWithLatency.length);
 
   if (requestsWithLatency.length === 0) {
     return (
@@ -1455,7 +1455,7 @@ export const LatencyOverTimeChart: React.FC<ChartProps> = ({ networkRequests }) 
       };
     });
 
-  console.log('LatencyOverTimeChart - chartData:', chartData);
+  // console.log('LatencyOverTimeChart - chartData:', chartData);
 
   // Latency colors
   const latencyColors = {
@@ -1692,25 +1692,25 @@ export const TrafficByEndpointChart: React.FC<ChartProps> = ({ networkRequests }
   const totalItems = viewMode === 'endpoints' ? allEndpoints.length : allDomains.length;
 
   // Debug logging to help identify data issues
-  console.log(`Traffic Chart Debug - ${viewMode} mode:`, {
-    totalItems,
-    chartDataLength: chartData.length,
-    sampleData: chartData.slice(0, 3).map(d => ({
-      name: d.name,
-      fullName: d.fullName,
-      requests: d.requests
-    })),
-    duplicateNames: chartData.filter((item, index, arr) =>
-      arr.findIndex(other => other.name === item.name) !== index
-    ).map(d => ({
-      name: d.name,
-      fullName: d.fullName,
-      requests: d.requests,
-      duplicateOf: chartData.find((other, otherIndex) =>
-        other.name === d.name && otherIndex < chartData.findIndex(x => x.name === d.name)
-      )?.fullName
-    }))
-  });
+  // console.log(`Traffic Chart Debug - ${viewMode} mode:`, {
+  //   totalItems,
+  //   chartDataLength: chartData.length,
+  //   sampleData: chartData.slice(0, 3).map(d => ({
+  //     name: d.name,
+  //     fullName: d.fullName,
+  //     requests: d.requests
+  //   })),
+  //   duplicateNames: chartData.filter((item, index, arr) =>
+  //     arr.findIndex(other => other.name === item.name) !== index
+  //   ).map(d => ({
+  //     name: d.name,
+  //     fullName: d.fullName,
+  //     requests: d.requests,
+  //     duplicateOf: chartData.find((other, otherIndex) =>
+  //       other.name === d.name && otherIndex < chartData.findIndex(x => x.name === d.name)
+  //     )?.fullName
+  //   }))
+  // });
 
   // Top N options
   const topNOptions = [5, 10, 15, 20, 25, 30];
@@ -1877,7 +1877,7 @@ export const TrafficByEndpointChartTreemap: React.FC<ChartProps> = ({ networkReq
     const [selectedMethod, setSelectedMethod] = useState('ALL');
     const [topN, setTopN] = useState(10);
 
-    console.log('TrafficByEndpointChart - networkRequests:', networkRequests?.length || 0);
+    // console.log('TrafficByEndpointChart - networkRequests:', networkRequests?.length || 0);
 
     if (!networkRequests || networkRequests.length === 0) {
       return (
@@ -1937,12 +1937,12 @@ export const TrafficByEndpointChartTreemap: React.FC<ChartProps> = ({ networkReq
       rank: index + 1
     }));
 
-  console.log('Vertical bar chart data prepared:', {
-    totalEndpoints: Object.keys(endpointCounts).length,
-    displayingTop: chartData.length,
-    sampleData: chartData.slice(0, 3),
-    topN: topN
-  });
+  // console.log('Vertical bar chart data prepared:', {
+  //   totalEndpoints: Object.keys(endpointCounts).length,
+  //   displayingTop: chartData.length,
+  //   sampleData: chartData.slice(0, 3),
+  //   topN: topN
+  // });
 
   // Safety check for chart data
   if (!chartData || chartData.length === 0) {
@@ -2074,10 +2074,10 @@ export const TrafficByEndpointChartTreemap: React.FC<ChartProps> = ({ networkReq
 // Method Usage Daily (Stacked Bar Chart)
 export const MethodUsageDailyChart: React.FC<ChartProps> = ({ networkRequests }) => {
   try {
-    console.log('MethodUsageDailyChart - networkRequests:', networkRequests?.length || 0);
+    // console.log('MethodUsageDailyChart - networkRequests:', networkRequests?.length || 0);
 
     if (!networkRequests || networkRequests.length === 0) {
-      console.log('MethodUsageDailyChart - No data available');
+      // console.log('MethodUsageDailyChart - No data available');
       return (
         <div className="h-96 bg-gray-50 rounded flex items-center justify-center">
           <div className="text-center text-gray-400">
@@ -2182,7 +2182,7 @@ export const MethodUsageDailyChart: React.FC<ChartProps> = ({ networkRequests })
       );
     }
 
-    console.log('MethodUsageDailyChart - Processed daily data:', Object.keys(dailyMethodData).length, 'days');
+    // console.log('MethodUsageDailyChart - Processed daily data:', Object.keys(dailyMethodData).length, 'days');
 
     // Convert to chart data and sort by date with error handling
     let chartData;
@@ -2222,8 +2222,8 @@ export const MethodUsageDailyChart: React.FC<ChartProps> = ({ networkRequests })
         })
         .filter(day => day !== null && day !== undefined);
 
-      console.log('MethodUsageDailyChart - chartData:', chartData.length, 'days');
-      console.log('MethodUsageDailyChart - first chart item:', chartData[0]);
+      // console.log('MethodUsageDailyChart - chartData:', chartData.length, 'days');
+      // console.log('MethodUsageDailyChart - first chart item:', chartData[0]);
     } catch (error) {
       console.error('Error converting daily data to chart format:', error);
       return (
@@ -2256,8 +2256,8 @@ export const MethodUsageDailyChart: React.FC<ChartProps> = ({ networkRequests })
       activeMethods = [];
     }
 
-    console.log('MethodUsageDailyChart - activeMethods:', activeMethods);
-    console.log('MethodUsageDailyChart - chartData sample:', chartData.slice(0, 2));
+    // console.log('MethodUsageDailyChart - activeMethods:', activeMethods);
+    // console.log('MethodUsageDailyChart - chartData sample:', chartData.slice(0, 2));
 
     // Method colors (consistent with other charts)
     const methodColors = {
@@ -2453,7 +2453,7 @@ export const MethodUsageDailyChart: React.FC<ChartProps> = ({ networkRequests })
 
 // Status Code Breakdown (Enhanced)
 export const StatusCodeBreakdownChartNew: React.FC<ChartProps> = ({ networkRequests }) => {
-  console.log('StatusCodeBreakdownChartNew - received:', networkRequests?.length || 0, 'requests');
+  // console.log('StatusCodeBreakdownChartNew - received:', networkRequests?.length || 0, 'requests');
 
   if (!networkRequests || networkRequests.length === 0) {
     return (
@@ -2479,7 +2479,7 @@ export const StatusCodeBreakdownChartNew: React.FC<ChartProps> = ({ networkReque
     statusCounts[statusKey] = (statusCounts[statusKey] || 0) + 1;
   });
 
-  console.log('StatusCodeBreakdownChartNew - statusCounts:', statusCounts);
+  // console.log('StatusCodeBreakdownChartNew - statusCounts:', statusCounts);
 
   // Convert to chart data with class information
   const statusEntries = Object.entries(statusCounts).map(([status, count]) => {
@@ -2510,7 +2510,7 @@ export const StatusCodeBreakdownChartNew: React.FC<ChartProps> = ({ networkReque
         value: item.count
       }));
 
-  console.log('StatusCodeBreakdownChartNew - chartData:', chartData);
+  // console.log('StatusCodeBreakdownChartNew - chartData:', chartData);
 
   // Color function with better color scheme
   const getStatusColor = (name: string) => {
@@ -2622,7 +2622,7 @@ export const StatusCodeBreakdownChartNew: React.FC<ChartProps> = ({ networkReque
   );
 };
 
-import { getStandardizedSize, getSizeBreakdown } from '../utils/sizeUtils';
+import { getStandardizedSize } from '../utils/sizeUtils';
 
 // Payload Size Distribution (Histogram with Alternative Box Plot)
 export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequests }) => {
@@ -2632,7 +2632,7 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
 
   // Reduce console logging frequency
   if ((networkRequests?.length || 0) % 50 === 0 || !networkRequests || networkRequests.length === 0) {
-    console.log('PayloadSizeDistributionChart - networkRequests:', networkRequests?.length || 0);
+    // console.log('PayloadSizeDistributionChart - networkRequests:', networkRequests?.length || 0);
   }
 
   if (!networkRequests || networkRequests.length === 0) {
@@ -2681,16 +2681,16 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
     .map((req, index) => {
       // DEBUG: Log first few requests to see available fields
       if (index < 3) {
-        console.log('PayloadSizeDistributionChart - Sample request fields:', Object.keys(req));
-        const breakdown = getSizeBreakdown(req);
-        console.log('PayloadSizeDistributionChart - Size breakdown:', {
-          url: req.url,
-          ...breakdown,
-          storedSizeCalculated: getStoredSize(req),
-          sizeTypeSelected: sizeType,
-          timestamp: req.timestamp,
-          created_at: req.created_at
-        });
+        // console.log('PayloadSizeDistributionChart - Sample request fields:', Object.keys(req));
+        // const breakdown = getSizeBreakdown(req);
+        // console.log('PayloadSizeDistributionChart - Size breakdown:', {
+        //   url: req.url,
+        //   ...breakdown,
+        //   storedSizeCalculated: getStoredSize(req),
+        //   sizeTypeSelected: sizeType,
+        //   timestamp: req.timestamp,
+        //   created_at: req.created_at
+        // });
       }
 
       // Use size calculation based on selected type
@@ -2714,17 +2714,17 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
     })
     .filter(item => item.timestamp); // Only require timestamp for now - temporarily allow zero sizes
 
-  console.log('PayloadSizeDistributionChart - payloadSizes after filtering:', payloadSizes.length);
-  console.log('PayloadSizeDistributionChart - all processed items count:', networkRequests.length);
-  console.log('PayloadSizeDistributionChart - size distribution:', {
-    sizeType: sizeType,
-    withSizes: payloadSizes.filter(item => item.totalSize > 0).length,
-    withoutSizes: payloadSizes.filter(item => item.totalSize === 0).length,
-    withOriginalSize: payloadSizes.filter(item => item.originalSize > 0).length,
-    withStoredSize: payloadSizes.filter(item => item.storedSize > 0).length,
-    withRequestSize: payloadSizes.filter(item => item.requestSize > 0).length,
-    withResponseSize: payloadSizes.filter(item => item.responseSize > 0).length
-  });
+  // console.log('PayloadSizeDistributionChart - payloadSizes after filtering:', payloadSizes.length);
+  // console.log('PayloadSizeDistributionChart - all processed items count:', networkRequests.length);
+  // console.log('PayloadSizeDistributionChart - size distribution:', {
+  //   sizeType: sizeType,
+  //   withSizes: payloadSizes.filter(item => item.totalSize > 0).length,
+  //   withoutSizes: payloadSizes.filter(item => item.totalSize === 0).length,
+  //   withOriginalSize: payloadSizes.filter(item => item.originalSize > 0).length,
+  //   withStoredSize: payloadSizes.filter(item => item.storedSize > 0).length,
+  //   withRequestSize: payloadSizes.filter(item => item.requestSize > 0).length,
+  //   withResponseSize: payloadSizes.filter(item => item.responseSize > 0).length
+  // });
 
   if (payloadSizes.length === 0) {
     return (
@@ -2846,9 +2846,9 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
   // Find outliers
   const outliers = sortedSizes.filter(size => size < lowerFence || size > upperFence);
 
-  console.log('PayloadSizeDistributionChart - bins:', bins);
-  console.log('PayloadSizeDistributionChart - timeline:', timelineData.slice(0, 3));
-  console.log('PayloadSizeDistributionChart - stats:', { minSize, maxSize, median, q1, q3, outliers: outliers.length });
+  // console.log('PayloadSizeDistributionChart - bins:', bins);
+  // console.log('PayloadSizeDistributionChart - timeline:', timelineData.slice(0, 3));
+  // console.log('PayloadSizeDistributionChart - stats:', { minSize, maxSize, median, q1, q3, outliers: outliers.length });
 
   return (
     <div className="space-y-4">
@@ -3155,7 +3155,7 @@ export const PayloadSizeDistributionChart: React.FC<ChartProps> = ({ networkRequ
 // Requests by Time of Day (24-hour Area Chart)
 export const RequestsByTimeOfDayChart: React.FC<ChartProps> = ({ networkRequests }) => {
   const isDark = useDarkMode();
-  console.log('RequestsByTimeOfDayChart - networkRequests:', networkRequests?.length || 0);
+  // console.log('RequestsByTimeOfDayChart - networkRequests:', networkRequests?.length || 0);
 
   if (!networkRequests || networkRequests.length === 0) {
     return (
@@ -3190,7 +3190,7 @@ export const RequestsByTimeOfDayChart: React.FC<ChartProps> = ({ networkRequests
     }
   });
 
-  console.log('RequestsByTimeOfDayChart - hourlyData:', hourlyData.slice(0, 5));
+  // console.log('RequestsByTimeOfDayChart - hourlyData:', hourlyData.slice(0, 5));
 
   // Calculate peak hour and total requests
   const peakHour = hourlyData.reduce((peak, current) =>
@@ -3253,7 +3253,7 @@ export const RequestsByTimeOfDayChart: React.FC<ChartProps> = ({ networkRequests
 export const RequestsByDomainChart: React.FC<ChartProps> = ({ networkRequests }) => {
   const [topN, setTopN] = React.useState(10);
 
-  console.log('RequestsByDomainChart - networkRequests:', networkRequests?.length || 0);
+  // console.log('RequestsByDomainChart - networkRequests:', networkRequests?.length || 0);
 
   if (!networkRequests || networkRequests.length === 0) {
     return (
@@ -3316,7 +3316,7 @@ export const RequestsByDomainChart: React.FC<ChartProps> = ({ networkRequests })
 
   const chartData = allDomainData.slice(0, topN);
 
-  console.log('RequestsByDomainChart - chartData:', chartData.slice(0, 3));
+  // console.log('RequestsByDomainChart - chartData:', chartData.slice(0, 3));
 
   // Color function for bars
   const getDomainColor = (index: number): string => {

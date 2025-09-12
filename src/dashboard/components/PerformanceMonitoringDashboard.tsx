@@ -51,12 +51,12 @@ export const PerformanceMonitoringDashboard: React.FC = () => {
   const loadStats = async () => {
     try {
       // Get stats from background script
-      const response = await sendChromeMessage({ 
-        action: 'getPerformanceStats' 
+      const response = await sendChromeMessage({
+        action: 'getPerformanceStats'
       })
       if (response && response.success && response.data) {
         setStats(response.data)
-        console.log('Performance stats loaded:', response.data)
+        // console.log('Performance stats loaded:', response.data)
       } else {
         console.error('Failed to load performance stats:', response?.error || 'Unknown error')
       }
@@ -139,18 +139,18 @@ export const PerformanceMonitoringDashboard: React.FC = () => {
   useEffect(() => {
     let isActive = true
     let intervalId: number | null = null
-    
+
     // MEMORY LEAK FIX: Memory-aware loading with exponential backoff
     const scheduleLoad = (delay: number = 10000) => {
       if (!isActive) return
-      
+
       if (intervalId) {
         clearTimeout(intervalId)
       }
-      
+
       intervalId = window.setTimeout(() => {
         if (!isActive) return
-        
+
         try {
           // Check memory pressure before loading
           const performanceMemory = (performance as any).memory
@@ -158,15 +158,15 @@ export const PerformanceMonitoringDashboard: React.FC = () => {
             const heapUsed = performanceMemory.usedJSHeapSize
             const heapLimit = performanceMemory.jsHeapSizeLimit
             const heapPercentage = (heapUsed / heapLimit) * 100
-            
+
             if (heapPercentage > 85) {
               // Skip load under high memory pressure
-              console.log('🚨 Skipping performance stats load - high memory pressure')
+              // console.log('🚨 Skipping performance stats load - high memory pressure')
               scheduleLoad(Math.min(delay * 1.5, 60000)) // Exponential backoff
               return
             }
           }
-          
+
           loadStats()
           scheduleLoad(10000) // Regular 10 second interval
         } catch (error) {
@@ -175,10 +175,10 @@ export const PerformanceMonitoringDashboard: React.FC = () => {
         }
       }, delay)
     }
-    
+
     loadStats()
     scheduleLoad()
-    
+
     return () => {
       isActive = false
       if (intervalId) {
@@ -244,8 +244,8 @@ export const PerformanceMonitoringDashboard: React.FC = () => {
             <Button onClick={loadStats} variant="outline">
               Refresh Stats
             </Button>
-            <Button 
-              onClick={runStressTest} 
+            <Button
+              onClick={runStressTest}
               disabled={isRunningStressTest}
               variant="default"
             >
@@ -279,7 +279,7 @@ export const PerformanceMonitoringDashboard: React.FC = () => {
                     const times = stats.operationTimes[operation] || []
                     const avgTime = times.length > 0 ? times.reduce((a, b) => a + b, 0) / times.length : 0
                     const recentTimes = times.slice(-5) // Last 5 measurements
-                    
+
                     return (
                       <tr key={operation} className="border-b">
                         <td className="p-2 font-medium">{operation}</td>

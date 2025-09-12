@@ -95,14 +95,14 @@ export const useErrorData = (
   // Load console errors with pagination
   const loadConsoleErrors = useCallback(async (page: number, limit: number = itemsPerPage) => {
     try {
-      console.log(`🔄 Loading console errors page ${page} with limit ${limit}`)
+      // console.log(`🔄 Loading console errors page ${page} with limit ${limit}`)
       setLoading(true)
       setError(null)
 
       // Check memory pressure before loading
       const { shouldThrottle } = checkMemoryPressure()
       if (shouldThrottle) {
-        console.warn('🚨 High memory pressure, reducing error load')
+        // console.warn('🚨 High memory pressure, reducing error load')
         limit = Math.min(limit, 5) // Reduce load under pressure
       }
 
@@ -117,10 +117,10 @@ export const useErrorData = (
         // Clear previous data to prevent accumulation
         setErrors(response.errors)
         setTotalErrors(response.total || 0)
-        console.log(`✅ Loaded ${response.errors.length} console errors, total: ${response.total}`)
+        // console.log(`✅ Loaded ${response.errors.length} console errors, total: ${response.total}`)
       } else {
         setError('Failed to load console errors')
-        console.warn('⚠️ Console errors response missing success/errors:', response)
+        // console.warn('⚠️ Console errors response missing success/errors:', response)
       }
     } catch (err) {
       setError('Error loading console errors')

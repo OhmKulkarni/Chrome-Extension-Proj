@@ -32,12 +32,12 @@ export const useTimelineData = ({ swimlanes, zoomLevel }: UseTimelineDataProps) 
 
   const loadData = useCallback(async (force: boolean = false) => {
     if (loadingRef.current && !force) return
-    
+
     loadingRef.current = true
     setData(prev => ({ ...prev, loading: true, error: null }))
 
     try {
-      console.log('useTimelineData: Loading data (data-driven)', { swimlanes })
+      // console.log('useTimelineData: Loading data (data-driven)', { swimlanes })
 
       const result = await service.current.fetchTimelineEvents(swimlanes)
 
@@ -80,7 +80,7 @@ export const useTimelineData = ({ swimlanes, zoomLevel }: UseTimelineDataProps) 
 
   // Load data when dependencies change - make dependencies stable
   useEffect(() => {
-    console.log('useTimelineData: Effect triggered, loading data...')
+    // console.log('useTimelineData: Effect triggered, loading data...')
     loadData()
   }, [swimlanes.join(','), zoomLevel]) // Use stable dependencies instead of loadData function
 
@@ -89,7 +89,7 @@ export const useTimelineData = ({ swimlanes, zoomLevel }: UseTimelineDataProps) 
     if (success) {
       setData(prev => ({
         ...prev,
-        events: prev.events.map(event => 
+        events: prev.events.map(event =>
           event.id === eventId ? { ...event, isBookmarked } : event
         )
       }))
@@ -102,7 +102,7 @@ export const useTimelineData = ({ swimlanes, zoomLevel }: UseTimelineDataProps) 
     if (success) {
       setData(prev => ({
         ...prev,
-        events: prev.events.map(event => 
+        events: prev.events.map(event =>
           event.id === eventId ? { ...event, compareSlot: slot } : event
         )
       }))
@@ -121,7 +121,7 @@ export const useTimelineData = ({ swimlanes, zoomLevel }: UseTimelineDataProps) 
 
     try {
       const result = await service.current.fetchTimelineEvents(swimlanes)
-      
+
       if (result.events.length > data.events.length) {
         setData(prev => ({ ...prev, hasNewUpdates: true }))
       }

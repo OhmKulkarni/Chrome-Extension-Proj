@@ -416,7 +416,7 @@ backgroundController.initialize().then(() => {
 
 // Service worker shutdown handler
 self.addEventListener('beforeunload', () => {
-  console.log('🧹 Background service worker shutting down...');
+  // console.log('🧹 Background service worker shutting down...');
   backgroundController.cleanup();
 });
 
@@ -424,4 +424,4 @@ self.addEventListener('beforeunload', () => {
 (globalThis as any).backgroundController = backgroundController;
 (globalThis as any).isBackgroundReady = () => isBackgroundReady;
 
-console.log('🔧 Background script modular architecture loaded and initializing...');
+// console.log('🔧 Background script modular architecture loaded and initializing...');

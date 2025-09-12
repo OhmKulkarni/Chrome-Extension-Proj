@@ -18,7 +18,7 @@ interface ChartProps {
 
 // Simple Status Code Chart
 export const SimpleStatusCodeChart: React.FC<ChartProps> = ({ networkRequests }) => {
-  console.log('SimpleStatusCodeChart - input:', networkRequests?.length);
+  // console.log('SimpleStatusCodeChart - input:', networkRequests?.length);
 
   if (!networkRequests || networkRequests.length === 0) {
     return <div className="p-4 text-center text-gray-500">No data available</div>;
@@ -26,14 +26,14 @@ export const SimpleStatusCodeChart: React.FC<ChartProps> = ({ networkRequests })
 
   // Count status codes
   const statusCounts: { [key: string]: number } = {};
-  
+
   networkRequests.forEach(req => {
     const status = req.status ?? req.response_status ?? req.response?.status ?? req.statusCode ?? 'Unknown';
     const key = String(status);
     statusCounts[key] = (statusCounts[key] || 0) + 1;
   });
 
-  console.log('SimpleStatusCodeChart - statusCounts:', statusCounts);
+  // console.log('SimpleStatusCodeChart - statusCounts:', statusCounts);
 
   const data = Object.entries(statusCounts).map(([status, count]) => ({
     name: status,
@@ -69,7 +69,7 @@ export const SimpleStatusCodeChart: React.FC<ChartProps> = ({ networkRequests })
 
 // Simple Traffic by Endpoint Chart
 export const SimpleTrafficChart: React.FC<ChartProps> = ({ networkRequests }) => {
-  console.log('SimpleTrafficChart - input:', networkRequests?.length);
+  // console.log('SimpleTrafficChart - input:', networkRequests?.length);
 
   if (!networkRequests || networkRequests.length === 0) {
     return <div className="p-4 text-center text-gray-500">No data available</div>;
@@ -77,7 +77,7 @@ export const SimpleTrafficChart: React.FC<ChartProps> = ({ networkRequests }) =>
 
   // Extract endpoints and count them
   const endpointCounts: { [key: string]: number } = {};
-  
+
   networkRequests.forEach(req => {
     if (req.url) {
       try {
@@ -90,7 +90,7 @@ export const SimpleTrafficChart: React.FC<ChartProps> = ({ networkRequests }) =>
     }
   });
 
-  console.log('SimpleTrafficChart - endpointCounts:', endpointCounts);
+  // console.log('SimpleTrafficChart - endpointCounts:', endpointCounts);
 
   const data = Object.entries(endpointCounts)
     .map(([endpoint, count]) => ({
@@ -100,7 +100,7 @@ export const SimpleTrafficChart: React.FC<ChartProps> = ({ networkRequests }) =>
     .sort((a, b) => b.value - a.value)
     .slice(0, 10);
 
-  console.log('SimpleTrafficChart - chart data:', data);
+  // console.log('SimpleTrafficChart - chart data:', data);
 
   return (
     <div>

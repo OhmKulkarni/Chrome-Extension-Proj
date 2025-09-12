@@ -110,13 +110,13 @@ export const TimelineVisualization: React.FC<TimelineVisualizationProps> = ({ fo
           setHighlightedEventId(focusedEventId)
         }, 150)
 
-        console.log(`Timeline focused on event: ${focusedEventId} at ${new Date(targetTime).toLocaleString()}`)
+        // console.log(`Timeline focused on event: ${focusedEventId} at ${new Date(targetTime).toLocaleString()}`)
       } else {
         console.warn(`Timeline could not find event with ID: ${focusedEventId}`)
-        console.log('Available events:', timelineData.events.map(e => ({ id: e.id, type: e.type, timestamp: e.timestamp })))
+        // console.log('Available events:', timelineData.events.map(e => ({ id: e.id, type: e.type, timestamp: e.timestamp })))
       }
     } else if (focusedEventId && timelineData.loading) {
-      console.log('Timeline waiting for data to load before focusing...')
+      // console.log('Timeline waiting for data to load before focusing...')
     }
   }, [focusedEventId, timelineData.events, timelineData.loading])  // Check for updates periodically - TEMPORARILY DISABLED
   useEffect(() => {
@@ -134,7 +134,7 @@ export const TimelineVisualization: React.FC<TimelineVisualizationProps> = ({ fo
       if (e.ctrlKey && e.shiftKey && e.key === 'D') {
         e.preventDefault()
         setDebugMode(prev => !prev)
-        console.log(`🐛 Timeline Debug Mode: ${!debugMode ? 'ON' : 'OFF'}`)
+        // console.log(`🐛 Timeline Debug Mode: ${!debugMode ? 'ON' : 'OFF'}`)
       }
     }
 

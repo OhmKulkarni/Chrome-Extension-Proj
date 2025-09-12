@@ -30,7 +30,7 @@ export class DashboardUpdateManager {
     this.interceptionBus = interceptionBus;
     this.storageBus = storageManager.events;
     this.storageManager = storageManager;
-    
+
     this.currentState = {
       networkRequests: [],
       consoleErrors: [],
@@ -104,7 +104,7 @@ export class DashboardUpdateManager {
 
   private scheduleUpdate(reason: string): void {
     const now = Date.now();
-    
+
     // Clear any pending update
     if (this.pendingUpdate) {
       clearTimeout(this.pendingUpdate);
@@ -122,9 +122,9 @@ export class DashboardUpdateManager {
     }
   }
 
-  private async performUpdate(reason: string): Promise<void> {
-    console.log(`📊 DashboardUpdateManager: Performing update (${reason})`);
-    
+  private async performUpdate(_reason: string): Promise<void> {
+    // console.log(`📊 DashboardUpdateManager: Performing update (${reason})`);
+
     this.lastUpdateTime = Date.now();
     this.pendingUpdate = null;
 
@@ -149,7 +149,7 @@ export class DashboardUpdateManager {
 
     } catch (error) {
       console.error('Dashboard update error:', error);
-      this.updateState({ 
+      this.updateState({
         loading: false,
         lastUpdate: new Date().toISOString()
       });
@@ -158,7 +158,7 @@ export class DashboardUpdateManager {
 
   private updateState(newState: Partial<DashboardState>): void {
     this.currentState = { ...this.currentState, ...newState };
-    
+
     // Notify all subscribers
     this.updateCallbacks.forEach(callback => {
       try {
@@ -196,7 +196,7 @@ export class DashboardUpdateManager {
             loading: false
           });
           break;
-        
+
         case 'errors':
           result = await this.storageManager.errors.getPage(page, limit);
           this.updateState({
@@ -205,7 +205,7 @@ export class DashboardUpdateManager {
             loading: false
           });
           break;
-        
+
         case 'tokens':
           result = await this.storageManager.tokens.getPage(page, limit);
           this.updateState({
@@ -225,7 +225,7 @@ export class DashboardUpdateManager {
 
   public async clearAllData(): Promise<{ success: boolean; errors: string[] }> {
     this.updateState({ loading: true });
-    
+
     try {
       const result = await this.storageManager.clearAll();
       this.updateState({ loading: false });

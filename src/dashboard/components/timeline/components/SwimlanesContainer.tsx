@@ -285,7 +285,7 @@ export const SwimlanesContainer: React.FC<SwimlanesContainerProps> = ({
       }, 100)
     }
 
-    console.log('Zooming in on cluster at time:', new Date(clusterCenterTime))
+    // console.log('Zooming in on cluster at time:', new Date(clusterCenterTime))
   }, [onZoomIn, onJumpToTime])
 
   const handleDensityClusterList = useCallback((cluster: DensityCluster) => {

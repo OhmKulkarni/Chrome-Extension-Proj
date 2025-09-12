@@ -44,7 +44,7 @@ export const useExpandedRows = (maxExpanded: number = 3): ExpandedRowsHookReturn
           // Auto-collapse the oldest expanded row
           const firstDomain = Array.from(newSet)[0];
           newSet.delete(firstDomain);
-          console.log(`🎯 Auto-collapsed ${firstDomain} due to ${maxExpanded} row limit`);
+          // console.log(`🎯 Auto-collapsed ${firstDomain} due to ${maxExpanded} row limit`);
         }
         // Expand new row
         newSet.add(domain);

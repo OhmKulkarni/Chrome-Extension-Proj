@@ -400,20 +400,20 @@ const TimelineHeaderNew: React.FC<TimelineHeaderNewProps> = ({
                         const [hours, minutes] = customStartTime.split(':').map(Number)
                         const dateTime = new Date(year, month - 1, day, hours, minutes, 0, 0)
                         targetTimestamp = dateTime.getTime()
-                        console.log(`🕐 Custom time: ${customStartDate} ${customStartTime} -> ${dateTime.toISOString()} (${targetTimestamp})`)
+                        // console.log(`🕐 Custom time: ${customStartDate} ${customStartTime} -> ${dateTime.toISOString()} (${targetTimestamp})`)
                       } else if (customStartDate) {
                         // Only date specified, use start of day
                         const [year, month, day] = customStartDate.split('-').map(Number)
                         const date = new Date(year, month - 1, day, 0, 0, 0, 0)
                         targetTimestamp = date.getTime()
-                        console.log(`📅 Custom date: ${customStartDate} -> ${date.toISOString()} (${targetTimestamp})`)
+                        // console.log(`📅 Custom date: ${customStartDate} -> ${date.toISOString()} (${targetTimestamp})`)
                       } else if (customStartTime) {
                         // Only time specified, use today's date
                         const today = new Date()
                         const [hours, minutes] = customStartTime.split(':').map(Number)
                         today.setHours(hours, minutes, 0, 0)
                         targetTimestamp = today.getTime()
-                        console.log(`⏰ Custom time today: ${customStartTime} -> ${today.toISOString()} (${targetTimestamp})`)
+                        // console.log(`⏰ Custom time today: ${customStartTime} -> ${today.toISOString()} (${targetTimestamp})`)
                       }
 
                       // Jump to the calculated time with the selected scope

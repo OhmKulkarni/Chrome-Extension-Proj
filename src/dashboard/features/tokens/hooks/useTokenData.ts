@@ -98,7 +98,7 @@ export const useTokenData = (
         // console.log(`✅ Loaded ${response.events.length} token events, total: ${response.total}`)
       } else {
         setError('Failed to load token events')
-        console.warn('⚠️ Token events response missing success/events:', response)
+        // console.warn('⚠️ Token events response missing success/events:', response)
       }
     } catch (err) {
       setError('Error loading token events')

@@ -427,19 +427,19 @@ export class SharedInfrastructureModule {
    */
   private async sendToBackground(action: string, data: any): Promise<any> {
     if (!this.isExtensionContextValid()) {
-      console.log('SharedInfrastructureModule: Extension context invalid, attempting recovery...')
+      // console.log('SharedInfrastructureModule: Extension context invalid, attempting recovery...')
 
       // Try to recover the extension context
       await this.attemptContextRecovery()
 
       // If still invalid after recovery attempt, queue the data
       if (!this.isExtensionContextValid()) {
-        console.warn('SharedInfrastructureModule: Context recovery failed, dropping data')
+        // console.warn('SharedInfrastructureModule: Context recovery failed, dropping data')
         this.queueDataForLater(action, data)
         return null
       }
 
-      console.log('SharedInfrastructureModule: Extension context recovered successfully!')
+      // console.log('SharedInfrastructureModule: Extension context recovered successfully!')
     }
 
     try {
@@ -486,7 +486,7 @@ export class SharedInfrastructureModule {
         chrome.runtime.onMessage.addListener(messageListener)
         this.chromeListeners.set('runtimeMessage', messageListener)
       } else {
-        console.warn('SharedInfrastructureModule: chrome.runtime.onMessage not available')
+        // console.warn('SharedInfrastructureModule: chrome.runtime.onMessage not available')
         this.extensionContextValid = false
       }
     } catch (error) {
@@ -500,10 +500,10 @@ export class SharedInfrastructureModule {
       try {
         const { enabled } = event.detail
         if (!enabled) {
-          console.log('SharedInfrastructureModule: Extension disabled, pausing interception')
+          // console.log('SharedInfrastructureModule: Extension disabled, pausing interception')
           this.pauseInterception()
         } else {
-          console.log('SharedInfrastructureModule: Extension enabled, resuming interception')
+          // console.log('SharedInfrastructureModule: Extension enabled, resuming interception')
           this.resumeInterception()
         }
         // Notify main-world script about the state change
@@ -562,7 +562,7 @@ export class SharedInfrastructureModule {
    * Cleanup method for handling initialization failures - MEMORY LEAK SAFE
    */
   private async cleanup(): Promise<void> {
-    console.log('SharedInfrastructureModule: Performing cleanup due to initialization failure')
+    // console.log('SharedInfrastructureModule: Performing cleanup due to initialization failure')
 
     // Clear any partial state
     this.isInitialized = false
@@ -651,7 +651,7 @@ export class SharedInfrastructureModule {
 
       case 'loggingStateChanged':
         // Handle logging state changes from background script
-        console.log('📨 CONTENT: Received logging state change:', message)
+        // console.log('📨 CONTENT: Received logging state change:', message)
 
         // Check for atomic site toggle (all three states provided)
         if (message.type === 'atomic' &&
@@ -666,11 +666,11 @@ export class SharedInfrastructureModule {
               tokenEnabled: message.tokenEnabled
             }
           }))
-          console.log('📨 CONTENT: Sent atomic state change to main-world:', {
-            network: message.networkEnabled,
-            console: message.consoleEnabled,
-            tokens: message.tokenEnabled
-          })
+          // console.log('📨 CONTENT: Sent atomic state change to main-world:', {
+          //   network: message.networkEnabled,
+          //   console: message.consoleEnabled,
+          //   tokens: message.tokenEnabled
+          // })
         }
         // Handle individual feature changes
         else if (message.type === 'network' && message.networkEnabled !== undefined) {
@@ -692,7 +692,7 @@ export class SharedInfrastructureModule {
         } else if (message.type === 'token' && message.tokenEnabled !== undefined) {
           // Token logging doesn't require main-world script notification
           // since it's handled entirely in the background script
-          console.log('📨 CONTENT: Token logging state changed:', message.tokenEnabled)
+          // console.log('📨 CONTENT: Token logging state changed:', message.tokenEnabled)
         }
 
         sendResponse({ success: true })
@@ -700,7 +700,7 @@ export class SharedInfrastructureModule {
 
       case 'retryScriptInjection':
         // Retry main-world script injection when site becomes enabled
-        console.log('📨 CONTENT: Retrying main-world script injection...')
+        // console.log('📨 CONTENT: Retrying main-world script injection...')
         this.retryScriptInjection().then((result) => {
           sendResponse({ success: result.success, error: result.error })
         }).catch(error => {
@@ -730,7 +730,7 @@ export class SharedInfrastructureModule {
     // FIXED: Don't hardcode states - let the state checking logic handle this
     // The actual states will be determined by the tab-specific configuration
     // during the next state check cycle
-    console.log('📨 CONTENT: Extension resumed, states will be determined by tab configuration');
+    // console.log('📨 CONTENT: Extension resumed, states will be determined by tab configuration');
   }
 
   /**
@@ -763,7 +763,7 @@ export class SharedInfrastructureModule {
       if (!this.extensionContextValid && this.recoveryAttempts < this.maxRecoveryAttempts) {
         const backupData = this.localStorageBackup.retrieve()
         if (backupData.length > 0) {
-          console.log(`SharedInfrastructureModule: Attempting periodic recovery (${this.recoveryAttempts + 1}/${this.maxRecoveryAttempts})`)
+          // console.log(`SharedInfrastructureModule: Attempting periodic recovery (${this.recoveryAttempts + 1}/${this.maxRecoveryAttempts})`)
           this.recoveryAttempts++
 
           this.attemptContextRecovery().catch(() => {
@@ -788,7 +788,7 @@ export class SharedInfrastructureModule {
    * Attempt to recover extension context
    */
   private async attemptContextRecovery(): Promise<void> {
-    console.log('SharedInfrastructureModule: Attempting extension context recovery...')
+    // console.log('SharedInfrastructureModule: Attempting extension context recovery...')
 
     try {
       // Strategy 1: Wait and retry - extension might be reloading
@@ -796,7 +796,7 @@ export class SharedInfrastructureModule {
 
       // Strategy 2: Test chrome runtime availability
       if (chrome?.runtime?.id) {
-        console.log('SharedInfrastructureModule: Chrome runtime detected, testing connection...')
+        // console.log('SharedInfrastructureModule: Chrome runtime detected, testing connection...')
 
         // Strategy 3: Test actual communication with background script
         try {
@@ -804,19 +804,19 @@ export class SharedInfrastructureModule {
           if (response?.success) {
             this.extensionContextValid = true
             this.recoveryAttempts = 0 // Reset counter on successful recovery
-            console.log('SharedInfrastructureModule: Extension context recovered successfully!')
+            // console.log('SharedInfrastructureModule: Extension context recovered successfully!')
 
             // Process any backup data
             await this.processQueuedData()
             return
           }
         } catch (error) {
-          console.warn('SharedInfrastructureModule: Background script ping failed:', error)
+          // console.warn('SharedInfrastructureModule: Background script ping failed:', error)
         }
       }
 
       // Strategy 4: Try longer wait for extension reload
-      console.log('SharedInfrastructureModule: Initial recovery failed, waiting longer...')
+      // console.log('SharedInfrastructureModule: Initial recovery failed, waiting longer...')
       await new Promise(resolve => setTimeout(resolve, 3000))
 
       if (chrome?.runtime?.id) {
@@ -825,12 +825,12 @@ export class SharedInfrastructureModule {
           if (response?.success) {
             this.extensionContextValid = true
             this.recoveryAttempts = 0 // Reset counter on successful recovery
-            console.log('SharedInfrastructureModule: Extension context recovered after longer wait!')
+            // console.log('SharedInfrastructureModule: Extension context recovered after longer wait!')
             await this.processQueuedData()
             return
           }
         } catch (error) {
-          console.warn('SharedInfrastructureModule: Second recovery attempt failed:', error)
+          // console.warn('SharedInfrastructureModule: Second recovery attempt failed:', error)
         }
       }
 
@@ -847,7 +847,7 @@ export class SharedInfrastructureModule {
    * Queue data for later when extension context is invalid
    */
   private queueDataForLater(action: string, data: any): void {
-    console.warn(`SharedInfrastructureModule: Extension context invalid, backing up ${action} data`)
+    // console.warn(`SharedInfrastructureModule: Extension context invalid, backing up ${action} data`)
 
     // Store data in localStorage as backup
     this.localStorageBackup.store({
@@ -859,7 +859,7 @@ export class SharedInfrastructureModule {
 
     // Also try context recovery in case it's just a temporary issue
     this.attemptContextRecovery().catch(() => {
-      console.warn('SharedInfrastructureModule: Context recovery failed, data remains in backup')
+      // console.warn('SharedInfrastructureModule: Context recovery failed, data remains in backup')
     })
   }
 
@@ -869,7 +869,7 @@ export class SharedInfrastructureModule {
   private async processQueuedData(): Promise<void> {
     // Try to flush any existing pending data after context recovery
     if (this.pendingData && (this.pendingData.networkRequests.length > 0 || this.pendingData.consoleEvents.length > 0)) {
-      console.log('SharedInfrastructureModule: Attempting to flush pending data after context recovery')
+      // console.log('SharedInfrastructureModule: Attempting to flush pending data after context recovery')
       try {
         await this.flushPendingData()
       } catch (error) {
@@ -881,7 +881,7 @@ export class SharedInfrastructureModule {
     try {
       const backupData = this.localStorageBackup.retrieve()
       if (backupData.length > 0) {
-        console.log(`SharedInfrastructureModule: Found ${backupData.length} items in localStorage backup, attempting to send...`)
+        // console.log(`SharedInfrastructureModule: Found ${backupData.length} items in localStorage backup, attempting to send...`)
 
         let successCount = 0
         for (const item of backupData) {
@@ -891,15 +891,15 @@ export class SharedInfrastructureModule {
               successCount++
             }
           } catch (error) {
-            console.warn('SharedInfrastructureModule: Failed to send backup item:', error)
+            // console.warn('SharedInfrastructureModule: Failed to send backup item:', error)
           }
         }
 
         if (successCount > 0) {
-          console.log(`SharedInfrastructureModule: Successfully sent ${successCount}/${backupData.length} backup items`)
+          // console.log(`SharedInfrastructureModule: Successfully sent ${successCount}/${backupData.length} backup items`)
           this.localStorageBackup.clear()
         } else {
-          console.warn('SharedInfrastructureModule: No backup items could be sent, keeping in storage')
+          // console.warn('SharedInfrastructureModule: No backup items could be sent, keeping in storage')
         }
       }
     } catch (error) {
@@ -916,7 +916,7 @@ export class SharedInfrastructureModule {
     // Update module configurations
     if (this.networkModule && newConfig.network) {
       // Network module would need a updateConfig method
-      console.log('SharedInfrastructureModule: Network config updated')
+      // console.log('SharedInfrastructureModule: Network config updated')
     }
 
     if (this.consoleModule && newConfig.console) {
@@ -963,11 +963,11 @@ export class SharedInfrastructureModule {
    * Cleanup and destroy all modules - ENHANCED MEMORY LEAK PROTECTION
    */
   public destroy(): void {
-    console.log('SharedInfrastructureModule: Destroying...')
+    // console.log('SharedInfrastructureModule: Destroying...')
 
     // Prevent concurrent destroy attempts
     if (this.isDestroying) {
-      console.warn('SharedInfrastructureModule: Destroy already in progress')
+      // console.warn('SharedInfrastructureModule: Destroy already in progress')
       return
     }
 
@@ -1022,7 +1022,7 @@ export class SharedInfrastructureModule {
       this.initializationPromise = null
       this.extensionContextValid = true // Reset for potential re-initialization
 
-      console.log('SharedInfrastructureModule: Destroyed successfully')
+      // console.log('SharedInfrastructureModule: Destroyed successfully')
 
     } catch (error) {
       console.error('SharedInfrastructureModule: Error during destroy:', error)
@@ -1084,12 +1084,12 @@ export class SharedInfrastructureModule {
       const { action, requestId } = customEvent.detail
       let response = null
 
-      console.log('📨 CONTENT: Received request from main-world:', action, 'ID:', requestId)
+      // console.log('📨 CONTENT: Received request from main-world:', action, 'ID:', requestId)
 
       try {
         switch (action) {
           case 'checkNetworkLogging':
-            console.log('📨 CONTENT: Processing checkNetworkLogging request...')
+            // console.log('📨 CONTENT: Processing checkNetworkLogging request...')
             const tabResponse = await this.sendToBackground('getCurrentTabId', {})
             const tabId = tabResponse?.tabId
 
@@ -1112,16 +1112,16 @@ export class SharedInfrastructureModule {
                 tabEnabled = defaultState === 'active'
               }
 
-              console.log('📨 CONTENT: Network logging state - Global:', globalEnabled, 'Tab:', tabEnabled, 'TabData:', tabLogging, 'DefaultFromSettings:', settings?.networkInterception?.tabSpecific?.defaultState)
+              // console.log('📨 CONTENT: Network logging state - Global:', globalEnabled, 'Tab:', tabEnabled, 'TabData:', tabLogging, 'DefaultFromSettings:', settings?.networkInterception?.tabSpecific?.defaultState)
               response = { enabled: globalEnabled && tabEnabled }
             } else {
-              console.log('📨 CONTENT: No tab ID available, returning false')
+              // console.log('📨 CONTENT: No tab ID available, returning false')
               response = { enabled: false }
             }
             break
 
           case 'checkConsoleLogging':
-            console.log('📨 CONTENT: Processing checkConsoleLogging request...')
+            // console.log('📨 CONTENT: Processing checkConsoleLogging request...')
             const currentTabResponse = await this.sendToBackground('getCurrentTabId', {})
             const currentTabId = currentTabResponse?.tabId
 
@@ -1146,24 +1146,26 @@ export class SharedInfrastructureModule {
                 // Tab has explicit state - ignore global console feature default
                 // Only check: master switch && explicit tab toggle
                 finalEnabled = masterSwitchEnabled && (tabLogging.active === true)
-                console.log('📨 CONTENT: Using explicit tab state:', tabLogging.active, 'Final:', finalEnabled)
+                // console.log('📨 CONTENT: Using explicit tab state:', tabLogging.active, 'Final:', finalEnabled)
               } else {
-                // No explicit tab state - use console feature default
-                finalEnabled = masterSwitchEnabled && globalConsoleEnabled
-                console.log('📨 CONTENT: Using feature default:', globalConsoleEnabled, 'Final:', finalEnabled)
+                // No explicit tab state - check settings for default, fallback to console feature default
+                const defaultState = settings?.errorLogging?.tabSpecific?.defaultState || 'paused'
+                const useSettingsDefault = defaultState === 'active'
+                finalEnabled = masterSwitchEnabled && (useSettingsDefault || globalConsoleEnabled)
+                // console.log('📨 CONTENT: Using settings default:', useSettingsDefault, 'or feature default:', globalConsoleEnabled, 'Final:', finalEnabled)
               }
 
-              console.log('📨 CONTENT: Console logging state - Master:', masterSwitchEnabled, 'ConsoleFeature:', globalConsoleEnabled, 'TabData:', tabLogging, 'DefaultFromSettings:', settings?.errorLogging?.tabSpecific?.defaultState)
+              // console.log('📨 CONTENT: Console logging state - Master:', masterSwitchEnabled, 'ConsoleFeature:', globalConsoleEnabled, 'TabData:', tabLogging, 'DefaultFromSettings:', settings?.errorLogging?.tabSpecific?.defaultState)
 
               response = { enabled: finalEnabled }
             } else {
-              console.log('📨 CONTENT: No tab ID available for console, returning false')
+              // console.log('📨 CONTENT: No tab ID available for console, returning false')
               response = { enabled: false }
             }
             break
 
           case 'getCurrentLoggingState':
-            console.log('📨 CONTENT: Processing getCurrentLoggingState request...')
+            // console.log('📨 CONTENT: Processing getCurrentLoggingState request...')
             const stateTabResponse = await this.sendToBackground('getCurrentTabId', {})
             const stateTabId = stateTabResponse?.tabId
 
@@ -1182,7 +1184,7 @@ export class SharedInfrastructureModule {
               const networkEnabled = globalEnabled && (tabNetworkLogging?.active === true)
               const consoleEnabled = globalEnabled && (tabConsoleLogging?.active === true)
 
-              console.log('📨 CONTENT: Current state - Network:', networkEnabled, 'Console:', consoleEnabled)
+              // console.log('📨 CONTENT: Current state - Network:', networkEnabled, 'Console:', consoleEnabled)
 
               // Send the state change event to enable/disable logging
               window.dispatchEvent(new CustomEvent('tabLoggingStateChange', {
@@ -1194,13 +1196,13 @@ export class SharedInfrastructureModule {
 
               response = { networkEnabled, consoleEnabled }
             } else {
-              console.log('📨 CONTENT: No tab ID available for state check')
+              // console.log('📨 CONTENT: No tab ID available for state check')
               response = { networkEnabled: false, consoleEnabled: false }
             }
             break
 
           default:
-            console.log('📨 CONTENT: Unknown action:', action)
+            // console.log('📨 CONTENT: Unknown action:', action)
         }
       } catch (error) {
         console.error('📨 CONTENT: Error processing request:', error)
@@ -1215,7 +1217,7 @@ export class SharedInfrastructureModule {
 
     // Handle settings requests from main-world script
     const settingsRequestListener = async (_event: Event) => {
-      console.log('📨 CONTENT: Settings request from main-world script')
+      // console.log('📨 CONTENT: Settings request from main-world script')
       try {
         // Get settings from background script
         const settingsResponse = await this.sendToBackground('getSettings', {})
@@ -1248,7 +1250,7 @@ export class SharedInfrastructureModule {
 
       if (!currentTabId) return
 
-      console.log('📨 CONTENT: Storage change detected:', Object.keys(changes))
+      // console.log('📨 CONTENT: Storage change detected:', Object.keys(changes))
 
       // Check for tab-specific logging changes that affect current tab
       const networkLoggingKey = `tabLogging_${currentTabId}`
@@ -1264,7 +1266,7 @@ export class SharedInfrastructureModule {
         const oldValue = change.oldValue
         const newValue = change.newValue
 
-        console.log('🔄 CONTENT: Network logging change for current tab:', { old: oldValue, new: newValue })
+        // console.log('🔄 CONTENT: Network logging change for current tab:', { old: oldValue, new: newValue })
 
         // Only notify if this is a user-initiated change (not initial setup or system changes)
         if (oldValue !== undefined && newValue !== undefined) {
@@ -1274,7 +1276,7 @@ export class SharedInfrastructureModule {
           if (oldActive !== newActive) {
             shouldNotifyMainWorld = true
             networkEnabled = newActive
-            console.log('👤 CONTENT: User changed network logging to:', networkEnabled)
+            // console.log('👤 CONTENT: User changed network logging to:', networkEnabled)
           }
         }
       }
@@ -1285,7 +1287,7 @@ export class SharedInfrastructureModule {
         const oldValue = change.oldValue
         const newValue = change.newValue
 
-        console.log('🔄 CONTENT: Console logging change for current tab:', { old: oldValue, new: newValue })
+        // console.log('🔄 CONTENT: Console logging change for current tab:', { old: oldValue, new: newValue })
 
         // Only notify if this is a user-initiated change (not initial setup or system changes)
         if (oldValue !== undefined && newValue !== undefined) {
@@ -1295,7 +1297,7 @@ export class SharedInfrastructureModule {
           if (oldActive !== newActive) {
             shouldNotifyMainWorld = true
             consoleEnabled = newActive
-            console.log('👤 CONTENT: User changed console logging to:', consoleEnabled)
+            // console.log('👤 CONTENT: User changed console logging to:', consoleEnabled)
           }
         }
       }
@@ -1303,7 +1305,7 @@ export class SharedInfrastructureModule {
       // Handle global extension state changes
       if (changes.extensionEnabled) {
         shouldNotifyMainWorld = true
-        console.log('� CONTENT: Extension enabled state changed')
+        // console.log('📱 CONTENT: Extension enabled state changed')
       }
 
       // Only notify main-world script if there were actual user-initiated changes
@@ -1338,9 +1340,9 @@ export class SharedInfrastructureModule {
           }
         }))
 
-        console.log('📨 CONTENT: Notified main-world of USER-INITIATED state change - Network:', networkEnabled, 'Console:', consoleEnabled)
+        // console.log('📨 CONTENT: Notified main-world of USER-INITIATED state change - Network:', networkEnabled, 'Console:', consoleEnabled)
       } else {
-        console.log('📨 CONTENT: Storage change was system-initiated, skipping main-world notification')
+        // console.log('📨 CONTENT: Storage change was system-initiated, skipping main-world notification')
       }
     }
 
@@ -1365,7 +1367,7 @@ export class SharedInfrastructureModule {
     this.eventListeners.set('contentScriptRequest', contentScriptRequestListener)
     this.eventListeners.set('extensionRequestSettings', settingsRequestListener)
 
-    console.log('SharedInfrastructureModule: Main-world communication setup complete')
+    // console.log('SharedInfrastructureModule: Main-world communication setup complete')
   }
 
   /**
@@ -1403,7 +1405,7 @@ export class SharedInfrastructureModule {
           }
         }))
 
-        console.log('📨 CONTENT: Notified main-world of state change - Network:', networkEnabled, 'Console:', consoleEnabled)
+        // console.log('📨 CONTENT: Notified main-world of state change - Network:', networkEnabled, 'Console:', consoleEnabled)
       }
     } catch (error) {
       console.error('📨 CONTENT: Error notifying main-world of state change:', error)
@@ -1425,7 +1427,7 @@ export class SharedInfrastructureModule {
           if (payload) {
             // Minimal logging - only for errors/important requests
             if (payload.status >= 400 || payload.url.includes('error') || payload.url.includes('debug')) {
-              console.log('🌐 Network request:', payload.url, payload.status)
+              // console.log('🌐 Network request:', payload.url, payload.status)
             }
 
             this.pendingData.networkRequests.push(payload)
@@ -1448,7 +1450,7 @@ export class SharedInfrastructureModule {
               }, 2000)
             }
           } else {
-            console.warn('🌐 SharedInfrastructure: Received empty network request payload')
+            // console.warn('🌐 SharedInfrastructure: Received empty network request payload')
           }
           break
 
@@ -1456,7 +1458,7 @@ export class SharedInfrastructureModule {
           if (payload) {
             // Only log errors or warnings for console events
             if (payload.level === 'error' || payload.level === 'warn') {
-              console.log(`📝 Console ${payload.level}:`, payload.message.substring(0, 100))
+              // console.log(`📝 Console ${payload.level}:`, payload.message.substring(0, 100))
             }
             // Convert main-world console event to our format
             const consoleEvent = {
@@ -1479,7 +1481,7 @@ export class SharedInfrastructureModule {
           break
 
         default:
-          console.warn('SharedInfrastructureModule: Unknown main-world message type:', type)
+          // console.warn('SharedInfrastructureModule: Unknown main-world message type:', type)
       }
     } catch (error) {
       console.error('SharedInfrastructureModule: Error handling main-world message:', error)
@@ -1491,14 +1493,14 @@ export class SharedInfrastructureModule {
    */
   async updateConfiguration(newConfig: Partial<SharedInfrastructureConfig>): Promise<void> {
     if (this.configUpdateInProgress) {
-      console.warn('SharedInfrastructureModule: Configuration update already in progress')
+      // console.warn('SharedInfrastructureModule: Configuration update already in progress')
       return
     }
 
     this.configUpdateInProgress = true
 
     try {
-      console.log('📝 Configuration update:', Object.keys(newConfig).join(', '))
+      // console.log('📝 Configuration update:', Object.keys(newConfig).join(', '))
 
       // Deep merge the new configuration
       const updatedConfig = {
@@ -1525,7 +1527,7 @@ export class SharedInfrastructureModule {
         this.networkModule.addListener(this.boundNetworkHandler)
         await this.networkModule.initialize()
 
-        console.log('✅ Network interceptor reconfigured')
+        // console.log('✅ Network interceptor reconfigured')
       } else if (newConfig.network?.enabled && !this.networkModule) {
         // Enable network module if it wasn't enabled before
         const networkConfig = {
@@ -1536,14 +1538,14 @@ export class SharedInfrastructureModule {
         this.networkModule.addListener(this.boundNetworkHandler)
         await this.networkModule.initialize()
 
-        console.log('✅ Network interceptor enabled')
+        // console.log('✅ Network interceptor enabled')
       } else if (newConfig.network?.enabled === false && this.networkModule) {
         // Disable network module
 
         this.networkModule.destroy()
         this.networkModule = undefined
 
-        console.log('✅ Network interceptor disabled')
+        // console.log('✅ Network interceptor disabled')
       }
 
       // Update console module if configuration changed
@@ -1556,23 +1558,23 @@ export class SharedInfrastructureModule {
         this.consoleModule.addListener(this.boundConsoleHandler)
         await this.consoleModule.initialize()
 
-        console.log('✅ Console interceptor reconfigured')
+        // console.log('✅ Console interceptor reconfigured')
       } else if (newConfig.console?.enabled && !this.consoleModule) {
         // Enable console module if it wasn't enabled before
         this.consoleModule = new ConsoleInterceptorModule(this.config.console)
         this.consoleModule.addListener(this.boundConsoleHandler)
         await this.consoleModule.initialize()
 
-        console.log('✅ Console interceptor enabled')
+        // console.log('✅ Console interceptor enabled')
       } else if (newConfig.console?.enabled === false && this.consoleModule) {
         // Disable console module
         this.consoleModule.destroy()
         this.consoleModule = undefined
 
-        console.log('✅ Console interceptor disabled')
+        // console.log('✅ Console interceptor disabled')
       }
 
-      console.log('✅ Configuration updated')
+      // console.log('✅ Configuration updated')
 
     } catch (error) {
       console.error('❌ Configuration update failed:', error)
@@ -1588,17 +1590,17 @@ export class SharedInfrastructureModule {
    */
   private async retryScriptInjection(): Promise<{ success: boolean; error?: string }> {
     try {
-      console.log('🔄 Retrying script injection...')
+      // console.log('🔄 Retrying script injection...')
 
       const injectionResponse = await chrome.runtime.sendMessage({
         action: 'INJECT_MAIN_WORLD_SCRIPT'
       })
 
       if (injectionResponse?.success) {
-        console.log('✅ Script injection successful')
+        // console.log('✅ Script injection successful')
         return { success: true }
       } else {
-        console.warn('⚠️ CONTENT: Script injection retry failed:', injectionResponse?.error)
+        // console.warn('⚠️ CONTENT: Script injection retry failed:', injectionResponse?.error)
         return { success: false, error: injectionResponse?.error || 'Unknown injection error' }
       }
     } catch (error) {

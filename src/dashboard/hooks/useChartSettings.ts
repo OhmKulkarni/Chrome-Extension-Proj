@@ -52,7 +52,7 @@ export const useChartSettings = () => {
         chartSettings = { ...DEFAULT_CHART_SETTINGS, ...syncResult.extensionSettings.chartSettings };
       }
 
-      console.log('🔧 Chart settings loaded:', chartSettings);
+      // console.log('🔧 Chart settings loaded:', chartSettings);
       setSettings(chartSettings);
     } catch (error) {
       console.error('Failed to load chart settings, using defaults:', error);
@@ -92,7 +92,7 @@ export const useChartSettings = () => {
         })
       ]);
 
-      console.log('🔧 Chart settings updated:', updatedSettings);
+      // console.log('🔧 Chart settings updated:', updatedSettings);
     } catch (error) {
       console.error('Failed to save chart settings:', error);
       // Revert on failure
@@ -106,7 +106,7 @@ export const useChartSettings = () => {
       if (namespace === 'sync' && changes.extensionSettings) {
         const newSettings = changes.extensionSettings.newValue;
         if (newSettings?.chartSettings) {
-          console.log('🔧 Chart settings changed from sync storage');
+          // console.log('🔧 Chart settings changed from sync storage');
           setSettings({ ...DEFAULT_CHART_SETTINGS, ...newSettings.chartSettings });
         }
       }
@@ -114,7 +114,7 @@ export const useChartSettings = () => {
       if (namespace === 'local' && changes.settings) {
         const newSettings = changes.settings.newValue;
         if (newSettings?.chartSettings) {
-          console.log('🔧 Chart settings changed from local storage');
+          // console.log('🔧 Chart settings changed from local storage');
           setSettings({ ...DEFAULT_CHART_SETTINGS, ...newSettings.chartSettings });
         }
       }

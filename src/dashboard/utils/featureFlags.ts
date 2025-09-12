@@ -154,8 +154,8 @@ export const logFeatureFlags = (): void => {
   const isDevelopment = typeof window !== 'undefined' &&
     (window.location.hostname === 'localhost' || window.location.hostname.includes('dev'));
   if (isDevelopment) {
-    const flags = getFeatureFlags();
-    console.table(flags);
+    // const flags = getFeatureFlags();
+    // console.table(flags);
   }
 };
 

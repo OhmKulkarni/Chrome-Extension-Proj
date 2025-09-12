@@ -119,11 +119,11 @@ export const useViewport = ({
 
         if (isCurrentTimeFallback) {
           // This might be the default fallback - use current time but log for debugging
-          console.log('🕐 Using current time for last- scope (no data loaded yet)')
+          // console.log('🕐 Using current time for last- scope (no data loaded yet)')
           targetTime = now
         } else {
           // We have actual data - use the real latest timestamp
-          console.log(`🕐 Using latest record time: ${new Date(latestDataTimestamp).toISOString()}`)
+          // console.log(`🕐 Using latest record time: ${new Date(latestDataTimestamp).toISOString()}`)
           targetTime = latestDataTimestamp
         }
       } else if (presetScope.startsWith('first-')) {

@@ -29,24 +29,24 @@ const GLOBAL_MEMORY_STATE = {
 const acquireAnalysisLock = (): boolean => {
   if (GLOBAL_MEMORY_STATE.isAnalyzing) {
     GLOBAL_MEMORY_STATE.consecutiveSkips++
-    console.log(`🔒 Analysis already in progress, skipping (${GLOBAL_MEMORY_STATE.consecutiveSkips})`)
-    
+    // console.log(`🔒 Analysis already in progress, skipping (${GLOBAL_MEMORY_STATE.consecutiveSkips})`)
+
     // MEMORY LEAK FIX: If too many consecutive skips, force reset
     if (GLOBAL_MEMORY_STATE.consecutiveSkips > 10) {
-      console.log('🔧 Force resetting analysis lock due to too many skips')
+      // console.log('🔧 Force resetting analysis lock due to too many skips')
       GLOBAL_MEMORY_STATE.isAnalyzing = false
       GLOBAL_MEMORY_STATE.consecutiveSkips = 0
       return true
     }
     return false
   }
-  
+
   const now = Date.now()
   if (now - GLOBAL_MEMORY_STATE.lastAnalysis < 3000) { // 3 second minimum
-    console.log('⏱️ Too soon since last analysis, skipping')
+    // console.log('⏱️ Too soon since last analysis, skipping')
     return false
   }
-  
+
   GLOBAL_MEMORY_STATE.isAnalyzing = true
   GLOBAL_MEMORY_STATE.lastAnalysis = now
   GLOBAL_MEMORY_STATE.consecutiveSkips = 0 // Reset skip counter
@@ -64,7 +64,7 @@ const checkMemoryPressure = (): boolean => {
       const heapUsed = performanceMemory.usedJSHeapSize
       const heapLimit = performanceMemory.jsHeapSizeLimit
       const heapPercentage = (heapUsed / heapLimit) * 100
-      
+
       GLOBAL_MEMORY_STATE.memoryPressure = heapPercentage > 85
       return heapPercentage > 85
     }
@@ -96,28 +96,28 @@ export const UsageCard: React.FC = () => {
   // Increment global instance counter
   React.useEffect(() => {
     GLOBAL_MEMORY_STATE.activeInstances++
-    console.log(`📊 UsageCard instance #${GLOBAL_MEMORY_STATE.activeInstances} mounted`)
-    
+    // console.log(`📊 UsageCard instance #${GLOBAL_MEMORY_STATE.activeInstances} mounted`)
+
     return () => {
       GLOBAL_MEMORY_STATE.activeInstances--
       isMountedRef.current = false // Mark component as unmounted
-      console.log(`📊 UsageCard instance unmounted (remaining: ${GLOBAL_MEMORY_STATE.activeInstances})`)
+      // console.log(`📊 UsageCard instance unmounted (remaining: ${GLOBAL_MEMORY_STATE.activeInstances})`)
     }
   }, [])
 
   const [usageData, setUsageData] = useState<UsageData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  
+
   // MEMORY LEAK FIX: Component mounted state to prevent setState on unmounted component
   const isMountedRef = React.useRef(true)
-  
+
   // Use useRef for mutable array to avoid React re-renders and state updates
   const memoryHistoryRef = React.useRef<number[]>([])
-  
+
   // Rate limiting for user-friendly updates
   const lastUpdateTimeRef = React.useRef<number>(0)
   const minUpdateIntervalMs = 2000 // Minimum 2 seconds between UI updates
-  
+
   // Pre-allocated message objects to prevent runtime allocations
   const messageTemplates = React.useMemo(() => ({
     networkRequests: { action: 'getNetworkRequests', limit: 5, offset: 0 },
@@ -126,7 +126,7 @@ export const UsageCard: React.FC = () => {
     tableCounts: { action: 'getTableCounts' }
   }), [])
 
-  // Memory-safe recent activity with zero temporary allocations - STABLE REFERENCE  
+  // Memory-safe recent activity with zero temporary allocations - STABLE REFERENCE
   const getRecentActivity = React.useCallback(async () => {
     try {
       // Sequential requests to avoid Promise.all array creation and destructuring
@@ -134,7 +134,7 @@ export const UsageCard: React.FC = () => {
       let recentErrors = 0
       let recentTokens = 0
       let mostRecentTimestamp = 0
-      
+
       // Process network requests with memory leak prevention
       try {
         const networkResponse = await sendChromeMessage(messageTemplates.networkRequests)
@@ -149,7 +149,7 @@ export const UsageCard: React.FC = () => {
       } catch (e) {
         console.warn('Network requests failed:', e)
       }
-      
+
       // Process console errors with memory leak prevention
       try {
         const errorResponse = await sendChromeMessage(messageTemplates.consoleErrors)
@@ -164,7 +164,7 @@ export const UsageCard: React.FC = () => {
       } catch (e) {
         console.warn('Console errors failed:', e)
       }
-      
+
       // Process token events with memory leak prevention
       try {
         const tokenResponse = await sendChromeMessage(messageTemplates.tokenEvents)
@@ -188,7 +188,7 @@ export const UsageCard: React.FC = () => {
         if (hoursAgo < 1) {
           lastActivity = '< 1h ago'
         } else if (hoursAgo < 24) {
-          lastActivity = hoursAgo + 'h ago'  
+          lastActivity = hoursAgo + 'h ago'
         } else {
           lastActivity = Math.floor(hoursAgo / 24) + 'd ago'
         }
@@ -198,7 +198,7 @@ export const UsageCard: React.FC = () => {
 
       return {
         recentRequests,
-        recentErrors, 
+        recentErrors,
         recentTokens,
         lastActivity
       }
@@ -220,7 +220,7 @@ export const UsageCard: React.FC = () => {
     const memoryHistory = memoryHistoryRef.current
     // In-place array management to prevent allocations
     const maxHistoryLength = 6 // Reduced from 10
-    
+
     if (memoryHistory.length >= maxHistoryLength) {
       // Shift array in-place instead of creating new one
       memoryHistory.shift() // Remove oldest
@@ -234,7 +234,7 @@ export const UsageCard: React.FC = () => {
     // Direct array access instead of slice()
     const len = memoryHistory.length
     const recent1 = memoryHistory[len - 3]
-    const recent2 = memoryHistory[len - 1]  
+    const recent2 = memoryHistory[len - 1]
     const trend = recent2 - recent1
     const threshold = 5 * 1024 * 1024 // 5MB threshold
 
@@ -249,31 +249,31 @@ export const UsageCard: React.FC = () => {
     if (!acquireAnalysisLock()) {
       return
     }
-    
+
     // Skip if already loading to prevent overlapping operations
     if (isLoading) {
-      console.log('📊 Skipping analysis - already in progress')
+      // console.log('📊 Skipping analysis - already in progress')
       releaseAnalysisLock()
       return
     }
-    
+
     // Pre-check memory pressure
     if (checkMemoryPressure()) {
-      console.log('🚨 Memory pressure detected, skipping analysis')
+      // console.log('🚨 Memory pressure detected, skipping analysis')
       releaseAnalysisLock()
       return
     }
-    
+
     // MEMORY LEAK FIX: Check if component is still mounted before setState
     if (!isMountedRef.current) {
       releaseAnalysisLock()
       return
     }
-    
+
     setIsLoading(true)
     try {
-      console.log('📊 Analyzing extension usage (memory-optimized with live data)...')
-      
+      // console.log('📊 Analyzing extension usage (memory-optimized with live data)...')
+
       // 1. Chrome storage local usage (MEMORY LEAK FIX: use pre-allocated Promise)
       let storageLocalBytes = 0
       try {
@@ -281,7 +281,7 @@ export const UsageCard: React.FC = () => {
       } catch (error) {
         console.warn('Could not get chrome.storage.local bytes:', error)
       }
-      
+
       // 2. Get recent activity data (with error handling to prevent cascading failures)
       let recentActivity
       try {
@@ -295,7 +295,7 @@ export const UsageCard: React.FC = () => {
           lastActivity: 'Error'
         }
       }
-      
+
       // 3. IndexedDB usage - lightweight count-based estimation (no memory leaks)
       let indexedDBBytes = 0
       let totalEntries = 0
@@ -311,11 +311,11 @@ export const UsageCard: React.FC = () => {
               totalEntries += Number(tableCounts[key]) || 0
             }
           }
-          
+
           // MEMORY LEAK FIX: Process table breakdown then nullify reference
           const tableBreakdown = tableCounts
           let estimatedBytes = 0
-          
+
           // More accurate per-table size estimates
           if (tableBreakdown.apiCalls) {
             estimatedBytes += tableBreakdown.apiCalls * 9500 // API calls are larger (~9.5KB average)
@@ -329,18 +329,18 @@ export const UsageCard: React.FC = () => {
           if (tableBreakdown.minifiedLibraries) {
             estimatedBytes += tableBreakdown.minifiedLibraries * 15000 // Libraries are large (~15KB average)
           }
-          
+
           indexedDBBytes = estimatedBytes
-          
-          console.log(`📊 Optimized storage analysis: entries=${totalEntries}, method=hybrid`)
-          
+
+          // console.log(`📊 Optimized storage analysis: entries=${totalEntries}, method=hybrid`)
+
           // MEMORY LEAK FIX: Nullify response data after processing
           countResponse.data = null
         }
       } catch (error) {
         console.warn('Could not get IndexedDB usage:', error)
       }
-      
+
       // 4. Extension memory heap (if available) and calculate trend
       let heapUsed = 0
       let heapLimit = 0
@@ -353,16 +353,16 @@ export const UsageCard: React.FC = () => {
       } catch (error) {
         console.warn('Performance memory not available:', error)
       }
-      
+
       // Calculate memory trend
       const memoryTrend = calculateMemoryTrend(heapUsed)
-      
+
       // 5. Total entry size estimate
       const totalEntrySize = indexedDBBytes // Simple approximation
-      
+
       // 6. Find largest entry size estimate
       const largestEntry = totalEntries > 0 ? Math.floor(indexedDBBytes / totalEntries) : 0
-      
+
       // 7. Calculate overhead status
       const totalUsage = storageLocalBytes + indexedDBBytes + heapUsed
       const USAGE_THRESHOLDS = {
@@ -370,11 +370,11 @@ export const UsageCard: React.FC = () => {
         yellow: 50 * 1024 * 1024,  // < 50MB
         red: 100 * 1024 * 1024     // >= 100MB
       }
-      
+
       let overheadStatus: 'green' | 'yellow' | 'red' = 'green'
       if (totalUsage >= USAGE_THRESHOLDS.red) overheadStatus = 'red'
       else if (totalUsage >= USAGE_THRESHOLDS.yellow) overheadStatus = 'yellow'
-      
+
       // Warn if single entry is too large (avoid formatBytes call)
       if (largestEntry > 200 * 1024) { // 200KB threshold
         console.warn('⚠️ Large entry detected: ' + Math.round(largestEntry / 1024) + 'KB')
@@ -392,7 +392,7 @@ export const UsageCard: React.FC = () => {
         recentActivity,
         memoryTrend
       }
-      
+
       // Rate limit UI updates to prevent extremely fast changes that are user-unfriendly
       const now = Date.now()
       if (now - lastUpdateTimeRef.current >= minUpdateIntervalMs) {
@@ -402,17 +402,17 @@ export const UsageCard: React.FC = () => {
           lastUpdateTimeRef.current = now
         }
       }
-      
-      console.log(`✅ Usage analysis complete: ${totalEntries} entries, heap=${Math.round(heapUsed / 1024 / 1024)}MB`)
-      
+
+      // console.log(`✅ Usage analysis complete: ${totalEntries} entries, heap=${Math.round(heapUsed / 1024 / 1024)}MB`)
+
       // MEMORY LEAK FIX: Aggressive memory cleanup after analysis
       if (recentActivity) {
         // Clear any remaining object references
         recentActivity = null
       }
-      
+
       return usage
-      
+
     } catch (error) {
       console.error('❌ Failed to analyze usage:', error)
       return null
@@ -422,7 +422,7 @@ export const UsageCard: React.FC = () => {
         setIsLoading(false)
       }
       releaseAnalysisLock() // Release global lock
-      
+
       // MEMORY LEAK FIX: Simplified GC hint without requestIdleCallback accumulation
       if (typeof (window as any).gc === 'function') {
         // Use simple timeout instead of requestIdleCallback to avoid accumulation
@@ -437,56 +437,56 @@ export const UsageCard: React.FC = () => {
         }, 500) // Shorter timeout
       }
     }
-  // MEMORY LEAK FIX: Break circular dependency chain 
+  // MEMORY LEAK FIX: Break circular dependency chain
   // getRecentActivity is now stable, messageTemplates is stable, remove from deps
   }, []) // Empty dependencies - all referenced functions/objects are stable
 
   useEffect(() => {
     analyzeUsage()
-    
+
     // Adaptive timeout-based polling to prevent interval memory leaks
     let timeoutId: number | null = null
     let schedulingTimeoutId: number | null = null // Track scheduling timeout
     let isActive = true
     let isScheduling = false // Prevent multiple scheduling
-    
+
     const scheduleNextAnalysis = (delay: number = 30000) => {
       if (!isActive || isScheduling) return
       isScheduling = true
-      
+
       if (timeoutId) {
         clearTimeout(timeoutId)
         timeoutId = null
       }
-      
+
       timeoutId = setTimeout(() => {
         if (!isActive) {
           isScheduling = false
           return
         }
-        
+
         // Memory-aware polling: check memory before running
         let nextDelay = 30000 // Default 30 seconds
-        
+
         try {
           const performanceMemory = (performance as any).memory
           if (performanceMemory?.usedJSHeapSize) {
             const heapUsed = performanceMemory.usedJSHeapSize
             const heapLimit = performanceMemory.jsHeapSizeLimit
             const heapPercentage = (heapUsed / heapLimit) * 100
-            
+
             // More aggressive throttling to prevent rapid polling
             if (heapPercentage > 90) {
-              console.log('🚨 Skipping usage analysis - critical memory pressure')
+              // console.log('🚨 Skipping usage analysis - critical memory pressure')
               nextDelay = 120000 // Skip for 2 minutes
               isScheduling = false
               scheduleNextAnalysis(nextDelay)
               return
             } else if (heapPercentage > 80) {
-              console.log('⚠️ High memory usage detected')
+              // console.log('⚠️ High memory usage detected')
               nextDelay = 90000 // 90 seconds
             } else if (heapPercentage > 60) {
-              nextDelay = 60000 // 60 seconds  
+              nextDelay = 60000 // 60 seconds
             } else {
               nextDelay = 45000 // 45 seconds (slower than before)
             }
@@ -494,48 +494,48 @@ export const UsageCard: React.FC = () => {
         } catch (error) {
           // Memory info not available, use default
         }
-        
+
         // MEMORY LEAK FIX: Avoid promise chain accumulation
         // Run analysis without .finally() chain that creates memory leaks
         analyzeUsage().catch(error => {
           console.error('Analysis failed in timeout:', error)
         })
-        
+
         // Schedule next analysis independently to break promise chain
         isScheduling = false
         scheduleNextAnalysis(nextDelay)
       }, delay)
-      
+
       // MEMORY LEAK FIX: Track scheduling timeout and clear it properly
       if (schedulingTimeoutId) {
         clearTimeout(schedulingTimeoutId)
       }
-      schedulingTimeoutId = setTimeout(() => { 
-        isScheduling = false 
+      schedulingTimeoutId = setTimeout(() => {
+        isScheduling = false
         schedulingTimeoutId = null
       }, 100)
     }
-    
+
     // Start the polling cycle
     scheduleNextAnalysis()
-    
+
     // Memory-optimized event handler
     const handleDataCleared = () => {
-      console.log('📊 Data cleared event received')
+      // console.log('📊 Data cleared event received')
       if (!isScheduling) {
         // MEMORY LEAK FIX: Avoid promise chain accumulation
         // Immediate analysis after data clear without .finally() chain
         analyzeUsage().catch(error => {
           console.error('Analysis failed on dataCleared:', error)
         })
-        
+
         // Schedule next analysis independently to break promise chain
         scheduleNextAnalysis(45000) // Resume with slower interval
       }
     }
-    
+
     window.addEventListener('dataCleared', handleDataCleared)
-    
+
     return () => {
       isActive = false
       isScheduling = false
@@ -555,36 +555,36 @@ export const UsageCard: React.FC = () => {
   // MEMORY LEAK FIX: Bounded formatBytes cache to prevent indefinite growth
   const formatBytesCache = React.useRef<Map<number, string>>(new Map())
   const MAX_CACHE_SIZE = 50 // Limit cache to 50 entries
-  
+
   const formatBytes = React.useCallback((bytes: number) => {
     // Check cache first
     if (formatBytesCache.current.has(bytes)) {
       return formatBytesCache.current.get(bytes)!
     }
-    
+
     // MEMORY LEAK FIX: Clear cache if it gets too large
     if (formatBytesCache.current.size >= MAX_CACHE_SIZE) {
-      console.log('🧹 Clearing formatBytes cache to prevent memory leak')
+      // console.log('🧹 Clearing formatBytes cache to prevent memory leak')
       formatBytesCache.current.clear()
     }
-    
+
     if (bytes === 0) return '0 B'
     const k = 1024
     // MEMORY LEAK FIX: Pre-allocated sizes array as constant
     const sizes = ['B', 'KB', 'MB', 'GB']
     const i = Math.floor(Math.log(bytes) / Math.log(k))
-    
+
     // MEMORY LEAK FIX: Avoid string concatenation, use array join
     const num = parseFloat((bytes / Math.pow(k, i)).toFixed(2))
     const result = `${num} ${sizes[i]}` // Template literal is more efficient than concatenation
-    
+
     // Aggressive cache size management to prevent unbounded growth
     if (formatBytesCache.current.size >= 50) {
       // Clear cache when it gets too large
       formatBytesCache.current.clear()
     }
     formatBytesCache.current.set(bytes, result)
-    
+
     return result
   }, [])
 
@@ -600,7 +600,7 @@ export const UsageCard: React.FC = () => {
   const getStatusIcon = React.useCallback((status: 'green' | 'yellow' | 'red') => {
     switch (status) {
       case 'green': return '✅'
-      case 'yellow': return '⚠️'  
+      case 'yellow': return '⚠️'
       case 'red': return '🚨'
     }
   }, [])
@@ -608,7 +608,7 @@ export const UsageCard: React.FC = () => {
   // Pre-computed CSS classes to avoid template literal allocations
   const memoryTrendClasses = React.useMemo(() => ({
     increasing: 'text-xs px-1 py-0.5 rounded bg-red-200 text-red-800',
-    decreasing: 'text-xs px-1 py-0.5 rounded bg-green-200 text-green-800', 
+    decreasing: 'text-xs px-1 py-0.5 rounded bg-green-200 text-green-800',
     stable: 'text-xs px-1 py-0.5 rounded bg-gray-200 text-gray-700'
   }), [])
 
@@ -621,7 +621,7 @@ export const UsageCard: React.FC = () => {
   // MEMORY LEAK FIX: Memoize expensive calculations to prevent repeated computation
   const memoizedUsageData = React.useMemo(() => {
     if (!usageData) return null
-    
+
     return {
       ...usageData,
       formattedStorageBytes: formatBytes(usageData.storageLocalBytes),
@@ -642,8 +642,8 @@ export const UsageCard: React.FC = () => {
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           📊 Extension Usage Card
-          <Button 
-            onClick={analyzeUsage} 
+          <Button
+            onClick={analyzeUsage}
             disabled={isLoading}
             variant="outline"
             size="sm"
@@ -667,7 +667,7 @@ export const UsageCard: React.FC = () => {
                 </div>
                 <div className="text-xs text-gray-500">chrome.storage.local</div>
               </div>
-              
+
               <div className="bg-cyan-50 p-3 rounded">
                 <div className="text-sm text-gray-600">IndexedDB Usage</div>
                 <div className="text-2xl font-bold text-cyan-600">
@@ -675,7 +675,7 @@ export const UsageCard: React.FC = () => {
                 </div>
                 <div className="text-xs text-gray-500">{memoizedUsageData.totalEntries} entries</div>
               </div>
-              
+
               <div className="bg-purple-50 p-3 rounded">
                 <div className="text-sm text-gray-600">Extension Memory</div>
                 <div className="text-2xl font-bold text-purple-600 flex items-center gap-2">
@@ -686,7 +686,7 @@ export const UsageCard: React.FC = () => {
                 </div>
                 <div className="text-xs text-gray-500">JS Heap ({memoizedUsageData.memoryTrend})</div>
               </div>
-              
+
               <div className={`p-3 rounded ${getStatusColor(memoizedUsageData.overheadStatus)}`}>
                 <div className="text-sm text-gray-600">Overhead Status</div>
                 <div className="text-2xl font-bold flex items-center gap-2">
@@ -778,13 +778,13 @@ export const UsageCard: React.FC = () => {
                 <span>{memoizedUsageData.formattedTotalUsage}</span>
               </div>
               <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
-                <div 
+                <div
                   className={`h-full transition-all duration-500 ${
-                    memoizedUsageData.overheadStatus === 'red' ? 'bg-red-500' : 
+                    memoizedUsageData.overheadStatus === 'red' ? 'bg-red-500' :
                     memoizedUsageData.overheadStatus === 'yellow' ? 'bg-yellow-500' : 'bg-green-500'
                   }`}
-                  style={{ 
-                    width: `${memoizedUsageData.progressBarWidth}%` 
+                  style={{
+                    width: `${memoizedUsageData.progressBarWidth}%`
                   }}
                 />
               </div>
@@ -801,7 +801,7 @@ export const UsageCard: React.FC = () => {
                   <div>
                     <h5 className="font-medium text-yellow-800">Large Entry Warning</h5>
                     <p className="text-sm text-yellow-700 mt-1">
-                      Detected entry size of {memoizedUsageData.formattedLargestEntry} exceeds 200KB threshold. 
+                      Detected entry size of {memoizedUsageData.formattedLargestEntry} exceeds 200KB threshold.
                       Consider optimizing data storage.
                     </p>
                   </div>
