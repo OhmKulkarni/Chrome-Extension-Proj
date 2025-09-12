@@ -81,7 +81,7 @@ export const useTokenData = (
   // Load token events with pagination
   const loadTokenEvents = useCallback(async (page: number, limit: number = itemsPerPage) => {
     try {
-      console.log(`🔄 Loading token events page ${page} with limit ${limit}`)
+      // console.log(`🔄 Loading token events page ${page} with limit ${limit}`)
       setLoading(true)
       setError(null)
       
@@ -95,7 +95,7 @@ export const useTokenData = (
       if (response?.success && response?.events) {
         setTokens(response.events)
         setTotalTokens(response.total || 0)
-        console.log(`✅ Loaded ${response.events.length} token events, total: ${response.total}`)
+        // console.log(`✅ Loaded ${response.events.length} token events, total: ${response.total}`)
       } else {
         setError('Failed to load token events')
         console.warn('⚠️ Token events response missing success/events:', response)

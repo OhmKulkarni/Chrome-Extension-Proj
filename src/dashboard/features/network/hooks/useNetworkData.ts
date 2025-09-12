@@ -99,7 +99,7 @@ export const useNetworkData = (
   // Load network requests with pagination
   const loadNetworkRequests = useCallback(async (page: number, limit: number = itemsPerPage) => {
     try {
-      console.log(`🔄 Loading network requests page ${page} with limit ${limit}`)
+      // console.log(`🔄 Loading network requests page ${page} with limit ${limit}`)
       setLoading(true)
       setError(null)
       
@@ -121,7 +121,7 @@ export const useNetworkData = (
         // Clear previous data to prevent accumulation
         setRequests(response.requests)
         setTotalRequests(response.total || 0)
-        console.log(`✅ Loaded ${response.requests.length} network requests, total: ${response.total}`)
+        // console.log(`✅ Loaded ${response.requests.length} network requests, total: ${response.total}`)
       } else {
         setError('Failed to load network requests')
         console.warn('⚠️ Network requests response missing success/requests:', response)

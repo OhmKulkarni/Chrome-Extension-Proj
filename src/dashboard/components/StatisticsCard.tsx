@@ -461,15 +461,15 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
 
     // Setup auto-refresh with memory leak protection
     const refreshInterval = (chartSettings.refreshInterval || 30) * 1000; // Convert to ms
-    console.log(`📊 StatisticsCard: Setting up auto-refresh every ${refreshInterval}ms`);
+    // console.log(`📊 StatisticsCard: Setting up auto-refresh every ${refreshInterval}ms`);
 
     const intervalId = setInterval(() => {
-      console.log('🔄 StatisticsCard: Auto-refresh triggered');
+      // console.log('🔄 StatisticsCard: Auto-refresh triggered');
       loadAnalysisData(analysisLimit);
     }, refreshInterval);
 
     return () => {
-      console.log('📊 StatisticsCard: Cleaning up auto-refresh interval');
+      // console.log('📊 StatisticsCard: Cleaning up auto-refresh interval');
       clearInterval(intervalId);
     };
     // CRITICAL FIX: Remove loadAnalysisData from dependencies to prevent infinite loops

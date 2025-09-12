@@ -185,16 +185,16 @@ export class TokenTrackerModule {
       const isWebSocketAuth = this.isTokenEndpoint(url, 'websocket_auth');
 
       // Debug which endpoint type was detected
-      if (isAcquireEndpoint || isRefreshEndpoint || isApiCall || isServiceAuth || isTokenValidation || isWebSocketAuth) {
-        console.log(`🔍 TokenTrackerModule: Endpoint detection for ${url}`);
-        console.log(`   - isAcquireEndpoint: ${isAcquireEndpoint}`);
-        console.log(`   - isRefreshEndpoint: ${isRefreshEndpoint}`);
-        console.log(`   - isApiCall: ${isApiCall}`);
-        console.log(`   - isServiceAuth: ${isServiceAuth}`);
-        console.log(`   - isTokenValidation: ${isTokenValidation}`);
-        console.log(`   - isWebSocketAuth: ${isWebSocketAuth}`);
-        console.log(`   - status: ${status}`);
-      }
+      // if (isAcquireEndpoint || isRefreshEndpoint || isApiCall || isServiceAuth || isTokenValidation || isWebSocketAuth) {
+      //   console.log(`🔍 TokenTrackerModule: Endpoint detection for ${url}`);
+      //   console.log(`   - isAcquireEndpoint: ${isAcquireEndpoint}`);
+      //   console.log(`   - isRefreshEndpoint: ${isRefreshEndpoint}`);
+      //   console.log(`   - isApiCall: ${isApiCall}`);
+      //   console.log(`   - isServiceAuth: ${isServiceAuth}`);
+      //   console.log(`   - isTokenValidation: ${isTokenValidation}`);
+      //   console.log(`   - isWebSocketAuth: ${isWebSocketAuth}`);
+      //   console.log(`   - status: ${status}`);
+      // }
 
       // Check if request has authentication (any token-related headers/content/URL params)
       const hasAuthHeaders = this.hasAuthenticationHeaders(requestData.headers || {});
@@ -202,12 +202,12 @@ export class TokenTrackerModule {
       const hasAuthInUrl = this.hasAuthenticationInUrl(url);
 
       // Debug logging for API calls with potential authentication
-      if (isApiCall) {
-        console.log(`🔍 TokenTrackerModule: API call detected for ${url}`);
-        console.log(`   - hasAuthHeaders: ${hasAuthHeaders}`);
-        console.log(`   - hasAuthContent: ${hasAuthContent}`);
-        console.log(`   - hasAuthInUrl: ${hasAuthInUrl}`);
-      }
+      // if (isApiCall) {
+      //   console.log(`🔍 TokenTrackerModule: API call detected for ${url}`);
+      //   console.log(`   - hasAuthHeaders: ${hasAuthHeaders}`);
+      //   console.log(`   - hasAuthContent: ${hasAuthContent}`);
+      //   console.log(`   - hasAuthInUrl: ${hasAuthInUrl}`);
+      // }
 
       // Determine if this is a token-related request
       const isTokenRelated = isAcquireEndpoint || isRefreshEndpoint || isServiceAuth ||
