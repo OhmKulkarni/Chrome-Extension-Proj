@@ -48,7 +48,7 @@ export class ConsoleDataProvider {
           messageId: message.id || 'unknown'
         };
       } catch (error) {
-        console.error('Console message handler error:', error);
+        // console.error('Console message handler error:', error);
         return { 
           success: false, 
           error: error instanceof Error ? error.message : 'Console handler error',
@@ -133,7 +133,7 @@ export class ConsoleDataProvider {
       
       return errors.slice(start, end);
     } catch (error) {
-      console.error('Failed to get console errors:', error);
+      // console.error('Failed to get console errors:', error);
       return [];
     }
   }
@@ -185,7 +185,7 @@ export class ConsoleDataProvider {
       const response = await ConsoleMessageBus.sendConsoleError(error);
       return response.success;
     } catch (error) {
-      console.error('Failed to store console error:', error);
+      // console.error('Failed to store console error:', error);
       return false;
     }
   }
@@ -213,7 +213,7 @@ export class ConsoleDataProvider {
       
       return false;
     } catch (error) {
-      console.error('Failed to clear console errors:', error);
+      // console.error('Failed to clear console errors:', error);
       return false;
     }
   }
@@ -235,7 +235,7 @@ export class ConsoleDataProvider {
       try {
         listener(data);
       } catch (error) {
-        console.error('Console listener error:', error);
+        // console.error('Console listener error:', error);
       }
     });
   }
@@ -251,7 +251,7 @@ export class ConsoleDataProvider {
         });
         listener(allData);
       } catch (error) {
-        console.error('Console listener error:', error);
+        // console.error('Console listener error:', error);
       }
     });
   }
