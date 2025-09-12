@@ -31,7 +31,7 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
   };
   // Filter data for this specific domain - IMPROVED FILTERING LOGIC
   const domainData = useMemo(() => {
-    console.log(`[DomainChartsPanel] Filtering data for domain: ${domain}`);
+    // console.log(`[DomainChartsPanel] Filtering data for domain: ${domain}`);
 
     const matchesDomain = (itemDomain: string) => {
       if (!itemDomain) return false;
@@ -66,7 +66,7 @@ const DomainChartsPanel: React.FC<DomainChartsPanelProps> = ({
       return matchesDomain(tokenDomain);
     });
 
-    console.log(`[DomainChartsPanel] Filtered results - Requests: ${filteredRequests.length}, Errors: ${filteredErrors.length}, Tokens: ${filteredTokens.length}`);
+    // console.log(`[DomainChartsPanel] Filtered results - Requests: ${filteredRequests.length}, Errors: ${filteredErrors.length}, Tokens: ${filteredTokens.length}`);
 
     return {
       requests: filteredRequests,

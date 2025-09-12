@@ -268,14 +268,11 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   };
 
   // PRODUCTION: Always use real data or empty arrays - no mock data fallbacks
-  const debugNetworkRequests = networkRequests || [];
-  const debugConsoleErrors = consoleErrors || [];
-  const debugTokenEvents = tokenEvents || [];
 
-  console.log('StatisticsCard Debug Data:');
-  console.log('- Network Requests:', debugNetworkRequests?.length || 0, debugNetworkRequests);
-  console.log('- Console Errors:', debugConsoleErrors?.length || 0, debugConsoleErrors);
-  console.log('- Token Events:', debugTokenEvents?.length || 0, debugTokenEvents);
+  // console.log('StatisticsCard Debug Data:');
+  // console.log('- Network Requests:', networkRequests?.length || 0, networkRequests);
+  // console.log('- Console Errors:', consoleErrors?.length || 0, consoleErrors);
+  // console.log('- Token Events:', tokenEvents?.length || 0, tokenEvents);
   const [globalSortConfig, setGlobalSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({
     key: 'value',
     direction: 'desc'
@@ -389,12 +386,12 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
 
       // INFINITE LOOP PROTECTION: Prevent concurrent calls
       if (isLoadingRef.current) {
-        console.log('📊 StatisticsCard: Skipping load - already in progress');
+        // console.log('📊 StatisticsCard: Skipping load - already in progress');
         return;
       }
 
       try {
-        console.log(`📊 StatisticsCard: Loading analysis data with limit ${limit}`);
+        // console.log(`📊 StatisticsCard: Loading analysis data with limit ${limit}`);
 
         // Set loading state in both ref and state
         isLoadingRef.current = true;
@@ -423,19 +420,19 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
             tokenEvents: response.data.tokenEvents?.length || 0
           });
 
-          console.log('✅ StatisticsCard: Analysis data loaded:', {
-            limit,
-            networkRequests: response.data.networkRequests?.length || 0,
-            consoleErrors: response.data.consoleErrors?.length || 0,
-            tokenEvents: response.data.tokenEvents?.length || 0,
-            sharedProcessing: isFeatureEnabled('enableSharedChartData')
-          });
+          // console.log('✅ StatisticsCard: Analysis data loaded:', {
+          //   limit,
+          //   networkRequests: response.data.networkRequests?.length || 0,
+          //   consoleErrors: response.data.consoleErrors?.length || 0,
+          //   tokenEvents: response.data.tokenEvents?.length || 0,
+          //   sharedProcessing: isFeatureEnabled('enableSharedChartData')
+          // });
         } else {
-          console.warn('⚠️ StatisticsCard: Failed to load analysis data:', response);
+          // console.warn('⚠️ StatisticsCard: Failed to load analysis data:', response);
           setAnalysisData(prev => ({ ...prev, loading: false }));
         }
       } catch (error) {
-        console.error('❌ StatisticsCard: Error loading analysis data:', error);
+        // console.error('❌ StatisticsCard: Error loading analysis data:', error);
         setAnalysisData(prev => ({ ...prev, loading: false }));
       } finally {
         // Always clear the loading ref
@@ -448,7 +445,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   useEffect(() => {
     // Always load initial data regardless of mode
     if (!analysisData.loaded) {
-      console.log('📊 StatisticsCard: Loading initial data');
+      // console.log('📊 StatisticsCard: Loading initial data');
       loadAnalysisData(analysisLimit);
       return;
     }
@@ -632,22 +629,22 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
         sharedData: isFeatureEnabled('enableSharedChartData') ? sharedChartData : undefined
       };
 
-      console.log('Rendering chart:', chartKey, 'with data:', {
-        useAnalysisData,
-        networkRequests: effectiveNetworkRequests?.length || 0,
-        consoleErrors: effectiveConsoleErrors?.length || 0,
-        tokenEvents: effectiveTokenEvents?.length || 0,
-        dataSource: useAnalysisData ? `analysis (${analysisLimit} records)` : 'current page (10 records)'
-      });
+      // console.log('Rendering chart:', chartKey, 'with data:', {
+      //   useAnalysisData,
+      //   networkRequests: effectiveNetworkRequests?.length || 0,
+      //   consoleErrors: effectiveConsoleErrors?.length || 0,
+      //   tokenEvents: effectiveTokenEvents?.length || 0,
+      //   dataSource: useAnalysisData ? `analysis (${analysisLimit} records)` : 'current page (10 records)'
+      // });
 
       // MEMORY LEAK FIX: Add detailed logging for method-usage-daily chart
       if (chartKey === 'method-usage-daily') {
-        console.log('MethodUsageDailyChart - Detailed data inspection:');
-        console.log('- debugNetworkRequests type:', typeof debugNetworkRequests);
-        console.log('- debugNetworkRequests isArray:', Array.isArray(debugNetworkRequests));
-        console.log('- Sample request data:', debugNetworkRequests?.[0]);
-        console.log('- Sample timestamp:', debugNetworkRequests?.[0]?.timestamp);
-        console.log('- Sample method:', debugNetworkRequests?.[0]?.method);
+        // console.log('MethodUsageDailyChart - Detailed data inspection:');
+        // console.log('- networkRequests type:', typeof effectiveNetworkRequests);
+        // console.log('- networkRequests isArray:', Array.isArray(effectiveNetworkRequests));
+        // console.log('- Sample request data:', effectiveNetworkRequests?.[0]);
+        // console.log('- Sample timestamp:', effectiveNetworkRequests?.[0]?.timestamp);
+        // console.log('- Sample method:', effectiveNetworkRequests?.[0]?.method);
       }
 
       // MEMORY LEAK FIX: Add null checks for chart data
