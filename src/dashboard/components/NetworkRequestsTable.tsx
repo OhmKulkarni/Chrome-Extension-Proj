@@ -74,13 +74,13 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
 
   const handleDelete = async (request: NetworkRequest) => {
     try {
-      console.log('🔍 Attempting to delete network request:', {
-        id: request.id,
-        url: request.url,
-        method: request.method,
-        timestamp: request.timestamp,
-        status: request.status
-      });
+      // console.log('🔍 Attempting to delete network request:', {
+      //   id: request.id,
+      //   url: request.url,
+      //   method: request.method,
+      //   timestamp: request.timestamp,
+      //   status: request.status
+      // });
 
       // Check if the request has a valid database ID
       if (!request.id || typeof request.id !== 'number') {
@@ -88,7 +88,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
         return;
       }
 
-      console.log('🔍 Using database ID:', request.id);
+      // console.log('🔍 Using database ID:', request.id);
 
       await storageService.deleteNetworkRequest(request.id);
 
@@ -97,7 +97,7 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
         onDelete(String(request.id));
       }
 
-      console.log('✅ Network request deletion attempted successfully');
+      // console.log('✅ Network request deletion attempted successfully');
     } catch (error) {
       console.error('Failed to delete network request:', error);
     }
@@ -131,18 +131,18 @@ export const NetworkRequestsTable: React.FC<NetworkRequestsTableProps> = ({
     // DEBUG MODE: Show detailed size data for first few requests (remove this after debugging)
     const showDebug = Math.random() < 0.1; // Show debug for ~10% of requests
     if (showDebug) {
-      console.log('🔍 SIZE DEBUG for', request.url?.substring(0, 50), {
-        payload_size: request.payload_size,
-        payload_size_type: typeof request.payload_size,
-        request_size: request.request_size,
-        request_size_type: typeof request.request_size,
-        response_size: request.response_size,
-        response_size_type: typeof request.response_size,
-        requestSize: request.requestSize,
-        responseSize: request.responseSize,
-        has_request_body: !!(request.requestBody || request.request_body),
-        has_response_body: !!(request.responseBody || request.response_body)
-      });
+      // console.log('🔍 SIZE DEBUG for', request.url?.substring(0, 50), {
+      //   payload_size: request.payload_size,
+      //   payload_size_type: typeof request.payload_size,
+      //   request_size: request.request_size,
+      //   request_size_type: typeof request.request_size,
+      //   response_size: request.response_size,
+      //   response_size_type: typeof request.response_size,
+      //   requestSize: request.requestSize,
+      //   responseSize: request.responseSize,
+      //   has_request_body: !!(request.requestBody || request.request_body),
+      //   has_response_body: !!(request.responseBody || request.response_body)
+      // });
     }
 
     // Method 1: Use payload_size if available (most reliable)

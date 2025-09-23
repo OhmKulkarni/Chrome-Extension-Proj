@@ -14,7 +14,7 @@ export class TimelineService {
     swimlanes: string[] = ['network', 'console', 'token']
   ): Promise<{ events: TimelineEvent[], metadata: any }> {
     try {
-      console.log('TimelineService: Fetching timeline events via getAnalysisData', { swimlanes })
+      // console.log('TimelineService: Fetching timeline events via getAnalysisData', { swimlanes })
 
       // Use the working getAnalysisData endpoint instead of non-existent getTimelineData
       const response = await chrome.runtime.sendMessage({
@@ -28,7 +28,7 @@ export class TimelineService {
         }
       })
 
-      console.log('TimelineService: Received response from getAnalysisData', response)
+      // console.log('TimelineService: Received response from getAnalysisData', response)
 
       if (!response?.success) {
         throw new Error(response?.error || 'Failed to fetch timeline data')
@@ -50,7 +50,7 @@ export class TimelineService {
       }
 
       const events = this.normalizeEvents(response.data)
-      console.log('TimelineService: Normalized events', events.length)
+      // console.log('TimelineService: Normalized events', events.length)
 
       // Restore bookmarks and compare slots from local storage
       this.restoreLocalEventData(events)
@@ -87,7 +87,7 @@ export class TimelineService {
   private normalizeEvents(rawData: any): TimelineEvent[] {
     const events: TimelineEvent[] = []
 
-    console.log('TimelineService: Normalizing getAnalysisData response', rawData)
+    // console.log('TimelineService: Normalizing getAnalysisData response', rawData)
 
     // Process network requests from getAnalysisData format
     if (rawData.networkRequests && Array.isArray(rawData.networkRequests)) {
@@ -185,7 +185,7 @@ export class TimelineService {
       })
     }
 
-    console.log('TimelineService: Normalized events count', events.length)
+    // console.log('TimelineService: Normalized events count', events.length)
     return events.sort((a, b) => a.timestamp - b.timestamp)
   }
 
@@ -254,7 +254,7 @@ export class TimelineService {
       }
       localStorage.setItem('timeline-bookmarks', JSON.stringify(bookmarks))
 
-      console.log('TimelineService: Bookmark updated locally', { eventId, isBookmarked })
+      // console.log('TimelineService: Bookmark updated locally', { eventId, isBookmarked })
       return true
     } catch (error) {
       console.error('TimelineService: Failed to bookmark event:', error)
@@ -274,7 +274,7 @@ export class TimelineService {
       }
       localStorage.setItem('timeline-compare-slots', JSON.stringify(compareSlots))
 
-      console.log('TimelineService: Compare slot updated locally', { eventId, slot })
+      // console.log('TimelineService: Compare slot updated locally', { eventId, slot })
       return true
     } catch (error) {
       console.error('TimelineService: Failed to set compare slot:', error)
@@ -303,10 +303,10 @@ export class TimelineService {
         }
       })
 
-      console.log('TimelineService: Restored local event data', {
-        bookmarks: Object.keys(bookmarks).length,
-        compareSlots: Object.keys(compareSlots).length
-      })
+      // console.log('TimelineService: Restored local event data', {
+      //   bookmarks: Object.keys(bookmarks).length,
+      //   compareSlots: Object.keys(compareSlots).length
+      // })
     } catch (error) {
       console.warn('TimelineService: Failed to restore local event data:', error)
     }

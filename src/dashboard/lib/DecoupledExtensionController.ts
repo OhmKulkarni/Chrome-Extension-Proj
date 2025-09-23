@@ -43,11 +43,11 @@ export class DecoupledExtensionController {
 
   async initialize(): Promise<void> {
     if (this.isInitialized) {
-      console.warn('DecoupledExtensionController already initialized');
+      // console.warn('DecoupledExtensionController already initialized');
       return;
     }
 
-    console.log('🚀 DecoupledExtensionController: Initializing...');
+    // console.log('🚀 DecoupledExtensionController: Initializing...');
 
     try {
       // Set up the storage pipeline
@@ -63,7 +63,7 @@ export class DecoupledExtensionController {
       this.setupBackgroundMessageListener();
 
       this.isInitialized = true;
-      console.log('✅ DecoupledExtensionController: Initialization complete');
+      // console.log('✅ DecoupledExtensionController: Initialization complete');
 
     } catch (error) {
       console.error('❌ DecoupledExtensionController: Initialization failed:', error);
@@ -239,7 +239,7 @@ export class DecoupledExtensionController {
       return;
     }
 
-    console.log('🛑 DecoupledExtensionController: Shutting down...');
+    // console.log('🛑 DecoupledExtensionController: Shutting down...');
 
     try {
       // Stop interception managers (token detection handled by background)
@@ -257,7 +257,7 @@ export class DecoupledExtensionController {
       this.dashboardManager.destroy();
 
       this.isInitialized = false;
-      console.log('✅ DecoupledExtensionController: Shutdown complete');
+      // console.log('✅ DecoupledExtensionController: Shutdown complete');
 
     } catch (error) {
       console.error('❌ DecoupledExtensionController: Shutdown error:', error);

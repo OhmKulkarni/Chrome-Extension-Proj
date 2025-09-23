@@ -57,13 +57,13 @@ export interface AnalysisData {
  */
 export const useSharedChartData = (analysisData: AnalysisData): ProcessedChartData => {
   return useMemo(() => {
-    const startTime = performance.now();
-    console.log('🔄 Processing shared chart data...', {
-      networkRequests: analysisData.networkRequests?.length || 0,
-      consoleErrors: analysisData.consoleErrors?.length || 0,
-      tokenEvents: analysisData.tokenEvents?.length || 0,
-      loaded: analysisData.loaded
-    });
+    // const startTime = performance.now();
+    // console.log('🔄 Processing shared chart data...', {
+    //   networkRequests: analysisData.networkRequests?.length || 0,
+    //   consoleErrors: analysisData.consoleErrors?.length || 0,
+    //   tokenEvents: analysisData.tokenEvents?.length || 0,
+    //   loaded: analysisData.loaded
+    // });
 
     // Process network requests
     const networkMetrics = processNetworkMetrics(analysisData.networkRequests || []);
@@ -81,13 +81,13 @@ export const useSharedChartData = (analysisData: AnalysisData): ProcessedChartDa
       lastProcessed: Date.now()
     };
 
-    const endTime = performance.now();
-    console.log('✅ Shared chart data processed:', {
-      duration: `${(endTime - startTime).toFixed(2)}ms`,
-      networkMetrics: Object.keys(networkMetrics).length,
-      errorMetrics: Object.keys(errorMetrics).length,
-      tokenMetrics: Object.keys(tokenMetrics).length
-    });
+    // const endTime = performance.now();
+    // console.log('✅ Shared chart data processed:', {
+    //   duration: `${(endTime - startTime).toFixed(2)}ms`,
+    //   networkMetrics: Object.keys(networkMetrics).length,
+    //   errorMetrics: Object.keys(errorMetrics).length,
+    //   tokenMetrics: Object.keys(tokenMetrics).length
+    // });
 
     return processed;
   }, [analysisData]); // Only recalculates when raw data changes

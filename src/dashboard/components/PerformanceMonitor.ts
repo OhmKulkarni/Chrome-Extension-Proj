@@ -42,13 +42,13 @@ export class PerformanceMonitor {
     const now = performance.now()
     const orphanThreshold = 10 * 60 * 1000 // 10 minutes
     const toDelete: string[] = []
-    
+
     this.startTimes.forEach((startTime, operation) => {
       if (now - startTime > orphanThreshold) {
         toDelete.push(operation)
       }
     })
-    
+
     toDelete.forEach(operation => {
       this.startTimes.delete(operation)
       if (this.enableLogging) {
@@ -81,7 +81,7 @@ export class PerformanceMonitor {
   startOperation(operation: string): void {
     this.startTimes.set(operation, performance.now())
     if (this.enableLogging) {
-      console.log(`[PerfMonitor] 🚀 Starting: ${operation}`)
+      // console.log(`[PerfMonitor] 🚀 Starting: ${operation}`)
     }
   }
 
@@ -138,11 +138,11 @@ export class PerformanceMonitor {
     }
 
     if (this.enableLogging) {
-      console.log(`[PerfMonitor] ✅ ${operation}: ${duration.toFixed(2)}ms`, {
-        memory: memoryUsage ? `${(memoryUsage / 1024 / 1024).toFixed(1)}MB` : 'N/A',
-        storage: storageSize ? `${(storageSize / 1024 / 1024).toFixed(1)}MB` : 'N/A',
-        records: additionalData?.recordCount || 'N/A'
-      })
+      // console.log(`[PerfMonitor] ✅ ${operation}: ${duration.toFixed(2)}ms`, {
+      //   memory: memoryUsage ? `${(memoryUsage / 1024 / 1024).toFixed(1)}MB` : 'N/A',
+      //   storage: storageSize ? `${(storageSize / 1024 / 1024).toFixed(1)}MB` : 'N/A',
+      //   records: additionalData?.recordCount || 'N/A'
+      // })
     }
   }
 
@@ -182,7 +182,7 @@ export class PerformanceMonitor {
       stats.totalDuration += duration
       stats.minDuration = Math.min(stats.minDuration, duration)
       stats.maxDuration = Math.max(stats.maxDuration, duration)
-      
+
       if (recordCount) {
         stats.totalRecords += recordCount
       }
@@ -250,7 +250,7 @@ export class PerformanceMonitor {
     return {
       isHighMemory,
       memoryUsage,
-      recommendation: isHighMemory 
+      recommendation: isHighMemory
         ? 'Consider running storage cleanup or reducing cache size'
         : 'Memory usage is normal'
     }

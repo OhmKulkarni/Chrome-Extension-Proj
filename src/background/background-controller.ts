@@ -119,7 +119,7 @@ export class BackgroundController {
     }
 
     if (this.isInitialized) {
-      console.log('✅ BackgroundController: Already initialized');
+      // console.log('✅ BackgroundController: Already initialized');
       return;
     }
 
@@ -201,18 +201,18 @@ export class BackgroundController {
    */
   private async initializeLegacyCompatibility(): Promise<void> {
     try {
-      console.log('🔗 BackgroundController: Initializing legacy compatibility...');
+      // console.log('🔗 BackgroundController: Initializing legacy compatibility...');
 
       // Initialize legacy storage manager
       await this.legacyStorageManager.init();
-      console.log('  ✅ Legacy storage manager initialized');
+      // console.log('  ✅ Legacy storage manager initialized');
 
       // Initialize legacy extension state controller
       await this.legacyExtensionStateController.init();
-      console.log('  ✅ Legacy extension state controller initialized');
+      // console.log('  ✅ Legacy extension state controller initialized');
 
     } catch (error) {
-      console.warn('⚠️ BackgroundController: Legacy compatibility initialization failed:', error);
+      // console.warn('⚠️ BackgroundController: Legacy compatibility initialization failed:', error);
       // Don't fail the entire initialization for legacy compatibility issues
     }
   }
@@ -234,7 +234,7 @@ export class BackgroundController {
       }
     }, 30000);
 
-    console.log('🔍 BackgroundController: Health monitoring started');
+    // console.log('🔍 BackgroundController: Health monitoring started');
   }
 
   /**
@@ -265,13 +265,13 @@ export class BackgroundController {
       .map(([name]) => name);
 
     if (unhealthyModules.length > 0) {
-      console.warn('⚠️ BackgroundController: Unhealthy modules detected:', unhealthyModules);
+      // console.warn('⚠️ BackgroundController: Unhealthy modules detected:', unhealthyModules);
     }
 
     // Log memory usage if it's high
     const memoryUsage = this.chromeApi.getMemoryUsage();
     if (memoryUsage.percentage > 80) {
-      console.warn(`🧠 BackgroundController: High memory usage: ${memoryUsage.percentage.toFixed(1)}%`);
+      // console.warn(`🧠 BackgroundController: High memory usage: ${memoryUsage.percentage.toFixed(1)}%`);
     }
   }
 
@@ -283,57 +283,57 @@ export class BackgroundController {
       return;
     }
 
-    const memoryUsage = this.chromeApi.getMemoryUsage();
-    console.log(`🧠 Memory Usage: ${(memoryUsage.heapUsed / 1024 / 1024).toFixed(1)} MB (${memoryUsage.percentage.toFixed(1)}%)`);
+    // const memoryUsage = this.chromeApi.getMemoryUsage();
+    // console.log(`🧠 Memory Usage: ${(memoryUsage.heapUsed / 1024 / 1024).toFixed(1)} MB (${memoryUsage.percentage.toFixed(1)}%)`);
   }
 
   /**
    * Cleanup all modules to prevent memory leaks
    */
   async cleanup(): Promise<void> {
-    console.log('🧹 BackgroundController: Starting cleanup...');
+    // console.log('🧹 BackgroundController: Starting cleanup...');
 
     try {
       // Cleanup modules in reverse dependency order
       if (this.messageRouter) {
         this.messageRouter.cleanup();
-        console.log('  ✅ Message router cleaned up');
+        // console.log('  ✅ Message router cleaned up');
       }
 
       if (this.extensionState) {
         this.extensionState.cleanup();
-        console.log('  ✅ Extension state cleaned up');
+        // console.log('  ✅ Extension state cleaned up');
       }
 
       if (this.consoleHandler) {
         this.consoleHandler.cleanup();
-        console.log('  ✅ Console handler cleaned up');
+        // console.log('  ✅ Console handler cleaned up');
       }
 
       if (this.networkProcessor) {
         this.networkProcessor.cleanup();
-        console.log('  ✅ Network processor cleaned up');
+        // console.log('  ✅ Network processor cleaned up');
       }
 
       if (this.tokenTracker) {
         this.tokenTracker.cleanup();
-        console.log('  ✅ Token tracker cleaned up');
+        // console.log('  ✅ Token tracker cleaned up');
       }
 
       if (this.storageManager) {
         this.storageManager.cleanup();
-        console.log('  ✅ Storage manager cleaned up');
+        // console.log('  ✅ Storage manager cleaned up');
       }
 
       if (this.chromeApi) {
         this.chromeApi.cleanup();
-        console.log('  ✅ Chrome API cleaned up');
+        // console.log('  ✅ Chrome API cleaned up');
       }
 
       this.isInitialized = false;
       this.initializationPromise = null;
 
-      console.log('✅ BackgroundController: Cleanup completed');
+      // console.log('✅ BackgroundController: Cleanup completed');
     } catch (error) {
       console.error('❌ BackgroundController: Cleanup failed:', error);
     }
@@ -367,7 +367,7 @@ export class BackgroundController {
 
 // ===== STARTUP SEQUENCE =====
 
-console.log('🚀 Background service worker starting with modular architecture');
+// console.log('🚀 Background service worker starting with modular architecture');
 
 // Service worker compatible error handlers (no window references)
 self.addEventListener('error', (event) => {
@@ -390,7 +390,7 @@ let isBackgroundReady = false;
 // Initialize with comprehensive error handling
 backgroundController.initialize().then(() => {
   isBackgroundReady = true;
-  console.log('✅ Background script fully operational with modular architecture');
+  // console.log('✅ Background script fully operational with modular architecture');
 
   // Notify any waiting clients that we're ready
   chrome.runtime.sendMessage({ action: 'BACKGROUND_READY' }).catch(() => {
@@ -403,10 +403,10 @@ backgroundController.initialize().then(() => {
 
   // Attempt recovery after delay
   setTimeout(() => {
-    console.log('🔄 Attempting background script recovery...');
+    // console.log('🔄 Attempting background script recovery...');
     backgroundController.initialize().then(() => {
       isBackgroundReady = true;
-      console.log('✅ Background script recovered successfully');
+      // console.log('✅ Background script recovered successfully');
     }).catch((retryError) => {
       console.error('❌ Background script recovery failed:', retryError);
       isBackgroundReady = false;
@@ -416,7 +416,7 @@ backgroundController.initialize().then(() => {
 
 // Service worker shutdown handler
 self.addEventListener('beforeunload', () => {
-  console.log('🧹 Background service worker shutting down...');
+  // console.log('🧹 Background service worker shutting down...');
   backgroundController.cleanup();
 });
 
@@ -424,4 +424,4 @@ self.addEventListener('beforeunload', () => {
 (globalThis as any).backgroundController = backgroundController;
 (globalThis as any).isBackgroundReady = () => isBackgroundReady;
 
-console.log('🔧 Background script modular architecture loaded and initializing...');
+// console.log('🔧 Background script modular architecture loaded and initializing...');

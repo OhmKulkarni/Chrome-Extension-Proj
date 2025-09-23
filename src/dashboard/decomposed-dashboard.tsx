@@ -36,7 +36,7 @@ const clearChromeData = async (): Promise<void> => {
     console.error('Dashboard: Error clearing data:', chrome.runtime.lastError)
     throw chrome.runtime.lastError
   } else if (response?.success) {
-    console.log('Dashboard: Data cleared successfully')
+    // console.log('Dashboard: Data cleared successfully')
     return
   } else {
     throw new Error('Failed to clear data')
@@ -181,7 +181,7 @@ const DecomposedDashboard: React.FC = () => {
       const actualLimit = Math.min(totalCount, MEMORY_LIMIT);
 
       if (totalCount > MEMORY_LIMIT) {
-        console.warn(`⚠️ Memory optimization: Loading ${actualLimit} of ${totalCount} records to prevent memory issues`);
+        // console.warn(`⚠️ Memory optimization: Loading ${actualLimit} of ${totalCount} records to prevent memory issues`);
       }
 
       // Now request data with memory limit
@@ -210,7 +210,7 @@ const DecomposedDashboard: React.FC = () => {
 
         return response.requests
       } else {
-        console.warn('⚠️ Failed to load all network requests:', response)
+        // console.warn('⚠️ Failed to load all network requests:', response)
         return []
       }
     } catch (error) {
@@ -221,7 +221,7 @@ const DecomposedDashboard: React.FC = () => {
 
   const loadAllConsoleErrors = useCallback(async () => {
     try {
-      console.log('🔄 Loading ALL console errors for sorting')
+      // console.log('🔄 Loading ALL console errors for sorting')
 
       // First, get the total count
       const totalResponse = await sendChromeMessage({
@@ -231,14 +231,14 @@ const DecomposedDashboard: React.FC = () => {
       })
 
       const totalCount = totalResponse?.total || 1000;
-      console.log('📊 Total available error records:', totalCount);
+      // console.log('📊 Total available error records:', totalCount);
 
       // MEMORY OPTIMIZATION: Enforce reasonable limits
       const MEMORY_LIMIT = 3000; // Smaller limit for errors (usually more verbose)
       const actualLimit = Math.min(totalCount, MEMORY_LIMIT);
 
       if (totalCount > MEMORY_LIMIT) {
-        console.warn(`⚠️ Memory optimization: Loading ${actualLimit} of ${totalCount} error records`);
+        // console.warn(`⚠️ Memory optimization: Loading ${actualLimit} of ${totalCount} error records`);
       }
 
       // Now request data with memory limit
@@ -254,12 +254,12 @@ const DecomposedDashboard: React.FC = () => {
           ...prevData,
           totalErrors: response.total || response.errors.length
         }))
-        console.log(`✅ Loaded ${response.errors.length} total console errors for sorting (${actualLimit}/${totalCount})`)
+        // console.log(`✅ Loaded ${response.errors.length} total console errors for sorting (${actualLimit}/${totalCount})`)
 
         // MEMORY CLEANUP: Schedule automatic cleanup
         setTimeout(() => {
           if (fullErrorData.length > 0) {
-            console.log('🧹 Auto-cleanup: Clearing full error data cache after inactivity');
+            // console.log('🧹 Auto-cleanup: Clearing full error data cache after inactivity');
             setFullErrorData([]);
             setErrorSortMode(false);
           }
@@ -267,7 +267,7 @@ const DecomposedDashboard: React.FC = () => {
 
         return response.errors
       } else {
-        console.warn('⚠️ Failed to load all console errors:', response)
+        // console.warn('⚠️ Failed to load all console errors:', response)
         return []
       }
     } catch (error) {
@@ -278,7 +278,7 @@ const DecomposedDashboard: React.FC = () => {
 
   const loadAllTokenEvents = useCallback(async () => {
     try {
-      console.log('🔄 Loading ALL token events for sorting')
+      // console.log('🔄 Loading ALL token events for sorting')
 
       // First, get the total count
       const totalResponse = await sendChromeMessage({
@@ -288,14 +288,14 @@ const DecomposedDashboard: React.FC = () => {
       })
 
       const totalCount = totalResponse?.total || 1000;
-      console.log('📊 Total available token records:', totalCount);
+      // console.log('📊 Total available token records:', totalCount);
 
       // MEMORY OPTIMIZATION: Enforce reasonable limits
       const MEMORY_LIMIT = 2000; // Even smaller limit for tokens (often contain large payloads)
       const actualLimit = Math.min(totalCount, MEMORY_LIMIT);
 
       if (totalCount > MEMORY_LIMIT) {
-        console.warn(`⚠️ Memory optimization: Loading ${actualLimit} of ${totalCount} token records`);
+        // console.warn(`⚠️ Memory optimization: Loading ${actualLimit} of ${totalCount} token records`);
       }
 
       // Now request data with memory limit
@@ -311,12 +311,12 @@ const DecomposedDashboard: React.FC = () => {
           ...prevData,
           totalTokenEvents: response.total || response.events.length
         }))
-        console.log(`✅ Loaded ${response.events.length} total token events for sorting (${actualLimit}/${totalCount})`)
+        // console.log(`✅ Loaded ${response.events.length} total token events for sorting (${actualLimit}/${totalCount})`)
 
         // MEMORY CLEANUP: Schedule automatic cleanup
         setTimeout(() => {
           if (fullTokenData.length > 0) {
-            console.log('🧹 Auto-cleanup: Clearing full token data cache after inactivity');
+            // console.log('🧹 Auto-cleanup: Clearing full token data cache after inactivity');
             setFullTokenData([]);
             setTokenSortMode(false);
           }
@@ -324,7 +324,7 @@ const DecomposedDashboard: React.FC = () => {
 
         return response.events
       } else {
-        console.warn('⚠️ Failed to load all token events:', response)
+        // console.warn('⚠️ Failed to load all token events:', response)
         return []
       }
     } catch (error) {
@@ -352,9 +352,9 @@ const DecomposedDashboard: React.FC = () => {
           networkRequests: response.requests,
           totalRequests: response.total || 0
         }))
-        console.log(`✅ Loaded ${response.requests.length} network requests, total: ${response.total}`)
+        // console.log(`✅ Loaded ${response.requests.length} network requests, total: ${response.total}`)
       } else {
-        console.warn('⚠️ Network requests response missing success/requests:', response)
+        // console.warn('⚠️ Network requests response missing success/requests:', response)
       }
     } catch (error) {
       console.error('❌ Error loading network requests page:', error)
@@ -363,7 +363,7 @@ const DecomposedDashboard: React.FC = () => {
 
   const loadConsoleErrorsPage = useCallback(async (page: number, limit: number = 10) => {
     try {
-      console.log(`🔄 Loading console errors page ${page} with limit ${limit}`)
+      // console.log(`🔄 Loading console errors page ${page} with limit ${limit}`)
       const offset = (page - 1) * limit
       const response = await sendChromeMessage({
         action: 'getConsoleErrors',
@@ -371,7 +371,7 @@ const DecomposedDashboard: React.FC = () => {
         offset
       })
 
-      console.log('📊 Console errors response:', response)
+      // console.log('📊 Console errors response:', response)
 
       if (response?.success && response?.errors) {
         setData(prevData => ({
@@ -379,9 +379,9 @@ const DecomposedDashboard: React.FC = () => {
           consoleErrors: response.errors,
           totalErrors: response.total || 0
         }))
-        console.log(`✅ Loaded ${response.errors.length} console errors, total: ${response.total}`)
+        // console.log(`✅ Loaded ${response.errors.length} console errors, total: ${response.total}`)
       } else {
-        console.warn('⚠️ Console errors response missing success/errors:', response)
+        // console.warn('⚠️ Console errors response missing success/errors:', response)
       }
     } catch (error) {
       console.error('❌ Error loading console errors page:', error)
@@ -390,7 +390,7 @@ const DecomposedDashboard: React.FC = () => {
 
   const loadTokenEventsPage = useCallback(async (page: number, limit: number = 10) => {
     try {
-      console.log(`🔄 Loading token events page ${page} with limit ${limit}`)
+      // console.log(`🔄 Loading token events page ${page} with limit ${limit}`)
       const offset = (page - 1) * limit
       const response = await sendChromeMessage({
         action: 'getTokenEvents',
@@ -398,7 +398,7 @@ const DecomposedDashboard: React.FC = () => {
         offset
       })
 
-      console.log('📊 Token events response:', response)
+      // console.log('📊 Token events response:', response)
 
       if (response?.success && response?.events) {
         setData(prevData => ({
@@ -406,9 +406,9 @@ const DecomposedDashboard: React.FC = () => {
           tokenEvents: response.events,
           totalTokenEvents: response.total || 0
         }))
-        console.log(`✅ Loaded ${response.events.length} token events, total: ${response.total}`)
+        // console.log(`✅ Loaded ${response.events.length} token events, total: ${response.total}`)
       } else {
-        console.warn('⚠️ Token events response missing success/events:', response)
+        // console.warn('⚠️ Token events response missing success/events:', response)
       }
     } catch (error) {
       console.error('❌ Error loading token events page:', error)
@@ -499,7 +499,7 @@ const DecomposedDashboard: React.FC = () => {
             enabled: newState
           });
         } catch (error) {
-          console.log('Could not send message to tab (may not have content script):', error);
+          // console.log('Could not send message to tab (may not have content script):', error);
         }
 
         // Update local state
@@ -544,7 +544,7 @@ const DecomposedDashboard: React.FC = () => {
             enabled: newState
           });
         } catch (error) {
-          console.log('Could not send message to tab (may not have content script):', error);
+          // console.log('Could not send message to tab (may not have content script):', error);
         }
 
         // Update local state
@@ -684,7 +684,7 @@ const DecomposedDashboard: React.FC = () => {
         await clearChromeData()
 
         // Clear memory cache
-        console.log('🧹 Clearing all memory caches as part of data clear');
+        // console.log('🧹 Clearing all memory caches as part of data clear');
         setFullNetworkData([]);
         setFullErrorData([]);
         setFullTokenData([]);
@@ -728,7 +728,7 @@ const DecomposedDashboard: React.FC = () => {
 
   // Export data handler - Collect and export data based on user selections
   const handleExportData = useCallback(async (options: ExportOptions): Promise<void> => {
-    console.log('🔄 Starting data export with options:', options);
+    // console.log('🔄 Starting data export with options:', options);
 
     try {
       const exportData: {
@@ -739,7 +739,7 @@ const DecomposedDashboard: React.FC = () => {
 
       // Collect data for each selected table
       for (const table of options.tables) {
-        console.log(`🔄 Collecting data for table: ${table}`);
+        // console.log(`🔄 Collecting data for table: ${table}`);
 
         let tableData: any[] = [];
 
@@ -800,7 +800,7 @@ const DecomposedDashboard: React.FC = () => {
         }
 
         exportData[table] = tableData;
-        console.log(`✅ Collected ${tableData.length} records for ${table}`);
+        // console.log(`✅ Collected ${tableData.length} records for ${table}`);
       }
 
       // Generate export file based on format
@@ -809,7 +809,7 @@ const DecomposedDashboard: React.FC = () => {
         const filename = generateExportFilename(options.tables, 'csv');
         downloadCSVFile(csvContent, filename);
 
-        console.log(`✅ CSV export completed: ${filename}`);
+        // console.log(`✅ CSV export completed: ${filename}`);
 
         // Show success notification
         const totalRecords = Object.values(exportData).reduce((sum, data) => sum + (data?.length || 0), 0);
@@ -998,42 +998,42 @@ const DecomposedDashboard: React.FC = () => {
 
   // Enhanced filter handlers with automatic full data loading
   const handleNetworkSearchChange = useCallback(async (searchTerm: string) => {
-    console.log('🔍 DECOMPOSED DASHBOARD - Network search changed to:', searchTerm);
+    // console.log('🔍 DECOMPOSED DASHBOARD - Network search changed to:', searchTerm);
     setNetworkSearchTerm(searchTerm);
 
     // CRITICAL: Always load full data for ANY search operation (including clearing search)
     // This ensures we have the complete dataset available for cross-page operations
-    console.log('🔄 Loading full data for search operation:', searchTerm);
+    // console.log('🔄 Loading full data for search operation:', searchTerm);
 
     // Enable network sort mode FIRST to ensure subsequent logic uses full data
     if (!networkSortMode) {
-      console.log('🔧 Enabling network sort mode for search');
+      // console.log('🔧 Enabling network sort mode for search');
       setNetworkSortMode(true);
     }
 
-    const fullData = await loadAllNetworkRequests();
-    console.log('📊 Loaded full data for search, count:', fullData?.length || 0);
+    // const fullData = await loadAllNetworkRequests();
+    // console.log('📊 Loaded full data for search, count:', fullData?.length || 0);
 
     // Force a small delay to ensure state updates have propagated
     setTimeout(() => {
-      console.log('🔄 Search operation complete, full data should be available');
+      // console.log('🔄 Search operation complete, full data should be available');
     }, 100);
 
     setCurrentPage(1); // Reset to first page when filtering
   }, [loadAllNetworkRequests, networkSortMode]);
 
   const handleNetworkFilterMethodChange = useCallback(async (method: string) => {
-    console.log('🔍 Filter method changed to:', method);
+    // console.log('🔍 Filter method changed to:', method);
     setNetworkFilterMethod(method);
 
     // CRITICAL: Always load full data for proper cross-page filtering
-    console.log('🔄 Loading full data for method filter:', method);
-    const fullData = await loadAllNetworkRequests();
-    console.log('📊 Full network data loaded for filtering, count:', fullData?.length || 0);
+    // console.log('🔄 Loading full data for method filter:', method);
+    // const fullData = await loadAllNetworkRequests();
+    // console.log('📊 Full network data loaded for filtering, count:', fullData?.length || 0);
 
     // Enable network sort mode to ensure we use full data
     if (!networkSortMode) {
-      console.log('🔧 Enabling network sort mode for filtering');
+      // console.log('🔧 Enabling network sort mode for filtering');
       setNetworkSortMode(true);
     }
 
@@ -1041,17 +1041,17 @@ const DecomposedDashboard: React.FC = () => {
   }, [loadAllNetworkRequests, networkSortMode]);
 
   const handleErrorSearchChange = useCallback(async (searchTerm: string) => {
-    console.log('🔍 Error search changed to:', searchTerm);
+    // console.log('🔍 Error search changed to:', searchTerm);
     setErrorSearchTerm(searchTerm);
 
     // CRITICAL: Always load full data for proper cross-page search
-    console.log('🔄 Loading full error data for search term:', searchTerm);
-    const fullData = await loadAllConsoleErrors();
-    console.log('📊 Loaded full error data for search, count:', fullData?.length || 0);
+    // console.log('🔄 Loading full error data for search term:', searchTerm);
+    // const fullData = await loadAllConsoleErrors();
+    // console.log('📊 Loaded full error data for search, count:', fullData?.length || 0);
 
     // Enable error sort mode to ensure we use full data
     if (!errorSortMode) {
-      console.log('🔧 Enabling error sort mode for search');
+      // console.log('🔧 Enabling error sort mode for search');
       setErrorSortMode(true);
     }
 
@@ -1067,17 +1067,17 @@ const DecomposedDashboard: React.FC = () => {
   }, [loadAllConsoleErrors]);
 
   const handleTokenSearchChange = useCallback(async (searchTerm: string) => {
-    console.log('🔍 Token search changed to:', searchTerm);
+    // console.log('🔍 Token search changed to:', searchTerm);
     setTokenSearchTerm(searchTerm);
 
     // CRITICAL: Always load full data for proper cross-page search
-    console.log('🔄 Loading full token data for search term:', searchTerm);
-    const fullData = await loadAllTokenEvents();
-    console.log('📊 Loaded full token data for search, count:', fullData?.length || 0);
+    // console.log('🔄 Loading full token data for search term:', searchTerm);
+    // const fullData = await loadAllTokenEvents();
+    // console.log('📊 Loaded full token data for search, count:', fullData?.length || 0);
 
     // Enable token sort mode to ensure we use full data
     if (!tokenSortMode) {
-      console.log('🔧 Enabling token sort mode for search');
+      // console.log('🔧 Enabling token sort mode for search');
       setTokenSortMode(true);
     }
 
@@ -1136,7 +1136,7 @@ const DecomposedDashboard: React.FC = () => {
     // Navigate to timeline view
     setMainView('timeline');
 
-    console.log('Navigating to timeline with focus on:', { timelineId, type, item });
+    // console.log('Navigating to timeline with focus on:', { timelineId, type, item });
   }, []);
 
   // Enhanced detail viewer functions for drag-up modal
@@ -1259,7 +1259,7 @@ const DecomposedDashboard: React.FC = () => {
 
   // MEMORY MANAGEMENT: Manual cleanup function
   const clearAllFullDataCache = useCallback(() => {
-    console.log('🧹 Manual memory cleanup: Clearing all full data caches');
+    // console.log('🧹 Manual memory cleanup: Clearing all full data caches');
     setFullNetworkData([]);
     setFullErrorData([]);
     setFullTokenData([]);
@@ -1281,11 +1281,11 @@ const DecomposedDashboard: React.FC = () => {
       const totalCachedRecords = fullNetworkData.length + fullErrorData.length + fullTokenData.length;
       const estimatedMemoryMB = totalCachedRecords * 0.001; // Rough estimate: 1KB per record
 
-      console.log(`📊 Memory usage: ${totalCachedRecords} records (~${estimatedMemoryMB.toFixed(1)}MB cached)`);
+      // console.log(`📊 Memory usage: ${totalCachedRecords} records (~${estimatedMemoryMB.toFixed(1)}MB cached)`);
 
       // Auto-cleanup if too much data is cached (>10MB estimated)
       if (estimatedMemoryMB > 10) {
-        console.warn('⚠️ High memory usage detected, triggering auto-cleanup');
+        // console.warn('⚠️ High memory usage detected, triggering auto-cleanup');
         clearAllFullDataCache();
       }
     };
@@ -1326,17 +1326,17 @@ const DecomposedDashboard: React.FC = () => {
     const hasFilters = (networkSearchTerm && networkSearchTerm.trim()) || (networkFilterMethod && networkFilterMethod !== 'all');
     const needsFullData = networkSortMode || hasFilters;
 
-    console.log('🔍 Filter Debug:', {
-      networkSearchTerm,
-      networkFilterMethod,
-      hasFilters,
-      needsFullData,
-      networkSortMode,
-      fullNetworkDataLength: fullNetworkData.length,
-      currentDataLength: data.networkRequests.length,
-      currentPage,
-      requestsPerPage
-    });
+    // console.log('🔍 Filter Debug:', {
+    //   networkSearchTerm,
+    //   networkFilterMethod,
+    //   hasFilters,
+    //   needsFullData,
+    //   networkSortMode,
+    //   fullNetworkDataLength: fullNetworkData.length,
+    //   currentDataLength: data.networkRequests.length,
+    //   currentPage,
+    //   requestsPerPage
+    // });
 
     // CRITICAL FIX: When we have active filters, we MUST use full data for proper cross-page search
     let dataToSort;
@@ -1344,25 +1344,25 @@ const DecomposedDashboard: React.FC = () => {
       // For filtering or sorting: ALWAYS prefer full dataset when available
       if (fullNetworkData.length > 0) {
         dataToSort = fullNetworkData;
-        console.log('🎯 Using full dataset for filtering/sorting:', fullNetworkData.length, 'records');
+        // console.log('🎯 Using full dataset for filtering/sorting:', fullNetworkData.length, 'records');
       } else {
         // Fallback to current page data while full data is loading
         dataToSort = data.networkRequests;
-        console.log('⏳ Full data not available, using current page as fallback:', data.networkRequests.length, 'records');
-        console.warn('🚨 CRITICAL: Search/filter active but full data not loaded! This will cause incorrect results.');
+        // console.log('⏳ Full data not available, using current page as fallback:', data.networkRequests.length, 'records');
+        // console.warn('🚨 CRITICAL: Search/filter active but full data not loaded! This will cause incorrect results.');
       }
     } else {
       // Normal pagination mode: use current page data
       dataToSort = data.networkRequests;
-      console.log('📄 Using paginated data:', data.networkRequests.length, 'records');
+      // console.log('📄 Using paginated data:', data.networkRequests.length, 'records');
     }
 
     if (!dataToSort || dataToSort.length === 0) {
-      console.log('❌ No data to sort/filter');
+      // console.log('❌ No data to sort/filter');
       return [];
     }
 
-    console.log('📊 Using data source:', needsFullData ? 'fullNetworkData' : 'data.networkRequests', 'length:', dataToSort.length);
+    // console.log('📊 Using data source:', needsFullData ? 'fullNetworkData' : 'data.networkRequests', 'length:', dataToSort.length);
 
     // Apply filtering first, before sorting
     let filteredData = dataToSort.filter((request: any) => {
@@ -1391,7 +1391,7 @@ const DecomposedDashboard: React.FC = () => {
       return true;
     });
 
-    console.log('📊 After filtering:', filteredData.length, 'requests');
+    // console.log('📊 After filtering:', filteredData.length, 'requests');
 
     // Apply sorting to filtered data
     const sorted = [...filteredData].sort((a, b) => {
@@ -1421,18 +1421,18 @@ const DecomposedDashboard: React.FC = () => {
       // Filtering or sorting mode: apply pagination to the filtered/sorted results
       const startIndex = (currentPage - 1) * requestsPerPage;
       const endIndex = startIndex + requestsPerPage;
-      console.log('🔄 Applying pagination to filtered results:', {
-        totalFiltered: sorted.length,
-        currentPage,
-        requestsPerPage,
-        startIndex,
-        endIndex,
-        showing: sorted.slice(startIndex, endIndex).length
-      });
+      // console.log('🔄 Applying pagination to filtered results:', {
+      //   totalFiltered: sorted.length,
+      //   currentPage,
+      //   requestsPerPage,
+      //   startIndex,
+      //   endIndex,
+      //   showing: sorted.slice(startIndex, endIndex).length
+      // });
       return sorted.slice(startIndex, endIndex);
     } else {
       // Normal mode: data is already paginated from backend, just return sorted current page
-      console.log('📄 Using pre-paginated data:', sorted.length, 'records');
+      // console.log('📄 Using pre-paginated data:', sorted.length, 'records');
       return sorted;
     }
   }, [data.networkRequests, fullNetworkData, networkSortMode, sortConfig, currentPage, requestsPerPage, networkSearchTerm, networkFilterMethod]);
@@ -1736,7 +1736,7 @@ const DecomposedDashboard: React.FC = () => {
     const hasFilters = (networkSearchTerm && networkSearchTerm.trim()) || (networkFilterMethod && networkFilterMethod !== 'all');
 
     if (hasFilters && !networkSortMode) {
-      console.log('🔧 Active filters detected, enabling sort mode and loading full data');
+      // console.log('🔧 Active filters detected, enabling sort mode and loading full data');
       setNetworkSortMode(true);
       loadAllNetworkRequests();
     } else if (!hasFilters && !networkSortMode) {
@@ -1751,7 +1751,7 @@ const DecomposedDashboard: React.FC = () => {
     const hasFilters = (errorSearchTerm && errorSearchTerm.trim()) || (errorFilterSeverity && errorFilterSeverity !== 'all');
 
     if (hasFilters && !errorSortMode) {
-      console.log('🔧 Active error filters detected, enabling sort mode and loading full data');
+      // console.log('🔧 Active error filters detected, enabling sort mode and loading full data');
       setErrorSortMode(true);
       loadAllConsoleErrors();
     } else if (!hasFilters && !errorSortMode) {
@@ -1766,7 +1766,7 @@ const DecomposedDashboard: React.FC = () => {
     const hasFilters = (tokenSearchTerm && tokenSearchTerm.trim()) || (tokenFilterType && tokenFilterType !== 'all');
 
     if (hasFilters && !tokenSortMode) {
-      console.log('🔧 Active token filters detected, enabling sort mode and loading full data');
+      // console.log('🔧 Active token filters detected, enabling sort mode and loading full data');
       setTokenSortMode(true);
       loadAllTokenEvents();
     } else if (!hasFilters && !tokenSortMode) {
@@ -1787,19 +1787,19 @@ const DecomposedDashboard: React.FC = () => {
         );
 
         if (hasTabLoggingChanges) {
-          console.log('📡 DASHBOARD: Tab logging states changed, updating sidebar...');
+          // console.log('📡 DASHBOARD: Tab logging states changed, updating sidebar...');
           loadTabsLoggingStatus();
         }
 
         if (changes.settings && changes.settings.newValue?.tokenLogging) {
-          console.log('⚙️ DASHBOARD: Token settings changed, updating display...');
+          // console.log('⚙️ DASHBOARD: Token settings changed, updating display...');
           loadSettings();
         }
       }
 
       if (namespace === 'sync') {
         if (changes.extensionSettings && changes.extensionSettings.newValue?.tokenLogging) {
-          console.log('⚙️ DASHBOARD: Extension token settings changed, updating display...');
+          // console.log('⚙️ DASHBOARD: Extension token settings changed, updating display...');
           loadSettings();
         }
       }
@@ -1846,7 +1846,7 @@ const DecomposedDashboard: React.FC = () => {
 
               if (heapPercentage > 85) {
                 // Skip refresh under high memory pressure
-                console.log('� Skipping dashboard refresh - high memory pressure')
+                // console.log('� Skipping dashboard refresh - high memory pressure')
                 currentInterval = Math.min(currentInterval * 1.5, maxInterval)
                 scheduleNextRefresh()
                 return
@@ -1859,7 +1859,7 @@ const DecomposedDashboard: React.FC = () => {
               }
             }
 
-            console.log('�🔄 DASHBOARD: Periodic data refresh...')
+            // console.log('�🔄 DASHBOARD: Periodic data refresh...')
             loadDashboardData()
           } catch (error) {
             console.error('Dashboard refresh error:', error)
@@ -1878,20 +1878,20 @@ const DecomposedDashboard: React.FC = () => {
       if (!isActive) return
 
       if (message.type === 'DATA_UPDATED') {
-        console.log('📡 DASHBOARD: Received data update notification:', message.dataType);
+        // console.log('📡 DASHBOARD: Received data update notification:', message.dataType);
 
         // Update counts AND refresh current page data
         loadDashboardData();
 
         // Also refresh the current page data to show new entries immediately
         if (message.dataType === 'network_request' && activeTable === 'network') {
-          console.log('🔄 DASHBOARD: Refreshing network requests page');
+          // console.log('🔄 DASHBOARD: Refreshing network requests page');
           loadNetworkRequestsPage(currentPage, requestsPerPage);
         } else if (message.dataType === 'console_error' && activeTable === 'errors') {
-          console.log('🔄 DASHBOARD: Refreshing console errors page');
+          // console.log('🔄 DASHBOARD: Refreshing console errors page');
           loadConsoleErrorsPage(currentErrorPage, errorsPerPage);
         } else if (message.dataType === 'token_event' && activeTable === 'tokens') {
-          console.log('🔄 DASHBOARD: Refreshing token events page');
+          // console.log('🔄 DASHBOARD: Refreshing token events page');
           loadTokenEventsPage(currentTokenPage, tokenEventsPerPage);
         }
       }
@@ -2287,7 +2287,7 @@ export default DecomposedDashboard;
 // Mount the component with ThemeProvider
 const container = document.getElementById('root');
 if (container) {
-  console.log('🚀 DECOMPOSED DASHBOARD IS LOADING - This confirms we are using the right file!');
+  // console.log('🚀 DECOMPOSED DASHBOARD IS LOADING - This confirms we are using the right file!');
   const root = createRoot(container);
   root.render(
     <ThemeProvider>

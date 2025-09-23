@@ -452,10 +452,10 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
 
     // Only setup auto-refresh if settings are loaded and auto mode is enabled
     if (chartSettingsLoading || chartSettings.refreshMode !== 'auto') {
-      console.log('📊 StatisticsCard: Skipping auto-refresh setup', {
-        loading: chartSettingsLoading,
-        mode: chartSettings.refreshMode
-      });
+      // console.log('📊 StatisticsCard: Skipping auto-refresh setup', {
+      //   loading: chartSettingsLoading,
+      //   mode: chartSettings.refreshMode
+      // });
       return;
     }
 
@@ -479,7 +479,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
   // Manual refresh effect - triggers when manual refresh is requested - FIXED: Remove loadAnalysisData dependency
   useEffect(() => {
     if (manualRefreshTrigger > 0) {
-      console.log('🔄 StatisticsCard: Manual refresh effect triggered');
+      // console.log('🔄 StatisticsCard: Manual refresh effect triggered');
       loadAnalysisData(analysisLimit);
     }
     // CRITICAL FIX: Remove loadAnalysisData from dependencies to prevent infinite loops
@@ -717,7 +717,7 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
           );
         case 'method-usage-daily':
           try {
-            console.log('About to render SimpleTestChart instead of MethodUsageDailyChart');
+            // console.log('About to render SimpleTestChart instead of MethodUsageDailyChart');
             return <SimpleTestChart networkRequests={chartData.networkRequests} />;
           } catch (chartError) {
             console.error('SimpleTestChart specific error:', chartError);
@@ -811,15 +811,15 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
       ? analysisData.tokenEvents
       : []; // PRODUCTION: Always use empty array when no data
 
-    console.log('GlobalStats calculation with data:', {
-      useAnalysisData,
-      networkRequests: effectiveNetworkRequests?.length || 0,
-      consoleErrors: effectiveConsoleErrors?.length || 0,
-      tokenEvents: effectiveTokenEvents?.length || 0,
-      analysisLoaded: analysisData.loaded,
-      analysisNetworkLength: analysisData.networkRequests?.length || 0,
-      dataSource: useAnalysisData ? 'analysis (latest N records)' : 'current page'
-    });
+    // console.log('GlobalStats calculation with data:', {
+    //   useAnalysisData,
+    //   networkRequests: effectiveNetworkRequests?.length || 0,
+    //   consoleErrors: effectiveConsoleErrors?.length || 0,
+    //   tokenEvents: effectiveTokenEvents?.length || 0,
+    //   analysisLoaded: analysisData.loaded,
+    //   analysisNetworkLength: analysisData.networkRequests?.length || 0,
+    //   dataSource: useAnalysisData ? 'analysis (latest N records)' : 'current page'
+    // });
 
     const calculatedTotalRequests = effectiveNetworkRequests.length;
     const calculatedTotalErrors = effectiveConsoleErrors.length;
@@ -947,18 +947,18 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({
     const avgResponseTime = responseTimeCount > 0 ? Math.round(totalResponseTime / responseTimeCount) : 0;
     const successRate = finalTotalRequests > 0 ? Math.round((successCount / finalTotalRequests) * 100) : 0;
 
-    console.log('Success Rate Debug:', {
-      successCount,
-      finalTotalRequests,
-      successRate,
-      sampleStatuses: effectiveNetworkRequests.slice(0, 5).map(req => ({
-        status: req.status,
-        response_status: req.response_status,
-        statusCode: req.statusCode,
-        response: req.response?.status,
-        finalStatus: req.status ?? req.response_status ?? req.response?.status ?? req.statusCode ?? 0
-      }))
-    });
+    // console.log('Success Rate Debug:', {
+    //   successCount,
+    //   finalTotalRequests,
+    //   successRate,
+    //   sampleStatuses: effectiveNetworkRequests.slice(0, 5).map(req => ({
+    //     status: req.status,
+    //     response_status: req.response_status,
+    //     statusCode: req.statusCode,
+    //     response: req.response?.status,
+    //     finalStatus: req.status ?? req.response_status ?? req.response?.status ?? req.statusCode ?? 0
+    //   }))
+    // });
 
     return {
       totalRequests: finalTotalRequests,

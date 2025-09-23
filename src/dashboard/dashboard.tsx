@@ -27,7 +27,7 @@ const clearChromeData = async (): Promise<void> => {
     console.error('Dashboard: Error clearing data:', chrome.runtime.lastError)
     throw chrome.runtime.lastError
   } else if (response?.success) {
-    console.log('Dashboard: Data cleared successfully')
+    // console.log('Dashboard: Data cleared successfully')
     return
   } else {
     throw new Error('Failed to clear data')
@@ -145,7 +145,7 @@ const DecomposedDashboard: React.FC = () => {
   // MEMORY LEAK FIX: Load all data for sorting purposes
   const loadAllNetworkRequests = useCallback(async () => {
     try {
-      console.log('🔄 Loading ALL network requests for sorting')
+      // console.log('🔄 Loading ALL network requests for sorting')
       const response = await sendChromeMessage({
         action: 'getNetworkRequests',
         limit: -1, // Request all data
@@ -158,10 +158,10 @@ const DecomposedDashboard: React.FC = () => {
           ...prevData,
           totalRequests: response.total || response.requests.length
         }))
-        console.log(`✅ Loaded ${response.requests.length} total network requests for sorting`)
+        // console.log(`✅ Loaded ${response.requests.length} total network requests for sorting`)
         return response.requests
       } else {
-        console.warn('⚠️ Failed to load all network requests:', response)
+        // console.warn('⚠️ Failed to load all network requests:', response)
         return []
       }
     } catch (error) {
@@ -172,7 +172,7 @@ const DecomposedDashboard: React.FC = () => {
 
   const loadAllConsoleErrors = useCallback(async () => {
     try {
-      console.log('🔄 Loading ALL console errors for sorting')
+      // console.log('🔄 Loading ALL console errors for sorting')
       const response = await sendChromeMessage({
         action: 'getConsoleErrors',
         limit: -1, // Request all data
@@ -185,10 +185,10 @@ const DecomposedDashboard: React.FC = () => {
           ...prevData,
           totalErrors: response.total || response.errors.length
         }))
-        console.log(`✅ Loaded ${response.errors.length} total console errors for sorting`)
+        // console.log(`✅ Loaded ${response.errors.length} total console errors for sorting`)
         return response.errors
       } else {
-        console.warn('⚠️ Failed to load all console errors:', response)
+        // console.warn('⚠️ Failed to load all console errors:', response)
         return []
       }
     } catch (error) {
@@ -199,7 +199,7 @@ const DecomposedDashboard: React.FC = () => {
 
   const loadAllTokenEvents = useCallback(async () => {
     try {
-      console.log('🔄 Loading ALL token events for sorting')
+      // console.log('🔄 Loading ALL token events for sorting')
       const response = await sendChromeMessage({
         action: 'getTokenEvents',
         limit: -1, // Request all data
@@ -212,10 +212,10 @@ const DecomposedDashboard: React.FC = () => {
           ...prevData,
           totalTokenEvents: response.total || response.events.length
         }))
-        console.log(`✅ Loaded ${response.events.length} total token events for sorting`)
+        // console.log(`✅ Loaded ${response.events.length} total token events for sorting`)
         return response.events
       } else {
-        console.warn('⚠️ Failed to load all token events:', response)
+        // console.warn('⚠️ Failed to load all token events:', response)
         return []
       }
     } catch (error) {
@@ -227,7 +227,7 @@ const DecomposedDashboard: React.FC = () => {
   // MEMORY LEAK FIX: Copy exact data loading logic from original dashboard
   const loadNetworkRequestsPage = useCallback(async (page: number, limit: number = 10) => {
     try {
-      console.log(`🔄 Loading network requests page ${page} with limit ${limit}`)
+      // console.log(`🔄 Loading network requests page ${page} with limit ${limit}`)
       const offset = (page - 1) * limit
       const response = await sendChromeMessage({
         action: 'getNetworkRequests',
@@ -235,7 +235,7 @@ const DecomposedDashboard: React.FC = () => {
         offset
       })
 
-      console.log('📊 Network requests response:', response)
+      // console.log('📊 Network requests response:', response)
 
       if (response?.success && response?.requests) {
         setData(prevData => ({
@@ -243,9 +243,9 @@ const DecomposedDashboard: React.FC = () => {
           networkRequests: response.requests,
           totalRequests: response.total || 0
         }))
-        console.log(`✅ Loaded ${response.requests.length} network requests, total: ${response.total}`)
+        // console.log(`✅ Loaded ${response.requests.length} network requests, total: ${response.total}`)
       } else {
-        console.warn('⚠️ Network requests response missing success/requests:', response)
+        // console.warn('⚠️ Network requests response missing success/requests:', response)
       }
     } catch (error) {
       console.error('❌ Error loading network requests page:', error)
@@ -254,7 +254,7 @@ const DecomposedDashboard: React.FC = () => {
 
   const loadConsoleErrorsPage = useCallback(async (page: number, limit: number = 10) => {
     try {
-      console.log(`🔄 Loading console errors page ${page} with limit ${limit}`)
+      // console.log(`🔄 Loading console errors page ${page} with limit ${limit}`)
       const offset = (page - 1) * limit
       const response = await sendChromeMessage({
         action: 'getConsoleErrors',
@@ -262,7 +262,7 @@ const DecomposedDashboard: React.FC = () => {
         offset
       })
 
-      console.log('📊 Console errors response:', response)
+      // console.log('📊 Console errors response:', response)
 
       if (response?.success && response?.errors) {
         setData(prevData => ({
@@ -270,9 +270,9 @@ const DecomposedDashboard: React.FC = () => {
           consoleErrors: response.errors,
           totalErrors: response.total || 0
         }))
-        console.log(`✅ Loaded ${response.errors.length} console errors, total: ${response.total}`)
+        // console.log(`✅ Loaded ${response.errors.length} console errors, total: ${response.total}`)
       } else {
-        console.warn('⚠️ Console errors response missing success/errors:', response)
+        // console.warn('⚠️ Console errors response missing success/errors:', response)
       }
     } catch (error) {
       console.error('❌ Error loading console errors page:', error)
@@ -281,7 +281,7 @@ const DecomposedDashboard: React.FC = () => {
 
   const loadTokenEventsPage = useCallback(async (page: number, limit: number = 10) => {
     try {
-      console.log(`🔄 Loading token events page ${page} with limit ${limit}`)
+      // console.log(`🔄 Loading token events page ${page} with limit ${limit}`)
       const offset = (page - 1) * limit
       const response = await sendChromeMessage({
         action: 'getTokenEvents',
@@ -289,7 +289,7 @@ const DecomposedDashboard: React.FC = () => {
         offset
       })
 
-      console.log('📊 Token events response:', response)
+      // console.log('📊 Token events response:', response)
 
       if (response?.success && response?.events) {
         setData(prevData => ({
@@ -297,9 +297,9 @@ const DecomposedDashboard: React.FC = () => {
           tokenEvents: response.events,
           totalTokenEvents: response.total || 0
         }))
-        console.log(`✅ Loaded ${response.events.length} token events, total: ${response.total}`)
+        // console.log(`✅ Loaded ${response.events.length} token events, total: ${response.total}`)
       } else {
-        console.warn('⚠️ Token events response missing success/events:', response)
+        // console.warn('⚠️ Token events response missing success/events:', response)
       }
     } catch (error) {
       console.error('❌ Error loading token events page:', error)
@@ -408,7 +408,7 @@ const DecomposedDashboard: React.FC = () => {
             enabled: newState
           });
         } catch (error) {
-          console.log('Could not send message to tab (may not have content script):', error);
+          // console.log('Could not send message to tab (may not have content script):', error);
         }
 
         // Update local state
@@ -448,7 +448,7 @@ const DecomposedDashboard: React.FC = () => {
             enabled: newState
           });
         } catch (error) {
-          console.log('Could not send message to tab (may not have content script):', error);
+          // console.log('Could not send message to tab (may not have content script):', error);
         }
 
         // Update local state
@@ -1199,19 +1199,19 @@ const DecomposedDashboard: React.FC = () => {
         );
 
         if (hasTabLoggingChanges) {
-          console.log('📡 DASHBOARD: Tab logging states changed, updating sidebar...');
+          // console.log('📡 DASHBOARD: Tab logging states changed, updating sidebar...');
           loadTabsLoggingStatus();
         }
 
         if (changes.settings && changes.settings.newValue?.tokenLogging) {
-          console.log('⚙️ DASHBOARD: Token settings changed, updating display...');
+          // console.log('⚙️ DASHBOARD: Token settings changed, updating display...');
           loadSettings();
         }
       }
 
       if (namespace === 'sync') {
         if (changes.extensionSettings && changes.extensionSettings.newValue?.tokenLogging) {
-          console.log('⚙️ DASHBOARD: Extension token settings changed, updating display...');
+          // console.log('⚙️ DASHBOARD: Extension token settings changed, updating display...');
           loadSettings();
         }
       }
@@ -1258,7 +1258,7 @@ const DecomposedDashboard: React.FC = () => {
 
               if (heapPercentage > 85) {
                 // Skip refresh under high memory pressure
-                console.log('� Skipping dashboard refresh - high memory pressure')
+                // console.log('� Skipping dashboard refresh - high memory pressure')
                 currentInterval = Math.min(currentInterval * 1.5, maxInterval)
                 scheduleNextRefresh()
                 return
@@ -1271,7 +1271,7 @@ const DecomposedDashboard: React.FC = () => {
               }
             }
 
-            console.log('�🔄 DASHBOARD: Periodic data refresh...')
+            // console.log('�🔄 DASHBOARD: Periodic data refresh...')
             loadDashboardData()
           } catch (error) {
             console.error('Dashboard refresh error:', error)
@@ -1290,20 +1290,20 @@ const DecomposedDashboard: React.FC = () => {
       if (!isActive) return
 
       if (message.type === 'DATA_UPDATED') {
-        console.log('📡 DASHBOARD: Received data update notification:', message.dataType);
+        // console.log('📡 DASHBOARD: Received data update notification:', message.dataType);
 
         // Update counts AND refresh current page data
         loadDashboardData();
 
         // Also refresh the current page data to show new entries immediately
         if (message.dataType === 'network_request' && activeTable === 'network') {
-          console.log('🔄 DASHBOARD: Refreshing network requests page');
+          // console.log('🔄 DASHBOARD: Refreshing network requests page');
           loadNetworkRequestsPage(currentPage, requestsPerPage);
         } else if (message.dataType === 'console_error' && activeTable === 'errors') {
-          console.log('🔄 DASHBOARD: Refreshing console errors page');
+          // console.log('🔄 DASHBOARD: Refreshing console errors page');
           loadConsoleErrorsPage(currentErrorPage, errorsPerPage);
         } else if (message.dataType === 'token_event' && activeTable === 'tokens') {
-          console.log('🔄 DASHBOARD: Refreshing token events page');
+          // console.log('🔄 DASHBOARD: Refreshing token events page');
           loadTokenEventsPage(currentTokenPage, tokenEventsPerPage);
         }
       }

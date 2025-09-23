@@ -40,7 +40,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     try {
       chrome.storage.sync.set({ themePreference: mode });
     } catch (error) {
-      console.warn('Failed to save theme preference:', error);
+      // console.warn('Failed to save theme preference:', error);
       // Fallback to localStorage for development
       localStorage.setItem('themePreference', mode);
     }
