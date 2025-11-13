@@ -301,6 +301,18 @@ export class NetworkProcessorModule {
           preflight: true
         };
         shouldFilter = this.isNoiseRequest(url, method, defaultFilters);
+      } else {
+        // DEFAULT: Apply telemetry filtering for fresh installations
+        // Only filter telemetry by default to avoid blocking legitimate requests
+        const defaultFilters = {
+          analytics: false,
+          advertising: false,
+          socialMedia: false,
+          telemetry: true,
+          staticAssets: false,
+          preflight: false
+        };
+        shouldFilter = this.isNoiseRequest(url, method, defaultFilters);
       }
 
       if (shouldFilter) {
