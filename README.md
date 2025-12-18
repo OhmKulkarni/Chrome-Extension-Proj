@@ -1,10 +1,11 @@
 # Web Analytics Chrome Extension
 
-**Enterprise-grade web analytics and network monitoring extension built with AI-assisted architecture design.**
+**Web analytics and network monitoring extension built with AI-assisted architecture design.**
 
 > **Development Timeline**: 6 weeks of active development (excluding documented breaks)
 > **Tech Stack**: Manifest V3, TypeScript, React, Vite, IndexedDB
 
+[![Watch the video](https://img.youtube.com/vi/UvhgR8JqxBs/maxresdefault.jpg)](https://youtu.be/UvhgR8JqxBs)
 ---
 
 ## **Key Features**
